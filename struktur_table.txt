@@ -1,0 +1,326 @@
+/****** Object:  Table [dbo].[PIP_T_WO]    Script Date: 16-Oct-2026 3:50:35 PM ******/
+SET ANSI_NULLS ON
+GO
+
+SET QUOTED_IDENTIFIER ON
+GO
+
+CREATE TABLE [dbo].[PIP_T_WO](
+	[KeyHD] [int] NOT NULL,
+	[CompanyID] [varchar](10) NOT NULL,
+	[LocationID] [varchar](3) NOT NULL,
+	[WONo] [varchar](10) NOT NULL,
+	[WODate] [smalldatetime] NOT NULL,
+	[WOType] [varchar](1) NOT NULL,
+	[StartDate] [smalldatetime] NOT NULL,
+	[IsJO] [bit] NOT NULL,
+	[JONo] [varchar](10) NOT NULL,
+	[PMType] [varchar](1) NOT NULL,
+	[EquipmentCode] [varchar](10) NULL,
+	[Description] [varchar](300) NOT NULL,
+	[LocationNo] [varchar](10) NOT NULL,
+	[SectionID] [varchar](10) NOT NULL,
+	[RequestedBy] [varchar](50) NOT NULL,
+	[CancelReason] [varchar](250) NOT NULL,
+	[IsApproved] [bit] NOT NULL,
+	[ApprovedUser] [varchar](50) NOT NULL,
+	[ApprovedDate] [datetime] NOT NULL,
+	[SIIAmount] [money] NOT NULL,
+	[isPrint] [bit] NULL,
+	[RePrint] [tinyint] NULL,
+	[IsDelete] [bit] NOT NULL,
+	[Feedback1] [tinyint] NULL,
+	[Feedback2] [tinyint] NULL,
+	[Feedback3] [tinyint] NULL,
+	[Feedback4] [tinyint] NULL,
+	[Feedback5] [tinyint] NULL,
+	[ProfitCenterNo] [varchar](10) NULL,
+	[SectionIDUser] [varchar](10) NULL,
+	[EntryUser] [varchar](10) NOT NULL,
+	[EntryDate] [datetime] NOT NULL,
+	[UpdateUser] [varchar](10) NOT NULL,
+	[UpdateDate] [datetime] NOT NULL,
+	[isApprovedDH] [bit] NULL,
+	[ApprovedDHUser] [varchar](50) NULL,
+	[ApprovedDHDate] [datetime] NULL,
+	[ReasonDH] [varchar](255) NULL,
+	[isApprovedHelpDesk] [bit] NULL,
+	[ApprovedHelpDeskUser] [varchar](50) NULL,
+	[ApprovedHelpDeskDate] [datetime] NULL,
+	[ReasonHelpDesk] [varchar](255) NULL,
+	[isRespondDC] [bit] NULL,
+	[ApprovedRespondDCUser] [varchar](50) NULL,
+	[ApprovedRespondDCDate] [datetime] NULL,
+	[ReasonRespondDC] [varchar](255) NULL,
+	[isCompleteDC] [bit] NULL,
+	[CompletedBy] [varchar](50) NOT NULL,
+	[CompletedDate] [datetime] NOT NULL,
+	[ReasonDC] [varchar](255) NULL,
+	[LastStatusTransaction] [varchar](100) NULL,
+	[isCompletedUser] [bit] NULL,
+	[CompletedUser] [varchar](50) NULL,
+	[CompletedDateUser] [datetime] NULL,
+	[ReasonUser] [varchar](255) NULL,
+	[EmployeeAssigned] [varchar](500) NULL,
+	[TemplateWOPM] [varchar](10) NULL,
+	[TemplateVersion] [varchar](10) NULL,
+	[RemarkTechnician] [varchar](500) NULL,
+	[RemarkSupervisor] [varchar](500) NULL,
+	[IsFollowUp] [bit] NULL,
+	[FollowUpWONo] [varchar](10) NULL,
+	[FollowUpSection] [varchar](10) NULL,
+	[FollowUpRemark] [varchar](300) NULL,
+	[IsSampling] [bit] NULL,
+ CONSTRAINT [PK_PIP_T_WO] PRIMARY KEY CLUSTERED 
+(
+	[KeyHD] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+
+/****** Object:  Table [dbo].[PIP_T_WO_CheckList]    Script Date: 16-Oct-2026 3:50:35 PM ******/
+SET ANSI_NULLS ON
+GO
+
+SET QUOTED_IDENTIFIER ON
+GO
+
+CREATE TABLE [dbo].[PIP_T_WO_CheckList](
+	[IDResult] [int] NOT NULL,
+	[KeyHD] [int] NOT NULL,
+	[IDItem] [int] NOT NULL,
+	[Value] [varchar](50) NULL,
+	[Remark] [varchar](500) NULL,
+	[EntryUser] [varchar](50) NULL,
+	[EntryDate] [datetime] NULL,
+	[UpdateUser] [varchar](50) NULL,
+	[UpdateDate] [datetime] NULL,
+	[IsAnomali] [bit] NULL,
+ CONSTRAINT [PK__PIP_T_WO__0F12D3A24F229A56] PRIMARY KEY CLUSTERED 
+(
+	[IDResult] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+
+/****** Object:  Table [dbo].[PIP_T_WO_CheckList_SubValue]    Script Date: 16-Oct-2026 3:50:35 PM ******/
+SET ANSI_NULLS ON
+GO
+
+SET QUOTED_IDENTIFIER ON
+GO
+
+CREATE TABLE [dbo].[PIP_T_WO_CheckList_SubValue](
+	[IDSubValue] [int] NOT NULL,
+	[IDResult] [int] NOT NULL,
+	[FieldName] [varchar](50) NOT NULL,
+	[Value] [decimal](10, 2) NULL,
+ CONSTRAINT [PK__PIP_T_WO__A27DFC3F53E74F73] PRIMARY KEY CLUSTERED 
+(
+	[IDSubValue] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+
+ALTER TABLE [dbo].[PIP_T_WO_CheckList] ADD  DEFAULT ((0)) FOR [IsAnomali]
+GO
+
+/****** Object:  Table [dbo].[PIP_M_CheckListWOPM]    Script Date: 16-Oct-2026 3:51:05 PM ******/
+SET ANSI_NULLS ON
+GO
+
+SET QUOTED_IDENTIFIER ON
+GO
+
+CREATE TABLE [dbo].[PIP_M_CheckListWOPM](
+	[IDTemplate] [int] NOT NULL,
+	[CompanyID] [varchar](10) NULL,
+	[LocationID] [varchar](3) NULL,
+	[TemplateNo] [varchar](10) NOT NULL,
+	[TemplateName] [varchar](200) NOT NULL,
+	[SectionID] [varchar](10) NOT NULL,
+	[IsActive] [bit] NOT NULL,
+	[EntryUser] [varchar](50) NULL,
+	[EntryDate] [datetime] NULL,
+	[UpdateUser] [varchar](50) NULL,
+	[UpdateDate] [datetime] NULL,
+ CONSTRAINT [PK_PIP_M_CheckListWOPM] PRIMARY KEY CLUSTERED 
+(
+	[IDTemplate] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+
+/****** Object:  Table [dbo].[PIP_M_CheckListWOPM_Item]    Script Date: 16-Oct-2026 3:51:05 PM ******/
+SET ANSI_NULLS ON
+GO
+
+SET QUOTED_IDENTIFIER ON
+GO
+
+CREATE TABLE [dbo].[PIP_M_CheckListWOPM_Item](
+	[IDItem] [int] NOT NULL,
+	[IDSection] [int] NOT NULL,
+	[ItemLabel] [varchar](500) NOT NULL,
+	[ItemType] [varchar](20) NOT NULL,
+	[OptionList] [varchar](200) NULL,
+	[MinValue] [decimal](10, 2) NULL,
+	[MaxValue] [decimal](10, 2) NULL,
+	[Unit] [varchar](20) NULL,
+	[ShowUnitInRange] [bit] NULL,
+	[IsValueRequired] [bit] NOT NULL,
+	[IsRemarkRequired] [bit] NOT NULL,
+	[DisplayOrder] [int] NOT NULL,
+	[IsToleranceRequired] [bit] NULL,
+	[MinTolerance] [money] NULL,
+	[MaxTolerance] [money] NULL,
+	[ModelCode] [varchar](50) NULL,
+ CONSTRAINT [PK__PIP_M_Ch__C9778A104599301C] PRIMARY KEY CLUSTERED 
+(
+	[IDItem] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+
+/****** Object:  Table [dbo].[PIP_M_CheckListWOPM_ItemGroup]    Script Date: 16-Oct-2026 3:51:05 PM ******/
+SET ANSI_NULLS ON
+GO
+
+SET QUOTED_IDENTIFIER ON
+GO
+
+CREATE TABLE [dbo].[PIP_M_CheckListWOPM_ItemGroup](
+	[IDGroup] [int] NOT NULL,
+	[IDItem] [int] NOT NULL,
+	[GroupName] [varchar](100) NOT NULL,
+	[FieldList] [varchar](100) NOT NULL,
+	[Unit] [varchar](20) NULL,
+	[DisplayOrder] [int] NOT NULL,
+ CONSTRAINT [PK__PIP_M_Ch__CB4260CA4B520972] PRIMARY KEY CLUSTERED 
+(
+	[IDGroup] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+
+/****** Object:  Table [dbo].[PIP_M_CheckListWOPM_Section]    Script Date: 16-Oct-2026 3:51:05 PM ******/
+SET ANSI_NULLS ON
+GO
+
+SET QUOTED_IDENTIFIER ON
+GO
+
+CREATE TABLE [dbo].[PIP_M_CheckListWOPM_Section](
+	[IDSection] [int] NOT NULL,
+	[IDVersion] [int] NOT NULL,
+	[SectionName] [varchar](200) NOT NULL,
+	[DisplayOrder] [int] NOT NULL,
+ CONSTRAINT [PK__PIP_M_Ch__F69B10B841C89F38] PRIMARY KEY CLUSTERED 
+(
+	[IDSection] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+
+/****** Object:  Table [dbo].[PIP_M_CheckListWOPM_Version]    Script Date: 16-Oct-2026 3:51:05 PM ******/
+SET ANSI_NULLS ON
+GO
+
+SET QUOTED_IDENTIFIER ON
+GO
+
+CREATE TABLE [dbo].[PIP_M_CheckListWOPM_Version](
+	[IDVersion] [int] NOT NULL,
+	[IDTemplate] [int] NULL,
+	[Version] [varchar](10) NULL,
+	[StatusOption] [varchar](50) NULL,
+	[EffectiveDate] [smalldatetime] NULL,
+	[Remark] [varchar](255) NULL,
+	[Status] [varchar](10) NULL,
+	[GroupEquipment] [varchar](10) NULL,
+	[EntryUser] [varchar](50) NOT NULL,
+	[EntryDate] [datetime] NULL,
+	[UpdateUser] [varchar](50) NULL,
+	[UpdateDate] [datetime] NULL,
+ CONSTRAINT [PK_PIP_M_CheckListWOPM_Version] PRIMARY KEY CLUSTERED 
+(
+	[IDVersion] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+
+ALTER TABLE [dbo].[PIP_M_CheckListWOPM] ADD  CONSTRAINT [DF__PIP_M_Che__IsAct__3EEC328D]  DEFAULT ((1)) FOR [IsActive]
+GO
+
+ALTER TABLE [dbo].[PIP_M_CheckListWOPM_Item] ADD  CONSTRAINT [DF_PIP_M_CheckListWOPM_Item_ShowUnitInRange]  DEFAULT ((1)) FOR [ShowUnitInRange]
+GO
+
+ALTER TABLE [dbo].[PIP_M_CheckListWOPM_Item] ADD  CONSTRAINT [DF__PIP_M_Che__IsVal__4781788E]  DEFAULT ((1)) FOR [IsValueRequired]
+GO
+
+ALTER TABLE [dbo].[PIP_M_CheckListWOPM_Item] ADD  CONSTRAINT [DF__PIP_M_Che__IsRem__48759CC7]  DEFAULT ((0)) FOR [IsRemarkRequired]
+GO
+
+
+CREATE TABLE [dbo].[PIP_M_Equipment](
+	[CompanyID] [varchar](10) NOT NULL,
+	[LocationID] [varchar](3) NOT NULL,
+	[EquipmentCode] [varchar](10) NOT NULL,
+	[EquipmentName] [varchar](100) NOT NULL,
+	[Manufacture] [varchar](100) NOT NULL,
+	[Serial] [varchar](100) NOT NULL,
+	[Model] [varchar](100) NOT NULL,
+	[Size] [varchar](100) NOT NULL,
+	[Capacity] [varchar](100) NOT NULL,
+	[Remarks] [varchar](100) NOT NULL,
+	[LocationNo] [varchar](10) NOT NULL,
+	[SectionID] [varchar](10) NOT NULL,
+	[ProfitCenterNo] [varchar](10) NULL,
+	[AssetType] [varchar](1) NULL,
+	[PurchasedDate] [smalldatetime] NULL,
+	[Condition] [varchar](1) NULL,
+	[GroupEquipment] [varchar](10) NULL,
+	[isActive] [bit] NOT NULL,
+	[EntryUser] [varchar](10) NOT NULL,
+	[EntryDate] [smalldatetime] NOT NULL,
+	[UpdateUser] [varchar](10) NOT NULL,
+	[UpdateDate] [smalldatetime] NOT NULL,
+	[IsSampling] [bit] NULL,
+	[ModelCode] [varchar](50) NULL,
+ CONSTRAINT [PK_PIP_M_Equipment] PRIMARY KEY CLUSTERED 
+(
+	[CompanyID] ASC,
+	[LocationID] ASC,
+	[EquipmentCode] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+
+/****** Object:  Table [dbo].[PIP_M_GroupEquipment]    Script Date: 16-Oct-2026 3:51:41 PM ******/
+SET ANSI_NULLS ON
+GO
+
+SET QUOTED_IDENTIFIER ON
+GO
+
+CREATE TABLE [dbo].[PIP_M_GroupEquipment](
+	[ID] [int] NOT NULL,
+	[CompanyID] [varchar](10) NOT NULL,
+	[LocationID] [varchar](3) NOT NULL,
+	[GroupEquipment] [varchar](10) NOT NULL,
+	[Description] [varchar](100) NOT NULL,
+	[SectionID] [varchar](10) NOT NULL,
+	[TemplateNo] [varchar](10) NOT NULL,
+	[Version] [varchar](10) NOT NULL,
+	[IsActive] [bit] NOT NULL,
+	[EntryUser] [varchar](50) NOT NULL,
+	[EntryDate] [smalldatetime] NOT NULL,
+	[UpdateUser] [varchar](50) NOT NULL,
+	[UpdateDate] [smalldatetime] NOT NULL,
+ CONSTRAINT [PK_PIP_M_GroupEquipment] PRIMARY KEY CLUSTERED 
+(
+	[ID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+
