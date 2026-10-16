@@ -496,6 +496,7 @@ function createNewItem()
         ShowUnitInRange:false,
         UseDefaultOption:false,
         OptionList:"",
+        RemarkRequiredOptions:[],
         MinValue:0,
         MaxValue:0,
         Groups:[]
@@ -510,6 +511,7 @@ function createNewVersion()
         EffectiveDate:"",
         Remark:"NEW VERSION",
         StatusOption:[],
+        RemarkRequiredOptions:[],
         GroupEquipment:""
     };
 }
@@ -2048,10 +2050,9 @@ async function cloneActiveVersion(idTemplate)
     evaluateDirtyState();
 }
 function showVersionPropertiesEvent(version) {
-    initVersionTagManager(
-        version.StatusOption || [],
-        version
-    );
+    version.RemarkRequiredOptions = Array.isArray(version.RemarkRequiredOptions) ? version.RemarkRequiredOptions : [];
+    initVersionTagManager(version.StatusOption || [], version);
+    renderVersionRemarkRequiredOptions(version);
     if (!isReadonlyMode)
     {
         document.querySelectorAll("#propVersionRemark, #propVersionDate, #propVersionName")
@@ -2235,6 +2236,15 @@ function showVersionProperties(version, isNewTemplate)
                         Default Option List
                     </label>
                     <div id="versionOptionTags" class="tag-input-container" data-field="StatusOption">
+                    </div>
+                </div>
+                <div class="mb-3" id="versionRemarkRequiredGroup">
+                    <label class="form-label text-xs fw-bold mb-1">
+                        Options Requiring Remark
+                    </label>
+                    <div id="versionRemarkRequiredOptions" class="d-flex flex-wrap gap-1"></div>
+                    <div class="form-text text-xs">
+                        Select the default options that require a remark.
                     </div>
                 </div>
     `
@@ -2541,6 +2551,9 @@ function normalizeVersionStructure(data)
 
     data.VersionInfo.StatusOption =
         data.VersionInfo.StatusOption || [];
+    data.VersionInfo.RemarkRequiredOptions = Array.isArray(data.VersionInfo.RemarkRequiredOptions)
+        ? data.VersionInfo.RemarkRequiredOptions
+        : [];
 
     //---------------------------------
     // Sections
@@ -2582,6 +2595,9 @@ function normalizeVersionStructure(data)
 
             item.OptionList =
                 item.OptionList || [];
+            item.RemarkRequiredOptions = Array.isArray(item.RemarkRequiredOptions)
+                ? item.RemarkRequiredOptions
+                : [];
 
             //---------------------------------
             // Group
@@ -3363,6 +3379,21 @@ function showItemProperties(itemData)
             </div>
         </div>
 
+        <div
+            id="itemRemarkRequiredGroup"
+            class="prop-group"
+            style="display: ${itemType === 'OPTION' ? 'block' : 'none'}">
+            <div class="prop-group-header">
+                Options Requiring Remark
+            </div>
+            <div class="prop-group-body">
+                <div id="itemRemarkRequiredOptions" class="d-flex flex-wrap gap-1"></div>
+                <div id="itemRemarkRequiredHint" class="form-text text-xs">
+                    Select custom options that require a remark.
+                </div>
+            </div>
+        </div>
+
 
         <!-- ===================================== -->
         <!-- GROUP -->
@@ -3462,11 +3493,12 @@ function showItemProperties(itemData)
 
     if (itemType === 'OPTION')
     {
+        itemData.RemarkRequiredOptions =
+            Array.isArray(itemData.RemarkRequiredOptions)
+                ? itemData.RemarkRequiredOptions
+                : [];
         initItemOptionTagManager(itemData.OptionList || [], itemData);
-        // new TagManager(
-            // 'propTagsContainer',
-            // itemData.OptionList || []
-        // );
+        refreshItemRemarkRequiredOptions(itemData);
     }
 
     // =========================================
@@ -3891,11 +3923,12 @@ function showItemProperties(itemData)
                     this.checked;    
                 if (this.checked) {
                     itemData.OptionList = [];
-                } 
+                }
                 optionContainer.style.display =
                     this.checked
                         ? 'none'
                         : '';
+                refreshItemRemarkRequiredOptions(itemData);
                 markCurrentVersionDirty();
             }
         );
@@ -5775,6 +5808,80 @@ class TagManager {
     }
 }
 // ======================================================
+// OPTION-BASED REMARK CONFIGURATION
+// ======================================================
+function renderRemarkRequiredOptionChecks(containerId, optionList, selectedOptions, onChange, emptyMessage) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    container.replaceChildren();
+
+    const options = Array.from(new Set((Array.isArray(optionList) ? optionList : [])
+        .map(option => String(option ?? "").trim()).filter(Boolean)));
+    const selected = new Set((Array.isArray(selectedOptions) ? selectedOptions : []).map(String));
+
+    if (!options.length) {
+        const empty = document.createElement("span");
+        empty.className = "text-muted text-xs";
+        empty.textContent = emptyMessage || "No options available.";
+        container.appendChild(empty);
+        return;
+    }
+
+    options.forEach((option, index) => {
+        const label = document.createElement("label");
+        label.className = "form-check form-check-inline border rounded px-2 py-1 mb-1";
+        label.style.cursor = isReadonlyMode ? "default" : "pointer";
+        const input = document.createElement("input");
+        input.type = "checkbox";
+        input.className = "form-check-input me-1";
+        input.value = option;
+        input.checked = selected.has(option);
+        input.disabled = isReadonlyMode;
+        input.id = `${containerId}_${index}`;
+        const text = document.createElement("span");
+        text.className = "form-check-label text-xs";
+        text.textContent = option;
+        input.addEventListener("change", function () {
+            onChange(Array.from(container.querySelectorAll("input[type='checkbox']:checked")).map(el => el.value));
+        });
+        label.append(input, text);
+        container.appendChild(label);
+    });
+}
+
+function renderVersionRemarkRequiredOptions(version) {
+    if (!version) return;
+    const available = Array.isArray(version.StatusOption) ? version.StatusOption : [];
+    const availableSet = new Set(available.map(String));
+    version.RemarkRequiredOptions = (Array.isArray(version.RemarkRequiredOptions) ? version.RemarkRequiredOptions : [])
+        .map(String).filter(option => availableSet.has(option));
+    renderRemarkRequiredOptionChecks("versionRemarkRequiredOptions", available, version.RemarkRequiredOptions,
+        values => { version.RemarkRequiredOptions = values; markCurrentVersionDirty(); },
+        "Add options to Default Option List first.");
+}
+
+function refreshItemRemarkRequiredOptions(itemData) {
+    const group = document.getElementById("itemRemarkRequiredGroup");
+    const hint = document.getElementById("itemRemarkRequiredHint");
+    if (!group || !itemData) return;
+    if (itemData.ItemType !== "OPTION") { group.style.display = "none"; return; }
+    group.style.display = "";
+    if (itemData.UseDefaultOption) {
+        const list = document.getElementById("itemRemarkRequiredOptions");
+        if (list) list.replaceChildren();
+        if (hint) hint.textContent = "Using Version Default Option. Configure required remarks in Version Properties.";
+        return;
+    }
+    if (hint) hint.textContent = "Select custom options that require a remark.";
+    itemData.RemarkRequiredOptions = Array.isArray(itemData.RemarkRequiredOptions) ? itemData.RemarkRequiredOptions : [];
+    const availableSet = new Set((Array.isArray(itemData.OptionList) ? itemData.OptionList : []).map(String));
+    itemData.RemarkRequiredOptions = itemData.RemarkRequiredOptions.map(String).filter(option => availableSet.has(option));
+    renderRemarkRequiredOptionChecks("itemRemarkRequiredOptions", itemData.OptionList || [], itemData.RemarkRequiredOptions,
+        values => { itemData.RemarkRequiredOptions = values; markCurrentVersionDirty(); },
+        "Add custom options first.");
+}
+
+// ======================================================
 // VERSION TAG MANAGER
 // ======================================================
 function initVersionTagManager(optionList, version) {
@@ -5786,7 +5893,10 @@ function initVersionTagManager(optionList, version) {
             readonly: isReadonlyMode,
             onChange: function(tags) {
                 version.StatusOption = [...tags];
-                // templateCache.Dirty = true;
+                const allowed = new Set(version.StatusOption.map(String));
+                version.RemarkRequiredOptions = (Array.isArray(version.RemarkRequiredOptions) ? version.RemarkRequiredOptions : [])
+                    .map(String).filter(option => allowed.has(option));
+                renderVersionRemarkRequiredOptions(version);
                 markCurrentVersionDirty();
             }
         }
@@ -5805,7 +5915,10 @@ function initItemOptionTagManager(optionList, itemData) {
             readonly: isReadonlyMode,
             onChange: function(tags) {
                 itemData.OptionList = [...tags];
-                // templateCache.Dirty = true;
+                const allowed = new Set(itemData.OptionList.map(String));
+                itemData.RemarkRequiredOptions = (Array.isArray(itemData.RemarkRequiredOptions) ? itemData.RemarkRequiredOptions : [])
+                    .map(String).filter(option => allowed.has(option));
+                refreshItemRemarkRequiredOptions(itemData);
                 markCurrentVersionDirty();
             }
         }
@@ -8426,10 +8539,23 @@ async function bindModelDropdown(selectedValue)
 }
 function normalizeTemplateStructure(structure)
 {
+    const versionRequiredOptions = Array.isArray(structure.VersionInfo?.RemarkRequiredOptions)
+        ? structure.VersionInfo.RemarkRequiredOptions.map(String)
+        : [];
     (structure.Sections || []).forEach(function(sec){
-
         (sec.Items || []).forEach(function(item){
-
+            if (item.ItemType === "OPTION") {
+                if (item.UseDefaultOption) {
+                    // WorkOrder runtime consumes item-level configuration.
+                    item.RemarkRequiredOptions = [...versionRequiredOptions];
+                } else {
+                    const availableOptions = Array.isArray(item.OptionList) ? item.OptionList.map(String) : [];
+                    item.RemarkRequiredOptions = (Array.isArray(item.RemarkRequiredOptions) ? item.RemarkRequiredOptions : [])
+                        .map(String).filter(option => availableOptions.includes(option));
+                }
+            } else {
+                item.RemarkRequiredOptions = [];
+            }
             item.ModelCode =
                 (item.ModelCode || "").trim();
 

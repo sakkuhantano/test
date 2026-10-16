@@ -2250,7 +2250,14 @@ async function getTemplate(templateNo, modelCode) {
                                     itemModelCode === "" ||
                                     itemModelCode === currentModelCode
                                 );
-                            });
+                            }).map(item => ({
+                                ...item,
+                                remarkRequiredOptions: Array.isArray(item.remarkRequiredOptions)
+                                    ? item.remarkRequiredOptions.map(String)
+                                    : Array.isArray(item.RemarkRequiredOptions)
+                                        ? item.RemarkRequiredOptions.map(String)
+                                        : []
+                            }));
                         return {
                             ...section,
                             items: filteredItems
@@ -2790,7 +2797,15 @@ function validateItem(item, container) {
     // =====================================
     // REMARK REQUIRED
     // =====================================
-    if (!error && item.isRemarkRequired) {
+    const requiredOptionRemarks = Array.isArray(item.remarkRequiredOptions)
+        ? item.remarkRequiredOptions
+        : Array.isArray(item.RemarkRequiredOptions)
+            ? item.RemarkRequiredOptions
+            : [];
+    const selectedOptionRequiresRemark = item.type === "OPTION" && !!checked &&
+        requiredOptionRemarks.map(String).includes(String(checked.value));
+
+    if (!error && (item.isRemarkRequired || selectedOptionRequiresRemark)) {
 
         let remark = remarkEl?.value?.trim();
 
