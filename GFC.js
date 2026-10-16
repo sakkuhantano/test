@@ -1,0 +1,1159 @@
+var db = null;
+let html5QrCode = null;
+let scanning = false;
+
+// Mematikan menu klik kanan
+document.addEventListener('contextmenu', function(e) {
+    e.preventDefault();
+}, false);
+
+// Opsional: Mematikan seleksi teks agar tampilan lebih seperti aplikasi native
+document.addEventListener('selectstart', function(e) {
+    e.preventDefault();
+});
+
+document.addEventListener('touchstart', function (event) {
+    if (event.touches.length > 1) {
+        event.preventDefault(); // Mematikan zoom jika lebih dari 1 jari menyentuh layar
+    }
+}, { passive: false });
+
+document.addEventListener('gesturestart', function (event) {
+    event.preventDefault(); // Khusus untuk browser Safari/iOS
+});
+
+function formatMsDate(rawDate) {
+    if (!rawDate) return '-';
+    
+    let d;
+
+    if (rawDate instanceof Date) {
+        d = rawDate;
+    } else if (typeof rawDate === 'number') {
+        d = new Date(rawDate);
+    } else {
+        const match = String(rawDate).match(/\d+/);
+        if (!match) return '-';
+        d = new Date(parseInt(match, 10));
+    }
+    
+    if (d instanceof Date && !isNaN(d.getTime())) {
+        // Array nama bulan manual (pasti 3 huruf)
+        const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+        
+        const dd = String(d.getDate()).padStart(2, '0'); // Garansi 2 digit angka (misal: 04)
+        const mmm = months[d.getMonth()];                 // Mengambil 3 huruf bulan
+        const yyyy = d.getFullYear();                     // Tahun 4 digit
+        
+        return `${dd}-${mmm}-${yyyy}`;
+    }
+    
+    return '-';
+}
+
+
+//function f_getBody(p_prm) {
+//    return JSON.stringify(p_prm);
+//}
+
+
+function F_format_HC(number, CurrencyID) {
+    //return new Intl.NumberFormat('id-ID', {
+    //    style: 'currency',
+    //    currency: 'IDR',
+    //    minimumFractionDigits: 0
+    //}).format(number);
+    return `${CurrencyID} ${number.toLocaleString('id-ID')}`;
+}
+
+
+function setInputValue(input, value) {
+    const raw = (value || '').replace(/\D/g, '');
+    input.dataset.raw = raw;
+    input.value = raw;
+}
+
+function showLogin() {
+    if (!window.location.href.includes("Login.aspx")) {
+        //window.location.replace("Login.aspx");
+        window.location.href="../Login.aspx";
+    }
+}
+async function validateSession(browserGuid, serverGuid, token) {
+    try {
+		const path = (window.location.pathname.toLowerCase().includes("login.aspx") ? "" : "../")
+        const response =
+            await fetch(path + "Login.aspx/ValidateSession", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    browserGuid: browserGuid,
+                    serverGuid: serverGuid,
+                    token: token
+                })
+            });
+        if (!response.ok) {
+            console.error("HTTP Error:", response.status);
+            return false;
+        }
+
+        const res = await response.json();
+		return res.d
+		
+        // if (res.d === true) {
+            // // kalau di login page → redirect ke dashboard
+            // if (window.location.pathname.toLowerCase().includes("login.aspx")) 
+            // {
+                // window.location.href = "dashboard.aspx";
+            // }
+        // }
+        // else {
+            // //localStorage.removeItem("loginData");
+            // showLogin();
+        // }
+    }
+    catch (err) {
+        console.error("validateSession error:", err);
+        //localStorage.removeItem("loginData");
+        //showLogin();
+		return false;
+    }
+}
+
+async function checkLogin() {
+    var data = getLoginData();
+    if (!data) {
+        showLogin();
+        return;
+    }
+	var success = await validateSession(data.browserGuid, data.serverGuid, data.token);
+	if (!success) {
+        data.lastsyncm="";
+        data.lastsyncw="";
+        setLoginData(data);
+		showLogin();
+	}
+	
+    // try {
+        // await validateSession(data.browserGuid, data.serverGuid, data.token);
+    // }
+    // catch (ex) {
+        // //localStorage.removeItem("loginData");
+        // showLogin();
+    // }
+}
+function setLoginData(data) {
+    var encoded = btoa(JSON.stringify(data));
+    localStorage.setItem("loginData", encoded);
+}
+function getLoginData() {
+    let data = localStorage.getItem("loginData");
+    if (!data) return null;
+    try {
+        return JSON.parse(atob(data));
+    }
+    catch (e) {
+        console.error("Invalid loginData");
+        return null;
+    }
+}
+function initIndexedDB() {
+    return new Promise((resolve, reject) => {
+    const request = indexedDB.open("OfflineAppDB", 1);
+
+    // JALAN jika DB belum ada / version naik
+    request.onupgradeneeded = function (event) {
+        db = event.target.result;
+        let tx = event.target.transaction;
+        let store;
+        console.log("Creating IndexedDB structure...");
+        // Employees
+        // if (!db.objectStoreNames.contains("employees")) {
+            // let store = db.createObjectStore(
+                // "employees",
+                // { keyPath: "EmployeeID" }
+            // );
+            // //store.createIndex(
+            // //    "EmployeeID",
+            // //    "EmployeeID",
+            // //    { unique: true }
+            // //);
+        // }
+        // Companies
+        if (!db.objectStoreNames.contains("companies")) {
+            store = db.createObjectStore(
+                "companies",
+                { keyPath: "companylocation" }
+            );
+            //store.createIndex(
+            //    "companylocation",
+            //    "companylocation",
+            //    { unique: true }
+            //);
+        }
+
+        // WorkOrder
+        if (!db.objectStoreNames.contains("workorder")) {
+            store = db.createObjectStore(
+                "workorder",
+                { keyPath: "KeyHD" }
+            );
+            //store.createIndex(
+            //    "KeyHD",
+            //    "KeyHD",
+            //    { unique: true }
+            //);
+        }
+        if (!store.indexNames.contains("by_company_location_lastupdated")) {
+            store.createIndex("by_company_location_lastupdated", ["CompanyID", "LocationID", "LastUpdated"], { unique: false });
+        }
+
+        if (!db.objectStoreNames.contains("checklist_templates")) {
+            store = db.createObjectStore(
+                "checklist_templates",
+                { keyPath: "TemplateNo" }
+            );
+        }
+        //if (!db.objectStoreNames.contains("checklist_sections")) {
+        //    let store = db.createObjectStore(
+        //        "checklist_sections",
+        //        { keyPath: "IDSection" }
+        //    );
+        //}
+        //if (!db.objectStoreNames.contains("checklist_items")) {
+        //    let store = db.createObjectStore(
+        //        "checklist_items",
+        //        { keyPath: "IDItem" }
+        //    );
+        //}
+        //if (!db.objectStoreNames.contains("checklist_groups")) {
+        //    let store = db.createObjectStore(
+        //        "checklist_groups",
+        //        { keyPath: "IDGroup" }
+        //    );
+        //}
+        if (!db.objectStoreNames.contains("wo_checklist")) {
+            store = db.createObjectStore(
+                "wo_checklist",
+                { keyPath: "KeyHD" }
+            );
+        }
+        else {
+            store = tx.objectStore("wo_checklist");
+        }
+        if (!store.indexNames.contains("KeyHD")) {
+            store.createIndex("KeyHD", "KeyHD", { unique: false });
+        }
+        if (!db.objectStoreNames.contains("wo_photos")) {
+            store = db.createObjectStore(
+                "wo_photos",
+                { keyPath: "ID", autoIncrement: true }
+            );
+            store.createIndex("KeyHD", "KeyHD", { unique: false });
+            // store.createIndex("Type", "Type", { unique: false }); // BEFORE / AFTER
+            // store.createIndex("SyncStatus", "SyncStatus", { unique: false });
+        }
+        else {
+            store = tx.objectStore("wo_photos");
+        }
+        if (!store.indexNames.contains("compositeKey")) {
+            // Membuat index gabungan berdasarkan KeyHD, Type, dan SeqNo
+            store.createIndex("compositeKey", ["KeyHD", "Type", "OrderNo"], { unique: false });
+            // console.log("Index compositeKey berhasil ditambahkan!");
+        }        
+        
+        // Meter Cache
+        if (!db.objectStoreNames.contains("meter")) {
+            store = db.createObjectStore(
+                "meter",
+                { keyPath: ["CompanyID", "LocationID", "Type", "MeterNo"] }
+            );
+        }
+        else {
+            store = tx.objectStore("meter");
+        }
+        if (!store.indexNames.contains("by_company_location")) {
+            store.createIndex("by_company_location", ["CompanyID", "LocationID"], { unique: false });
+        }
+        if (!store.indexNames.contains("by_company_location_type")) {
+            store.createIndex("by_company_location_type", ["CompanyID", "LocationID", "Type", "MeterNo"], { unique: false });
+        }
+        if (!store.indexNames.contains("by_period")) {
+            store.createIndex("by_period", ["CompanyID", "LocationID", "Period"], { unique: false });
+        }        
+        if (!store.indexNames.contains("by_sync_date")) {
+            store.createIndex("by_sync_date", ["CompanyID", "LocationID", "SyncDate"], { unique: false });
+        }        
+        if (!store.indexNames.contains("by_company_location_status")) {
+            store.createIndex("by_company_location_status", ["CompanyID", "LocationID", "Status"], { unique: false });
+        }        
+        if (!store.indexNames.contains("by_type_status")) {
+            store.createIndex("by_type_status", ["Type","Status"], { unique: false });
+        }        
+        
+        // if (!db.objectStoreNames.contains("meter_photos")) {
+        //     store = db.createObjectStore(
+        //         "meter_photos",
+        //         { keyPath: "ID", autoIncrement: true }
+        //     );
+        // }
+        // else {
+        //     store = tx.objectStore("meter_photos");
+        // }
+        // if (!store.indexNames.contains("compositeKey")) {
+        //     store.createIndex("compositeKey", ["MeterNo", "Type", "Period"], { unique: false });
+        // }        
+
+        // Master Tenant
+        // if (!db.objectStoreNames.contains("tenant")) {
+        //     let store = db.createObjectStore(
+        //         "tenant",
+        //         { keyPath: "TenantID" }
+        //     );
+        // }
+
+        //// Sync Queue
+        //if (!db.objectStoreNames.contains("sync_queue")) {
+        //    db.createObjectStore(
+        //        "sync_queue",
+        //        { keyPath: "id", autoIncrement: true }
+        //    );
+        //}
+
+        //// Settings
+        //if (!db.objectStoreNames.contains("settings")) {
+        //    db.createObjectStore(
+        //        "settings",
+        //        { keyPath: "key" }
+        //    );
+        //}
+    };
+
+    request.onsuccess = function (event) {
+        db = event.target.result;
+        console.log("IndexedDB ready.");
+        resolve(true);
+        document.dispatchEvent(
+            new Event("dbReady")
+        );
+    };
+
+    request.onerror = function (event) {
+        console.error("IndexedDB error:", event.target.error);
+        reject(event.target.error);
+    };
+});
+}
+
+// async function setLastSyncMeter(companyId, locationId) {
+//     return new Promise((resolve, reject) => {
+//         const tx = db.transaction("meter", "readonly");
+//         const store = tx.objectStore("meter");
+
+//         // Batas bawah diubah tanpa elemen ke-3 agar kompatibel baik tipe data String maupun Number
+//         const keyRange = IDBKeyRange.bound(
+//             [companyId, locationId], 
+//             [companyId, locationId, []]
+//         );
+
+//         let topPeriod = null;
+//         let maxSyncDate = null;
+
+//         // Ambil TOP 1 Period
+//         const indexPeriod = store.index("by_period");
+//         indexPeriod.openCursor(keyRange, "prev").onsuccess = function(e) {
+//             const cursor = e.target.result;
+//             if (cursor) {
+//                 topPeriod = cursor.value.Period; 
+//             }
+//         };
+
+//         // Ambil Max SyncDate
+//         const indexSync = store.index("by_sync_date");
+//         indexSync.openCursor(keyRange, "prev").onsuccess = function(e) {
+//             const cursor = e.target.result;
+//             if (cursor) {
+//                 maxSyncDate = cursor.value.SyncDate; 
+//             }
+//         };    
+
+//         tx.oncomplete = function() {
+//             try {
+//                 const login = getLoginData();
+                
+//                 // Pastikan object login ada sebelum memodifikasi propertinya
+//                 if (login) {
+//                     if (topPeriod && login.lastMeterPeriod === "") {
+//                         login.lastMeterPeriod = formatJsonDate(topPeriod);
+//                     }
+//                     if (maxSyncDate && login.lastMeterSync === "1900-01-02") {
+//                         login.lastMeterSync = maxSyncDate;
+//                     }
+//                     setLoginData(login);
+//                 }
+                
+//                 // PENTING: Selesaikan promise agar 'await' di luar bisa lanjut jalan
+//                 resolve({ topPeriod, maxSyncDate }); 
+//             } catch (err) {
+//                 reject(err);
+//             }
+//         };
+
+//         tx.onerror = function() {
+//             console.error("Gagal mengambil data terfilter:", tx.error);
+//             // PENTING: Lempar error jika transaksi gagal
+//             reject(tx.error); 
+//         };
+//     });
+// }
+
+async function saveCompanyList(companyArray) {
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction(
+            "companies",
+            "readwrite"
+        );
+    const store = tx.objectStore("companies");
+
+    // Bersihkan dulu
+    store.clear();
+
+    // Simpan ulang
+    companyArray.forEach(company => {
+        store.put({
+            companylocation: company.companylocation,
+            companyname: company.companyname
+        });
+});
+tx.oncomplete = () => resolve(true);
+tx.onerror = (e) => reject(e);
+});
+}
+
+async function getCompanyList() {
+    return new Promise((resolve, reject) => {
+        const tx =
+            db.transaction(
+                "companies",
+                "readonly"
+            );
+    const store = tx.objectStore("companies");
+    const request = store.getAll();
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = (e) => reject(e);
+});
+}
+
+async function countPendingInTable(tableName) {
+    return new Promise((resolve, reject) => {
+        const tx =
+            db.transaction(
+                tableName,
+                "readonly"
+            );
+    const store =
+        tx.objectStore(tableName);
+    const index =
+        store.index("syncStatus");
+    const request =
+        index.count("PENDING");
+    request.onsuccess =
+        () => resolve(request.result);
+    request.onerror =
+        (e) => reject(e);
+});
+}
+function parseDate(value) {
+    if (!value)
+        return "";
+    let date;
+    // format ASP.NET lama
+    if (typeof value === "string" &&
+        value.includes("/Date(")) {
+        let timestamp = parseInt(
+            value.match(/\d+/)[0]
+        );
+        date = new Date(timestamp);
+    }
+    else {
+        date = new Date(value);
+    }
+    let dd = String(date.getDate()).padStart(2, "0");
+    let mm = String(date.getMonth() + 1)
+        .padStart(2, "0");
+    let yyyy = date.getFullYear();
+    return `${dd}/${mm}/${yyyy}`;
+}
+
+// function parseDotNetDate(dotNetDate) {
+
+//     if (!dotNetDate) return "";
+
+//     let timestamp =
+//         parseInt(
+//             dotNetDate.replace(
+//                 /\/Date\((\d+)\)\//,
+//                 "$1"
+//             )
+//         );
+
+//     let d = new Date(timestamp);
+
+//     return d.toLocaleDateString(
+//         "en-GB",
+//         {
+//             day: "2-digit",
+//             month: "short",
+//             year: "numeric"
+//         }
+//     );
+
+// }
+
+async function getEmployees() {
+    try {
+        if (!navigator.onLine) return;
+        let data = getLoginData();
+        let response = await fetch(
+            "dashboard.aspx/getEmployees",
+            {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    lastSync: data.lastsyncm,
+                    employeeid: data.employeeid
+                })
+            }
+        );
+        let result = await response.json();
+        let employees = result.d.data;
+        let serverTime = result.d.serverTime;
+        if (!employees) return;
+        let serverIds = new Set();
+        var tx = db.transaction(
+            "employees",
+            "readwrite"
+        );
+        var store = tx.objectStore(
+            "employees"
+        );
+        for (let emp of employees) {
+            serverIds.add(emp.EmployeeID, emp.Name);
+            // UPSERT employee aktif
+            store.put(emp);
+        }
+    let cursorRequest = store.openKeyCursor();
+    cursorRequest.onsuccess =
+    function (event) {
+        let cursor = event.target.result;
+        if (cursor) {
+            let localId = cursor.key;
+            if (!serverIds.has(localId)) {
+                store.delete(localId);
+            }
+            cursor.continue();
+        }
+
+    };
+    // update last sync time
+    data.lastsyncm = serverTime
+    setLoginData(data);
+    console.log("Employee sync success");
+}
+    catch (err) {
+    console.error("Employee sync failed:",err);
+}
+}
+
+async function getCheckList() {
+    try {
+        if (!navigator.onLine) return;
+        let data = getLoginData();
+        let response = await fetch(
+            "dashboard.aspx/getCheckList",
+            {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    // employeeid: data.employeeid
+					section: data.section,
+                    templateNo: "",
+                    version: "",
+                    modelcode: ""
+                })
+            }
+        );
+        let result = await response.json();
+        if (!result) return;
+        let templates = result.d;
+        //let sections = result.d.data.sections;
+        //let items = result.d.data.items;
+        //let groups = result.d.data.groups;
+        var tx = db.transaction("checklist_templates","readwrite");
+        var store = tx.objectStore("checklist_templates");
+        for (let dt of templates) {
+            store.put(dt);
+        }
+        //tx = db.transaction("checklist_sections","readwrite");
+        //store = tx.objectStore("checklist_sections");
+        //for (let dt of sections) {
+        //    store.put(dt);
+        //}
+        //tx = db.transaction("checklist_items","readwrite");
+        //store = tx.objectStore("checklist_items");
+        //for (let dt of items) {
+        //    store.put(dt);
+        //}
+        //tx = db.transaction("checklist_groups","readwrite");
+        //store = tx.objectStore("checklist_groups");
+        //for (let dt of groups) {
+        //    store.put(dt);
+        //}
+        console.log("Checklist sync success");
+}
+catch (err) {
+    console.error("Checklist sync failed:",err);
+}
+}
+
+function blobToBase64(blob) {
+    return new Promise((resolve, reject) => {
+
+        let reader = new FileReader();
+
+        reader.onloadend = () => resolve(reader.result);
+        reader.onerror = reject;
+
+        reader.readAsDataURL(blob);
+    });
+}
+async function urlToBlob(url) {
+    try {
+        let imgRes = await fetch(url);
+        if (!imgRes.ok) throw new Error("Gagal download gambar dari server");
+        return await imgRes.blob(); // Mengembalikan data biner Blob
+    } catch (err) {
+        console.error("Gagal memproses URL: " + url, err);
+        return null;
+    }
+}
+
+async function convertPhotosToBase64(list) {
+   let arr = [];
+    for (let p of list) {
+        arr.push({
+            FileName: p.FileName,
+            OrderNo: p.OrderNo,
+            Base64:
+                await blobToBase64(p.Blob)
+        });
+    }
+    return arr;
+}
+
+async function saveOrUpdateWO(wo) {
+    return new Promise((resolve, reject) => {
+        let tx =
+            db.transaction(
+                ["workorder", "wo_checklist"],
+                "readwrite"
+            );
+        let woStore =
+            tx.objectStore("workorder");
+        let checklistStore =
+            tx.objectStore("wo_checklist");
+        // =========================
+        // CHECK CHECKLIST EXISTING
+        // =========================
+        let getReq =
+            checklistStore.get(wo.KeyHD);
+        getReq.onsuccess = function () {
+            let checklist =
+                getReq.result;
+
+            if (!checklist) {
+                resolve();
+                return;
+            }
+            // =====================
+            // VOID
+            // =====================
+            if (wo.Status === "VOID") {
+                checklist.Status =
+                    "DRAFT";
+                checklist.VoidFlag = true;
+            }
+            checklistStore.put(checklist);
+            resolve();
+        };
+        getReq.onerror =
+            () => reject(getReq.error);
+    });
+}
+
+function getPhotosByWO(keyHD, type = null) {
+
+    return new Promise((resolve, reject) => {
+
+        let tx = db.transaction("wo_photos", "readonly");
+        let store = tx.objectStore("wo_photos");
+        let index = store.index("KeyHD");
+
+        let req = index.getAll(keyHD);
+
+        req.onsuccess = function () {
+
+            let result = req.result || [];
+
+            // filter type kalau ada
+            if (type) {
+                result = result.filter(x => x.Type === type);
+            }
+
+            // urutkan berdasarkan OrderNo (kalau ada)
+            result.sort((a, b) => (a.OrderNo || 0) - (b.OrderNo || 0));
+
+            resolve(result);
+        };
+
+        req.onerror = function (e) {
+            reject(e.target.error);
+        };
+    });
+}
+
+function getQueryString(name) {
+    let params =
+        new URLSearchParams(
+            window.location.search
+        );
+    return params.get(name);
+}
+
+function promisifyPageMethod(method, ...args) {
+    return new Promise((resolve, reject) => {
+        method(...args, resolve, reject);
+    });
+}
+
+function formatPeriodeTeks(stringPeriode) {
+    if (!stringPeriode) return "";
+    
+    // Tambahkan tanggal standar "-01" agar bisa dibaca sebagai objek Date yang valid
+    const dateObj = new Date(stringPeriode + "-01");
+    
+    // Gunakan Intl untuk mengubah menjadi nama bulan dan tahun
+    // Gunakan 'en-US' untuk "July 2026", atau ganti 'id-ID' jika ingin "Juli 2026"
+    const formatter = new Intl.DateTimeFormat('en-US', {
+        month: 'long',
+        year: 'numeric'
+    });
+    
+    return formatter.format(dateObj); // Hasil: "July 2026"
+}
+function showPageSticky(show) {
+    const sticky = document.getElementById("pageStickyBar");
+    if (!sticky) return;
+    sticky.style.display = show ? "" : "none";
+}
+
+async function scanBarcode(containerId, callback, onError) {
+    if (scanning)
+        return;
+    scanning = true;
+    try {
+        html5QrCode =
+            new Html5Qrcode(containerId);
+        await html5QrCode.start(
+            {
+                facingMode: "environment"
+            },
+            {
+                fps: 10,
+                qrbox: 250
+            },
+            async function (decodedText) {
+                // =====================================
+                // SUCCESS HANYA SEKALI
+                // =====================================
+                if (!scanning)
+                    return;
+                scanning = false;
+                // Simpan hasil scan
+                const code = decodedText;
+                // alert(code);
+                // =====================================
+                // STOP CAMERA
+                // =====================================
+                await stopBarcode();
+                // =====================================
+                // CALLBACK
+                // =====================================
+                try {
+                    await callback(code);
+                }
+                catch (ex) {
+                    console.error(
+                        "Barcode callback error:",
+                        ex
+                    );
+                }
+            }
+        );
+    }
+    catch (ex) {
+        scanning = false;
+        // Bersihkan instance jika start gagal
+        try {
+            if (html5QrCode) {
+                await html5QrCode.clear();
+            }
+        }
+        catch (clearEx) {
+        }
+        html5QrCode = null;
+        console.error(
+            "Barcode scanner start error:",
+            ex
+        );
+        if (onError)
+            onError(ex);
+        else
+            throw ex;
+    }
+}
+async function stopBarcode() {
+    const scanner = html5QrCode;
+    if (!scanner)
+        return;
+    // Invalidate callback scanner
+    scanning = false;
+    try {
+        await scanner.stop();
+    }
+    catch (ex) {
+        console.warn(
+            "Scanner stop:",
+            ex
+        );
+    }
+    try {
+        await scanner.clear();
+    }
+    catch (ex) {
+        console.warn(
+            "Scanner clear:",
+            ex
+        );
+    }
+    if (html5QrCode === scanner)
+        html5QrCode = null;
+}
+function compressImage(file, options) {
+    return new Promise((resolve, reject) => {
+        if (!options) {
+            options = {
+                maxWidth:1280,
+                maxHeight:1280,
+                maxSize:800*1024,   // 800 KB
+                quality:0.75,
+                minQuality:0.30
+            };
+        }
+
+        let maxSide = options.maxWidth;
+        if (file.size > 8 * 1024 * 1024)
+            maxSide = 1024;
+        else if (file.size > 15 * 1024 * 1024)
+            maxSide = 800;
+        const MAX_WIDTH = maxSide;
+        const MAX_HEIGHT = maxSide;         
+        const MAX_SIZE = options.maxSize;     
+        const START_QUALITY = options.quality;
+        const MIN_QUALITY = options.minQuality;
+        const STEP = 0.05;
+        const img = new Image();
+        const reader = new FileReader();
+        reader.onload = function (e) {
+            img.src = e.target.result;
+        };
+        img.onload = function () {
+            //----------------------------------
+            // Resize
+            //----------------------------------
+            const ratio = Math.min(
+                MAX_WIDTH / img.width,
+                MAX_HEIGHT / img.height,
+                1   
+            );
+            const width =
+                Math.round(img.width * ratio);
+            const height =
+                Math.round(img.height * ratio);
+            const canvas =
+                document.createElement("canvas");
+            canvas.width = width;
+            canvas.height = height;
+            const ctx =
+                canvas.getContext("2d");
+            ctx.drawImage(
+                img,
+                0,
+                0,
+                width,
+                height
+            );
+            //----------------------------------
+            // Adaptive JPEG Quality
+            //----------------------------------
+            let quality = START_QUALITY;
+            function exportBlob() {
+                canvas.toBlob(
+                    function (blob) {
+                        if (!blob) {
+                            reject("Compress failed");
+                            return;
+                        }
+                        //----------------------------------
+                        // Size OK
+                        //----------------------------------
+                        if (blob.size <= MAX_SIZE) {
+                            img.onload = null;
+                            img.onerror = null;
+                            img.src = "";
+                            resolve(blob);
+                            return;
+                        }
+                        //----------------------------------
+                        // Reduce quality
+                        //----------------------------------
+                        quality -= STEP;
+                        if (quality >= MIN_QUALITY) {
+                            exportBlob();
+                            return;
+                        }
+                        //----------------------------------
+                        // Give up
+                        //----------------------------------
+                        img.onload = null;
+                        img.onerror = null;
+                        img.src = "";
+                        showToast(
+                            "Photo is too large.",
+                            "warning"
+                        );
+                        reject("Photo too large");
+                    },
+                    "image/jpeg",
+                    quality
+                );
+            }
+            exportBlob();
+        };
+        img.onerror = function () {
+            reject("Invalid image.");
+        };
+        reader.onerror = function () {
+            reject("Read image failed.");
+        };
+        reader.readAsDataURL(file);
+    });
+}
+function formatJsonDate(jsonDateString, includeTime = false) {
+    // 1. Ekstrak angka milidetik menggunakan Regex
+    const matches = jsonDateString.match(/\/Date\((\d+)\)\//);
+    if (!matches) return null;
+
+    const date = new Date(Number(matches[1]));
+
+    // 2. Ambil Komponen Tanggal (Selalu dihitung)
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const datePart = `${year}-${month}-${day}`;
+
+    // 3. Cek parameter: Jika includeTime bernilai false, langsung kembalikan tanggal saja
+    if (!includeTime) {
+        return datePart;
+    }
+
+    // 4. Jika includeTime bernilai true, hitung Komponen Waktu
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    const seconds = String(date.getSeconds()).padStart(2, '0');
+    
+    // Ambil 3 digit milidetik bawaan JS, lalu tambahkan '0' di ujung untuk format 4 digit (xxxx)
+    const milliseconds = String(date.getMilliseconds()).padStart(3, '0');
+
+    // 5. Gabungkan Tanggal dan Waktu lengkap
+    return `${datePart} ${hours}:${minutes}:${seconds}:${milliseconds}`;
+}
+
+async function setLastSyncData(companyId, locationId) {
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction(
+            ["meter", "workorder"],
+            "readonly"
+        );
+        //----------------------------------
+        // Meter
+        //----------------------------------
+        const meterStore =
+            tx.objectStore("meter");
+        const keyRange =
+            IDBKeyRange.bound(
+                [companyId, locationId],
+                [companyId, locationId, []]
+            );
+        let topPeriod = null;
+        let maxMeterSync = null;
+        let maxWorkOrderSync = null;
+        //----------------------------------
+        // Period
+        //----------------------------------
+        meterStore
+            .index("by_period")
+            .openCursor(keyRange, "prev")
+            .onsuccess = function (e) {
+                const cursor = e.target.result;
+                if (cursor) {
+                    topPeriod =
+                        cursor.value.Period;
+                }
+            };
+        //----------------------------------
+        // Meter SyncDate
+        //----------------------------------
+        meterStore
+            .index("by_sync_date")
+            .openCursor(keyRange, "prev")
+            .onsuccess = function (e) {
+                const cursor = e.target.result;
+                if (cursor) {
+                    maxMeterSync =
+                        cursor.value.SyncDate;
+                }
+            };
+        //----------------------------------
+        // WorkOrder LastUpdated
+        //----------------------------------
+        const woStore =
+            tx.objectStore("workorder");
+        const woRange =
+            IDBKeyRange.bound(
+                [companyId, locationId],
+                [companyId, locationId, []]
+            );
+
+        woStore
+            .index("by_company_location_lastupdated")
+            .openCursor(woRange, "prev")
+            .onsuccess = function (e) {
+
+                const cursor = e.target.result;
+
+                if (cursor) {
+
+                    maxWorkOrderSync =
+                        cursor.value.LastUpdated;
+
+                }
+
+            };
+        //----------------------------------
+        // Complete
+        //----------------------------------
+        tx.oncomplete = function () {
+            try {
+                const login =
+                    getLoginData();
+                if (login) {
+                    if (
+                        topPeriod &&
+                        !login.lastMeterPeriod
+                    ) {
+                        login.lastMeterPeriod =
+                            formatJsonDate(
+                                topPeriod
+                            );
+                    }
+                    if (
+                        maxMeterSync &&
+                        (
+                            !login.lastMeterSync ||
+                            login.lastMeterSync ==
+                            "1900-01-02"
+                        )
+                    ) {
+                        login.lastMeterSync =
+                            maxMeterSync;
+                    }
+                    if (
+                        maxWorkOrderSync &&
+                        (
+                            !login.lastsyncw ||
+                            login.lastsyncw ==
+                            ""
+                        )
+                    ) {
+                        login.lastsyncw =
+                            formatJsonDate(maxWorkOrderSync, true);
+                    }
+                    setLoginData(login);
+                }
+                resolve({
+                    topPeriod,
+                    maxMeterSync,
+                    maxWorkOrderSync
+                });
+            }
+            catch (err) {
+                reject(err);
+            }
+        };
+        tx.onerror = function () {
+            reject(tx.error);
+        };
+    });
+}
+
+function getCurrentCompany()
+{
+    const login = getLoginData();
+
+    if(!login || !login.curcompany)
+    {
+        return {
+            companyId: "",
+            locationId: ""
+        };
+    }
+
+    const parts = login.curcompany.split(";");
+
+    return {
+        companyId: parts[0] || "",
+        locationId: parts[1] || ""
+    };
+}
+function getBarcodeNo(meterNo) {
+    if (meterNo == null)
+        return "";
+
+    let value = String(meterNo).trim();
+
+    if (value.length < 10) {
+
+        return value.padStart(10, "0");
+
+    }
+
+    if (value.length > 10) {
+
+        return value.slice(-10);
+
+    }
+    return value;
+}
