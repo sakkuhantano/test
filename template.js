@@ -7978,15 +7978,15 @@ async function saveAllTemplate()
             //--------------------------------
             // Draft Version
             //--------------------------------
-            const draftVersion = Object.values(tpl.Versions)
-                .find(x => 
-                    x.VersionInfo.Status == "Draft" 
-                    && 
-                    x.Structure.VersionInfo.Dirty
+            const draftVersion = Object.values(tpl.Versions || {})
+                .find(x =>
+                    x?.VersionInfo?.Status === "Draft" &&
+                    x.Structure !== null &&
+                    x?.Structure?.VersionInfo?.Dirty
                 );
 
-            if(!draftVersion)
-                return;
+            if (!draftVersion)
+                return;            
 
             //--------------------------------
             // Add
