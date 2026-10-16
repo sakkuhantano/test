@@ -72,7 +72,7 @@ WHERE a.UserID=@UserID", "@UserID=" + userId + GF.Str2 + "@CompanyID=" + company
             using (var br = new WAL.BR.CF())
             {
                 DataTable dt = br.EQuery(@"
-SELECT a.IDVersion, a.Version, a.[Status], a.EffectiveDate, a.StatusOption, a.Remark, RuntimeVersionID=a.IDVersion, a.GroupEquipment
+SELECT a.IDVersion, a.Version, a.[Status], a.EffectiveDate, a.StatusOption, a.Remark, RuntimeVersionID=a.IDVersion, a.GroupEquipment, a.RemarkRequiredOptions, a.SummarySampleText
 FROM PIP_M_CheckListWOPM_Version a WHERE a.IDTemplate=@IDTemplate", "@IDTemplate=" + idTemplate);
                 var versionList = dt.AsEnumerable().Select(row => new
                 {
@@ -86,7 +86,9 @@ FROM PIP_M_CheckListWOPM_Version a WHERE a.IDTemplate=@IDTemplate", "@IDTemplate
 
                     // Handle nilai NULL untuk string agar tetap aman
                     Remark = row["Remark"] == DBNull.Value ? null : row.Field<string>("Remark"),
-                    GroupEquipment = GF.GetString(row["GroupEquipment"])
+                    GroupEquipment = GF.GetString(row["GroupEquipment"]),
+                    RemarkRequiredOptions = String.IsNullOrWhiteSpace(GF.GetString(row["RemarkRequiredOptions"])) ? new string[0] : GF.GetString(row["RemarkRequiredOptions"]).Split(';'),
+                    SummarySampleText = GF.GetString(row["SummarySampleText"])
                 }).ToList();
 
                 JavaScriptSerializer serializer = new JavaScriptSerializer();
@@ -101,7 +103,7 @@ FROM PIP_M_CheckListWOPM_Version a WHERE a.IDTemplate=@IDTemplate", "@IDTemplate
             using (var br = new WAL.BR.CF())
             {
                 DataSet ds = br.EQuery_DS(@"
-SELECT IDVersion, A.IDTemplate, B.TemplateNo, B.TemplateName, A.Version, A.Status, A.EffectiveDate, A.Remark, A.StatusOption StatusOptionRaw, A.GroupEquipment
+SELECT IDVersion, A.IDTemplate, B.TemplateNo, B.TemplateName, A.Version, A.Status, A.EffectiveDate, A.Remark, A.StatusOption StatusOptionRaw, A.GroupEquipment, A.RemarkRequiredOptions RemarkRequiredOptionsRaw, A.SummarySampleText
 FROM PIP_M_CheckListWOPM_Version A JOIN PIP_M_CheckListWOPM B ON B.IDTemplate = A.IDTemplate 
 WHERE IDVersion = @IDVersion;
 
@@ -111,7 +113,7 @@ FROM PIP_M_CheckListWOPM_Section WHERE IDVersion = @IDVersion ORDER BY DisplayOr
 SELECT A.IDItem, A.IDSection, A.ItemLabel, A.ItemType, A.DisplayOrder, A.Unit, 
         a.IsRemarkRequired, A.IsValueRequired, a.ShowUnitInRange, 
         UseDefaultOption=CAST((CASE WHEN a.ItemType='OPTION' AND ISNULL(a.OptionList,'')='' THEN 1 ELSE 0 END) AS BIT), 
-        a.OptionList OptionListRaw, a.MinValue, a.MaxValue, a.MinTolerance, a.MaxTolerance, a.ModelCode, a.IsToleranceRequired
+        a.OptionList OptionListRaw, a.RemarkRequiredOptions RemarkRequiredOptionsRaw, a.MinValue, a.MaxValue, a.MinTolerance, a.MaxTolerance, a.ModelCode, a.IsToleranceRequired
 FROM PIP_M_CheckListWOPM_Item A JOIN PIP_M_CheckListWOPM_Section B ON B.IDSection = A.IDSection 
 WHERE B.IDVersion = @IDVersion ORDER BY A.DisplayOrder;
 
@@ -140,6 +142,8 @@ WHERE C.IDVersion = @IDVersion ORDER BY A.DisplayOrder;",
                         EffectiveDate = versionRow["EffectiveDate"] == DBNull.Value ? null : Convert.ToDateTime(versionRow["EffectiveDate"]).ToString("yyyy-MM-dd"),
                         Remark = versionRow["Remark"] == DBNull.Value ? null : versionRow["Remark"].ToString(),
                         GroupEquipment = GF.GetString(versionRow["GroupEquipment"]),
+                        SummarySampleText = GF.GetString(versionRow["SummarySampleText"]),
+                        RemarkRequiredOptions = String.IsNullOrWhiteSpace(GF.GetString(versionRow["RemarkRequiredOptionsRaw"])) ? new string[0] : GF.GetString(versionRow["RemarkRequiredOptionsRaw"]).Split(';'),
                         // Mengubah string koma "OK;MF;NA" dari DB menjadi array ["OK","MF","NA"]
                         StatusOption = versionRow["StatusOptionRaw"] == DBNull.Value ? new string[0] : versionRow["StatusOptionRaw"].ToString().Split(';')
                     },
@@ -179,6 +183,7 @@ WHERE C.IDVersion = @IDVersion ORDER BY A.DisplayOrder;",
                                         OptionList = itemRow["OptionListRaw"] == DBNull.Value || string.IsNullOrEmpty(itemRow["OptionListRaw"].ToString())
                                                      ? new string[0]
                                                      : itemRow["OptionListRaw"].ToString().Split(';'),
+                                        RemarkRequiredOptions = String.IsNullOrWhiteSpace(GF.GetString(itemRow["RemarkRequiredOptionsRaw"])) ? new string[0] : GF.GetString(itemRow["RemarkRequiredOptionsRaw"]).Split(';'),
 
                                         MinValue = itemRow["MinValue"] == DBNull.Value ? null : (decimal?)Convert.ToDecimal(itemRow["MinValue"]),
                                         MaxValue = itemRow["MaxValue"] == DBNull.Value ? null : (decimal?)Convert.ToDecimal(itemRow["MaxValue"]),
@@ -519,7 +524,7 @@ FROM PIP_M_CheckListWOPM a WHERE a.SectionID=@SectionID AND a.CompanyID=@Company
                 for (int i = 1; i <= 5; i++)
                     dtTemplate.Columns.Add("C" + i + "", typeof(System.String));
                 DataTable dtVersion = new DataTable();
-                for (int i = 1; i <= 10; i++)
+                for (int i = 1; i <= 11; i++)
                     dtVersion.Columns.Add("C" + i + "", typeof(System.String));
                 DataTable dtSection = new DataTable();
                 for (int i = 1; i <= 5; i++)
@@ -579,6 +584,12 @@ FROM PIP_M_CheckListWOPM a WHERE a.SectionID=@SectionID AND a.CompanyID=@Company
                                     var optList = (ArrayList)vInfo["StatusOption"];
                                     statusOptionStr = string.Join(";", optList.ToArray());
                                 }
+                                string versionRemarkRequiredOptionsStr = "";
+                                if (vInfo.ContainsKey("RemarkRequiredOptions") && vInfo["RemarkRequiredOptions"] is ArrayList)
+                                {
+                                    var requiredOptions = (ArrayList)vInfo["RemarkRequiredOptions"];
+                                    versionRemarkRequiredOptionsStr = string.Join(";", requiredOptions.ToArray());
+                                }
 
                                 DataRow vRow = dtVersion.NewRow();
                                 vRow["C1"] = idVersion;
@@ -590,6 +601,8 @@ FROM PIP_M_CheckListWOPM a WHERE a.SectionID=@SectionID AND a.CompanyID=@Company
                                 vRow["C7"] = vInfo["EffectiveDate"];
                                 vRow["C8"] = statusOptionStr;
                                 vRow["C9"] = vInfo["GroupEquipment"];
+                                vRow["C10"] = vInfo.ContainsKey("SummarySampleText") ? GF.GetString(vInfo["SummarySampleText"]) : "";
+                                vRow["C11"] = versionRemarkRequiredOptionsStr;
                                 dtVersion.Rows.Add(vRow);
                             }
 
@@ -621,6 +634,12 @@ FROM PIP_M_CheckListWOPM a WHERE a.SectionID=@SectionID AND a.CompanyID=@Company
                                                 var optList = (ArrayList)item["OptionList"];
                                                 optionListStr = string.Join(";", optList.ToArray());
                                             }
+                                            string itemRemarkRequiredOptionsStr = "";
+                                            if (item.ContainsKey("RemarkRequiredOptions") && item["RemarkRequiredOptions"] is ArrayList)
+                                            {
+                                                var requiredOptions = (ArrayList)item["RemarkRequiredOptions"];
+                                                itemRemarkRequiredOptionsStr = string.Join(";", requiredOptions.ToArray());
+                                            }
 
                                             DataRow iRow = dtItem.NewRow();
                                             iRow["C1"] = idItem;
@@ -651,6 +670,7 @@ FROM PIP_M_CheckListWOPM a WHERE a.SectionID=@SectionID AND a.CompanyID=@Company
                                                 iRow["C14"] = GF.GetString(item["MaxTolerance"]);
                                             iRow["C15"] = item["ModelCode"];
                                             iRow["C16"] = item["UseTolerance"];
+                                            iRow["C17"] = itemRemarkRequiredOptionsStr;
                                             dtItem.Rows.Add(iRow);
 
                                             if (item.ContainsKey("Groups") && item["Groups"] is ArrayList)
