@@ -5,6 +5,13 @@ let previewList = [];     // semua foto (DOM / data)
 let previewIndex = 0;     // posisi sekarang
 let isScrolling = false;
 let currentWO = null;
+function escapeHtmlAttribute(value) {
+    return String(value == null ? "" : value)
+        .replace(/&/g, "&amp;")
+        .replace(/"/g, "&quot;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+}
 let currentTemplate = null;
 let itemMap = {};
 let pageSize = 10;
@@ -1237,11 +1244,7 @@ html += `
             maxlength="500"
             rows="5"
             ${!isEntryMode ? "disabled" : ""}
-            placeholder="Contoh:
-• Filter AC dibersihkan
-• Tekanan refrigerant normal
-• Tidak ditemukan kebocoran
-• Unit beroperasi normal">${currentWO.DataCheckListJSON?.Summary ?? ""}</textarea>
+            placeholder="${escapeHtmlAttribute(currentWO.SummarySampleText || "Contoh:\n• Filter AC dibersihkan\n• Tekanan refrigerant normal\n• Tidak ditemukan kebocoran\n• Unit beroperasi normal")}">${currentWO.DataCheckListJSON?.Summary ?? ""}</textarea>
 
         <div class="d-flex justify-content-between align-items-center mt-2">
 
@@ -2250,7 +2253,14 @@ async function getTemplate(templateNo, modelCode) {
                                     itemModelCode === "" ||
                                     itemModelCode === currentModelCode
                                 );
-                            });
+                            }).map(item => ({
+                                ...item,
+                                remarkRequiredOptions: Array.isArray(item.remarkRequiredOptions)
+                                    ? item.remarkRequiredOptions.map(String)
+                                    : Array.isArray(item.RemarkRequiredOptions)
+                                        ? item.RemarkRequiredOptions.map(String)
+                                        : []
+                            }));
                         return {
                             ...section,
                             items: filteredItems
@@ -2790,7 +2800,15 @@ function validateItem(item, container) {
     // =====================================
     // REMARK REQUIRED
     // =====================================
-    if (!error && item.isRemarkRequired) {
+    const requiredOptionRemarks = Array.isArray(item.remarkRequiredOptions)
+        ? item.remarkRequiredOptions
+        : Array.isArray(item.RemarkRequiredOptions)
+            ? item.RemarkRequiredOptions
+            : [];
+    const selectedOptionRequiresRemark = item.type === "OPTION" && !!checked &&
+        requiredOptionRemarks.map(String).includes(String(checked.value));
+
+    if (!error && (item.isRemarkRequired || selectedOptionRequiresRemark)) {
 
         let remark = remarkEl?.value?.trim();
 
