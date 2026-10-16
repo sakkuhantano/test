@@ -131,6 +131,7 @@ UPDATE UserSession SET LastSyncWO=@V_GetDate WHERE IsActive=1
 SELECT TOP 10 a.KeyHD,a.WONo,a.WODate,a.EquipmentCode,a.LocationNo,a.[Description], a.SectionID, 
 Status=CASE WHEN ReasonRespondDC<>'' THEN 'DRAFT' WHEN ISNULL(a.RemarkTechnician,'')<>'' THEN 'SYNCED' ELSE 'PENDING' END, 
 ISNULL(a.TemplateWOPM,'') TemplateWOPM, a.ReasonRespondDC ReasonVoid, LastUpdated=@V_GetDate, a.CompanyID, a.LocationID,a.RemarkTechnician,a.IsCompleteDC, ISNULL(a.TemplateVersion,'') TemplateVersion,
+SummarySampleText=ISNULL((SELECT TOP 1 vv.SummarySampleText FROM PIP_M_CheckListWOPM_Version vv JOIN PIP_M_CheckListWOPM tt ON tt.IDTemplate=vv.IDTemplate WHERE tt.TemplateNo=a.TemplateWOPM AND tt.CompanyID=a.CompanyID AND tt.LocationID=a.LocationID AND vv.Version=a.TemplateVersion),''),
 FollowUp=CASE WHEN ISNULL(a.isFollowUp,0)=1 THEN 'Recommend Follow Up' ELSE 'No Follow Up' END, 
 FollowUpSection=ISNULL(FollowUpSection,0), FollowUpRemark=ISNULL(FollowUpRemark,''),
 IsSampling=ISNULL(a.IsSampling,0), RemarkSupervisor=ISNULL(RemarkSupervisor,''),
@@ -164,6 +165,7 @@ AND " + _condition +
                     dict["Status"] = row["Status"];
                     dict["IsSampling"] = row["IsSampling"];
                     dict["TemplateWOPM"] = row["TemplateWOPM"];
+                    dict["SummarySampleText"] = GF.GetString(row["SummarySampleText"]);
                     dict["LastUpdated"] = row["LastUpdated"];
                     dict["SectionID"] = row["SectionID"];
                     dict["ReasonVoid"] = row["ReasonVoid"];
@@ -609,10 +611,10 @@ WHERE h.CompanyID+';'+h.LocationID=@CompanyLocation AND h.WONo=@WONo",
     <div class=""accordion-body p-3"">
         <textarea class=""form-control form-control-sm""
                   data-role=""summary""
-                  placeholder=""Enter detailed inspection notes...""
+                  placeholder=""{1}""
                   rows=""4"">{0}</textarea>
     </div>
-</div>", row["RemarkTechnician"].ToString() ?? "");
+</div>", row["RemarkTechnician"].ToString() ?? "", HttpUtility.HtmlAttributeEncode(GF.GetString(row["SummarySampleText"])));
 
                     sCheckList += (@"<div id=""voidReasonContainer"">" +
 (row["ReasonVoid"].ToString() != "" ?
