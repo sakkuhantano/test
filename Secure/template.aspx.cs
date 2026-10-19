@@ -954,7 +954,7 @@ FROM
     JOIN dbo.SysWebUserCompanyLocation perm
       ON perm.CompanyID=swl.CompanyID AND perm.LocationID=swl.LocationID
      AND perm.UserID=@UserID AND perm.AppID='PIP'
-    WHERE swc.IsActive=1 AND swl.IsActive=1 AND swl.IsActiveBuilding=1
+    WHERE swc.IsActive=1 AND swl.IsActive=1
 ) L
 LEFT JOIN dbo.PIP_M_CheckListWOPM_CompanyLocation S
   ON S.IDTemplate=@IDTemplate AND S.CompanyID=L.CompanyID AND S.LocationID=L.LocationID
@@ -1032,7 +1032,7 @@ IF NOT EXISTS
     JOIN dbo.SysWebUserCompanyLocation perm
       ON perm.CompanyID=swl.CompanyID AND perm.LocationID=swl.LocationID
      AND perm.UserID=@UpdateUser AND perm.AppID='PIP'
-    WHERE swc.IsActive=1 AND swl.IsActive=1 AND swl.IsActiveBuilding=1
+    WHERE swc.IsActive=1 AND swl.IsActive=1
       AND swl.CompanyID=@CompanyID AND swl.LocationID=@LocationID
 )
     RAISERROR('The company/location is inactive or you do not have PIP permission for it.',16,1);
