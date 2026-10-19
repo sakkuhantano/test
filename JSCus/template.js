@@ -4852,6 +4852,146 @@ function selectSection(sectionBox)
     );
     switchMobileTab('builder');
 }
+
+async function openInspectionTypeManager()
+{
+    const sectionSelect = document.getElementById('inspectionTypeSection');
+    if (!sectionSelect) return;
+
+    let roots = [];
+    try {
+        roots = typeof explorerRoot === 'string'
+            ? JSON.parse(explorerRoot || '[]')
+            : (explorerRoot || []);
+    } catch (ex) {
+        roots = [];
+    }
+
+    sectionSelect.innerHTML = '';
+    roots.forEach(function(root) {
+        sectionSelect.add(new Option(root.SectionID, root.SectionID));
+    });
+    const preferred = currentTemplate && currentTemplate.SectionID;
+    if (preferred && roots.some(function(x) { return x.SectionID === preferred; }))
+        sectionSelect.value = preferred;
+
+    sectionSelect.onchange = loadInspectionTypeManager;
+    const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('inspectionTypeModal'));
+    modal.show();
+    resetInspectionTypeForm();
+    await loadInspectionTypeManager();
+}
+async function loadInspectionTypeManager()
+{
+    const sectionSelect = document.getElementById('inspectionTypeSection');
+    const host = document.getElementById('inspectionTypeList');
+    if (!sectionSelect || !host || !sectionSelect.value) {
+        if (host) host.textContent = 'No SectionID available for this user.';
+        return;
+    }
+    host.textContent = 'Loading inspection types...';
+    try {
+        const raw = await promisifyPageMethod(PageMethods.GetInspectionTypesAdmin, sectionSelect.value);
+        const rows = JSON.parse(raw || '[]');
+        host.innerHTML = '';
+        if (!rows.length) {
+            host.textContent = 'No inspection types have been configured for this section yet.';
+            return;
+        }
+        const table = document.createElement('table');
+        table.className = 'table table-sm table-hover align-middle';
+        table.innerHTML = '<thead><tr><th>Code</th><th>Name</th><th>SectionID</th><th>Status</th><th></th></tr></thead><tbody></tbody>';
+        const tbody = table.querySelector('tbody');
+        rows.forEach(function(row) {
+            const tr = document.createElement('tr');
+            [row.InspectionTypeCode, row.InspectionTypeName, row.SectionID, row.IsActive ? 'Active' : 'Inactive'].forEach(function(value) {
+                const td = document.createElement('td');
+                td.textContent = value;
+                tr.appendChild(td);
+            });
+            const actionCell = document.createElement('td');
+            const edit = document.createElement('button');
+            edit.type = 'button';
+            edit.className = 'btn btn-outline-secondary btn-sm';
+            edit.textContent = 'Edit';
+            edit.addEventListener('click', function() { editInspectionType(row); });
+            actionCell.appendChild(edit);
+            tr.appendChild(actionCell);
+            tbody.appendChild(tr);
+        });
+        host.appendChild(table);
+    } catch (ex) {
+        host.textContent = 'Failed to load inspection types.';
+        console.error(ex);
+    }
+}
+function resetInspectionTypeForm()
+{
+    const code = document.getElementById('inspectionTypeCode');
+    const name = document.getElementById('inspectionTypeName');
+    const active = document.getElementById('inspectionTypeActive');
+    if (code) { code.value = ''; code.disabled = false; }
+    if (name) name.value = '';
+    if (active) active.checked = true;
+}
+function editInspectionType(row)
+{
+    const code = document.getElementById('inspectionTypeCode');
+    const name = document.getElementById('inspectionTypeName');
+    const active = document.getElementById('inspectionTypeActive');
+    const section = document.getElementById('inspectionTypeSection');
+    if (code) { code.value = row.InspectionTypeCode; code.disabled = true; }
+    if (name) name.value = row.InspectionTypeName;
+    if (active) active.checked = !!row.IsActive;
+    if (section) section.value = row.SectionID;
+}
+async function saveInspectionType()
+{
+    const code = document.getElementById('inspectionTypeCode');
+    const name = document.getElementById('inspectionTypeName');
+    const active = document.getElementById('inspectionTypeActive');
+    const section = document.getElementById('inspectionTypeSection');
+    if (!code || !name || !active || !section || !section.value) {
+        alert('SectionID is required.');
+        return;
+    }
+    try {
+        showLoading();
+        const result = await promisifyPageMethod(
+            PageMethods.SaveInspectionType,
+            code.value.trim().toUpperCase(),
+            name.value.trim(),
+            section.value,
+            !!active.checked,
+            getLoginData().employeeid
+        );
+        hideLoading();
+        if (!result.success) {
+            alert(result.message || 'Unable to save Inspection Type.');
+            return;
+        }
+        await loadInspectionTypeManager();
+        if (currentTemplate && currentTemplate.SectionID === section.value &&
+            currentTemplate.TemplateType === 'I') {
+            const select = document.getElementById('propInspectionType');
+            if (select) {
+                const raw = await promisifyPageMethod(PageMethods.GetInspectionTypes, currentTemplate.SectionID);
+                const types = JSON.parse(raw || '[]');
+                select.innerHTML = '';
+                select.add(new Option('-- Select Inspection Type --', ''));
+                types.forEach(function(item) {
+                    select.add(new Option(item.InspectionTypeCode + ' - ' + item.InspectionTypeName, item.InspectionTypeCode));
+                });
+                select.value = currentTemplate.InspectionTypeCode || '';
+            }
+        }
+        resetInspectionTypeForm();
+    } catch (ex) {
+        hideLoading();
+        alert(ex.message || ex);
+    }
+}
+
 async function showTemplateRootProperties(template, version)
 {
     const panel =
@@ -5110,7 +5250,7 @@ async function renderTemplateCompanyAssignments(template)
                         alert(result.message || 'Unable to update company/location assignment.');
                         return;
                     }
-                    if (!this.checked && template.TemplateType === 'I') await renderTemplateEmployeeAssignments(template);
+                    if (template.TemplateType === 'I') await renderTemplateEmployeeAssignments(template);
                     await reloadExplorer();
                 } catch (ex) {
                     hideLoading();
@@ -5235,7 +5375,11 @@ async function saveDirtyTemplateMetadata()
         );
         if (!result.success) throw new Error(result.message || 'Failed to save template settings.');
         template.MetadataDirty = false;
+        if (currentTemplate && Number(currentTemplate.IDTemplate) === Number(template.IDTemplate)) {
+            await appendTemplateMetadataRefresh(template);
+        }
     }
+    await reloadExplorer();
 }
 function refreshGroupEquipmentCaption(template)
 {
