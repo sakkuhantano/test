@@ -5229,6 +5229,10 @@ async function renderTemplateCompanyAssignments(template)
         host.textContent = 'Save the template first. You can then assign one or more company/location pairs.';
         return;
     }
+    if (template.MetadataDirty) {
+        host.textContent = 'Save Template settings first, then edit company/location assignments.';
+        return;
+    }
     try {
         const raw = await promisifyPageMethod(PageMethods.GetTemplateCompanyLocations, String(template.IDTemplate));
         const rows = JSON.parse(raw || '[]');
@@ -5298,6 +5302,10 @@ async function renderTemplateEmployeeAssignments(template)
     }
     if (!template.IDTemplate || Number(template.IDTemplate) <= 0) {
         host.textContent = 'Save the template first, then assign employees one by one.';
+        return;
+    }
+    if (template.MetadataDirty) {
+        host.textContent = 'Save Template settings first, then assign employees.';
         return;
     }
     try {
