@@ -24,6 +24,7 @@
 <div class="d-flex align-items-center gap-3">
 <%--<button class="btn btn-outline-secondary btn-compact"><i class="bi bi-eye"></i> Preview</button>
 <button class="btn btn-outline-secondary btn-compact"><i class="bi bi-files"></i> Duplicate</button>--%>
+<button type="button" class="btn btn-outline-secondary btn-compact" onclick="openInspectionTypeManager()"><i class="bi bi-card-checklist"></i> Inspection Types</button>
 <button type="button" id="btnSaveAll" class="btn btn-primary btn-compact"><i class="bi bi-floppy"></i> Save All Template</button>
 </div>
 </div>
@@ -595,6 +596,43 @@
 </div>
 </div>
 </div>
+
+<div class="modal fade" id="inspectionTypeModal" tabindex="-1" aria-labelledby="inspectionTypeModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="inspectionTypeModalLabel">Master Inspection Type</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row g-2 mb-3">
+                    <div class="col-md-4">
+                        <label for="inspectionTypeSection" class="form-label">SectionID</label>
+                        <select id="inspectionTypeSection" class="form-select form-select-sm"></select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="inspectionTypeCode" class="form-label">Code (max 2)</label>
+                        <input id="inspectionTypeCode" class="form-control form-control-sm text-uppercase" maxlength="2" autocomplete="off" />
+                    </div>
+                    <div class="col-md-5">
+                        <label for="inspectionTypeName" class="form-label">Inspection Type Name</label>
+                        <input id="inspectionTypeName" class="form-control form-control-sm" maxlength="100" autocomplete="off" />
+                    </div>
+                </div>
+                <div class="form-check mb-3">
+                    <input id="inspectionTypeActive" class="form-check-input" type="checkbox" checked />
+                    <label for="inspectionTypeActive" class="form-check-label">Active (available for new templates)</label>
+                </div>
+                <div class="d-flex gap-2 mb-3">
+                    <button type="button" class="btn btn-primary btn-sm" onclick="saveInspectionType()">Save Type</button>
+                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="resetInspectionTypeForm()">New / Clear</button>
+                </div>
+                <div id="inspectionTypeList" class="small text-muted">Select a section to load inspection types.</div>
+            </div>
+        </div>
+    </div>
+</div>
+
     <%--<script type="text/javascript" src="../JSCus/GFC.js"></script>--%>
     <script type="text/javascript" src="../JSCus/template.js"></script>
     <script type="text/javascript" src="../JSCus/sortable.js"></script>
