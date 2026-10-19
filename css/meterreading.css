@@ -1,0 +1,164 @@
+﻿/* Hide scrollbar for Chrome, Safari and Opera */
+.no-scrollbar::-webkit-scrollbar {
+    display: none;
+}
+/* Hide scrollbar for IE, Edge and Firefox */
+.no-scrollbar {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+}
+        
+body {
+    background-color: #f8f9fa;
+}
+
+.sidebar {
+    width: 256px;
+    z-index: 1040;
+}
+
+@media (min-width: 767.98px) {
+    .main-content {
+        /*margin-left: 256px;*/
+        font-size: 14px;
+        padding-bottom: 64px; /* for sticky footer */
+    }
+    #pnlMeterDetail {
+        position: fixed;
+        inset: 0;
+        z-index: 1050;
+        background: var(--bs-body-bg);
+        overflow-y: auto;
+        display: none;
+    }
+
+    #pnlMeterDetail .meter-detail-header {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        background: var(--bs-body-bg);
+    }	
+}
+        
+.desktop-footer {
+    /*left: 256px;*/
+    z-index: 1030;
+}
+        
+.scale-98:active {
+    transform: scale(0.98);
+}
+
+.flash-row{
+    animation: flashMeter 1.5s;
+}
+
+@keyframes flashMeter{
+    0%{
+        background:#fff3cd;
+    }
+    100%{
+        background:transparent;
+    }
+}
+.drag-over{
+    border:2px dashed #0d6efd;
+    background:#eef6ff;
+}
+#fileCamera{
+    position:absolute;
+    left:-9999px;
+    width:1px;
+    height:1px;
+    opacity:0;
+}
+#imgMeterPhoto{
+    display:block;
+    width:100%;
+    height:100%;
+    max-width:100%;
+    max-height:100%;
+    object-fit:contain;
+    position:absolute;
+    inset:0;
+	pointer-events:none;
+    z-index:1;
+}
+.photo-retake{
+    position:absolute;
+    top:8px;
+    right:8px;
+    width:40px;
+    height:40px;
+    padding:0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    border-radius:50%;
+    box-shadow:0 2px 8px rgba(0,0,0,.25);
+    z-index:10;
+	pointer-events:auto;
+}
+.photo-placeholder {
+  position: relative;
+  min-height: 110px;
+  max-height: 110px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  overflow: hidden;
+  border: 2px dashed #ced4da;
+  border-radius: 8px;
+  background: #f8f9fa;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+      
+.photo-placeholder:hover {
+    background-color: #e9ecef;
+}
+/*#btnRetakePhoto{
+    position:absolute;
+    top:10px;
+    right:10px;
+    z-index:100;
+}*/
+.preview-photo-fit {
+    max-height: 70dvh; 
+    
+    width: auto;
+    object-fit: contain;
+    
+    margin: 0 auto;
+    display: block;
+}
+
+#modalPhoto .modal-body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+#pnlMeterDetail {
+    padding-bottom: 100px;
+}
+
+/* Mobile bottom navigation */
+@media (max-width: 767.98px) {
+
+    #pnlMeterDetail {
+        padding-bottom: 85px;
+    }
+
+}
+
+/* Desktop Save Draft footer */
+@media (min-width: 768px) {
+
+    #pnlMeterDetail {
+        padding-bottom: 95px;
+    }
+
+}

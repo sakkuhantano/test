@@ -1,0 +1,527 @@
+﻿body {
+    background-color: var(--bs-tertiary-bg);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+/* Top Nav Styling */
+.top-nav {
+    background-color: var(--bs-body-bg);
+    border-bottom: 1px solid var(--bs-border-color);
+}
+    
+.notification-badge {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    padding: 0.25em 0.4em;
+    font-size: 0.65em;
+}
+
+/* Filter Card Styling */
+.filter-card {
+    background-color: var(--bs-body-bg);
+    border: 1px solid var(--bs-border-color);
+    border-radius: 0.5rem;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+}
+
+.summary-bar {
+    background-color: rgba(var(--bs-primary-rgb), 0.1);
+    border-radius: 0.25rem;
+    font-size: 0.875rem;
+}
+
+/* Work Order & Employee Lists Styling */
+.content-panel {
+    background-color: var(--bs-body-bg);
+    border: 1px solid var(--bs-border-color);
+    border-radius: 0.5rem;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+}
+
+/* Badges */
+.badge-open { background-color: rgba(13, 110, 253, 0.1); color: #0d6efd; border: 1px solid rgba(13, 110, 253, 0.2); }
+.badge-progress { background-color: rgba(253, 126, 20, 0.1); color: #fd7e14; border: 1px solid rgba(253, 126, 20, 0.2); }
+.badge-approved { background-color: rgba(25, 135, 84, 0.1); color: #198754; border: 1px solid rgba(25, 135, 84, 0.2); }
+.badge-completed { background-color: rgba(108, 117, 125, 0.1); color: #6c757d; border: 1px solid rgba(108, 117, 125, 0.2); }
+    
+.sync-status { font-size: 0.875rem; color: #198754; }
+
+/* Custom Table Styling */
+.table > :not(caption) > * > * {
+    padding: 0.75rem 0.5rem;
+    vertical-align: middle;
+}
+.table tbody tr:hover {
+    background-color: rgba(var(--bs-primary-rgb), 0.05);
+}
+
+/* Mobile Card Styling */
+.mobile-wo-card {
+    border: 1px solid var(--bs-border-color);
+    border-radius: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+/* Selected Employee Tag */
+.employee-tag {
+    background-color: rgba(var(--bs-primary-rgb), 0.1);
+    color: var(--bs-primary);
+    border-radius: 0.25rem;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+/* Floating Action Bar (Mobile) */
+.mobile-action-bar {
+    position: sticky;
+    bottom: 0;
+    z-index: 1020;
+    background-color: var(--bs-primary);
+    color: white;
+    padding: 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 -0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+}
+.mobile-bottom-action{
+    position:fixed;
+    left:0;
+    right:0;
+    bottom:0;
+    z-index:1050;
+    background:#fff;
+    border-top:1px solid #ddd;
+    padding:12px 16px;
+    box-shadow:0 -4px 12px rgba(0,0,0,.08);
+}
+
+[data-bs-theme="dark"] .badge-open { color: #6ea8fe; border-color: rgba(110, 168, 254, 0.5); }
+[data-bs-theme="dark"] .sync-status { color: #75b798; }
+[data-bs-theme="dark"] .summary-bar { background-color: rgba(var(--bs-primary-rgb), 0.2); }
+[data-bs-theme="dark"] .mobile-action-bar { background-color: var(--bs-primary-bg-subtle); color: var(--bs-primary-text-emphasis); border-top: 1px solid var(--bs-border-color); }
+
+#woPanel, #employeePanel{
+    display:flex;
+    min-width:0;
+    transition:.25s;
+}
+#employeePanel .content-panel{
+    display:flex;
+    flex-direction:column;
+    height:100%;
+}
+
+#employeeListContainer{
+    flex:1 1 auto;
+    min-width:0;
+    min-height:0;
+    overflow:auto;
+}
+
+#woPanel>.content-panel,
+#employeePanel>.content-panel{
+
+    flex:1 1 auto;
+    min-width:0;
+    min-height:0;
+    overflow:hidden;
+}
+
+/*#woListPage{
+    height:calc(100vh - 235px);
+}*/
+#woTableContainer{
+    min-height:0;*/
+}
+.emp-load-dot{
+    width:10px;
+    height:10px;
+    border-radius:50%;
+    display:inline-block;
+    margin-right:8px;
+    flex-shrink:0;
+}
+.emp-wo-badge{
+    font-size:.68rem;
+    font-weight:600;
+    padding:.20rem .50rem;
+    border-radius:999px;
+    white-space:nowrap;
+    text-align:center;
+	
+    min-width:58px;
+    max-width:70px;
+    overflow:hidden;
+    text-overflow:ellipsis;
+}
+.employee-summary{
+    cursor:pointer;
+    color:var(--bs-primary);
+    font-weight:500;
+}
+.pagination .page-link{
+    cursor:pointer;
+    border-radius:10px;
+    margin:0 2px;
+    transition:.18s ease;
+    border:none;
+    min-width:40px;
+    text-align:center;
+}
+
+.pagination .page-link:hover{
+    transform:translateY(-2px);
+    box-shadow:0 3px 10px rgba(0,0,0,.15);
+    background:#0d6efd;
+    color:white;
+}
+
+.pagination .page-item.active .page-link{
+    background:#0d6efd;
+    color:white;
+    box-shadow:0 4px 12px rgba(13,110,253,.35);
+}
+
+.pagination .page-item.disabled .page-link{
+    cursor:not-allowed;
+    opacity:.45;
+}
+.page-link{
+    overflow:hidden;
+    position:relative;
+}
+
+.page-link:after{
+    content:"";
+    position:absolute;
+    inset:0;
+    background:rgba(255,255,255,.25);
+    opacity:0;
+    transition:.25s;
+}
+
+.page-link:active:after{
+    opacity:1;
+}
+#desktopPaginationTop{
+    padding-bottom:.75rem;
+    border-bottom:1px solid var(--bs-border-color);
+    margin-bottom:.75rem;
+}
+
+#desktopPagination{
+    margin-top:.75rem;
+}
+
+.wo-highlight{
+    background:#fff8d6 !important;
+    transition:.2s;
+}
+.emp-preview{
+    cursor:pointer;
+}
+.emp-preview:hover{
+    text-decoration:underline;
+}
+.progress{
+	border-radius:20px;
+    width:100%;
+    max-width:160px;
+}
+.progress-bar{
+    transition:width .35s;
+}
+
+.employee-toolbar{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:.75rem;
+    flex-wrap:wrap;
+    margin-bottom:.75rem;
+}
+.employee-title{
+    display:flex;
+    align-items:center;
+    flex:1 1 auto;
+    min-width:0;
+}
+.employee-title h4{
+
+    margin:0;
+    font-size:1.15rem;
+    font-weight:700;
+    white-space:nowrap;
+}
+
+.employee-title .badge{
+
+    font-size:.8rem;
+    padding:.45rem .7rem;
+}
+
+.employee-sort{
+    flex:0 0 170px;
+    max-width:170px;
+}
+.employee-sort .form-select{
+
+    height:38px;
+    font-size:.9rem;
+}
+#txtEmployeeSearch{
+    min-width:0;
+}
+#employeeList .list-group-item{
+    overflow:hidden;
+}
+.wo-flash{
+    animation:woFlash 1.6s ease;
+}
+
+@keyframes woFlash{
+    0%{
+        background:#fff3cd;
+    }
+    40%{
+        background:#ffe082;
+    }
+    100%{
+        background:transparent;
+    }
+}
+
+/* =========================================================
+   MOBILE ASSIGN EMPLOYEE
+   ========================================================= */
+.mobile-employee-back{
+    display:none;
+}
+/*@media (max-width: 767.98px) {
+
+    .employee-toolbar {
+        margin-bottom: 0 !important;
+        padding-bottom: 0 !important;
+        min-height: 0 !important;
+        height: auto !important;
+    }
+
+}*/
+@media (max-width: 991.98px){
+    /*
+     * Mobile:
+     * hanya satu panel yang ditampilkan dalam satu waktu.
+     */
+    #panelTitle{
+        flex-wrap:wrap;
+    }
+
+    #panelTitle .mobile-employee-back{
+        display:inline-flex;
+        align-items:center;
+        gap:.25rem;
+
+        font-size:.78rem;
+        font-weight:600;
+        text-transform:none;
+
+        margin-right:auto;
+    }
+
+    #panelTitle .mobile-employee-title{
+        width:100%;
+        display:flex;
+        align-items:center;
+        gap:.5rem;
+        margin-top:.25rem;
+    }
+	
+	#woPanel,
+    #employeePanel{
+        width:100% !important;
+        max-width:100% !important;
+        flex:0 0 100% !important;
+        margin-left:0 !important;
+        margin-right:0 !important;
+    }
+    #employeePanel{
+        margin-top:0 !important;
+    }
+    #employeePanel.mobile-panel-hidden,
+    #woPanel.mobile-panel-hidden{
+        display:none !important;
+    }	
+    #employeePanel .content-panel{
+        width:100%;
+        min-height:0;
+    }
+    /*
+     * Employee list mengambil tinggi layar yang tersedia.
+     */
+    #employeeListContainer{
+        max-height:
+            calc(100vh - 300px);
+        overflow-y:auto;
+        -webkit-overflow-scrolling:touch;
+    }
+    /*
+     * Toolbar employee jangan terlalu lebar.
+     */
+    .employee-toolbar{
+        flex-direction:column;
+        align-items:stretch;
+        gap:8px;
+		margin-bottom:0;
+    }
+    .employee-title{
+        width:100%;
+		flex: 0 0 auto;
+        justify-content:space-between;
+    }
+    .employee-title h4{
+        font-size:1.05rem;
+    }
+    .employee-sort{
+		flex: 0 0 auto;
+        width:100%;
+		max-width: 160px;
+    }
+    .employee-sort .form-select{
+        width:100%;
+    }
+    /*
+     * Search employee full width.
+     */
+    #txtEmployeeSearch{
+        width:100%;
+    }
+    /*
+     * Employee item sedikit lebih tinggi
+     * supaya mudah disentuh di HP.
+     */
+    #employeeList .list-group-item{
+        padding-top:.75rem !important;
+        padding-bottom:.75rem !important;
+        min-height:58px;
+    }
+    #employeeList .emp-check{
+        width:1.15rem;
+        height:1.15rem;
+        margin-top:.15rem;
+    }
+    /*
+     * Badge workload tetap di kanan.
+     */
+    #employeeList .emp-wo-badge{
+        min-width:58px;
+        font-size:.72rem;
+    }
+    /*
+     * Back button mobile.
+     */
+    .mobile-employee-back{
+        display:inline-flex;
+        align-items:center;
+        gap:.35rem;
+        margin-bottom:.5rem;
+    }
+    /*
+     * Saat employee mode aktif,
+     * sembunyikan mobile action bar WO.
+     */
+    body.mobile-employee-mode #mobileBottomAction{
+        display:none !important;
+    }
+    /*
+     * Selected WO info dibuat lebih compact.
+     */
+    body.mobile-employee-mode #selectedWOInfo{
+        max-height:130px;
+        overflow-y:auto;
+    }
+    /*
+     * Assignment button fixed di bawah.
+     */
+    body.mobile-employee-mode #employeePanel .employee-mobile-action{
+        position:sticky;
+        bottom:0;
+        z-index:20;
+        background:var(--bs-body-bg);
+        border-top:1px solid var(--bs-border-color);
+        padding:.75rem;
+        margin-left:-.75rem;
+        margin-right:-.75rem;
+        margin-bottom:-.75rem;
+    }
+    /*
+     * Warning completed WO.
+     */
+    body.mobile-employee-mode #assignWarning{
+        font-size:.85rem;
+    }
+    /*
+     * Completed WO list jangan terlalu tinggi.
+     */
+    #completedWOList{
+        max-height:180px;
+        overflow-y:auto;
+    }
+}
+/* =========================================================
+   SMALL PHONE
+   ========================================================= */
+@media (max-width: 575.98px){
+    #employeePanel .content-panel{
+        border-radius:.5rem;
+    }
+    .employee-title h4{
+        font-size:1rem;
+    }
+    #employeeListContainer{
+        max-height:
+            calc(100vh - 285px);
+    }
+}
+/* =========================================================
+   WO PAGING PROCESSING
+   ========================================================= */
+
+#woTableContainer {
+    position: relative;
+}
+
+#woTableContainer.wo-page-loading {
+    pointer-events: none;
+}
+
+#woTableContainer.wo-page-loading #woTableBody {
+    opacity: .45;
+    transition: opacity .15s ease;
+}
+
+.wo-page-loader {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(var(--bs-body-bg-rgb), .35);
+    z-index: 10;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity .15s ease;
+}
+
+#woTableContainer.wo-page-loading .wo-page-loader {
+    opacity: 1;
+    visibility: visible;
+}
+
+.wo-page-loader .spinner-border {
+    width: 1.5rem;
+    height: 1.5rem;
+}
