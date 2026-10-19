@@ -8257,196 +8257,69 @@ function clearDeletedList(idTemplate)
 }
 function patchSavedIdentity(saveResult)
 {
-    if (
-        !saveResult ||
-        !saveResult.IdentityMap ||
-        !currentTemplate
-    )
+    if (!saveResult || !saveResult.IdentityMap)
         return;
 
-    //----------------------------------------
-    // Current Template Cache
-    //----------------------------------------
-
-    const tpl =
-        getTemplateCache(
-            currentTemplate.SectionID,
-            currentTemplate.RuntimeTemplateID
-        );
-
-    if (!tpl)
-        return;
-
-    const structure =
-        currentVersionData;
-
-    //----------------------------------------
-    // Apply Identity
-    //----------------------------------------
-
-    saveResult.IdentityMap.forEach(function (m)
+    const templateNodes = [];
+    Object.values(templateCache.sections || {}).forEach(function(section)
     {
-        switch (m.Entity)
+        Object.values(section.Templates || {}).forEach(function(node)
         {
-            //--------------------------------
-            // TEMPLATE
-            //--------------------------------
+            templateNodes.push(node);
+        });
+    });
 
-            case "Template":
+    saveResult.IdentityMap.forEach(function(m)
+    {
+        templateNodes.forEach(function(node)
+        {
+            const template = node.Template;
+            if (m.Entity === "Template" &&
+                template.RuntimeTemplateID == m.RuntimeID)
+            {
+                template.IDTemplate = m.ID;
+            }
 
-                tpl.Template.IDTemplate = m.ID;
-                break;
-
-            //--------------------------------
-            // VERSION
-            //--------------------------------
-
-            case "Version":
-
-                Object.values(tpl.Versions)
-                .forEach(function (ver)
+            Object.values(node.Versions || {}).forEach(function(ver)
+            {
+                const structure = ver.Structure;
+                if (m.Entity === "Version" &&
+                    ver.VersionInfo.RuntimeVersionID == m.RuntimeID)
                 {
-                    if (
-                        ver.VersionInfo.RuntimeVersionID !=
-                        m.RuntimeID
-                    )
-                        return;
+                    ver.VersionInfo.IDVersion = m.ID;
+                    if (ver.Info) ver.Info.IDVersion = m.ID;
+                    if (structure && structure.VersionInfo)
+                        structure.VersionInfo.IDVersion = m.ID;
+                }
 
-                    ver.VersionInfo.IDVersion =
-                        m.ID;
-
-                    if (ver.Info)
+                if (!structure || !structure.Sections) return;
+                structure.Sections.forEach(function(sec)
+                {
+                    if (m.Entity === "Section" && sec.RuntimeSectionID == m.RuntimeID)
                     {
-                        ver.Info.IDVersion =
-                            m.ID;
+                        sec.IDSection = m.ID;
+                        const sectionElement = document.querySelector('[data-id="' + m.RuntimeID + '"]');
+                        if (sectionElement) sectionElement.dataset.sectionId = m.ID;
                     }
 
-                    if (
-                        ver.Structure &&
-                        ver.Structure.VersionInfo
-                    )
+                    (sec.Items || []).forEach(function(item)
                     {
-                        ver.Structure
-                        .VersionInfo
-                        .IDVersion =
-                            m.ID;
-                    }
-                });
-
-                break;
-
-            //--------------------------------
-            // SECTION
-            //--------------------------------
-
-            case "Section":
-
-                if (
-                    !structure ||
-                    !structure.Sections
-                )
-                    break;
-
-                structure.Sections.forEach(function (sec)
-                {
-                    if (
-                        sec.RuntimeSectionID ==
-                        m.RuntimeID
-                    )
-                    {
-                        sec.IDSection =
-                            m.ID;
-
-                        const el =
-                            document.querySelector(
-                                `[data-id="${m.RuntimeID}"]`
-                            );
-
-                        if (el)
+                        if (m.Entity === "Item" && item.RuntimeItemID == m.RuntimeID)
                         {
-                            el.dataset.sectionId =
-                                m.ID;
+                            item.IDItem = m.ID;
+                            const itemElement = document.querySelector('[data-id="' + m.RuntimeID + '"]');
+                            if (itemElement) itemElement.dataset.itemId = m.ID;
                         }
-                    }
-                });
 
-                break;
-
-            //--------------------------------
-            // ITEM
-            //--------------------------------
-
-            case "Item":
-
-                if (
-                    !structure ||
-                    !structure.Sections
-                )
-                    break;
-
-                structure.Sections.forEach(function (sec)
-                {
-                    (sec.Items || [])
-                    .forEach(function (item)
-                    {
-                        if (
-                            item.RuntimeItemID ==
-                            m.RuntimeID
-                        )
+                        (item.Groups || []).forEach(function(group)
                         {
-                            item.IDItem =
-                                m.ID;
-
-                            const el =
-                                document.querySelector(
-                                    `[data-id="${m.RuntimeID}"]`
-                                );
-
-                            if (el)
-                            {
-                                el.dataset.itemId =
-                                    m.ID;
-                            }
-                        }
-                    });
-                });
-
-                break;
-
-            //--------------------------------
-            // GROUP
-            //--------------------------------
-
-            case "Group":
-
-                if (
-                    !structure ||
-                    !structure.Sections
-                )
-                    break;
-
-                structure.Sections.forEach(function (sec)
-                {
-                    (sec.Items || [])
-                    .forEach(function (item)
-                    {
-                        (item.Groups || [])
-                        .forEach(function (grp)
-                        {
-                            if (
-                                grp.RuntimeGroupID ==
-                                m.RuntimeID
-                            )
-                            {
-                                grp.IDGroup =
-                                    m.ID;
-                            }
+                            if (m.Entity === "Group" && group.RuntimeGroupID == m.RuntimeID)
+                                group.IDGroup = m.ID;
                         });
                     });
                 });
-
-                break;
-        }
+            });
+        });
     });
 }
 async function saveAllTemplate()
