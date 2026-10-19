@@ -72,20 +72,20 @@ JOIN @tbl_Version S4 ON S4.IDVersion=S3.IDVersion
 JOIN PIP_M_CheckListWOPM_Version AS pmclwv ON pmclwv.IDVersion = S4.IDVersion
 JOIN PIP_M_CheckListWOPM AS pmclw ON pmclw.IDTemplate=pmclwv.IDTemplate
 WHERE NOT EXISTS (SELECT * FROM @tbl_Group S WHERE S.IDGroup=S2.IDGroup) 
-AND pmclw.CompanyID=@p_CompanyID AND pmclw.LocationID=@p_LocationID
+
 
 DELETE S2 FROM PIP_M_CheckListWOPM_item S2 JOIN PIP_M_CheckListWOPM_Section S1 ON S1.IDSection = S2.IDSection
 JOIN @tbl_Version S3 ON S3.IDVersion=S1.IDVersion
 JOIN PIP_M_CheckListWOPM_Version AS pmclwv ON pmclwv.IDVersion = S3.IDVersion
 JOIN PIP_M_CheckListWOPM AS pmclw ON pmclw.IDTemplate=pmclwv.IDTemplate
 WHERE NOT EXISTS (SELECT * FROM @tbl_Item S WHERE S.IDItem=S2.IDItem)
-AND pmclw.CompanyID=@p_CompanyID AND pmclw.LocationID=@p_LocationID
+
 
 DELETE S2 FROM PIP_M_CheckListWOPM_section S2 JOIN @tbl_Version S1 ON S1.IDVersion = S2.IDVersion
 JOIN PIP_M_CheckListWOPM_Version AS pmclwv ON pmclwv.IDVersion = S2.IDVersion
 JOIN PIP_M_CheckListWOPM AS pmclw ON pmclw.IDTemplate=pmclwv.IDTemplate
 WHERE NOT EXISTS (SELECT * FROM @tbl_Section S WHERE S.IDSection=S2.IDSection)
-AND pmclw.CompanyID=@p_CompanyID AND pmclw.LocationID=@p_LocationID
+
 
 IF EXISTS (SELECT * FROM @tbl_DelVersion)
 BEGIN
@@ -94,26 +94,35 @@ BEGIN
 	JOIN @tbl_DelVersion B ON B.IDVersion=AAA.IDVersion
 	JOIN PIP_M_CheckListWOPM_Version AS pmclwv ON pmclwv.IDVersion = B.IDVersion
 	JOIN PIP_M_CheckListWOPM AS pmclw ON pmclw.IDTemplate=pmclwv.IDTemplate
-	WHERE pmclw.CompanyID=@p_CompanyID AND pmclw.LocationID=@p_LocationID
+	
 	DELETE A FROM PIP_M_CheckListWOPM_item A JOIN PIP_M_CheckListWOPM_section AA ON AA.IDSection = A.IDSection
 	JOIN @tbl_DelVersion B ON B.IDVersion=AA.IDVersion
 	JOIN PIP_M_CheckListWOPM_Version AS pmclwv ON pmclwv.IDVersion = B.IDVersion
 	JOIN PIP_M_CheckListWOPM AS pmclw ON pmclw.IDTemplate=pmclwv.IDTemplate
-	WHERE pmclw.CompanyID=@p_CompanyID AND pmclw.LocationID=@p_LocationID
+	
 	DELETE A FROM PIP_M_CheckListWOPM_section A JOIN @tbl_DelVersion B ON B.IDVersion=A.IDVersion
 	JOIN PIP_M_CheckListWOPM_Version AS pmclwv ON pmclwv.IDVersion = B.IDVersion
 	JOIN PIP_M_CheckListWOPM AS pmclw ON pmclw.IDTemplate=pmclwv.IDTemplate
-	WHERE pmclw.CompanyID=@p_CompanyID AND pmclw.LocationID=@p_LocationID
+	
 END
 
 DELETE V FROM PIP_M_CheckListWOPM_version V 
 INNER JOIN @tbl_DelVersion D ON V.IDTemplate = D.IDTemplate AND V.IDVersion = D.IDVersion
 JOIN PIP_M_CheckListWOPM AS pmclw ON pmclw.IDTemplate=v.IDTemplate
-WHERE pmclw.CompanyID=@p_CompanyID AND pmclw.LocationID=@p_LocationID
 
-DELETE T FROM PIP_M_CheckListWOPM T 
+
+/* Remove template-level relations before deleting the template (FK-safe). */
+DELETE A
+FROM dbo.PIP_M_CheckListWOPM_Employee A
+JOIN @tbl_DelTemplate D ON D.IDTemplate=A.IDTemplate;
+
+DELETE S
+FROM dbo.PIP_M_CheckListWOPM_CompanyLocation S
+JOIN @tbl_DelTemplate D ON D.IDTemplate=S.IDTemplate;
+
+DELETE T FROM PIP_M_CheckListWOPM T
 INNER JOIN @tbl_DelTemplate D ON T.IDTemplate = D.IDTemplate
-WHERE T.CompanyID=@p_CompanyID AND T.LocationID=@p_LocationID
+
 
 --- TEMPLATE
 UPDATE T
