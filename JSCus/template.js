@@ -5252,7 +5252,11 @@ async function renderTemplateCompanyAssignments(template)
             check.type = 'checkbox';
             check.className = 'form-check-input';
             check.checked = !!row.IsAssigned;
-            check.disabled = isReadonlyMode;
+            // Keep the current property selected so the editor does not lose access mid-session.
+            check.disabled = isReadonlyMode ||
+                (String(row.CompanyID) === String(companyId) && String(row.LocationID) === String(locationId));
+            if (check.disabled && !isReadonlyMode)
+                check.title = 'To remove this property, open the template from another assigned property.';
             check.addEventListener('change', async function() {
                 const oldValue = !this.checked;
                 try {
