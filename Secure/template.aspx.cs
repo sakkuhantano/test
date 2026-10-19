@@ -1098,6 +1098,87 @@ WHERE IDTemplate=@IDTemplate AND EmployeeID=@EmployeeID",
             }
         }
 
+
+        [WebMethod]
+        public static object GetInspectionTypes(string sectionId)
+        {
+            using (var br = new WAL.BR.CF())
+            {
+                DataTable dt = br.EQuery(@"
+SELECT InspectionTypeCode, InspectionTypeName, SectionID, IsActive
+FROM dbo.PIP_M_InspectionType
+WHERE SectionID=@SectionID AND IsActive=1
+ORDER BY InspectionTypeName",
+                    "@SectionID=" + sectionId);
+                var rows = dt.AsEnumerable().Select(row => new
+                {
+                    InspectionTypeCode = GF.GetString(row["InspectionTypeCode"]),
+                    InspectionTypeName = GF.GetString(row["InspectionTypeName"]),
+                    SectionID = GF.GetString(row["SectionID"])
+                }).ToList();
+                JavaScriptSerializer serializer = new JavaScriptSerializer();
+                return serializer.Serialize(rows);
+            }
+        }
+
+        [WebMethod]
+        public static object SaveTemplateMetadata(string idTemplate, string templateType, string inspectionTypeCode, string companyScope, string updateUser)
+        {
+            int id;
+            if (!Int32.TryParse(idTemplate, out id) || id <= 0)
+                return new { success = false, message = "Save the template and its first version before saving these settings." };
+            templateType = (templateType ?? "W").Trim().ToUpperInvariant();
+            companyScope = (companyScope ?? "S").Trim().ToUpperInvariant();
+            inspectionTypeCode = (inspectionTypeCode ?? "").Trim().ToUpperInvariant();
+            if (templateType != "W" && templateType != "I")
+                return new { success = false, message = "Invalid template type." };
+            if (companyScope != "A" && companyScope != "S")
+                return new { success = false, message = "Invalid company scope." };
+            if (templateType == "I" && inspectionTypeCode.Length == 0)
+                return new { success = false, message = "Inspection Type is required for an Inspection template." };
+            if (templateType == "W") inspectionTypeCode = "";
+
+            using (var br = new WAL.BR.CF())
+            {
+                DataTable dt = br.EQuery(@"
+SELECT T.IDTemplate, T.SectionID, I.SectionID InspectionSectionID
+FROM dbo.PIP_M_CheckListWOPM T
+LEFT JOIN dbo.PIP_M_InspectionType I
+  ON I.InspectionTypeCode=@InspectionTypeCode AND I.IsActive=1
+WHERE T.IDTemplate=@IDTemplate",
+                    "@IDTemplate=" + id + GF.Str2 + "@InspectionTypeCode=" + inspectionTypeCode);
+                if (dt.Rows.Count == 0)
+                    return new { success = false, message = "Template was not found." };
+                DataRow row = dt.Rows[0];
+                if (templateType == "I" &&
+                    (row["InspectionSectionID"] == DBNull.Value ||
+                     !String.Equals(GF.GetString(row["SectionID"]), GF.GetString(row["InspectionSectionID"]), StringComparison.OrdinalIgnoreCase)))
+                    return new { success = false, message = "Inspection Type must belong to the same Section as the selected root." };
+
+                br.EQuery(@"
+SET XACT_ABORT ON;
+BEGIN TRANSACTION;
+UPDATE dbo.PIP_M_CheckListWOPM
+SET TemplateType=@TemplateType, InspectionTypeCode=@InspectionTypeCode,
+    CompanyScope=@CompanyScope, UpdateUser=@UpdateUser, UpdateDate=GETDATE()
+WHERE IDTemplate=@IDTemplate;
+IF @CompanyScope='S'
+AND NOT EXISTS (SELECT 1 FROM dbo.PIP_M_CheckListWOPM_CompanyLocation WHERE IDTemplate=@IDTemplate)
+BEGIN
+    INSERT dbo.PIP_M_CheckListWOPM_CompanyLocation (IDTemplate, CompanyID, LocationID, EntryUser, EntryDate)
+    SELECT IDTemplate, CompanyID, LocationID, @UpdateUser, GETDATE()
+    FROM dbo.PIP_M_CheckListWOPM WHERE IDTemplate=@IDTemplate;
+END;
+COMMIT TRANSACTION;",
+                    "@TemplateType=" + templateType + GF.Str2 +
+                    "@InspectionTypeCode=" + inspectionTypeCode + GF.Str2 +
+                    "@CompanyScope=" + companyScope + GF.Str2 +
+                    "@UpdateUser=" + updateUser + GF.Str2 +
+                    "@IDTemplate=" + id);
+                return new { success = true, message = "" };
+            }
+        }
+
         [WebMethod]
         public static object GetGroupEquipment(string companyId, string locationId, string sectionId)
         {
