@@ -21,7 +21,7 @@ namespace UTL1.Secure
 
         }
         [WebMethod]
-        public static object GetTemplateExplorerRoot(string userId, string companyId, string locationId)
+        public static object GetTemplateExplorerRoot(string userId, string companyId, string locationId, string employeeId)
         {
             using (var br = new WAL.BR.CF())
             {
@@ -44,7 +44,11 @@ TotalTemplate=ISNULL((SELECT COUNT(*) FROM PIP_M_CheckListWOPM bb
                         AND sc.LocationID=@LocationID))),0)
 FROM UTL_User a
 CROSS APPLY dbo.SplitStringConvertToTable(a.Section,';') aa
-WHERE a.UserID=@UserID", "@UserID=" + userId + GF.Str2 + "@CompanyID=" + companyId + GF.Str2 + "@LocationID=" + locationId);
+WHERE a.UserID=@UserID
+  AND EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation perm
+              WHERE perm.AppID='PIP' AND perm.UserID=@EmployeeID
+                AND perm.CompanyID=@CompanyID AND perm.LocationID=@LocationID)",
+"@UserID=" + userId + GF.Str2 + "@CompanyID=" + companyId + GF.Str2 + "@LocationID=" + locationId + GF.Str2 + "@EmployeeID=" + employeeId);
 
                 //var data = dt.AsEnumerable()
                 //    .GroupBy(row => row.Field<string>("SectionID"))
@@ -228,7 +232,7 @@ WHERE C.IDVersion = @IDVersion ORDER BY A.DisplayOrder;",
             }
         }
         [WebMethod]
-        public static object GetTemplatesBySection(string sectionId, string companyId, string locationId)
+        public static object GetTemplatesBySection(string sectionId, string companyId, string locationId, string employeeId)
         {
             using (var br = new WAL.BR.CF())
             {
@@ -240,6 +244,9 @@ CanDeleted=CAST(CASE WHEN NOT EXISTS (SELECT * FROM PIP_M_CheckListWOPM_Version 
 RuntimeTemplateID=a.IDTemplate
 FROM PIP_M_CheckListWOPM a
 WHERE a.SectionID=@SectionID
+  AND EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation perm
+              WHERE perm.AppID='PIP' AND perm.UserID=@EmployeeID
+                AND perm.CompanyID=@CompanyID AND perm.LocationID=@LocationID)
   AND (ISNULL(a.CompanyScope,'S')='A'
        OR EXISTS (SELECT 1 FROM dbo.PIP_M_CheckListWOPM_CompanyLocation sc
                   WHERE sc.IDTemplate=a.IDTemplate
@@ -247,7 +254,7 @@ WHERE a.SectionID=@SectionID
                     AND sc.LocationID=@LocationID))", 
 "@SectionID=" + sectionId + GF.Str2 +
 "@CompanyID=" + companyId + GF.Str2 +
-"@LocationID=" + locationId);
+"@LocationID=" + locationId + GF.Str2 + "@EmployeeID=" + employeeId);
                 var versionList = dt.AsEnumerable().Select(row => new
                 {
                     RuntimeTemplateID = Convert.ToInt32(row["RuntimeTemplateID"]),
