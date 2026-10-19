@@ -524,7 +524,11 @@ function createNewTemplate(sectionId)
         TemplateNo:"",
         TemplateName:"NEW TEMPLATE",
         Description:"",
-        GroupEquipment:""
+        GroupEquipment:"",
+        TemplateType:"W",
+        InspectionTypeCode:"",
+        CompanyScope:"S",
+        MetadataDirty:false
     };
 }
 function createNewGroup()
@@ -4951,8 +4955,286 @@ async function showTemplateRootProperties(template, version)
         );
         document.getElementById("propTemplateNo").focus();
     }
+    await appendTemplateMetadataControls(template);
+
     if (rightPanelSub != "") {
         showVersionPropertiesEvent(version);
+    }
+}
+async function appendTemplateMetadataControls(template)
+{
+    const body = document.querySelector('#panel-properties .panel-content .prop-group-body');
+    if (!body || document.getElementById('propTemplateType')) return;
+
+    template.TemplateType = template.TemplateType || "W";
+    template.CompanyScope = template.CompanyScope || "S";
+    template.InspectionTypeCode = template.InspectionTypeCode || "";
+
+    const section = document.createElement('div');
+    section.className = 'border-top mt-3 pt-3';
+    section.innerHTML =
+        '<div class="mb-3">' +
+            '<label class="form-label">Template Type</label>' +
+            '<select id="propTemplateType" class="form-select form-select-compact" ' + (isReadonlyMode ? 'disabled' : '') + '>' +
+                '<option value="W">PM / WO</option>' +
+                '<option value="I">Inspection</option>' +
+            '</select>' +
+        '</div>' +
+        '<div class="mb-3" id="inspectionTypeField" style="display:none;">' +
+            '<label class="form-label">Inspection Type</label>' +
+            '<select id="propInspectionType" class="form-select form-select-compact" ' + (isReadonlyMode ? 'disabled' : '') + '><option value="">Loading...</option></select>' +
+            '<div class="form-text">Filtered by SectionID ' + escapeHtml(template.SectionID || '') + '.</div>' +
+        '</div>' +
+        '<div class="mb-3">' +
+            '<label class="form-label">Company Scope</label>' +
+            '<select id="propCompanyScope" class="form-select form-select-compact" ' + (isReadonlyMode ? 'disabled' : '') + '>' +
+                '<option value="S">Selected Company / Gedung</option>' +
+                '<option value="A">All Company / Gedung</option>' +
+            '</select>' +
+        '</div>' +
+        '<div class="border rounded p-2 mb-3">' +
+            '<div class="fw-semibold mb-2">Company / Gedung Assignment</div>' +
+            '<div id="templateCompanyAssignments" class="small text-muted">Loading...</div>' +
+        '</div>' +
+        '<div class="border rounded p-2" id="templateEmployeePanel" style="display:none;">' +
+            '<div class="fw-semibold mb-2">Employee Assignment</div>' +
+            '<div class="small text-muted mb-2">Employee must match the template SectionID and selected company/location scope. Employees are assigned one by one.</div>' +
+            '<div id="templateEmployeeAssignments" class="small text-muted">Loading...</div>' +
+        '</div>';
+    body.appendChild(section);
+
+    const typeSelect = document.getElementById('propTemplateType');
+    const scopeSelect = document.getElementById('propCompanyScope');
+    const inspectionSelect = document.getElementById('propInspectionType');
+    typeSelect.value = template.TemplateType;
+    scopeSelect.value = template.CompanyScope;
+
+    const markMetadataDirty = function() {
+        template.MetadataDirty = true;
+        templateCache.Dirty = true;
+    };
+
+    typeSelect.addEventListener('change', async function() {
+        template.TemplateType = this.value;
+        if (template.TemplateType !== 'I') template.InspectionTypeCode = '';
+        markMetadataDirty();
+        await appendTemplateMetadataRefresh(template);
+    });
+
+    scopeSelect.addEventListener('change', async function() {
+        template.CompanyScope = this.value;
+        markMetadataDirty();
+        await renderTemplateCompanyAssignments(template);
+    });
+
+    try {
+        const raw = await promisifyPageMethod(PageMethods.GetInspectionTypes, template.SectionID);
+        const types = JSON.parse(raw || '[]');
+        inspectionSelect.innerHTML = '';
+        inspectionSelect.add(new Option('-- Select Inspection Type --', ''));
+        types.forEach(function(item) {
+            inspectionSelect.add(new Option(item.InspectionTypeCode + ' - ' + item.InspectionTypeName, item.InspectionTypeCode));
+        });
+        if (template.InspectionTypeCode && !types.some(function(x) { return x.InspectionTypeCode === template.InspectionTypeCode; })) {
+            inspectionSelect.add(new Option(template.InspectionTypeCode + ' (inactive/unavailable)', template.InspectionTypeCode));
+        }
+        inspectionSelect.value = template.InspectionTypeCode;
+    } catch (ex) {
+        inspectionSelect.innerHTML = '';
+        inspectionSelect.add(new Option('Failed to load inspection types', ''));
+        console.error(ex);
+    }
+
+    inspectionSelect.addEventListener('change', function() {
+        template.InspectionTypeCode = this.value;
+        markMetadataDirty();
+    });
+
+    await appendTemplateMetadataRefresh(template);
+}
+async function appendTemplateMetadataRefresh(template)
+{
+    const isInspection = template.TemplateType === 'I';
+    const inspectionField = document.getElementById('inspectionTypeField');
+    const employeePanel = document.getElementById('templateEmployeePanel');
+    if (inspectionField) inspectionField.style.display = isInspection ? '' : 'none';
+    if (employeePanel) employeePanel.style.display = isInspection ? '' : 'none';
+
+    await renderTemplateCompanyAssignments(template);
+    if (isInspection) await renderTemplateEmployeeAssignments(template);
+}
+async function renderTemplateCompanyAssignments(template)
+{
+    const host = document.getElementById('templateCompanyAssignments');
+    if (!host) return;
+    if (template.CompanyScope === 'A') {
+        host.textContent = 'All Company / Gedung: this template is available across all properties.';
+        return;
+    }
+    if (!template.IDTemplate || Number(template.IDTemplate) <= 0) {
+        host.textContent = 'Save the template first. You can then assign one or more company/location pairs.';
+        return;
+    }
+    try {
+        const raw = await promisifyPageMethod(PageMethods.GetTemplateCompanyLocations, String(template.IDTemplate));
+        const rows = JSON.parse(raw || '[]');
+        host.innerHTML = '';
+        if (!rows.length) {
+            host.textContent = 'No company/location pairs were found in employee master.';
+            return;
+        }
+        const table = document.createElement('table');
+        table.className = 'table table-sm align-middle';
+        table.innerHTML = '<thead><tr><th>Use</th><th>CompanyID</th><th>LocationID</th></tr></thead><tbody></tbody>';
+        const tbody = table.querySelector('tbody');
+        rows.forEach(function(row) {
+            const tr = document.createElement('tr');
+            const tdCheck = document.createElement('td');
+            const check = document.createElement('input');
+            check.type = 'checkbox';
+            check.className = 'form-check-input';
+            check.checked = !!row.IsAssigned;
+            check.disabled = isReadonlyMode;
+            check.addEventListener('change', async function() {
+                const oldValue = !this.checked;
+                try {
+                    showLoading();
+                    const result = await promisifyPageMethod(
+                        PageMethods.SetTemplateCompanyLocation,
+                        String(template.IDTemplate), row.CompanyID, row.LocationID,
+                        this.checked ? 'ADD' : 'REMOVE', getLoginData().employeeid
+                    );
+                    hideLoading();
+                    if (!result.success) {
+                        this.checked = oldValue;
+                        alert(result.message || 'Unable to update company/location assignment.');
+                        return;
+                    }
+                    if (!this.checked && template.TemplateType === 'I') await renderTemplateEmployeeAssignments(template);
+                    await reloadExplorer();
+                } catch (ex) {
+                    hideLoading();
+                    this.checked = oldValue;
+                    alert(ex.message || ex);
+                }
+            });
+            tdCheck.appendChild(check);
+            const tdCompany = document.createElement('td');
+            tdCompany.textContent = row.CompanyID;
+            const tdLocation = document.createElement('td');
+            tdLocation.textContent = row.LocationID;
+            tr.appendChild(tdCheck);
+            tr.appendChild(tdCompany);
+            tr.appendChild(tdLocation);
+            tbody.appendChild(tr);
+        });
+        host.appendChild(table);
+    } catch (ex) {
+        host.textContent = 'Failed to load company/location assignments.';
+        console.error(ex);
+    }
+}
+async function renderTemplateEmployeeAssignments(template)
+{
+    const host = document.getElementById('templateEmployeeAssignments');
+    if (!host) return;
+    if (template.TemplateType !== 'I') {
+        host.textContent = 'Employee assignment is only available for Inspection templates.';
+        return;
+    }
+    if (!template.IDTemplate || Number(template.IDTemplate) <= 0) {
+        host.textContent = 'Save the template first, then assign employees one by one.';
+        return;
+    }
+    try {
+        const raw = await promisifyPageMethod(PageMethods.GetTemplateEmployees, String(template.IDTemplate), template.SectionID);
+        const rows = JSON.parse(raw || '[]');
+        host.innerHTML = '';
+        if (!rows.length) {
+            host.textContent = 'No eligible employees found for this SectionID and company scope.';
+            return;
+        }
+        const table = document.createElement('table');
+        table.className = 'table table-sm align-middle';
+        table.innerHTML = '<thead><tr><th>Assign</th><th>Employee</th><th>Company</th><th>Gedung</th></tr></thead><tbody></tbody>';
+        const tbody = table.querySelector('tbody');
+        rows.forEach(function(row) {
+            const tr = document.createElement('tr');
+            const tdCheck = document.createElement('td');
+            const check = document.createElement('input');
+            check.type = 'checkbox';
+            check.className = 'form-check-input';
+            check.checked = !!row.IsAssigned;
+            check.disabled = isReadonlyMode;
+            check.addEventListener('change', async function() {
+                const oldValue = !this.checked;
+                try {
+                    showLoading();
+                    const result = await promisifyPageMethod(
+                        PageMethods.SetTemplateEmployeeAssignment,
+                        String(template.IDTemplate), row.EmployeeID,
+                        this.checked ? 'ADD' : 'REMOVE', getLoginData().employeeid
+                    );
+                    hideLoading();
+                    if (!result.success) {
+                        this.checked = oldValue;
+                        alert(result.message || 'Unable to update employee assignment.');
+                    }
+                } catch (ex) {
+                    hideLoading();
+                    this.checked = oldValue;
+                    alert(ex.message || ex);
+                }
+            });
+            tdCheck.appendChild(check);
+            const tdEmployee = document.createElement('td');
+            tdEmployee.textContent = row.EmployeeID + ' - ' + row.Name;
+            const tdCompany = document.createElement('td');
+            tdCompany.textContent = row.CompanyID;
+            const tdLocation = document.createElement('td');
+            tdLocation.textContent = row.LocationID;
+            tr.appendChild(tdCheck);
+            tr.appendChild(tdEmployee);
+            tr.appendChild(tdCompany);
+            tr.appendChild(tdLocation);
+            tbody.appendChild(tr);
+        });
+        host.appendChild(table);
+    } catch (ex) {
+        host.textContent = 'Failed to load employee assignments.';
+        console.error(ex);
+    }
+}
+function hasDirtyTemplateMetadata()
+{
+    return Object.values(templateCache.sections || {}).some(function(section) {
+        return Object.values(section.Templates || {}).some(function(node) {
+            return !!(node.Template && node.Template.MetadataDirty);
+        });
+    });
+}
+async function saveDirtyTemplateMetadata()
+{
+    const pending = [];
+    Object.values(templateCache.sections || {}).forEach(function(section) {
+        Object.values(section.Templates || {}).forEach(function(node) {
+            if (node.Template && node.Template.MetadataDirty) pending.push(node.Template);
+        });
+    });
+    for (let i = 0; i < pending.length; i++) {
+        const template = pending[i];
+        if (!template.IDTemplate || Number(template.IDTemplate) <= 0)
+            throw new Error('Template identity was not returned by Save All. Save the template draft first.');
+        const result = await promisifyPageMethod(
+            PageMethods.SaveTemplateMetadata,
+            String(template.IDTemplate),
+            template.TemplateType || 'W',
+            template.InspectionTypeCode || '',
+            template.CompanyScope || 'S',
+            getLoginData().employeeid
+        );
+        if (!result.success) throw new Error(result.message || 'Failed to save template settings.');
+        template.MetadataDirty = false;
     }
 }
 function refreshGroupEquipmentCaption(template)
@@ -8022,10 +8304,12 @@ async function saveAllTemplate()
         ||
         (templateCache.deleted.versions || []).length > 0
     );
+    const hasMetadataDirty = hasDirtyTemplateMetadata();
 
     if(
         !templateCache.Dirty &&
-        !hasPendingDelete
+        !hasPendingDelete &&
+        !hasMetadataDirty
     )
     {
         showToast(
@@ -8155,6 +8439,8 @@ async function saveAllTemplate()
         payload.Templates.length == 0
         &&
         !hasDelete
+        &&
+        !hasMetadataDirty
     )
     {
         showToast(
@@ -8230,7 +8516,8 @@ async function saveAllTemplate()
         templateCache.deleted.templates=[];
         templateCache.deleted.versions=[];
 
-        //clearDeletedList();
+        // Save template metadata after template/version identities have been assigned.
+        await saveDirtyTemplateMetadata();
 
         //--------------------------------
         // Clear Dirty
