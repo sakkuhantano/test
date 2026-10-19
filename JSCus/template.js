@@ -8558,6 +8558,8 @@ async function saveAllTemplate()
 
         // Save template metadata after template/version identities have been assigned.
         await saveDirtyTemplateMetadata();
+        if (currentTemplate && Number(currentTemplate.IDTemplate) > 0)
+            await appendTemplateMetadataRefresh(currentTemplate);
 
         //--------------------------------
         // Clear Dirty
