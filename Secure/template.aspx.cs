@@ -852,7 +852,7 @@ SELECT T.IDTemplate, T.SectionID, T.CompanyID, T.LocationID,
        InspectionSectionID=I.SectionID
 FROM dbo.PIP_M_CheckListWOPM T
 LEFT JOIN dbo.PIP_M_InspectionType I
-  ON I.InspectionTypeCode=@InspectionTypeCode
+  ON I.InspectionTypeCode=@InspectionTypeCode AND I.IsActive=1
 WHERE T.IDTemplate=@IDTemplate
   AND (ISNULL(T.CompanyScope,'S')='A' OR EXISTS
        (SELECT 1 FROM dbo.PIP_M_CheckListWOPM_CompanyLocation AccessScope
@@ -924,7 +924,7 @@ COMMIT TRANSACTION;",
         }
 
         [WebMethod]
-        public static object GetTemplateCompanyLocations(string idTemplate, string companyId, string locationId)
+        public static object GetTemplateCompanyLocations(string idTemplate, string companyId, string locationId, string userId)
         {
             int id;
             if (!Int32.TryParse(idTemplate, out id))
@@ -932,13 +932,17 @@ COMMIT TRANSACTION;",
             using (var br = new WAL.BR.CF())
             {
                 DataTable dt = br.EQuery(@"
-SELECT L.CompanyID, L.LocationID,
+SELECT L.CompanyID, L.LocationID, L.CompanyName, L.LocationName,
        IsAssigned=CAST(CASE WHEN S.IDTemplate IS NULL THEN 0 ELSE 1 END AS BIT)
 FROM
 (
-    SELECT DISTINCT CompanyID, LocationID
-    FROM dbo.M_HRD_Employee
-    WHERE ISNULL(CompanyID,'')<>'' AND ISNULL(LocationID,'')<>''
+    SELECT swc.CompanyID, swl.LocationID, swc.CompanyName, swl.LocationName
+    FROM dbo.SysWebLocation swl
+    JOIN dbo.SysWebCompany swc ON swc.CompanyID=swl.CompanyID
+    JOIN dbo.SysWebUserCompanyLocation perm
+      ON perm.CompanyID=swl.CompanyID AND perm.LocationID=swl.LocationID
+     AND perm.UserID=@UserID AND perm.AppID='PIP'
+    WHERE swc.IsActive=1 AND swl.IsActive=1 AND swl.IsActiveBuilding=1
 ) L
 LEFT JOIN dbo.PIP_M_CheckListWOPM_CompanyLocation S
   ON S.IDTemplate=@IDTemplate AND S.CompanyID=L.CompanyID AND S.LocationID=L.LocationID
@@ -954,11 +958,13 @@ WHERE EXISTS
 )
 ORDER BY L.CompanyID, L.LocationID",
                     "@IDTemplate=" + id + GF.Str2 +
-                    "@CompanyID=" + companyId + GF.Str2 + "@LocationID=" + locationId);
+                    "@CompanyID=" + companyId + GF.Str2 + "@LocationID=" + locationId + GF.Str2 + "@UserID=" + userId);
                 var rows = dt.AsEnumerable().Select(row => new
                 {
                     CompanyID = GF.GetString(row["CompanyID"]),
                     LocationID = GF.GetString(row["LocationID"]),
+                    CompanyName = GF.GetString(row["CompanyName"]),
+                    LocationName = GF.GetString(row["LocationName"]),
                     IsAssigned = Convert.ToBoolean(row["IsAssigned"])
                 }).ToList();
                 JavaScriptSerializer serializer = new JavaScriptSerializer();
@@ -1000,10 +1006,16 @@ WHERE T.IDTemplate=@IDTemplate
                     br.EQuery(@"
 IF NOT EXISTS
 (
-    SELECT 1 FROM dbo.M_HRD_Employee
-    WHERE CompanyID=@CompanyID AND LocationID=@LocationID
+    SELECT 1
+    FROM dbo.SysWebLocation swl
+    JOIN dbo.SysWebCompany swc ON swc.CompanyID=swl.CompanyID
+    JOIN dbo.SysWebUserCompanyLocation perm
+      ON perm.CompanyID=swl.CompanyID AND perm.LocationID=swl.LocationID
+     AND perm.UserID=@UpdateUser AND perm.AppID='PIP'
+    WHERE swc.IsActive=1 AND swl.IsActive=1 AND swl.IsActiveBuilding=1
+      AND swl.CompanyID=@CompanyID AND swl.LocationID=@LocationID
 )
-    RAISERROR('The selected company/location was not found in employee master.',16,1);
+    RAISERROR('The company/location is inactive or you do not have PIP permission for it.',16,1);
 IF NOT EXISTS
 (
     SELECT 1 FROM dbo.PIP_M_CheckListWOPM_CompanyLocation
@@ -1049,7 +1061,7 @@ COMMIT TRANSACTION;",
         }
 
         [WebMethod]
-        public static object GetTemplateEmployees(string idTemplate, string sectionId, string companyId, string locationId)
+        public static object GetTemplateEmployees(string idTemplate, string sectionId, string companyId, string locationId, string userId)
         {
             int id;
             if (!Int32.TryParse(idTemplate, out id))
@@ -1066,6 +1078,9 @@ LEFT JOIN dbo.PIP_M_CheckListWOPM_Employee A
 WHERE E.SectionID=T.SectionID
   AND T.SectionID=@SectionID
   AND EXISTS (SELECT 1 FROM dbo.UTL_User U WHERE U.EmployeeID=E.EmployeeID)
+  AND EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation perm
+              WHERE perm.AppID='PIP' AND perm.UserID=@UserID
+                AND perm.CompanyID=E.CompanyID AND perm.LocationID=E.LocationID)
   AND (ISNULL(T.CompanyScope,'S')='A' OR EXISTS
        (SELECT 1 FROM dbo.PIP_M_CheckListWOPM_CompanyLocation AccessScope
         WHERE AccessScope.IDTemplate=T.IDTemplate
@@ -1086,7 +1101,7 @@ ORDER BY E.CompanyID, E.LocationID, E.EmployeeID",
                     "@IDTemplate=" + id + GF.Str2 +
                     "@SectionID=" + sectionId + GF.Str2 +
                     "@CurrentCompanyID=" + companyId + GF.Str2 +
-                    "@CurrentLocationID=" + locationId);
+                    "@CurrentLocationID=" + locationId + GF.Str2 + "@UserID=" + userId);
                 var rows = dt.AsEnumerable().Select(row => new
                 {
                     EmployeeID = GF.GetString(row["EmployeeID"]),
@@ -1119,6 +1134,9 @@ FROM dbo.PIP_M_CheckListWOPM T
 JOIN dbo.M_HRD_Employee E ON E.EmployeeID=@EmployeeID
 WHERE T.IDTemplate=@IDTemplate
   AND EXISTS (SELECT 1 FROM dbo.UTL_User U WHERE U.EmployeeID=E.EmployeeID)
+  AND EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation perm
+              WHERE perm.AppID='PIP' AND perm.UserID=@UpdateUser
+                AND perm.CompanyID=E.CompanyID AND perm.LocationID=E.LocationID)
   AND (ISNULL(T.CompanyScope,'S')='A' OR EXISTS
        (SELECT 1 FROM dbo.PIP_M_CheckListWOPM_CompanyLocation AccessScope
         WHERE AccessScope.IDTemplate=T.IDTemplate
