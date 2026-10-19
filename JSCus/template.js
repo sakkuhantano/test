@@ -1011,7 +1011,7 @@ async function loadTemplateExplorer()
         //showExplorerLoading();
 		var loginData = getLoginData();
 		const res = await promisifyPageMethod(
-			PageMethods.GetTemplateExplorerRoot, loginData.userid, companyId, locationId
+			PageMethods.GetTemplateExplorerRoot, loginData.userid, companyId, locationId, loginData.employeeid
 		);	
 
         explorerRoot = res || [];
@@ -1254,7 +1254,7 @@ async function loadTemplatesBySection(sectionId, btn)
         const result =
             await promisifyPageMethod(
                 PageMethods.GetTemplatesBySection,
-                sectionId, companyId, locationId
+                sectionId, companyId, locationId, getLoginData().employeeid
             );
         const templates =
             JSON.parse(result || "[]");
