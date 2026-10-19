@@ -60,7 +60,7 @@ BEGIN
     (
         IDTemplate INT NOT NULL,
         CompanyID VARCHAR(10) NOT NULL,
-        LocationID VARCHAR(3) NOT NULL,
+        LocationID VARCHAR(10) NOT NULL,
         EntryUser VARCHAR(50) NULL,
         EntryDate DATETIME NULL,
         CONSTRAINT PK_PIP_M_CheckListWOPM_CompanyLocation
