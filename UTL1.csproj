@@ -1,0 +1,403 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProductVersion>
+    </ProductVersion>
+    <SchemaVersion>2.0</SchemaVersion>
+    <ProjectGuid>{9643AB55-D36D-49C9-BA3A-1C356C6B0B9D}</ProjectGuid>
+    <ProjectTypeGuids>{349c5851-65df-11da-9384-00065b846f21};{fae04ec0-301f-11d3-bf4b-00c04f79efbc}</ProjectTypeGuids>
+    <OutputType>Library</OutputType>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <RootNamespace>UTL1</RootNamespace>
+    <AssemblyName>UTL1</AssemblyName>
+    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
+    <UseIISExpress>false</UseIISExpress>
+    <IISExpressSSLPort />
+    <IISExpressAnonymousAuthentication />
+    <IISExpressWindowsAuthentication />
+    <IISExpressUseClassicPipelineMode />
+    <TargetFrameworkProfile />
+    <SccProjectName>SAK</SccProjectName>
+    <SccLocalPath>SAK</SccLocalPath>
+    <SccAuxPath>SAK</SccAuxPath>
+    <SccProvider>SAK</SccProvider>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <Prefer32Bit>false</Prefer32Bit>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <Prefer32Bit>false</Prefer32Bit>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="CrystalDecisions.CrystalReports.Engine, Version=13.0.2000.0, Culture=neutral, PublicKeyToken=692fbea5521e1304, processorArchitecture=MSIL" />
+    <Reference Include="CrystalDecisions.ReportSource, Version=13.0.2000.0, Culture=neutral, PublicKeyToken=692fbea5521e1304, processorArchitecture=MSIL" />
+    <Reference Include="CrystalDecisions.Shared, Version=13.0.2000.0, Culture=neutral, PublicKeyToken=692fbea5521e1304, processorArchitecture=MSIL" />
+    <Reference Include="CrystalDecisions.Web, Version=13.0.2000.0, Culture=neutral, PublicKeyToken=692fbea5521e1304, processorArchitecture=MSIL" />
+    <Reference Include="EPPlus">
+      <HintPath>..\..\..\..\..\..\..\inetpub\wwwroot\WebFolder\WAL_Publish\bin\EPPlus.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.CSharp" />
+    <Reference Include="Newtonsoft.Json">
+      <HintPath>\\data_server\d$\Web\WebFolder\WAL_Publish\bin\Newtonsoft.Json.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Data.DataSetExtensions" />
+    <Reference Include="System.Net.Http" />
+    <Reference Include="System.Net.Http.Formatting, Version=4.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL" />
+    <Reference Include="System.Web.DynamicData" />
+    <Reference Include="System.Web.Entity" />
+    <Reference Include="System.Web.ApplicationServices" />
+    <Reference Include="System.ComponentModel.DataAnnotations" />
+    <Reference Include="System" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Web" />
+    <Reference Include="System.Web.Extensions" />
+    <Reference Include="System.Web.Http, Version=4.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL" />
+    <Reference Include="System.Web.Routing" />
+    <Reference Include="System.Xml" />
+    <Reference Include="System.Configuration" />
+    <Reference Include="System.Web.Services" />
+    <Reference Include="System.EnterpriseServices" />
+    <Reference Include="System.Xml.Linq" />
+    <Reference Include="WebAppLib, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>bin\WebAppLib.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="CSSCus\assignwoemployee.css" />
+    <Content Include="CSSCus\dashboard.css" />
+    <Content Include="CSSCus\GFC.css" />
+    <Content Include="CSSCus\meterreading.css" />
+    <Content Include="CSSCus\template.css" />
+    <Content Include="CSSCus\templatelookup.css" />
+    <Content Include="CSSCus\workorder.css" />
+    <Content Include="JSCus\assignwoemployee.js" />
+    <Content Include="JSCus\dashboard.js" />
+    <Content Include="JSCus\GFC.js" />
+    <Content Include="JSCus\meterreading.js" />
+    <Content Include="JSCus\Site1.Master.js" />
+    <Content Include="JSCus\template.js" />
+    <Content Include="JSCus\templatelookup.js" />
+    <Content Include="JSCus\workorder.js" />
+    <Content Include="Login.aspx" />
+    <Content Include="Default.aspx" />
+    <Content Include="ErrMsg.aspx" />
+    <Content Include="Global.asax" />
+    <Content Include="JSCus\Login.js" />
+    <Content Include="Logout.aspx" />
+    <Content Include="Secure\meterreading.aspx" />
+    <Content Include="Secure\profilesetting.aspx" />
+    <Content Include="SearchList_2.aspx" />
+    <Content Include="Secure\dashboard.aspx" />
+    <Content Include="Secure\M_SuiteBIR.aspx" />
+    <Content Include="Secure\Main.aspx" />
+    <Content Include="Secure\MP_testBS5.aspx" />
+    <Content Include="Secure\M_UTLMeter.aspx" />
+    <Content Include="Secure\M_UTLRate.aspx" />
+    <Content Include="Secure\P_ClosingMonth.aspx" />
+    <Content Include="Secure\P_SendUTL.aspx" />
+    <Content Include="Secure\P_ChargesLumpsum.aspx" />
+    <Content Include="Secure\M_ChargesLumpsum.aspx" />
+    <Content Include="Secure\R_MonthlyConsumption.aspx" />
+    <Content Include="Secure\R_ListingBIR.aspx" />
+    <Content Include="Secure\R_ListingMasterMeter.aspx" />
+    <Content Include="Secure\R_PrintLabelBarcode.aspx" />
+    <Content Include="Secure\R_PrintFormBilling.aspx" />
+    <Content Include="Secure\template.aspx" />
+    <Content Include="Secure\T_BIR.aspx" />
+    <Content Include="Secure\T_Consumption.aspx" />
+    <Content Include="Secure\U_SettingCompany.aspx" />
+    <Content Include="Secure\assignwoemployee.aspx" />
+    <Content Include="Secure\workorder.aspx" />
+    <Content Include="UserControls\UC_FilterSearchList_2.ascx" />
+    <Content Include="UserControls\UC_GridSearchList_2.ascx" />
+    <Content Include="UserControls\UC_Paging.ascx" />
+    <Content Include="UserControls\UC_Toolbar_2.ascx" />
+    <Content Include="UserControls\toast.ascx" />
+    <Content Include="Web.config">
+      <SubType>Designer</SubType>
+    </Content>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="BRC\AR_T_H_Billing.cs" />
+    <Compile Include="BRC\PIP_T_WO.cs" />
+    <Compile Include="BRC\UTL_Meter.cs" />
+    <Compile Include="BRC\Account.cs" />
+    <Compile Include="BRC\AR_T_D_Billing_Attachments.cs" />
+    <Compile Include="BRC\PIP_T_DocumentAttachment.cs" />
+    <Compile Include="BRC\PIP_T_H_Billing.cs" />
+    <Compile Include="BRC\CT.cs" />
+    <Compile Include="BRC\M_Currency.cs" />
+    <Compile Include="BRC\M_HRD_Employee.cs" />
+    <Compile Include="BRC\THD_M_AgreementInformation.cs" />
+    <Compile Include="BRC\THD_M_GeneralInformation.cs" />
+    <Compile Include="BRC\THD_M_H_Income.cs" />
+    <Compile Include="Login.aspx.cs">
+      <DependentUpon>Login.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="Login.aspx.designer.cs">
+      <DependentUpon>Login.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="Default.aspx.cs">
+      <DependentUpon>Default.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="Default.aspx.designer.cs">
+      <DependentUpon>Default.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="GFC.cs" />
+    <Compile Include="Global.asax.cs">
+      <DependentUpon>Global.asax</DependentUpon>
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="MasterPages\Site1.Master.cs">
+      <DependentUpon>Site1.Master</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="MasterPages\Site1.Master.designer.cs">
+      <DependentUpon>Site1.Master</DependentUpon>
+    </Compile>
+    <Compile Include="Secure\meterreading.aspx.cs">
+      <DependentUpon>meterreading.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="Secure\meterreading.aspx.designer.cs">
+      <DependentUpon>meterreading.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="Secure\profilesetting.aspx.cs">
+      <DependentUpon>profilesetting.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="Secure\profilesetting.aspx.designer.cs">
+      <DependentUpon>profilesetting.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="SearchList_2.aspx.cs">
+      <DependentUpon>SearchList_2.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="SearchList_2.aspx.designer.cs">
+      <DependentUpon>SearchList_2.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="Secure\dashboard.aspx.cs">
+      <DependentUpon>dashboard.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="Secure\dashboard.aspx.designer.cs">
+      <DependentUpon>dashboard.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="Secure\M_SuiteBIR.aspx.cs">
+      <DependentUpon>M_SuiteBIR.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="Secure\M_SuiteBIR.aspx.designer.cs">
+      <DependentUpon>M_SuiteBIR.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="Secure\Main.aspx.cs">
+      <DependentUpon>Main.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="Secure\Main.aspx.designer.cs">
+      <DependentUpon>Main.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="Secure\MP_testBS5.aspx.cs">
+      <DependentUpon>MP_testBS5.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="Secure\MP_testBS5.aspx.designer.cs">
+      <DependentUpon>MP_testBS5.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="Secure\M_UTLMeter.aspx.cs">
+      <DependentUpon>M_UTLMeter.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="Secure\M_UTLMeter.aspx.designer.cs">
+      <DependentUpon>M_UTLMeter.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="Secure\M_UTLRate.aspx.cs">
+      <DependentUpon>M_UTLRate.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="Secure\M_UTLRate.aspx.designer.cs">
+      <DependentUpon>M_UTLRate.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="Secure\P_ClosingMonth.aspx.cs">
+      <DependentUpon>P_ClosingMonth.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="Secure\P_ClosingMonth.aspx.designer.cs">
+      <DependentUpon>P_ClosingMonth.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="Secure\P_SendUTL.aspx.cs">
+      <DependentUpon>P_SendUTL.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="Secure\P_SendUTL.aspx.designer.cs">
+      <DependentUpon>P_SendUTL.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="Secure\P_ChargesLumpsum.aspx.cs">
+      <DependentUpon>P_ChargesLumpsum.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="Secure\P_ChargesLumpsum.aspx.designer.cs">
+      <DependentUpon>P_ChargesLumpsum.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="Secure\M_ChargesLumpsum.aspx.cs">
+      <DependentUpon>M_ChargesLumpsum.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="Secure\M_ChargesLumpsum.aspx.designer.cs">
+      <DependentUpon>M_ChargesLumpsum.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="Secure\R_MonthlyConsumption.aspx.cs">
+      <DependentUpon>R_MonthlyConsumption.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="Secure\R_MonthlyConsumption.aspx.designer.cs">
+      <DependentUpon>R_MonthlyConsumption.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="Secure\R_ListingBIR.aspx.cs">
+      <DependentUpon>R_ListingBIR.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="Secure\R_ListingBIR.aspx.designer.cs">
+      <DependentUpon>R_ListingBIR.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="Secure\R_ListingMasterMeter.aspx.cs">
+      <DependentUpon>R_ListingMasterMeter.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="Secure\R_ListingMasterMeter.aspx.designer.cs">
+      <DependentUpon>R_ListingMasterMeter.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="Secure\R_PrintLabelBarcode.aspx.cs">
+      <DependentUpon>R_PrintLabelBarcode.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="Secure\R_PrintLabelBarcode.aspx.designer.cs">
+      <DependentUpon>R_PrintLabelBarcode.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="Secure\R_PrintFormBilling.aspx.cs">
+      <DependentUpon>R_PrintFormBilling.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="Secure\R_PrintFormBilling.aspx.designer.cs">
+      <DependentUpon>R_PrintFormBilling.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="Secure\template.aspx.cs">
+      <DependentUpon>template.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="Secure\template.aspx.designer.cs">
+      <DependentUpon>template.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="Secure\T_BIR.aspx.cs">
+      <DependentUpon>T_BIR.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="Secure\T_BIR.aspx.designer.cs">
+      <DependentUpon>T_BIR.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="Secure\T_Consumption.aspx.cs">
+      <DependentUpon>T_Consumption.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="Secure\T_Consumption.aspx.designer.cs">
+      <DependentUpon>T_Consumption.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="Secure\U_SettingCompany.aspx.cs">
+      <DependentUpon>U_SettingCompany.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="Secure\U_SettingCompany.aspx.designer.cs">
+      <DependentUpon>U_SettingCompany.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="Secure\assignwoemployee.aspx.cs">
+      <DependentUpon>assignwoemployee.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="Secure\assignwoemployee.aspx.designer.cs">
+      <DependentUpon>assignwoemployee.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="Secure\workorder.aspx.cs">
+      <DependentUpon>workorder.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="Secure\workorder.aspx.designer.cs">
+      <DependentUpon>workorder.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="UserControls\toast.ascx.cs">
+      <DependentUpon>toast.ascx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="UserControls\toast.ascx.designer.cs">
+      <DependentUpon>toast.ascx</DependentUpon>
+    </Compile>
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="MasterPages\Site_BS_5.Master" />
+    <Content Include="MasterPages\Site1.Master" />
+    <Content Include="CSSCus\Site1.Master.css" />
+    <None Include="Properties\PublishProfiles\utl1.pubxml" />
+    <None Include="Web.Debug.config">
+      <DependentUpon>Web.config</DependentUpon>
+    </None>
+    <None Include="Web.Release.config">
+      <DependentUpon>Web.config</DependentUpon>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <WCFMetadata Include="Service References\" />
+  </ItemGroup>
+  <ItemGroup />
+  <PropertyGroup>
+    <VisualStudioVersion Condition="'$(VisualStudioVersion)' == ''">10.0</VisualStudioVersion>
+    <VSToolsPath Condition="'$(VSToolsPath)' == ''">$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)</VSToolsPath>
+  </PropertyGroup>
+  <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
+  <Import Project="$(VSToolsPath)\WebApplications\Microsoft.WebApplication.targets" Condition="'$(VSToolsPath)' != ''" />
+  <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v10.0\WebApplications\Microsoft.WebApplication.targets" Condition="false" />
+  <ProjectExtensions>
+    <VisualStudio>
+      <FlavorProperties GUID="{349c5851-65df-11da-9384-00065b846f21}">
+        <WebProjectProperties>
+          <UseIIS>True</UseIIS>
+          <AutoAssignPort>True</AutoAssignPort>
+          <DevelopmentServerPort>1203</DevelopmentServerPort>
+          <DevelopmentServerVPath>/</DevelopmentServerVPath>
+          <IISUrl>http://localhost/UTL1</IISUrl>
+          <NTLMAuthentication>False</NTLMAuthentication>
+          <UseCustomServer>False</UseCustomServer>
+          <CustomServerUrl>
+          </CustomServerUrl>
+          <SaveServerSettingsInUserFile>False</SaveServerSettingsInUserFile>
+        </WebProjectProperties>
+      </FlavorProperties>
+    </VisualStudio>
+  </ProjectExtensions>
+  <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
+       Other similar extension points exist, see Microsoft.Common.targets.
+  <Target Name="BeforeBuild">
+  </Target>
+  <Target Name="AfterBuild">
+  </Target>
+  -->
+</Project>
