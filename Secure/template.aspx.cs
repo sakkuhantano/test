@@ -35,7 +35,13 @@ namespace UTL1.Secure
 //WHERE a.UserID=@UserID", "@UserID=" + userId);
                 DataTable dt = br.EQuery(@"
 SELECT aa.val SectionID, 
-TotalTemplate=ISNULL((SELECT COUNT(*) FROM PIP_M_CheckListWOPM bb WHERE bb.SectionID=aa.val AND bb.CompanyID=@CompanyID AND bb.LocationID=@LocationID),0)
+TotalTemplate=ISNULL((SELECT COUNT(*) FROM PIP_M_CheckListWOPM bb
+    WHERE bb.SectionID=aa.val
+      AND (ISNULL(bb.CompanyScope,'S')='A'
+           OR EXISTS (SELECT 1 FROM dbo.PIP_M_CheckListWOPM_CompanyLocation sc
+                      WHERE sc.IDTemplate=bb.IDTemplate
+                        AND sc.CompanyID=@CompanyID
+                        AND sc.LocationID=@LocationID))),0)
 FROM UTL_User a
 CROSS APPLY dbo.SplitStringConvertToTable(a.Section,';') aa
 WHERE a.UserID=@UserID", "@UserID=" + userId + GF.Str2 + "@CompanyID=" + companyId + GF.Str2 + "@LocationID=" + locationId);
@@ -227,11 +233,18 @@ WHERE C.IDVersion = @IDVersion ORDER BY A.DisplayOrder;",
             using (var br = new WAL.BR.CF())
             {
                 DataTable dt = br.EQuery(@"
-SELECT a.IDTemplate, a.TemplateNo, a.TemplateName, a.IsActive, a.SectionID, 
+SELECT a.IDTemplate, a.TemplateNo, a.TemplateName, a.IsActive, a.SectionID,
+       a.TemplateType, a.InspectionTypeCode, a.CompanyScope,
 HasActiveVersion=CAST(CASE WHEN EXISTS (SELECT * FROM PIP_M_CheckListWOPM_Version aa WHERE aa.IDTemplate=a.IDTemplate AND aa.Status='Active') THEN 1 ELSE 0 END AS BIT),
 CanDeleted=CAST(CASE WHEN NOT EXISTS (SELECT * FROM PIP_M_CheckListWOPM_Version aa WHERE aa.IDTemplate=a.IDTemplate AND aa.Status IN ('Active','Archieved')) THEN 1 ELSE 0 END AS BIT),
 RuntimeTemplateID=a.IDTemplate
-FROM PIP_M_CheckListWOPM a WHERE a.SectionID=@SectionID AND a.CompanyID=@CompanyID AND a.LocationID=@LocationID", 
+FROM PIP_M_CheckListWOPM a
+WHERE a.SectionID=@SectionID
+  AND (ISNULL(a.CompanyScope,'S')='A'
+       OR EXISTS (SELECT 1 FROM dbo.PIP_M_CheckListWOPM_CompanyLocation sc
+                  WHERE sc.IDTemplate=a.IDTemplate
+                    AND sc.CompanyID=@CompanyID
+                    AND sc.LocationID=@LocationID))", 
 "@SectionID=" + sectionId + GF.Str2 +
 "@CompanyID=" + companyId + GF.Str2 +
 "@LocationID=" + locationId);
@@ -242,6 +255,9 @@ FROM PIP_M_CheckListWOPM a WHERE a.SectionID=@SectionID AND a.CompanyID=@Company
                     TemplateNo = row.Field<string>("TemplateNo"),
                     TemplateName = row.Field<string>("TemplateName"),
                     SectionID = row.Field<string>("SectionID"),
+                    TemplateType = GF.GetString(row["TemplateType"]) == "" ? "W" : GF.GetString(row["TemplateType"]),
+                    InspectionTypeCode = GF.GetString(row["InspectionTypeCode"]),
+                    CompanyScope = GF.GetString(row["CompanyScope"]) == "" ? "S" : GF.GetString(row["CompanyScope"]),
                     IsActive = Convert.ToBoolean(row.Field<Boolean>("IsActive")),
                     HasActiveVersion = Convert.ToBoolean(row.Field<Boolean>("HasActiveVersion")),
                     CanDeleted = Convert.ToBoolean(row.Field<Boolean>("CanDeleted"))
@@ -787,6 +803,301 @@ FROM PIP_M_CheckListWOPM a WHERE a.SectionID=@SectionID AND a.CompanyID=@Company
                 };
             }
         }
+        [WebMethod]
+        public static object GetInspectionTypes(string sectionId)
+        {
+            using (var br = new WAL.BR.CF())
+            {
+                DataTable dt = br.EQuery(@"
+SELECT InspectionTypeCode, InspectionTypeName, SectionID, IsActive
+FROM dbo.PIP_M_InspectionType
+WHERE SectionID=@SectionID AND IsActive=1
+ORDER BY InspectionTypeName",
+                    "@SectionID=" + sectionId);
+                var rows = dt.AsEnumerable().Select(row => new
+                {
+                    InspectionTypeCode = GF.GetString(row["InspectionTypeCode"]),
+                    InspectionTypeName = GF.GetString(row["InspectionTypeName"]),
+                    SectionID = GF.GetString(row["SectionID"])
+                }).ToList();
+                JavaScriptSerializer serializer = new JavaScriptSerializer();
+                return serializer.Serialize(rows);
+            }
+        }
+
+        [WebMethod]
+        public static object SaveTemplateMetadata(string idTemplate, string templateType, string inspectionTypeCode, string companyScope, string updateUser)
+        {
+            int id;
+            if (!Int32.TryParse(idTemplate, out id) || id <= 0)
+                return new { success = false, message = "Save the template and its first version before saving these settings." };
+
+            templateType = (templateType ?? "W").Trim().ToUpperInvariant();
+            companyScope = (companyScope ?? "S").Trim().ToUpperInvariant();
+            inspectionTypeCode = (inspectionTypeCode ?? "").Trim().ToUpperInvariant();
+
+            if (templateType != "W" && templateType != "I")
+                return new { success = false, message = "Invalid template type." };
+            if (companyScope != "A" && companyScope != "S")
+                return new { success = false, message = "Invalid company scope." };
+            if (templateType == "I" && inspectionTypeCode.Length == 0)
+                return new { success = false, message = "Inspection Type is required for an Inspection template." };
+            if (templateType == "W")
+                inspectionTypeCode = "";
+
+            using (var br = new WAL.BR.CF())
+            {
+                DataTable dt = br.EQuery(@"
+SELECT T.IDTemplate, T.SectionID, T.CompanyID, T.LocationID,
+       InspectionSectionID=I.SectionID
+FROM dbo.PIP_M_CheckListWOPM T
+LEFT JOIN dbo.PIP_M_InspectionType I
+  ON I.InspectionTypeCode=@InspectionTypeCode AND I.IsActive=1
+WHERE T.IDTemplate=@IDTemplate",
+                    "@IDTemplate=" + id + GF.Str2 +
+                    "@InspectionTypeCode=" + inspectionTypeCode);
+                if (dt.Rows.Count == 0)
+                    return new { success = false, message = "Template was not found." };
+
+                DataRow row = dt.Rows[0];
+                if (templateType == "I" &&
+                    (row["InspectionSectionID"] == DBNull.Value ||
+                     !String.Equals(GF.GetString(row["SectionID"]), GF.GetString(row["InspectionSectionID"]), StringComparison.OrdinalIgnoreCase)))
+                    return new { success = false, message = "Inspection Type must belong to the same Section as the selected root." };
+
+                br.EQuery(@"
+SET XACT_ABORT ON;
+BEGIN TRANSACTION;
+UPDATE dbo.PIP_M_CheckListWOPM
+SET TemplateType=@TemplateType,
+    InspectionTypeCode=@InspectionTypeCode,
+    CompanyScope=@CompanyScope,
+    UpdateUser=@UpdateUser,
+    UpdateDate=GETDATE()
+WHERE IDTemplate=@IDTemplate;
+
+IF @CompanyScope='S'
+AND NOT EXISTS (SELECT 1 FROM dbo.PIP_M_CheckListWOPM_CompanyLocation WHERE IDTemplate=@IDTemplate)
+BEGIN
+    INSERT dbo.PIP_M_CheckListWOPM_CompanyLocation
+        (IDTemplate, CompanyID, LocationID, EntryUser, EntryDate)
+    SELECT IDTemplate, CompanyID, LocationID, @UpdateUser, GETDATE()
+    FROM dbo.PIP_M_CheckListWOPM
+    WHERE IDTemplate=@IDTemplate;
+END;
+COMMIT TRANSACTION;",
+                    "@TemplateType=" + templateType + GF.Str2 +
+                    "@InspectionTypeCode=" + inspectionTypeCode + GF.Str2 +
+                    "@CompanyScope=" + companyScope + GF.Str2 +
+                    "@UpdateUser=" + updateUser + GF.Str2 +
+                    "@IDTemplate=" + id);
+                return new { success = true, message = "" };
+            }
+        }
+
+        [WebMethod]
+        public static object GetTemplateCompanyLocations(string idTemplate)
+        {
+            int id;
+            if (!Int32.TryParse(idTemplate, out id))
+                id = 0;
+            using (var br = new WAL.BR.CF())
+            {
+                DataTable dt = br.EQuery(@"
+SELECT L.CompanyID, L.LocationID,
+       IsAssigned=CAST(CASE WHEN S.IDTemplate IS NULL THEN 0 ELSE 1 END AS BIT)
+FROM
+(
+    SELECT DISTINCT CompanyID, LocationID
+    FROM dbo.M_HRD_Employee
+    WHERE ISNULL(CompanyID,'')<>'' AND ISNULL(LocationID,'')<>''
+) L
+LEFT JOIN dbo.PIP_M_CheckListWOPM_CompanyLocation S
+  ON S.IDTemplate=@IDTemplate AND S.CompanyID=L.CompanyID AND S.LocationID=L.LocationID
+ORDER BY L.CompanyID, L.LocationID",
+                    "@IDTemplate=" + id);
+                var rows = dt.AsEnumerable().Select(row => new
+                {
+                    CompanyID = GF.GetString(row["CompanyID"]),
+                    LocationID = GF.GetString(row["LocationID"]),
+                    IsAssigned = Convert.ToBoolean(row["IsAssigned"])
+                }).ToList();
+                JavaScriptSerializer serializer = new JavaScriptSerializer();
+                return serializer.Serialize(rows);
+            }
+        }
+
+        [WebMethod]
+        public static object SetTemplateCompanyLocation(string idTemplate, string companyId, string locationId, string action, string updateUser)
+        {
+            int id;
+            if (!Int32.TryParse(idTemplate, out id) || id <= 0)
+                return new { success = false, message = "Save the template before assigning company/location." };
+            action = (action ?? "").Trim().ToUpperInvariant();
+            if (action != "ADD" && action != "REMOVE")
+                return new { success = false, message = "Invalid action." };
+
+            using (var br = new WAL.BR.CF())
+            {
+                DataTable dt = br.EQuery(@"
+SELECT CompanyScope FROM dbo.PIP_M_CheckListWOPM WHERE IDTemplate=@IDTemplate",
+                    "@IDTemplate=" + id);
+                if (dt.Rows.Count == 0)
+                    return new { success = false, message = "Template was not found." };
+                if (GF.GetString(dt.Rows[0]["CompanyScope"]) == "A")
+                    return new { success = false, message = "Change the template to Selected Company before editing company/location assignments." };
+
+                if (action == "ADD")
+                {
+                    br.EQuery(@"
+IF NOT EXISTS
+(
+    SELECT 1 FROM dbo.M_HRD_Employee
+    WHERE CompanyID=@CompanyID AND LocationID=@LocationID
+)
+    RAISERROR('The selected company/location was not found in employee master.',16,1);
+IF NOT EXISTS
+(
+    SELECT 1 FROM dbo.PIP_M_CheckListWOPM_CompanyLocation
+    WHERE IDTemplate=@IDTemplate AND CompanyID=@CompanyID AND LocationID=@LocationID
+)
+    INSERT dbo.PIP_M_CheckListWOPM_CompanyLocation
+        (IDTemplate, CompanyID, LocationID, EntryUser, EntryDate)
+    VALUES (@IDTemplate, @CompanyID, @LocationID, @UpdateUser, GETDATE())",
+                        "@IDTemplate=" + id + GF.Str2 +
+                        "@CompanyID=" + companyId + GF.Str2 +
+                        "@LocationID=" + locationId + GF.Str2 +
+                        "@UpdateUser=" + updateUser);
+                }
+                else
+                {
+                    br.EQuery(@"
+SET XACT_ABORT ON;
+BEGIN TRANSACTION;
+DELETE FROM dbo.PIP_M_CheckListWOPM_Employee
+WHERE IDTemplate=@IDTemplate
+  AND EmployeeID IN
+  (
+      SELECT EmployeeID FROM dbo.M_HRD_Employee
+      WHERE CompanyID=@CompanyID AND LocationID=@LocationID
+  );
+DELETE FROM dbo.PIP_M_CheckListWOPM_CompanyLocation
+WHERE IDTemplate=@IDTemplate AND CompanyID=@CompanyID AND LocationID=@LocationID;
+COMMIT TRANSACTION;",
+                        "@IDTemplate=" + id + GF.Str2 +
+                        "@CompanyID=" + companyId + GF.Str2 +
+                        "@LocationID=" + locationId);
+                }
+                return new { success = true, message = "" };
+            }
+        }
+
+        [WebMethod]
+        public static object GetTemplateEmployees(string idTemplate, string sectionId)
+        {
+            int id;
+            if (!Int32.TryParse(idTemplate, out id))
+                id = 0;
+            using (var br = new WAL.BR.CF())
+            {
+                DataTable dt = br.EQuery(@"
+SELECT E.EmployeeID, E.Name, E.CompanyID, E.LocationID,
+       IsAssigned=CAST(CASE WHEN A.EmployeeID IS NULL THEN 0 ELSE 1 END AS BIT)
+FROM dbo.M_HRD_Employee E
+JOIN dbo.PIP_M_CheckListWOPM T ON T.IDTemplate=@IDTemplate
+LEFT JOIN dbo.PIP_M_CheckListWOPM_Employee A
+  ON A.IDTemplate=T.IDTemplate AND A.EmployeeID=E.EmployeeID
+WHERE E.SectionID=T.SectionID
+  AND T.SectionID=@SectionID
+  AND
+  (
+      ISNULL(T.CompanyScope,'S')='A'
+      OR EXISTS
+      (
+          SELECT 1 FROM dbo.PIP_M_CheckListWOPM_CompanyLocation S
+          WHERE S.IDTemplate=T.IDTemplate
+            AND S.CompanyID=E.CompanyID
+            AND S.LocationID=E.LocationID
+      )
+  )
+ORDER BY E.CompanyID, E.LocationID, E.EmployeeID",
+                    "@IDTemplate=" + id + GF.Str2 +
+                    "@SectionID=" + sectionId);
+                var rows = dt.AsEnumerable().Select(row => new
+                {
+                    EmployeeID = GF.GetString(row["EmployeeID"]),
+                    Name = GF.GetString(row["Name"]),
+                    CompanyID = GF.GetString(row["CompanyID"]),
+                    LocationID = GF.GetString(row["LocationID"]),
+                    IsAssigned = Convert.ToBoolean(row["IsAssigned"])
+                }).ToList();
+                JavaScriptSerializer serializer = new JavaScriptSerializer();
+                return serializer.Serialize(rows);
+            }
+        }
+
+        [WebMethod]
+        public static object SetTemplateEmployeeAssignment(string idTemplate, string employeeId, string action, string updateUser)
+        {
+            int id;
+            if (!Int32.TryParse(idTemplate, out id) || id <= 0)
+                return new { success = false, message = "Save the template before assigning employees." };
+            action = (action ?? "").Trim().ToUpperInvariant();
+            if (action != "ADD" && action != "REMOVE")
+                return new { success = false, message = "Invalid action." };
+
+            using (var br = new WAL.BR.CF())
+            {
+                DataTable dt = br.EQuery(@"
+SELECT T.TemplateType, T.CompanyScope, T.SectionID,
+       E.EmployeeID, E.SectionID EmployeeSectionID, E.CompanyID, E.LocationID
+FROM dbo.PIP_M_CheckListWOPM T
+JOIN dbo.M_HRD_Employee E ON E.EmployeeID=@EmployeeID
+WHERE T.IDTemplate=@IDTemplate",
+                    "@IDTemplate=" + id + GF.Str2 +
+                    "@EmployeeID=" + employeeId);
+                if (dt.Rows.Count == 0)
+                    return new { success = false, message = "Template or employee was not found." };
+
+                DataRow row = dt.Rows[0];
+                if (GF.GetString(row["TemplateType"]) != "I")
+                    return new { success = false, message = "Employee assignment is only available for Inspection templates." };
+                if (!String.Equals(GF.GetString(row["SectionID"]), GF.GetString(row["EmployeeSectionID"]), StringComparison.OrdinalIgnoreCase))
+                    return new { success = false, message = "Employee SectionID does not match the template." };
+                if (action == "ADD" && GF.GetString(row["CompanyScope"]) != "A")
+                {
+                    DataTable scope = br.EQuery(@"
+SELECT 1 FROM dbo.PIP_M_CheckListWOPM_CompanyLocation
+WHERE IDTemplate=@IDTemplate AND CompanyID=@CompanyID AND LocationID=@LocationID",
+                        "@IDTemplate=" + id + GF.Str2 +
+                        "@CompanyID=" + GF.GetString(row["CompanyID"]) + GF.Str2 +
+                        "@LocationID=" + GF.GetString(row["LocationID"]));
+                    if (scope.Rows.Count == 0)
+                        return new { success = false, message = "Employee company/location is not assigned to this template." };
+                }
+
+                if (action == "ADD")
+                {
+                    br.EQuery(@"
+IF NOT EXISTS (SELECT 1 FROM dbo.PIP_M_CheckListWOPM_Employee WHERE IDTemplate=@IDTemplate AND EmployeeID=@EmployeeID)
+    INSERT dbo.PIP_M_CheckListWOPM_Employee (IDTemplate, EmployeeID, EntryUser, EntryDate)
+    VALUES (@IDTemplate, @EmployeeID, @UpdateUser, GETDATE())",
+                        "@IDTemplate=" + id + GF.Str2 +
+                        "@EmployeeID=" + employeeId + GF.Str2 +
+                        "@UpdateUser=" + updateUser);
+                }
+                else
+                {
+                    br.EQuery(@"
+DELETE FROM dbo.PIP_M_CheckListWOPM_Employee
+WHERE IDTemplate=@IDTemplate AND EmployeeID=@EmployeeID",
+                        "@IDTemplate=" + id + GF.Str2 +
+                        "@EmployeeID=" + employeeId);
+                }
+                return new { success = true, message = "" };
+            }
+        }
+
         [WebMethod]
         public static object GetGroupEquipment(string companyId, string locationId, string sectionId)
         {
