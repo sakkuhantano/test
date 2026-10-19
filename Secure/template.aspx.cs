@@ -922,7 +922,7 @@ COMMIT TRANSACTION;",
         }
 
         [WebMethod]
-        public static object GetTemplateCompanyLocations(string idTemplate)
+        public static object GetTemplateCompanyLocations(string idTemplate, string companyId, string locationId)
         {
             int id;
             if (!Int32.TryParse(idTemplate, out id))
@@ -940,8 +940,19 @@ FROM
 ) L
 LEFT JOIN dbo.PIP_M_CheckListWOPM_CompanyLocation S
   ON S.IDTemplate=@IDTemplate AND S.CompanyID=L.CompanyID AND S.LocationID=L.LocationID
+WHERE EXISTS
+(
+    SELECT 1 FROM dbo.PIP_M_CheckListWOPM T
+    WHERE T.IDTemplate=@IDTemplate
+      AND (ISNULL(T.CompanyScope,'S')='A' OR EXISTS
+           (SELECT 1 FROM dbo.PIP_M_CheckListWOPM_CompanyLocation AccessScope
+            WHERE AccessScope.IDTemplate=T.IDTemplate
+              AND AccessScope.CompanyID=@CompanyID
+              AND AccessScope.LocationID=@LocationID))
+)
 ORDER BY L.CompanyID, L.LocationID",
-                    "@IDTemplate=" + id);
+                    "@IDTemplate=" + id + GF.Str2 +
+                    "@CompanyID=" + companyId + GF.Str2 + "@LocationID=" + locationId);
                 var rows = dt.AsEnumerable().Select(row => new
                 {
                     CompanyID = GF.GetString(row["CompanyID"]),
@@ -954,7 +965,7 @@ ORDER BY L.CompanyID, L.LocationID",
         }
 
         [WebMethod]
-        public static object SetTemplateCompanyLocation(string idTemplate, string companyId, string locationId, string action, string updateUser)
+        public static object SetTemplateCompanyLocation(string idTemplate, string companyId, string locationId, string action, string updateUser, string currentCompanyId, string currentLocationId)
         {
             int id;
             if (!Int32.TryParse(idTemplate, out id) || id <= 0)
@@ -966,8 +977,17 @@ ORDER BY L.CompanyID, L.LocationID",
             using (var br = new WAL.BR.CF())
             {
                 DataTable dt = br.EQuery(@"
-SELECT CompanyScope FROM dbo.PIP_M_CheckListWOPM WHERE IDTemplate=@IDTemplate",
-                    "@IDTemplate=" + id);
+SELECT T.CompanyScope
+FROM dbo.PIP_M_CheckListWOPM T
+WHERE T.IDTemplate=@IDTemplate
+  AND (ISNULL(T.CompanyScope,'S')='A' OR EXISTS
+       (SELECT 1 FROM dbo.PIP_M_CheckListWOPM_CompanyLocation AccessScope
+        WHERE AccessScope.IDTemplate=T.IDTemplate
+          AND AccessScope.CompanyID=@CurrentCompanyID
+          AND AccessScope.LocationID=@CurrentLocationID))",
+                    "@IDTemplate=" + id + GF.Str2 +
+                    "@CurrentCompanyID=" + currentCompanyId + GF.Str2 +
+                    "@CurrentLocationID=" + currentLocationId);
                 if (dt.Rows.Count == 0)
                     return new { success = false, message = "Template was not found." };
                 if (GF.GetString(dt.Rows[0]["CompanyScope"]) == "A")
@@ -1027,7 +1047,7 @@ COMMIT TRANSACTION;",
         }
 
         [WebMethod]
-        public static object GetTemplateEmployees(string idTemplate, string sectionId)
+        public static object GetTemplateEmployees(string idTemplate, string sectionId, string companyId, string locationId)
         {
             int id;
             if (!Int32.TryParse(idTemplate, out id))
@@ -1044,6 +1064,11 @@ LEFT JOIN dbo.PIP_M_CheckListWOPM_Employee A
 WHERE E.SectionID=T.SectionID
   AND T.SectionID=@SectionID
   AND EXISTS (SELECT 1 FROM dbo.UTL_User U WHERE U.EmployeeID=E.EmployeeID)
+  AND (ISNULL(T.CompanyScope,'S')='A' OR EXISTS
+       (SELECT 1 FROM dbo.PIP_M_CheckListWOPM_CompanyLocation AccessScope
+        WHERE AccessScope.IDTemplate=T.IDTemplate
+          AND AccessScope.CompanyID=@CurrentCompanyID
+          AND AccessScope.LocationID=@CurrentLocationID))
   AND
   (
       ISNULL(T.CompanyScope,'S')='A'
@@ -1057,7 +1082,9 @@ WHERE E.SectionID=T.SectionID
   )
 ORDER BY E.CompanyID, E.LocationID, E.EmployeeID",
                     "@IDTemplate=" + id + GF.Str2 +
-                    "@SectionID=" + sectionId);
+                    "@SectionID=" + sectionId + GF.Str2 +
+                    "@CurrentCompanyID=" + companyId + GF.Str2 +
+                    "@CurrentLocationID=" + locationId);
                 var rows = dt.AsEnumerable().Select(row => new
                 {
                     EmployeeID = GF.GetString(row["EmployeeID"]),
@@ -1072,7 +1099,7 @@ ORDER BY E.CompanyID, E.LocationID, E.EmployeeID",
         }
 
         [WebMethod]
-        public static object SetTemplateEmployeeAssignment(string idTemplate, string employeeId, string action, string updateUser)
+        public static object SetTemplateEmployeeAssignment(string idTemplate, string employeeId, string action, string updateUser, string companyId, string locationId)
         {
             int id;
             if (!Int32.TryParse(idTemplate, out id) || id <= 0)
@@ -1089,9 +1116,16 @@ SELECT T.TemplateType, T.CompanyScope, T.SectionID,
 FROM dbo.PIP_M_CheckListWOPM T
 JOIN dbo.M_HRD_Employee E ON E.EmployeeID=@EmployeeID
 WHERE T.IDTemplate=@IDTemplate
-  AND EXISTS (SELECT 1 FROM dbo.UTL_User U WHERE U.EmployeeID=E.EmployeeID)",
+  AND EXISTS (SELECT 1 FROM dbo.UTL_User U WHERE U.EmployeeID=E.EmployeeID)
+  AND (ISNULL(T.CompanyScope,'S')='A' OR EXISTS
+       (SELECT 1 FROM dbo.PIP_M_CheckListWOPM_CompanyLocation AccessScope
+        WHERE AccessScope.IDTemplate=T.IDTemplate
+          AND AccessScope.CompanyID=@CurrentCompanyID
+          AND AccessScope.LocationID=@CurrentLocationID))",
                     "@IDTemplate=" + id + GF.Str2 +
-                    "@EmployeeID=" + employeeId);
+                    "@EmployeeID=" + employeeId + GF.Str2 +
+                    "@CurrentCompanyID=" + companyId + GF.Str2 +
+                    "@CurrentLocationID=" + locationId);
                 if (dt.Rows.Count == 0)
                     return new { success = false, message = "Template or employee was not found." };
 
