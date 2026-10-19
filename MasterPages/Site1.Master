@@ -1,0 +1,322 @@
+﻿<%@ Master Language="C#" AutoEventWireup="true" CodeBehind="Site1.master.cs" Inherits="UTL1.MasterPages.Site1" %>
+<%@ Register Src="~/UserControls/toast.ascx" TagPrefix="uc1" TagName="toast" %>
+<!DOCTYPE html>
+
+<html>
+
+<head runat="server">
+<title>Global Utility Services</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" type="text/css" href="/WebFolder/bootstrap-5.3.8-dist/css/bootstrap.min.css" />
+<link rel="stylesheet" href="/WebFolder/bootstrap-icons-1.11.3/font/bootstrap-icons.min.css"/>
+<link rel="Stylesheet" type="text/css" href="../../WebFolder/Css/styles_2.css" />
+<script type="text/javascript" src="../../WebFolder/jquery/jquery-3.7.0.min.js"></script>
+<script type="text/javascript" src="../../WebFolder/bootstrap-5.3.0-dist/js/bootstrap.bundle.min.js"></script>
+<link rel="Stylesheet" type="text/css" href="../CSSCus/Site1.Master.css" />
+<asp:ContentPlaceHolder ID="head" runat="server"></asp:ContentPlaceHolder>
+</head>
+
+<body class="antialiased">
+<div class="wrapper">
+<uc1:toast runat="server" />
+<!-- Mobile Overlay -->
+<div class="overlay" id="overlay"></div>
+<!-- Sidebar -->
+<aside class="sidebar overflow-hidden collapsed" id="sidebar" style="overflow-y: hidden !important;">
+<div class="sidebar-logo-container py-3 px-3">
+<div class="dropdown">
+<button aria-expanded="false" class="btn btn-link p-0 text-start text-decoration-none dropdown-toggle w-100" data-bs-toggle="dropdown" type="button">
+<img alt="Global Utility Services Logo" class="sidebar-logo mb-2" src="/WebFolder/Images/muliaLogo.png" />
+<div class="d-flex align-items-center justify-content-between">
+<small class="text-uppercase fw-bold text-muted" style="font-size: 10px; letter-spacing: 0.1em;"><span id="lblCompanySidebar"></span><span id="lblCompanyLocation" class="d-none"></span></small>
+<i class="bi bi-buildings text-muted small ms-2"></i>
+</div>
+</button>
+<ul id="companyMenu" class="dropdown-menu dropdown-menu-custom mt-2">
+    <li>
+        <h6 class="dropdown-header text-uppercase"
+            style="font-size: 10px; letter-spacing: 0.1em;">
+            Select Company
+        </h6>
+    </li>
+</ul>
+
+
+<%--<ul class="dropdown-menu dropdown-menu-custom mt-2">
+<li><h6 class="dropdown-header text-uppercase" style="font-size: 10px; letter-spacing: 0.1em;">Select Company</h6></li>
+<li><a class="dropdown-item active" href="#"><i class="bi bi-check2 me-2"></i>Global Utility Services</a></li>
+<li><a class="dropdown-item" href="#">Regional Power Corp</a></li>
+<li><a class="dropdown-item" href="#">Metro Water Dist</a></li>
+</ul>--%>
+</div>
+</div>
+<nav id="sidebarMenu" class="flex-grow-1"></nav>
+<%--<nav class="flex-grow-1">
+<a class="nav-link-custom active" href="#">
+<i class="bi bi-speedometer2 me-3 fs-5"></i>
+<span>Dashboard</span>
+</a>
+<a class="nav-link-custom" href="#">
+<i class="bi bi-droplet me-3 fs-5"></i>
+<span>Meter Reading</span>
+</a>
+<a class="nav-link-custom" href="#">
+<i class="bi bi-journal-check me-3 fs-5"></i>
+<span>Work Orders</span>
+</a>
+<a class="nav-link-custom" href="#">
+<i class="bi bi-box-arrow-right me-3 fs-5"></i>
+<span>Logout</span>
+</a>
+</nav>--%>
+<div class="px-3 mt-auto pb-4">
+<div class="card-custom p-2 air-shadow mb-2">
+<button aria-expanded="false" class="p-2 hover:bg-surface-container rounded-full transition-colors relative border-0 bg-transparent text-slate-600 no-caret" type="button" id="btnProfile">
+<div class="d-flex align-items-center gap-2">
+<div class="rounded-circle d-flex align-items-center justify-content-center text-white flex-shrink-0" style="width: 32px; height: 32px; background-color: var(--primary-container);">
+<i class="bi bi-person-circle"></i>
+</div>
+<div class="overflow-hidden">
+<p class="mb-0 small fw-bold text-truncate"><span id="lblUserName"></span><span class="d-none" id="lblUserID"></span></p>
+<p class="mb-0 text-muted text-truncate" style="font-size: 9px;">ID: <span id="lblNIK"></span></p>
+</div>
+</div>
+</button>
+</div>
+</div>
+</aside>
+<!-- Main Content -->
+<div id="content" class="expanded">
+<!-- Sync Toast Container -->
+<div class="toast-container position-fixed top-0 end-0 p-3"
+     style="z-index:1100;">
+
+    <div id="syncToast"
+         class="toast air-shadow border-0"
+         role="alert"
+         aria-live="assertive"
+         aria-atomic="true">
+
+        <!-- HEADER -->
+        <div class="toast-header bg-white border-0 py-2">
+
+            <!-- Spinner -->
+            <div id="syncSpinner"
+                 class="spinner-border spinner-border-sm text-primary me-2"
+                 role="status">
+                <span class="visually-hidden">
+                    Loading...
+                </span>
+
+            </div>
+
+            <!-- Title -->
+            <strong class="me-auto text-primary small fw-bold">
+
+                Synchronizing
+
+            </strong>
+
+            <!-- Close Button -->
+            <button type="button"
+                    class="btn-close"
+                    data-bs-dismiss="toast"
+                    aria-label="Close">
+            </button>
+
+        </div>
+
+        <!-- BODY -->
+        <div class="toast-body pt-0 pb-3 bg-white">
+
+            <!-- Progress Text -->
+            <div class="d-flex justify-content-between align-items-center mb-1">
+
+                <span id="syncText"
+                      class="text-muted small">
+                    Preparing sync...
+                </span>
+
+                <span id="syncPercentText"
+                      class="small fw-bold">
+                    0%
+                </span>
+
+            </div>
+
+            <!-- Progress Bar -->
+            <div class="progress"
+                 style="height:4px;">
+                <div id="syncProgressBar"
+                     class="progress-bar"
+                     role="progressbar"
+                     style="width:0%; background-color:var(--primary-container);"
+                     aria-valuemin="0"
+                     aria-valuemax="100"
+                     aria-valuenow="0">
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+<!-- Top Navbar -->
+<%--<header class="top-navbar px-3 px-lg-4 px-xl-5 py-3">
+<div class="container-fluid p-0">
+<div class="d-flex align-items-center justify-content-between">
+
+<div class="d-flex align-items-center gap-2 gap-sm-3">
+<button class="btn btn-light border" id="sidebarCollapse" type="button">
+<i class="bi bi-list fs-4"></i>
+</button>
+<h2 class="h5 mb-0 fw-bold text-primary text-truncate" style="letter-spacing: -0.02em; max-width: 150px;"><span id="lblCompany"></span></h2>
+<div class="vr d-none d-md-block mx-2" style="height: 16px;"></div>
+<div class="d-none d-md-flex align-items-center text-muted small flex-shrink-0">
+<i class="bi bi-circle-fill text-success me-1" style="font-size: 8px;"></i>
+    <span id="lblConnection"></span>
+</div>
+</div>
+<div class="d-flex align-items-center gap-2 gap-md-3">
+<button class="btn primary-gradient-btn rounded-pill px-3 px-md-4 fw-bold small d-flex align-items-center gap-2 flex-shrink-0" id="btnSync">
+<i class="bi bi-arrow-repeat"></i>
+<span id="badgePendingSync"
+class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+0
+</span>
+</button>
+</div>
+</div>
+</div>
+</header>--%>
+<header class="top-navbar px-3 px-lg-4 px-xl-5 py-1" id="masterHeader">
+<div class="container-fluid p-0">
+<div class="d-flex align-items-center w-100 justify-content-between">
+
+<!-- LEFT SIDE -->
+<div class="d-flex align-items-center gap-2 gap-sm-3">
+
+<button class="btn btn-light border"
+id="sidebarCollapse"
+type="button">
+<i class="bi bi-list fs-4"></i>
+</button>
+
+<h2 class="h5 mb-0 fw-bold text-primary text-truncate"
+style="letter-spacing: -0.02em; max-width: 150px;">
+<span id="lblCompany"></span>
+</h2>
+<div id="connectionStatus">
+<%--<div class="vr d-none d-md-block mx-2" style="height: 16px;"></div>--%>
+
+<div class="d-none d-md-flex align-items-center text-muted small flex-shrink-0">
+<i class="bi bi-circle-fill text-success me-1"
+style="font-size: 8px;"></i>
+<span id="lblConnection"></span>
+</div>
+
+</div>
+</div>
+
+<!-- RIGHT SIDE -->
+<div class="d-flex align-items-center gap-2 gap-md-3">
+
+<!-- Sync Button -->
+<button class="btn primary-gradient-btn rounded-pill px-3 px-md-4 fw-bold small d-flex align-items-center gap-2 flex-shrink-0 position-relative"
+id="btnSync">
+
+<i class="bi bi-arrow-repeat"></i>
+
+<span id="badgePendingSync"
+class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+0
+</span>
+
+</button>
+
+<!-- USER PROFILE BUTTON -->
+<button class="btn primary-gradient-btn border rounded-circle d-flex align-items-center justify-content-center bg-transparent" id="btnProfileTopBar" type="button" style="width: 40px; height: 40px;">
+<i class="bi bi-person-circle"></i>
+</button>
+
+</div>
+
+</div>
+<div id="pageStickyBar" runat="server">
+<asp:ContentPlaceHolder ID="stickybar" runat="server"></asp:ContentPlaceHolder>
+</div>
+</div>
+</header>
+<!-- Dashboard Body -->
+<form id="form1" runat="server">
+<%--<div class="container-fluid px-3 px-lg-4 px-xl-5 py-4" id="contentbody" style="margin-top: 38px;">--%>
+<div class="container-fluid px-3 px-lg-4 px-xl-5 py-2" id="contentbody">
+<asp:ContentPlaceHolder ID="ContentPlaceHolder1" runat="server"></asp:ContentPlaceHolder>
+<!-- Footer -->
+<footer class="mt-auto pt-4 border-top">
+<div class="row align-items-center">
+<div class="col-12 col-md-6 text-center text-md-start mb-2 mb-md-0">
+<small class="text-uppercase fw-bold text-muted" style="font-size: 9px; letter-spacing: 0.1em;">
+                            System Version: 4.2.0-STABLE | Last Connection: 2m ago
+                        </small>
+</div>
+<div class="col-12 col-md-6 text-center text-md-end">
+<div class="d-flex gap-4 justify-content-center justify-content-md-end">
+<a class="text-decoration-none text-muted fw-bold text-uppercase" href="#" style="font-size: 9px; letter-spacing: 0.1em;">Privacy Policy</a>
+<a class="text-decoration-none text-muted fw-bold text-uppercase" href="#" style="font-size: 9px; letter-spacing: 0.1em;">Operator Manual</a>
+</div>
+</div>
+</div>
+</footer>
+</div>
+</form>
+</div>
+<!-- Global Floating Confirmation -->
+<div id="globalConfirmOverlay" class="custom-overlay d-none">
+    <div class="confirmation-dialog">
+
+        <div class="icon-circle premium-gradient shadow-lg">
+            <i class="bi bi-question-lg"></i>
+        </div>
+
+        <h3 id="confirmTitle" class="fw-bold mb-3">
+            Confirm
+        </h3>
+
+        <p id="confirmMessage"
+           class="text-muted px-2 mb-4 leading-relaxed">
+            Are you sure?
+        </p>
+
+        <div class="row g-2">
+
+            <div class="col-12 col-sm-6 order-2 order-sm-1">
+                <button id="btnConfirmCancel"
+                        class="btn btn-light w-100 rounded-pill py-3 fw-bold text-uppercase small shadow-sm">
+                    Cancel
+                </button>
+            </div>
+
+            <div class="col-12 col-sm-6 order-1 order-sm-2">
+                <button id="btnConfirmYes"
+                        class="btn premium-gradient w-100 rounded-pill py-3 fw-bold text-uppercase small shadow-lg">
+                    Yes
+                </button>
+            </div>
+
+        </div>
+
+    </div>
+</div>
+
+</div>
+<script type="text/javascript" src="../JSCus/GFC.js"></script>
+<script type="text/javascript" src="../JSCus/Site1.Master.js"></script>
+<%--<script type="text/javascript" src="/WebFolder/bootstrap-5.3.0-dist/js/bootstrap.bundle.min.js"></script>--%>
+
+</body>
+
+</html>
