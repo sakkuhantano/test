@@ -6999,6 +6999,8 @@ async function cloneTemplate()
     newTemplate.RuntimeTemplateID =
         generateRuntimeID();
     newTemplate.Dirty = true;
+    // Clone type metadata, but create a fresh property scope and no employee assignments.
+    newTemplate.MetadataDirty = true;
     newTemplate.TemplateNo += "_COPY";    
 
     // ==========================
