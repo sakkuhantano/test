@@ -324,3 +324,54 @@ CREATE TABLE [dbo].[PIP_M_GroupEquipment](
 ) ON [PRIMARY]
 GO
 
+/****** Object:  Table [dbo].[UserSession]    Script Date: 19-Oct-2026 8:34:50 AM ******/
+SET ANSI_NULLS ON
+GO
+
+SET QUOTED_IDENTIFIER ON
+GO
+
+CREATE TABLE [dbo].[UserSession](
+	[ID] [int] NOT NULL,
+	[UserId] [varchar](50) NULL,
+	[BrowserGuid] [varchar](50) NULL,
+	[ServerGuid] [varchar](50) NULL,
+	[Token] [varchar](50) NULL,
+	[LoginTime] [datetime] NULL,
+	[ExpireTime] [datetime] NULL,
+	[DeviceName] [varchar](200) NULL,
+	[IsActive] [bit] NULL,
+	[LastSyncMaster] [datetime] NULL,
+	[LastSyncWO] [datetime] NULL,
+ CONSTRAINT [PK__UserSess__3214EC073656EC8C] PRIMARY KEY CLUSTERED 
+(
+	[ID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+
+/****** Object:  Table [dbo].[UTL_User]    Script Date: 19-Oct-2026 8:34:50 AM ******/
+SET ANSI_NULLS ON
+GO
+
+SET QUOTED_IDENTIFIER ON
+GO
+
+CREATE TABLE [dbo].[UTL_User](
+	[UserID] [varchar](10) NULL,
+	[UserName] [varchar](100) NULL,
+	[Password] [nvarchar](255) NULL,
+	[IsELC] [bit] NULL,
+	[IsWTR] [bit] NULL,
+	[IsGAS] [bit] NULL,
+	[IsWO] [bit] NULL,
+	[EmployeeID] [varchar](10) NULL,
+	[IsActive] [bit] NULL,
+	[Theme] [varchar](1) NULL,
+	[IsSpv] [bit] NULL,
+	[Section] [varchar](500) NULL
+) ON [PRIMARY]
+GO
+
+
+
