@@ -826,7 +826,7 @@ ORDER BY InspectionTypeName",
         }
 
         [WebMethod]
-        public static object SaveTemplateMetadata(string idTemplate, string templateType, string inspectionTypeCode, string companyScope, string updateUser)
+        public static object SaveTemplateMetadata(string idTemplate, string templateType, string inspectionTypeCode, string companyScope, string updateUser, string companyId, string locationId)
         {
             int id;
             if (!Int32.TryParse(idTemplate, out id) || id <= 0)
@@ -853,9 +853,15 @@ SELECT T.IDTemplate, T.SectionID, T.CompanyID, T.LocationID,
 FROM dbo.PIP_M_CheckListWOPM T
 LEFT JOIN dbo.PIP_M_InspectionType I
   ON I.InspectionTypeCode=@InspectionTypeCode
-WHERE T.IDTemplate=@IDTemplate",
+WHERE T.IDTemplate=@IDTemplate
+  AND (ISNULL(T.CompanyScope,'S')='A' OR EXISTS
+       (SELECT 1 FROM dbo.PIP_M_CheckListWOPM_CompanyLocation AccessScope
+        WHERE AccessScope.IDTemplate=T.IDTemplate
+          AND AccessScope.CompanyID=@CompanyID
+          AND AccessScope.LocationID=@LocationID))",
                     "@IDTemplate=" + id + GF.Str2 +
-                    "@InspectionTypeCode=" + inspectionTypeCode);
+                    "@InspectionTypeCode=" + inspectionTypeCode + GF.Str2 +
+                    "@CompanyID=" + companyId + GF.Str2 + "@LocationID=" + locationId);
                 if (dt.Rows.Count == 0)
                     return new { success = false, message = "Template was not found." };
 
