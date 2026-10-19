@@ -1099,6 +1099,74 @@ WHERE IDTemplate=@IDTemplate AND EmployeeID=@EmployeeID",
         }
 
 
+
+        [WebMethod]
+        public static object GetInspectionTypesAdmin(string sectionId)
+        {
+            using (var br = new WAL.BR.CF())
+            {
+                DataTable dt = br.EQuery(@"
+SELECT InspectionTypeCode, InspectionTypeName, SectionID, IsActive
+FROM dbo.PIP_M_InspectionType
+WHERE SectionID=@SectionID
+ORDER BY IsActive DESC, InspectionTypeName",
+                    "@SectionID=" + sectionId);
+                var rows = dt.AsEnumerable().Select(row => new
+                {
+                    InspectionTypeCode = GF.GetString(row["InspectionTypeCode"]),
+                    InspectionTypeName = GF.GetString(row["InspectionTypeName"]),
+                    SectionID = GF.GetString(row["SectionID"]),
+                    IsActive = Convert.ToBoolean(row["IsActive"])
+                }).ToList();
+                JavaScriptSerializer serializer = new JavaScriptSerializer();
+                return serializer.Serialize(rows);
+            }
+        }
+
+        [WebMethod]
+        public static object SaveInspectionType(string code, string name, string sectionId, bool isActive, string updateUser)
+        {
+            code = (code ?? "").Trim().ToUpperInvariant();
+            name = (name ?? "").Trim();
+            sectionId = (sectionId ?? "").Trim();
+            if (code.Length < 1 || code.Length > 2 || !code.All(Char.IsLetterOrDigit))
+                return new { success = false, message = "Inspection Type Code must contain 1-2 letters or digits." };
+            if (name.Length == 0 || name.Length > 100)
+                return new { success = false, message = "Inspection Type Name is required (maximum 100 characters)." };
+            if (sectionId.Length == 0 || sectionId.Length > 10)
+                return new { success = false, message = "SectionID is required." };
+
+            using (var br = new WAL.BR.CF())
+            {
+                DataTable used = br.EQuery(@"
+SELECT COUNT(*) Total
+FROM dbo.PIP_M_CheckListWOPM
+WHERE InspectionTypeCode=@Code AND SectionID<>@SectionID",
+                    "@Code=" + code + GF.Str2 + "@SectionID=" + sectionId);
+                if (Convert.ToInt32(used.Rows[0]["Total"]) > 0)
+                    return new { success = false, message = "This code is already used by a template in another SectionID. Create a new code instead of moving it." };
+
+                br.EQuery(@"
+IF EXISTS (SELECT 1 FROM dbo.PIP_M_InspectionType WHERE InspectionTypeCode=@Code)
+BEGIN
+    UPDATE dbo.PIP_M_InspectionType
+    SET InspectionTypeName=@Name, SectionID=@SectionID, IsActive=@IsActive,
+        UpdateUser=@UpdateUser, UpdateDate=GETDATE()
+    WHERE InspectionTypeCode=@Code;
+END
+ELSE
+BEGIN
+    INSERT dbo.PIP_M_InspectionType
+        (InspectionTypeCode, InspectionTypeName, SectionID, IsActive, EntryUser, EntryDate)
+    VALUES (@Code, @Name, @SectionID, @IsActive, @UpdateUser, GETDATE());
+END",
+                    "@Code=" + code + GF.Str2 + "@Name=" + name + GF.Str2 +
+                    "@SectionID=" + sectionId + GF.Str2 + "@IsActive=" + (isActive ? "1" : "0") +
+                    GF.Str2 + "@UpdateUser=" + updateUser);
+                return new { success = true, message = "" };
+            }
+        }
+
         [WebMethod]
         public static object GetGroupEquipment(string companyId, string locationId, string sectionId)
         {
