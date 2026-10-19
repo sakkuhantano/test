@@ -5113,33 +5113,39 @@ async function appendTemplateMetadataControls(template)
     const section = document.createElement('div');
     section.className = 'border-top mt-3 pt-3';
     section.innerHTML =
-        '<div class="mb-3">' +
-            '<label class="form-label">Template Type</label>' +
-            '<select id="propTemplateType" class="form-select form-select-compact" ' + (isReadonlyMode ? 'disabled' : '') + '>' +
-                '<option value="W">PM / WO</option>' +
-                '<option value="I">Inspection</option>' +
-            '</select>' +
-        '</div>' +
-        '<div class="mb-3" id="inspectionTypeField" style="display:none;">' +
-            '<label class="form-label">Inspection Type</label>' +
-            '<select id="propInspectionType" class="form-select form-select-compact" ' + (isReadonlyMode ? 'disabled' : '') + '><option value="">Loading...</option></select>' +
-            '<div class="form-text">Filtered by SectionID ' + escapeHtml(template.SectionID || '') + '.</div>' +
-        '</div>' +
-        '<div class="mb-3">' +
-            '<label class="form-label">Company Scope</label>' +
-            '<select id="propCompanyScope" class="form-select form-select-compact" ' + (isReadonlyMode ? 'disabled' : '') + '>' +
-                '<option value="S">Selected Company / Gedung</option>' +
-                '<option value="A">All Company / Gedung</option>' +
-            '</select>' +
-        '</div>' +
-        '<div class="border rounded p-2 mb-3">' +
-            '<div class="fw-semibold mb-2">Company / Gedung Assignment</div>' +
-            '<div id="templateCompanyAssignments" class="small text-muted">Loading...</div>' +
-        '</div>' +
-        '<div class="border rounded p-2" id="templateEmployeePanel" style="display:none;">' +
-            '<div class="fw-semibold mb-2">Employee Assignment</div>' +
-            '<div class="small text-muted mb-2">Employee must match the template SectionID and selected company/location scope. Employees are assigned one by one.</div>' +
-            '<div id="templateEmployeeAssignments" class="small text-muted">Loading...</div>' +
+        '<ul class="nav nav-tabs mb-3" role="tablist">' +
+            '<li class="nav-item" role="presentation"><button class="nav-link active" id="tplMetaTab" data-bs-toggle="tab" data-bs-target="#tplMetaPane" type="button" role="tab">Template</button></li>' +
+            '<li class="nav-item" role="presentation"><button class="nav-link" id="tplCompanyTab" data-bs-toggle="tab" data-bs-target="#tplCompanyPane" type="button" role="tab">Company / Gedung</button></li>' +
+            '<li class="nav-item" id="tplEmployeeTabItem" role="presentation" style="display:none;"><button class="nav-link" id="tplEmployeeTab" data-bs-toggle="tab" data-bs-target="#tplEmployeePane" type="button" role="tab">Employee Assignment</button></li>' +
+        '</ul>' +
+        '<div class="tab-content">' +
+            '<div class="tab-pane fade show active" id="tplMetaPane" role="tabpanel">' +
+                '<div class="mb-3">' +
+                    '<label class="form-label">Template Type</label>' +
+                    '<select id="propTemplateType" class="form-select form-select-compact" ' + (isReadonlyMode ? 'disabled' : '') + '>' +
+                        '<option value="W">PM / WO</option><option value="I">Inspection</option>' +
+                    '</select>' +
+                '</div>' +
+                '<div class="mb-3" id="inspectionTypeField" style="display:none;">' +
+                    '<label class="form-label">Inspection Type</label>' +
+                    '<select id="propInspectionType" class="form-select form-select-compact" ' + (isReadonlyMode ? 'disabled' : '') + '><option value="">Loading...</option></select>' +
+                    '<div class="form-text">Filtered by SectionID ' + escapeHtml(template.SectionID || '') + '.</div>' +
+                '</div>' +
+                '<div class="mb-3">' +
+                    '<label class="form-label">Company Scope</label>' +
+                    '<select id="propCompanyScope" class="form-select form-select-compact" ' + (isReadonlyMode ? 'disabled' : '') + '>' +
+                        '<option value="S">Selected Company / Gedung</option><option value="A">All Company / Gedung</option>' +
+                    '</select>' +
+                '</div>' +
+            '</div>' +
+            '<div class="tab-pane fade" id="tplCompanyPane" role="tabpanel">' +
+                '<div class="small text-muted mb-2">For Selected Company, choose the locations where this template applies.</div>' +
+                '<div id="templateCompanyAssignments" class="small text-muted">Loading...</div>' +
+            '</div>' +
+            '<div class="tab-pane fade" id="tplEmployeePane" role="tabpanel">' +
+                '<div class="small text-muted mb-2">Employees must match the template SectionID and company/location scope. Assign each employee explicitly.</div>' +
+                '<div id="templateEmployeeAssignments" class="small text-muted">Loading...</div>' +
+            '</div>' +
         '</div>';
     body.appendChild(section);
 
@@ -5196,9 +5202,15 @@ async function appendTemplateMetadataRefresh(template)
 {
     const isInspection = template.TemplateType === 'I';
     const inspectionField = document.getElementById('inspectionTypeField');
-    const employeePanel = document.getElementById('templateEmployeePanel');
+    const employeeTab = document.getElementById('tplEmployeeTabItem');
     if (inspectionField) inspectionField.style.display = isInspection ? '' : 'none';
-    if (employeePanel) employeePanel.style.display = isInspection ? '' : 'none';
+    if (employeeTab) employeeTab.style.display = isInspection ? '' : 'none';
+    const activePane = document.querySelector('#tplEmployeePane.show.active');
+    if (!isInspection && activePane) {
+        const generalTab = document.getElementById('tplMetaTab');
+        if (generalTab && window.bootstrap && bootstrap.Tab)
+            bootstrap.Tab.getOrCreateInstance(generalTab).show();
+    }
 
     await renderTemplateCompanyAssignments(template);
     if (isInspection) await renderTemplateEmployeeAssignments(template);
