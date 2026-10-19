@@ -861,6 +861,10 @@ FROM dbo.PIP_M_CheckListWOPM T
 LEFT JOIN dbo.PIP_M_InspectionType I
   ON I.InspectionTypeCode=@InspectionTypeCode AND I.IsActive=1
 WHERE T.IDTemplate=@IDTemplate
+  AND EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation CurrentPermission
+              WHERE CurrentPermission.AppID='PIP' AND CurrentPermission.UserID=@UpdateUser
+                AND CurrentPermission.CompanyID=@CompanyID
+                AND CurrentPermission.LocationID=@LocationID)
   AND (ISNULL(T.CompanyScope,'S')='A' OR EXISTS
        (SELECT 1 FROM dbo.PIP_M_CheckListWOPM_CompanyLocation AccessScope
         WHERE AccessScope.IDTemplate=T.IDTemplate
@@ -868,7 +872,8 @@ WHERE T.IDTemplate=@IDTemplate
           AND AccessScope.LocationID=@LocationID))",
                     "@IDTemplate=" + id + GF.Str2 +
                     "@InspectionTypeCode=" + inspectionTypeCode + GF.Str2 +
-                    "@CompanyID=" + companyId + GF.Str2 + "@LocationID=" + locationId);
+                    "@CompanyID=" + companyId + GF.Str2 + "@LocationID=" + locationId + GF.Str2 +
+                    "@UpdateUser=" + updateUser);
                 if (dt.Rows.Count == 0)
                     return new { success = false, message = "Template was not found." };
 
@@ -1008,6 +1013,7 @@ WHERE T.IDTemplate=@IDTemplate
           AND AccessScope.CompanyID=@CurrentCompanyID
           AND AccessScope.LocationID=@CurrentLocationID))",
                     "@IDTemplate=" + id + GF.Str2 +
+                    "@UpdateUser=" + updateUser + GF.Str2 +
                     "@CurrentCompanyID=" + currentCompanyId + GF.Str2 +
                     "@CurrentLocationID=" + currentLocationId);
                 if (dt.Rows.Count == 0)
@@ -1166,6 +1172,7 @@ WHERE T.IDTemplate=@IDTemplate
           AND AccessScope.LocationID=@CurrentLocationID))",
                     "@IDTemplate=" + id + GF.Str2 +
                     "@EmployeeID=" + employeeId + GF.Str2 +
+                    "@UpdateUser=" + updateUser + GF.Str2 +
                     "@CurrentCompanyID=" + companyId + GF.Str2 +
                     "@CurrentLocationID=" + locationId);
                 if (dt.Rows.Count == 0)
