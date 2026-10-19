@@ -852,7 +852,7 @@ SELECT T.IDTemplate, T.SectionID, T.CompanyID, T.LocationID,
        InspectionSectionID=I.SectionID
 FROM dbo.PIP_M_CheckListWOPM T
 LEFT JOIN dbo.PIP_M_InspectionType I
-  ON I.InspectionTypeCode=@InspectionTypeCode AND I.IsActive=1
+  ON I.InspectionTypeCode=@InspectionTypeCode
 WHERE T.IDTemplate=@IDTemplate",
                     "@IDTemplate=" + id + GF.Str2 +
                     "@InspectionTypeCode=" + inspectionTypeCode);
