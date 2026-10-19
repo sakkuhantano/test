@@ -157,6 +157,20 @@ OUTPUT
     inserted.IDTemplate   -- Tetap mengembalikan IDTemplate manual yang baru saja dimasukkan
 INTO @tbl_Identity (Entity, RuntimeID, ID);
 
+/* Every newly created template starts with the current property as its Selected Company scope. */
+INSERT dbo.PIP_M_CheckListWOPM_CompanyLocation
+    (IDTemplate, CompanyID, LocationID, EntryUser, EntryDate)
+SELECT I.ID, @p_CompanyID, @p_LocationID, @p_UpdateUser, GETDATE()
+FROM @tbl_Identity I
+WHERE I.Entity='Template'
+  AND NOT EXISTS
+  (
+      SELECT 1 FROM dbo.PIP_M_CheckListWOPM_CompanyLocation S
+      WHERE S.IDTemplate=I.ID
+        AND S.CompanyID=@p_CompanyID
+        AND S.LocationID=@p_LocationID
+  );
+
 --- Version
 UPDATE V
 SET 
