@@ -883,13 +883,15 @@ SET TemplateType=@TemplateType,
 WHERE IDTemplate=@IDTemplate;
 
 IF @CompanyScope='S'
-AND NOT EXISTS (SELECT 1 FROM dbo.PIP_M_CheckListWOPM_CompanyLocation WHERE IDTemplate=@IDTemplate)
+AND NOT EXISTS
+(
+    SELECT 1 FROM dbo.PIP_M_CheckListWOPM_CompanyLocation
+    WHERE IDTemplate=@IDTemplate AND CompanyID=@CompanyID AND LocationID=@LocationID
+)
 BEGIN
     INSERT dbo.PIP_M_CheckListWOPM_CompanyLocation
         (IDTemplate, CompanyID, LocationID, EntryUser, EntryDate)
-    SELECT IDTemplate, CompanyID, LocationID, @UpdateUser, GETDATE()
-    FROM dbo.PIP_M_CheckListWOPM
-    WHERE IDTemplate=@IDTemplate;
+    VALUES (@IDTemplate, @CompanyID, @LocationID, @UpdateUser, GETDATE());
 END;
 
 /* PM/WO templates do not retain Inspection employee assignments. */
