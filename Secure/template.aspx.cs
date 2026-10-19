@@ -1009,6 +1009,7 @@ LEFT JOIN dbo.PIP_M_CheckListWOPM_Employee A
   ON A.IDTemplate=T.IDTemplate AND A.EmployeeID=E.EmployeeID
 WHERE E.SectionID=T.SectionID
   AND T.SectionID=@SectionID
+  AND EXISTS (SELECT 1 FROM dbo.UTL_User U WHERE U.EmployeeID=E.EmployeeID)
   AND
   (
       ISNULL(T.CompanyScope,'S')='A'
@@ -1053,7 +1054,8 @@ SELECT T.TemplateType, T.CompanyScope, T.SectionID,
        E.EmployeeID, E.SectionID EmployeeSectionID, E.CompanyID, E.LocationID
 FROM dbo.PIP_M_CheckListWOPM T
 JOIN dbo.M_HRD_Employee E ON E.EmployeeID=@EmployeeID
-WHERE T.IDTemplate=@IDTemplate",
+WHERE T.IDTemplate=@IDTemplate
+  AND EXISTS (SELECT 1 FROM dbo.UTL_User U WHERE U.EmployeeID=E.EmployeeID)",
                     "@IDTemplate=" + id + GF.Str2 +
                     "@EmployeeID=" + employeeId);
                 if (dt.Rows.Count == 0)
