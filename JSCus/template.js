@@ -5234,7 +5234,7 @@ async function renderTemplateCompanyAssignments(template)
         return;
     }
     try {
-        const raw = await promisifyPageMethod(PageMethods.GetTemplateCompanyLocations, String(template.IDTemplate));
+        const raw = await promisifyPageMethod(PageMethods.GetTemplateCompanyLocations, String(template.IDTemplate), companyId, locationId);
         const rows = JSON.parse(raw || '[]');
         host.innerHTML = '';
         if (!rows.length) {
@@ -5260,7 +5260,7 @@ async function renderTemplateCompanyAssignments(template)
                     const result = await promisifyPageMethod(
                         PageMethods.SetTemplateCompanyLocation,
                         String(template.IDTemplate), row.CompanyID, row.LocationID,
-                        this.checked ? 'ADD' : 'REMOVE', getLoginData().employeeid
+                        this.checked ? 'ADD' : 'REMOVE', getLoginData().employeeid, companyId, locationId
                     );
                     hideLoading();
                     if (!result.success) {
@@ -5309,7 +5309,7 @@ async function renderTemplateEmployeeAssignments(template)
         return;
     }
     try {
-        const raw = await promisifyPageMethod(PageMethods.GetTemplateEmployees, String(template.IDTemplate), template.SectionID);
+        const raw = await promisifyPageMethod(PageMethods.GetTemplateEmployees, String(template.IDTemplate), template.SectionID, companyId, locationId);
         const rows = JSON.parse(raw || '[]');
         host.innerHTML = '';
         if (!rows.length) {
@@ -5335,7 +5335,7 @@ async function renderTemplateEmployeeAssignments(template)
                     const result = await promisifyPageMethod(
                         PageMethods.SetTemplateEmployeeAssignment,
                         String(template.IDTemplate), row.EmployeeID,
-                        this.checked ? 'ADD' : 'REMOVE', getLoginData().employeeid
+                        this.checked ? 'ADD' : 'REMOVE', getLoginData().employeeid, companyId, locationId
                     );
                     hideLoading();
                     if (!result.success) {
@@ -5393,7 +5393,9 @@ async function saveDirtyTemplateMetadata()
             template.TemplateType || 'W',
             template.InspectionTypeCode || '',
             template.CompanyScope || 'S',
-            getLoginData().employeeid
+            getLoginData().employeeid,
+            companyId,
+            locationId
         );
         if (!result.success) throw new Error(result.message || 'Failed to save template settings.');
         template.MetadataDirty = false;
