@@ -5171,6 +5171,8 @@ async function appendTemplateMetadataControls(template)
         template.CompanyScope = this.value;
         markMetadataDirty();
         await renderTemplateCompanyAssignments(template);
+        if (template.TemplateType === 'I')
+            await renderTemplateEmployeeAssignments(template);
     });
 
     try {
