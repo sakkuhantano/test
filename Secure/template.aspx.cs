@@ -991,6 +991,14 @@ IF NOT EXISTS
                 }
                 else
                 {
+                    DataTable scopeCount = br.EQuery(@"
+SELECT COUNT(*) Total
+FROM dbo.PIP_M_CheckListWOPM_CompanyLocation
+WHERE IDTemplate=@IDTemplate",
+                        "@IDTemplate=" + id);
+                    if (Convert.ToInt32(scopeCount.Rows[0]["Total"]) <= 1)
+                        return new { success = false, message = "Selected Company requires at least one company/location assignment." };
+
                     br.EQuery(@"
 SET XACT_ABORT ON;
 BEGIN TRANSACTION;
