@@ -885,6 +885,26 @@ BEGIN
     FROM dbo.PIP_M_CheckListWOPM
     WHERE IDTemplate=@IDTemplate;
 END;
+
+/* PM/WO templates do not retain Inspection employee assignments. */
+IF @TemplateType='W'
+    DELETE FROM dbo.PIP_M_CheckListWOPM_Employee WHERE IDTemplate=@IDTemplate;
+
+/* If scope narrows to Selected Company, remove assignments outside selected locations. */
+IF @CompanyScope='S'
+BEGIN
+    DELETE A
+    FROM dbo.PIP_M_CheckListWOPM_Employee A
+    JOIN dbo.M_HRD_Employee E ON E.EmployeeID=A.EmployeeID
+    WHERE A.IDTemplate=@IDTemplate
+      AND NOT EXISTS
+      (
+          SELECT 1 FROM dbo.PIP_M_CheckListWOPM_CompanyLocation S
+          WHERE S.IDTemplate=A.IDTemplate
+            AND S.CompanyID=E.CompanyID
+            AND S.LocationID=E.LocationID
+      );
+END;
 COMMIT TRANSACTION;",
                     "@TemplateType=" + templateType + GF.Str2 +
                     "@InspectionTypeCode=" + inspectionTypeCode + GF.Str2 +
