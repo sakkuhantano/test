@@ -5234,16 +5234,16 @@ async function renderTemplateCompanyAssignments(template)
         return;
     }
     try {
-        const raw = await promisifyPageMethod(PageMethods.GetTemplateCompanyLocations, String(template.IDTemplate), companyId, locationId);
+        const raw = await promisifyPageMethod(PageMethods.GetTemplateCompanyLocations, String(template.IDTemplate), companyId, locationId, getLoginData().employeeid);
         const rows = JSON.parse(raw || '[]');
         host.innerHTML = '';
         if (!rows.length) {
-            host.textContent = 'No company/location pairs were found in employee master.';
+            host.textContent = 'No active company/location pairs are assigned to your PIP access.';
             return;
         }
         const table = document.createElement('table');
         table.className = 'table table-sm align-middle';
-        table.innerHTML = '<thead><tr><th>Use</th><th>CompanyID</th><th>LocationID</th></tr></thead><tbody></tbody>';
+        table.innerHTML = '<thead><tr><th>Use</th><th>Company</th><th>Gedung</th></tr></thead><tbody></tbody>';
         const tbody = table.querySelector('tbody');
         rows.forEach(function(row) {
             const tr = document.createElement('tr');
@@ -5282,9 +5282,9 @@ async function renderTemplateCompanyAssignments(template)
             });
             tdCheck.appendChild(check);
             const tdCompany = document.createElement('td');
-            tdCompany.textContent = row.CompanyID;
+            tdCompany.textContent = row.CompanyName + ' (' + row.CompanyID + ')';
             const tdLocation = document.createElement('td');
-            tdLocation.textContent = row.LocationID;
+            tdLocation.textContent = row.LocationName + ' (' + row.LocationID + ')';
             tr.appendChild(tdCheck);
             tr.appendChild(tdCompany);
             tr.appendChild(tdLocation);
@@ -5313,7 +5313,7 @@ async function renderTemplateEmployeeAssignments(template)
         return;
     }
     try {
-        const raw = await promisifyPageMethod(PageMethods.GetTemplateEmployees, String(template.IDTemplate), template.SectionID, companyId, locationId);
+        const raw = await promisifyPageMethod(PageMethods.GetTemplateEmployees, String(template.IDTemplate), template.SectionID, companyId, locationId, getLoginData().employeeid);
         const rows = JSON.parse(raw || '[]');
         host.innerHTML = '';
         if (!rows.length) {
