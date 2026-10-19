@@ -5265,7 +5265,7 @@ async function renderTemplateCompanyAssignments(template)
                         return;
                     }
                     if (template.TemplateType === 'I') await renderTemplateEmployeeAssignments(template);
-                    await reloadExplorer();
+                    // Keep the current editor state; a full explorer reload clears the builder/properties panels.
                 } catch (ex) {
                     hideLoading();
                     this.checked = oldValue;
@@ -5393,7 +5393,6 @@ async function saveDirtyTemplateMetadata()
             await appendTemplateMetadataRefresh(template);
         }
     }
-    await reloadExplorer();
 }
 function refreshGroupEquipmentCaption(template)
 {
