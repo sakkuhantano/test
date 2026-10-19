@@ -950,6 +950,9 @@ WHERE EXISTS
 (
     SELECT 1 FROM dbo.PIP_M_CheckListWOPM T
     WHERE T.IDTemplate=@IDTemplate
+      AND EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation CurrentPermission
+                  WHERE CurrentPermission.AppID='PIP' AND CurrentPermission.UserID=@UserID
+                    AND CurrentPermission.CompanyID=@CompanyID AND CurrentPermission.LocationID=@LocationID)
       AND (ISNULL(T.CompanyScope,'S')='A' OR EXISTS
            (SELECT 1 FROM dbo.PIP_M_CheckListWOPM_CompanyLocation AccessScope
             WHERE AccessScope.IDTemplate=T.IDTemplate
@@ -988,6 +991,10 @@ ORDER BY L.CompanyID, L.LocationID",
 SELECT T.CompanyScope
 FROM dbo.PIP_M_CheckListWOPM T
 WHERE T.IDTemplate=@IDTemplate
+  AND EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation CurrentPermission
+              WHERE CurrentPermission.AppID='PIP' AND CurrentPermission.UserID=@UpdateUser
+                AND CurrentPermission.CompanyID=@CurrentCompanyID
+                AND CurrentPermission.LocationID=@CurrentLocationID)
   AND (ISNULL(T.CompanyScope,'S')='A' OR EXISTS
        (SELECT 1 FROM dbo.PIP_M_CheckListWOPM_CompanyLocation AccessScope
         WHERE AccessScope.IDTemplate=T.IDTemplate
@@ -1078,6 +1085,10 @@ LEFT JOIN dbo.PIP_M_CheckListWOPM_Employee A
 WHERE E.SectionID=T.SectionID
   AND T.SectionID=@SectionID
   AND EXISTS (SELECT 1 FROM dbo.UTL_User U WHERE U.EmployeeID=E.EmployeeID)
+  AND EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation CurrentPermission
+              WHERE CurrentPermission.AppID='PIP' AND CurrentPermission.UserID=@UserID
+                AND CurrentPermission.CompanyID=@CurrentCompanyID
+                AND CurrentPermission.LocationID=@CurrentLocationID)
   AND EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation perm
               WHERE perm.AppID='PIP' AND perm.UserID=@UserID
                 AND perm.CompanyID=E.CompanyID AND perm.LocationID=E.LocationID)
@@ -1134,6 +1145,10 @@ FROM dbo.PIP_M_CheckListWOPM T
 JOIN dbo.M_HRD_Employee E ON E.EmployeeID=@EmployeeID
 WHERE T.IDTemplate=@IDTemplate
   AND EXISTS (SELECT 1 FROM dbo.UTL_User U WHERE U.EmployeeID=E.EmployeeID)
+  AND EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation CurrentPermission
+              WHERE CurrentPermission.AppID='PIP' AND CurrentPermission.UserID=@UpdateUser
+                AND CurrentPermission.CompanyID=@CurrentCompanyID
+                AND CurrentPermission.LocationID=@CurrentLocationID)
   AND EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation perm
               WHERE perm.AppID='PIP' AND perm.UserID=@UpdateUser
                 AND perm.CompanyID=E.CompanyID AND perm.LocationID=E.LocationID)
