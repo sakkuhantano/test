@@ -732,6 +732,7 @@ async function uploadPendingInspections() {
         SectionID: record.SectionID,
         InspectionTypeCode: record.InspectionTypeCode,
         InspectionTypeDetailCode: record.InspectionTypeDetailCode,
+        ScheduledTime: record.ScheduledTime || "",
         IDTemplate: record.IDTemplate,
         IDVersion: record.IDVersion,
         TemplateNo: record.TemplateNo,
