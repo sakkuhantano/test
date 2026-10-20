@@ -1856,12 +1856,16 @@ async function uploadPendingWO() {
         req.onerror = () => reject(req.error);
     });
 
-    const pending = allLocal.filter(x =>
+    const pendingInCompany = allLocal.filter(x =>
         (x.Status === "DONE" || x.StatusSPV === "PENDING") &&
         x.CompanyID === companyId &&
-        x.LocationID === locationId &&
-        allowedSections.includes(x.SectionID)
+        x.LocationID === locationId
     );
+    const pending = pendingInCompany.filter(x => allowedSections.includes(x.SectionID));
+
+    if (pendingInCompany.length > pending.length) {
+        showToast("Ada WO offline dari section lain di perangkat ini. Data tersebut tetap disimpan dan tidak dikirim oleh login ini.", "warning");
+    }
 
     const list = pending.filter(x => {
         if (x.Status === "DONE") {
