@@ -314,12 +314,37 @@ function collectInspectionItems() {
         const value = type === "GROUP" ? "" : (valueElement ? valueElement.value : "");
         const remarkElement = container.querySelector('[data-role="remark"]');
         const remark = remarkElement ? remarkElement.value.trim() : "";
-        const min = container.dataset.min === "" ? null : Number(container.dataset.min);
-        const max = container.dataset.max === "" ? null : Number(container.dataset.max);
-        const numericValue = value === "" ? null : Number(value);
-        const isAnomali = numericValue !== null && !Number.isNaN(numericValue) &&
-            ((min !== null && numericValue < min) || (max !== null && numericValue > max));
         const templateItem = findInspectionTemplateItem(itemId);
+        let isAnomali = false;
+        const numericValue = value === "" ? null : Number(value);
+        const useTolerance = !!(templateItem && (
+            templateItem.isToleranceRequired === true ||
+            templateItem.isToleranceRequired === 1 ||
+            templateItem.isToleranceRequired === "1" ||
+            templateItem.isToleranceRequired === "true"
+        ));
+        if (useTolerance && numericValue !== null && !Number.isNaN(numericValue)) {
+            const minTolerance = Number(templateItem.mintol);
+            const maxTolerance = Number(templateItem.maxtol);
+            let lowerLimit;
+            let upperLimit;
+            if (Number.isFinite(minTolerance) && Number.isFinite(maxTolerance)) {
+                if (type === "RANGE") {
+                    const min = Number(templateItem.min);
+                    const max = Number(templateItem.max);
+                    if (Number.isFinite(min) && Number.isFinite(max)) {
+                        lowerLimit = min - minTolerance;
+                        upperLimit = max + maxTolerance;
+                    }
+                } else if (type === "INPUT") {
+                    lowerLimit = minTolerance;
+                    upperLimit = maxTolerance;
+                }
+            }
+            if (lowerLimit !== undefined && upperLimit !== undefined) {
+                isAnomali = numericValue <= lowerLimit || numericValue >= upperLimit;
+            }
+        }
         result.push({
             IDItem: itemId,
             ItemLabel: templateItem ? templateItem.label : ("Item " + itemId),
