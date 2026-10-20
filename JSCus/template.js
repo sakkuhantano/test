@@ -149,7 +149,7 @@ document.addEventListener(
         //initSortable();
         //renderGroupTable();
         clearCenterPanel();
-		clearBuilderPanel()
+        clearBuilderPanel()
         clearRightPanel();
         await loadTemplateExplorer();
     }
@@ -1009,10 +1009,10 @@ async function loadTemplateExplorer()
         clearRightPanel();
 
         //showExplorerLoading();
-		var loginData = getLoginData();
-		const res = await promisifyPageMethod(
-			PageMethods.GetTemplateExplorerRoot, loginData.userid, companyId, locationId, loginData.employeeid
-		);	
+        var loginData = getLoginData();
+        const res = await promisifyPageMethod(
+            PageMethods.GetTemplateExplorerRoot, loginData.userid, companyId, locationId, loginData.employeeid
+        );  
 
         explorerRoot = res || [];
 
@@ -1080,28 +1080,28 @@ function renderTemplateExplorerRoot(data)
             <div class="accordion-item">
 
                 <h2 class="accordion-header">
-					<div class="d-flex align-items-center">
-					<button
-						class="category-header w-100 accordion-button collapsed"
-						type="button" id="rootHeader_${root.SectionID}"
-						data-bs-toggle="collapse"
-						data-bs-target="#root_${index}"
-						onclick="loadTemplatesBySection('${root.SectionID}', this)">
+                    <div class="d-flex align-items-center">
+                    <button
+                        class="category-header w-100 accordion-button collapsed"
+                        type="button" id="rootHeader_${root.SectionID}"
+                        data-bs-toggle="collapse"
+                        data-bs-target="#root_${index}"
+                        onclick="loadTemplatesBySection('${root.SectionID}', this)">
 
-						<span>
-							${root.SectionID}
-						</span>
+                        <span>
+                            ${root.SectionID}
+                        </span>
                         <span class="dirty-placeholder"></span>
-						<span class="badge bg-secondary text-xs ms-auto me-2">
-							${root.TotalTemplate}
-						</span>
-					</button>
-					<button type="button" data-section-id="${root.SectionID}"
-						class="btn btn-sm border-0 section-menu-btn"
-						onclick="showTemplateRootMenu(event,'${root.SectionID}',this)">
-						<i class="bi bi-three-dots-vertical"></i>
-					</button>
-					</div>
+                        <span class="badge bg-secondary text-xs ms-auto me-2">
+                            ${root.TotalTemplate}
+                        </span>
+                    </button>
+                    <button type="button" data-section-id="${root.SectionID}"
+                        class="btn btn-sm border-0 section-menu-btn"
+                        onclick="showTemplateRootMenu(event,'${root.SectionID}',this)">
+                        <i class="bi bi-three-dots-vertical"></i>
+                    </button>
+                    </div>
                 </h2>
 
                 <div id="root_${index}"
@@ -1251,10 +1251,16 @@ async function loadTemplatesBySection(sectionId, btn)
     
     try
     {
+        const loginData = getLoginData();
+
         const result =
             await promisifyPageMethod(
                 PageMethods.GetTemplatesBySection,
-                sectionId, companyId, locationId, getLoginData().employeeid
+                sectionId,
+                companyId,
+                locationId,
+                loginData.employeeid,
+                loginData.userid
             );
         const templates =
             JSON.parse(result || "[]");
@@ -1397,7 +1403,7 @@ function renderTemplates(data, container, sectionId)
             <div class="accordion-item template-root-item">
                 <!-- TEMPLATE ROOT -->
                 <h2 class="accordion-header" id="${headingId}">
-					<div class="d-flex align-items-center">
+                    <div class="d-flex align-items-center">
                     <button class="template-group-header accordion-button ${isCurrent ? "" : "collapsed"} w-100"
                         type="button"
                         data-bs-toggle="collapse"
@@ -1424,12 +1430,12 @@ function renderTemplates(data, container, sectionId)
                             ${statusText}
                         </div>
                     </button>
-					<button type="button"
-						class="btn btn-sm border-0 template-menu-btn"
-						onclick="showTemplateMenu(event,'${sectionId}',${tpl.Template.RuntimeTemplateID});">
-						<i class="bi bi-three-dots-vertical"></i>
-					</button>
-					</div>
+                    <button type="button"
+                        class="btn btn-sm border-0 template-menu-btn"
+                        onclick="showTemplateMenu(event,'${sectionId}',${tpl.Template.RuntimeTemplateID});">
+                        <i class="bi bi-three-dots-vertical"></i>
+                    </button>
+                    </div>
                 </h2>
                 <!-- VERSION CONTAINER -->
                 <div id="${collapseId}" class="accordion-collapse collapse ${isCurrent ? "show" : ""}" aria-labelledby="${headingId}">
@@ -2283,17 +2289,17 @@ function showVersionProperties(version, isNewTemplate)
 
 async function loadTemplateVersions(idTemplate)
 {
-	// const ok = await confirmDiscardChanges();
+    // const ok = await confirmDiscardChanges();
 
-	// if (!ok)
-	// 	return;
+    // if (!ok)
+    //  return;
     try
     {
-		// =========================
+        // =========================
         // ACTIVE UI
         // =========================
         clearBuilderPanel();
-		clearPropertiesPanel();
+        clearPropertiesPanel();
         // =========================
         // SHOW TEMPLATE ROOT PROPERTIES
         // =========================
@@ -2303,36 +2309,36 @@ async function loadTemplateVersions(idTemplate)
             // btn.querySelector('.text-muted')?.innerText || '';
         currentSelectedSection = null;
         currentSelectedItem = null;
-		//isReadonlyMode = false;
-		isDirty = false;
-		// updateDirtyIndicator();
+        //isReadonlyMode = false;
+        isDirty = false;
+        // updateDirtyIndicator();
         // =========================
         // FIND VERSION CONTAINER
         // =========================
-		const versionContainer =
-				document.querySelector(
-					`.template-version-container[data-template-id="${idTemplate}"]`
-				);		
+        const versionContainer =
+                document.querySelector(
+                    `.template-version-container[data-template-id="${idTemplate}"]`
+                );      
         // const versionContainer =
             // btn.closest('.accordion-item')
                // .querySelector('.template-version-container');
-		currentTemplate =
-			currentTemplates.find(
-				x => x.Template.RuntimeTemplateID == idTemplate
-			);    
+        currentTemplate =
+            currentTemplates.find(
+                x => x.Template.RuntimeTemplateID == idTemplate
+            );    
 
-		// selectedDocument.Template = currentTemplate;
-		// selectedDocument.Version = null;
-		// selectedDocument.Section = null;
-		// selectedDocument.Item = null;
-			
-		await showTemplateRootProperties(currentTemplate.Template, null);
+        // selectedDocument.Template = currentTemplate;
+        // selectedDocument.Version = null;
+        // selectedDocument.Section = null;
+        // selectedDocument.Item = null;
+            
+        await showTemplateRootProperties(currentTemplate.Template, null);
         // =========================
         // PREVENT RELOAD
         // =========================
         if(versionContainer.dataset.loaded === '1') {
-			return;
-		}
+            return;
+        }
             
         // =========================
         // LOADING
@@ -2345,12 +2351,12 @@ async function loadTemplateVersions(idTemplate)
         // =========================
         // LOAD FROM SERVER
         // =========================
-		showLoading();
-		const result = await promisifyPageMethod(
-			PageMethods.GetTemplateVersions, idTemplate
-		);	
-		hideLoading();
-		//currentVersions = JSON.parse(result || '[]');
+        showLoading();
+        const result = await promisifyPageMethod(
+            PageMethods.GetTemplateVersions, idTemplate
+        );  
+        hideLoading();
+        //currentVersions = JSON.parse(result || '[]');
         // =========================
         // RENDER
         // =========================
@@ -4011,13 +4017,13 @@ function renderVersionStructure(data, isNewTemplate=false)
     currentVersion =
         data.VersionInfo;
     // render center builder
-	isReadonlyMode =
-		data.VersionInfo.Status !== 'Draft';
+    isReadonlyMode =
+        data.VersionInfo.Status !== 'Draft';
     renderSections(
         data.Sections || []
     );
-	initTooltips();
-	groupData = [];
+    initTooltips();
+    groupData = [];
     // version properties panel
         showVersionProperties(data.VersionInfo, isNewTemplate);
         // readonly mode
@@ -5727,7 +5733,7 @@ function initItemSortable(container)
             container,
             {
                 group: 'shared-items',
-				disabled: isReadonlyMode,
+                disabled: isReadonlyMode,
                 animation: 150,
                 handle:
                     '.item-drag-handle',
@@ -5748,16 +5754,16 @@ function initSortable() {
     const sectionsContainer = document.getElementById('sectionsContainer');
     if (!sectionsContainer)
         return;
-	if (sectionSortable) {
+    if (sectionSortable) {
         sectionSortable.destroy();
         sectionSortable = null;
-    }		
-		
+    }       
+        
     sectionSortable = new Sortable(sectionsContainer, {
         animation: 150,
         handle: '.section-drag-handle',
         ghostClass: 'sortable-ghost',
-		disabled: isReadonlyMode,
+        disabled: isReadonlyMode,
         onEnd: function () {
             syncSectionOrder();
             updateNumbers();
@@ -5770,7 +5776,7 @@ function initSortable() {
         {
             initItemSortable(container);
         });
-	
+    
     // document.querySelectorAll('.items-container')
         // .forEach(container => {
             // new Sortable(container, {
@@ -5778,7 +5784,7 @@ function initSortable() {
                 // animation: 150,
                 // handle: '.item-drag-handle',
                 // ghostClass: 'sortable-ghost',
-				// disabled: isReadOnlyMode,
+                // disabled: isReadOnlyMode,
                 // onEnd: function () {
                     // updateNumbers();
                     // updateItemCounts();
@@ -5887,8 +5893,8 @@ function bindGlobalEvents()
                 //evaluateDirtyState();
                 markCurrentVersionDirty();
             }
-		}
-    );	
+        }
+    );  
     // =========================
     // Add Item
     // =========================
@@ -5967,7 +5973,7 @@ function bindGlobalEvents()
         //evaluateDirtyState();
         markCurrentVersionDirty();
     });
-	
+    
     // =========================
     // Hide context menu
     // =========================
