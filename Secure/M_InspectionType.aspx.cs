@@ -57,7 +57,7 @@ namespace PIP.Secure
                 case "lBtnSaveDetail": _SaveDetail(); break;
                 case "lBtnCloseDetail": GF.ShowPanel(ref pnlDetails, false); break;
                 case "lBtnAddNewDetail":
-                    if (txtInspectionTypeCode.Text.Trim() == "") { GF.MsgBox_2(this, "Save or select an Inspection Type header first."); return; }
+                    if (txtInspectionTypeCode.Text.Trim() == "" || txtIsNew.Text == "1") { GF.MsgBox_2(this, "Save or select an Inspection Type header first."); return; }
                     _PrepareDetail();
                     GF.ShowPanel(ref pnlDetails, true);
                     break;
@@ -210,7 +210,7 @@ FROM dbo.PIP_M_InspectionType WHERE InspectionTypeCode=@Code",
 
         private bool _SaveDetail()
         {
-            if (txtInspectionTypeCode.Text.Trim() == "") { GF.MsgBox_2(this, "Save or select an Inspection Type header first."); return false; }
+            if (txtInspectionTypeCode.Text.Trim() == "" || txtIsNew.Text == "1") { GF.MsgBox_2(this, "Save or select an Inspection Type header first."); return false; }
             string code = txtDetailCode.Text.Trim().ToUpperInvariant(), name = txtDetailName.Text.Trim(), time = txtScheduleTime.Text.Trim();
             if (code == "" || name == "" || time == "") { GF.MsgBox_2(this, "Detail Code, Description and Schedule Time are required."); return false; }
             string type = txtDetailOriginalCode.Text.Trim() == "" ? "1" : "2";
