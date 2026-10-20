@@ -131,7 +131,16 @@ UPDATE UserSession SET LastSyncWO=@V_GetDate WHERE IsActive=1
 SELECT TOP 10 a.KeyHD,a.WONo,a.WODate,a.EquipmentCode,a.LocationNo,a.[Description], a.SectionID, 
 Status=CASE WHEN ReasonRespondDC<>'' THEN 'DRAFT' WHEN ISNULL(a.RemarkTechnician,'')<>'' THEN 'SYNCED' ELSE 'PENDING' END, 
 ISNULL(a.TemplateWOPM,'') TemplateWOPM, a.ReasonRespondDC ReasonVoid, LastUpdated=@V_GetDate, a.CompanyID, a.LocationID,a.RemarkTechnician,a.IsCompleteDC, ISNULL(a.TemplateVersion,'') TemplateVersion,
-SummarySampleText=ISNULL((SELECT TOP 1 vv.SummarySampleText FROM PIP_M_CheckListWOPM_Version vv JOIN PIP_M_CheckListWOPM tt ON tt.IDTemplate=vv.IDTemplate WHERE tt.TemplateNo=a.TemplateWOPM AND tt.CompanyID=a.CompanyID AND tt.LocationID=a.LocationID AND vv.Version=a.TemplateVersion),''),
+SummarySampleText=ISNULL((SELECT TOP 1 vv.SummarySampleText
+FROM PIP_M_CheckListWOPM_Version vv
+JOIN PIP_M_CheckListWOPM tt ON tt.IDTemplate=vv.IDTemplate
+WHERE tt.TemplateNo=a.TemplateWOPM
+  AND ISNULL(tt.TemplateType,'W')='W'
+  AND tt.SectionID=a.SectionID
+  AND (ISNULL(tt.CompanyScope,'S')='A' OR EXISTS
+       (SELECT 1 FROM dbo.PIP_M_CheckListWOPM_CompanyLocation sc
+        WHERE sc.IDTemplate=tt.IDTemplate AND sc.CompanyID=a.CompanyID AND sc.LocationID=a.LocationID))
+  AND vv.Version=a.TemplateVersion),''),
 FollowUp=CASE WHEN ISNULL(a.isFollowUp,0)=1 THEN 'Recommend Follow Up' ELSE 'No Follow Up' END, 
 FollowUpSection=ISNULL(FollowUpSection,0), FollowUpRemark=ISNULL(FollowUpRemark,''),
 IsSampling=ISNULL(a.IsSampling,0), RemarkSupervisor=ISNULL(RemarkSupervisor,''),
@@ -712,7 +721,10 @@ string.Format(@"
                         var _checkList = Secure.dashboard.getCheckList(row["SectionID"].ToString(),
                                                                         row["TemplateWOPM"].ToString(),
                                                                         row["TemplateVersion"].ToString(),
-                                                                        _modelCode
+                                                                        _modelCode,
+                                                                        row["CompanyID"].ToString(),
+                                                                        row["LocationID"].ToString(),
+                                                                        "W"
                                                                         );
                         var listData = _checkList as List<Dictionary<string, object>>;
                         dict["TemplateJSON"] = listData[0];
