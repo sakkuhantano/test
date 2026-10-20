@@ -140,7 +140,8 @@ WHERE tt.TemplateNo=a.TemplateWOPM
   AND (ISNULL(tt.CompanyScope,'S')='A' OR EXISTS
        (SELECT 1 FROM dbo.PIP_M_CheckListWOPM_CompanyLocation sc
         WHERE sc.IDTemplate=tt.IDTemplate AND sc.CompanyID=a.CompanyID AND sc.LocationID=a.LocationID))
-  AND vv.Version=a.TemplateVersion),''),
+  AND vv.Version=a.TemplateVersion
+ORDER BY CASE WHEN ISNULL(tt.CompanyScope,'S')='S' THEN 0 ELSE 1 END, tt.IDTemplate),''),
 FollowUp=CASE WHEN ISNULL(a.isFollowUp,0)=1 THEN 'Recommend Follow Up' ELSE 'No Follow Up' END, 
 FollowUpSection=ISNULL(FollowUpSection,0), FollowUpRemark=ISNULL(FollowUpRemark,''),
 IsSampling=ISNULL(a.IsSampling,0), RemarkSupervisor=ISNULL(RemarkSupervisor,''),
