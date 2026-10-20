@@ -2065,6 +2065,10 @@ async function openWO(keyHD, el) {
         if (!currentWO.DataCheckListJSON)
             currentWO.DataCheckListJSON = await getChecklistByWO(currentWO.KeyHD);
     	let template = await getTemplate(currentWO.TemplateWOPM, currentWO.ModelCode);
+        if (template.SectionID && String(template.SectionID) !== String(currentWO.SectionID)) {
+            showToast("Template offline tidak sesuai dengan Section Work Order ini. Sync ulang atau periksa TemplateNo yang duplikat.", "warning");
+            return;
+        }
         currentWO.TemplateJSON = template;
     	// if (!template) {
     	// 	console.error(
