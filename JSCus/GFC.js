@@ -161,7 +161,7 @@ function getLoginData() {
 }
 function initIndexedDB() {
     return new Promise((resolve, reject) => {
-    const request = indexedDB.open("OfflineAppDB", 1);
+    const request = indexedDB.open("OfflineAppDB", 2);
 
     // JALAN jika DB belum ada / version naik
     request.onupgradeneeded = function (event) {
@@ -196,16 +196,9 @@ function initIndexedDB() {
 
         // WorkOrder
         if (!db.objectStoreNames.contains("workorder")) {
-            store = db.createObjectStore(
-                "workorder",
-                { keyPath: "KeyHD" }
-            );
-            //store.createIndex(
-            //    "KeyHD",
-            //    "KeyHD",
-            //    { unique: true }
-            //);
+            db.createObjectStore("workorder", { keyPath: "KeyHD" });
         }
+        store = tx.objectStore("workorder");
         if (!store.indexNames.contains("by_company_location_lastupdated")) {
             store.createIndex("by_company_location_lastupdated", ["CompanyID", "LocationID", "LastUpdated"], { unique: false });
         }
@@ -215,6 +208,28 @@ function initIndexedDB() {
                 "checklist_templates",
                 { keyPath: "TemplateNo" }
             );
+        }
+
+        // Inspection masters and offline inspection transactions (DB version 2).
+        if (!db.objectStoreNames.contains("inspection_types")) {
+            db.createObjectStore("inspection_types", { keyPath: "InspectionTypeCode" });
+        }
+        if (!db.objectStoreNames.contains("inspection_type_details")) {
+            db.createObjectStore("inspection_type_details", {
+                keyPath: ["InspectionTypeCode", "InspectionTypeDetailCode"]
+            });
+        }
+        if (!db.objectStoreNames.contains("inspection_templates")) {
+            db.createObjectStore("inspection_templates", { keyPath: "IDTemplate" });
+        }
+        if (!db.objectStoreNames.contains("inspection_records")) {
+            const inspectionStore = db.createObjectStore("inspection_records", { keyPath: "LocalInspectionID" });
+            inspectionStore.createIndex("by_owner_status", ["OwnerEmployeeID", "Status"], { unique: false });
+            inspectionStore.createIndex("by_company_location", ["CompanyID", "LocationID"], { unique: false });
+        }
+        if (!db.objectStoreNames.contains("inspection_photos")) {
+            const inspectionPhotoStore = db.createObjectStore("inspection_photos", { keyPath: "ID", autoIncrement: true });
+            inspectionPhotoStore.createIndex("LocalInspectionID", "LocalInspectionID", { unique: false });
         }
         //if (!db.objectStoreNames.contains("checklist_sections")) {
         //    let store = db.createObjectStore(
