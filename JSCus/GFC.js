@@ -598,7 +598,8 @@ async function getCheckList() {
                     version: "",
                     modelcode: "",
                     companyId: companyLocation[0] || "",
-                    locationId: companyLocation[1] || ""
+                    locationId: companyLocation[1] || "",
+                    templateType: "W"
                 })
             }
         );
@@ -633,6 +634,64 @@ async function getCheckList() {
 catch (err) {
     console.error("Checklist sync failed:",err);
 }
+}
+
+async function getInspectionData() {
+    try {
+        if (!navigator.onLine) return;
+        const login = getLoginData();
+        if (!login) return;
+        const companyLocation = (login.curcompany || "").split(";");
+
+        const masterResponse = await fetch("dashboard.aspx/getInspectionMasters", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ section: login.section || "" })
+        });
+        if (!masterResponse.ok) throw new Error("Download Inspection Type failed");
+        const masterResult = await masterResponse.json();
+        const masters = masterResult.d || { types: [], details: [] };
+
+        const templateResponse = await fetch("dashboard.aspx/getCheckList", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                section: login.section || "",
+                templateNo: "",
+                version: "",
+                modelcode: "",
+                companyId: companyLocation[0] || "",
+                locationId: companyLocation[1] || "",
+                templateType: "I"
+            })
+        });
+        if (!templateResponse.ok) throw new Error("Download Inspection templates failed");
+        const templateResult = await templateResponse.json();
+        const templates = templateResult.d || [];
+
+        const replaceStore = (name, rows) => new Promise((resolve, reject) => {
+            const tx = db.transaction(name, "readwrite");
+            const store = tx.objectStore(name);
+            store.clear();
+            (rows || []).forEach(row => store.put(row));
+            tx.oncomplete = () => resolve();
+            tx.onerror = () => reject(tx.error);
+            tx.onabort = () => reject(tx.error || new Error("IndexedDB transaction aborted"));
+        });
+
+        await replaceStore("inspection_types", masters.types || []);
+        await replaceStore("inspection_type_details", masters.details || []);
+        await replaceStore("inspection_templates", templates);
+        console.log("Inspection offline data sync success", {
+            types: (masters.types || []).length,
+            details: (masters.details || []).length,
+            templates: templates.length
+        });
+        return { types: (masters.types || []).length, details: (masters.details || []).length, templates: templates.length };
+    } catch (err) {
+        console.error("Inspection offline data sync failed:", err);
+        throw err;
+    }
 }
 
 function blobToBase64(blob) {
