@@ -18,16 +18,16 @@ namespace UTL1.Secure
 
         }
         [WebMethod]
-        public static object getCheckList(string section, string templateNo, string version, string modelcode = "", string companyId = "", string locationId = "")
+        public static object getCheckList(string section, string templateNo, string version, string modelcode = "", string companyId = "", string locationId = "", string templateType = "W")
         {
             var result = new List<Dictionary<string, object>>();
             using (var br = new WAL.BR.CF())
             {
                 DataTable dt = br.EQuery(
-@"SELECT B.TemplateNo, B.TemplateName, a.StatusOption FROM PIP_M_CheckListWOPM_Version a 
+@"SELECT B.IDTemplate, B.TemplateNo, B.TemplateName, B.SectionID, ISNULL(B.TemplateType,'W') TemplateType, ISNULL(B.InspectionTypeCode,'') InspectionTypeCode, a.IDVersion, a.Version, a.StatusOption FROM PIP_M_CheckListWOPM_Version a 
 JOIN PIP_M_CheckListWOPM b on A.IDTemplate=B.IDTemplate 
 WHERE b.IsActive=1
-AND ISNULL(b.TemplateType,'W')='W'
+AND ISNULL(b.TemplateType,'W')=@TemplateType
 AND a.Status='Active'
 AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@sectionlist,';') c WHERE c.val=b.sectionid)
 AND (ISNULL(b.CompanyScope,'S')='A' OR EXISTS
@@ -40,10 +40,17 @@ AND a.Version=CASE WHEN @version='' THEN a.Version ELSE @version END
 "@templateno=" + templateNo + GF.Str2 +
 "@version=" + version + GF.Str2 +
 "@CompanyID=" + companyId + GF.Str2 +
-"@LocationID=" + locationId);
+"@LocationID=" + locationId + GF.Str2 +
+"@TemplateType=" + templateType);
                 foreach (DataRow row in dt.Rows)
                 {
                     var dict = new Dictionary<string, object>();
+                    dict["IDTemplate"] = Convert.ToInt32(row["IDTemplate"]);
+                    dict["IDVersion"] = Convert.ToInt32(row["IDVersion"]);
+                    dict["Version"] = row["Version"].ToString();
+                    dict["SectionID"] = row["SectionID"].ToString();
+                    dict["TemplateType"] = row["TemplateType"].ToString();
+                    dict["InspectionTypeCode"] = row["InspectionTypeCode"].ToString();
                     dict["TemplateNo"] = row["TemplateNo"].ToString();
                     dict["TemplateName"] = row["TemplateName"].ToString();
                     dict["StatusOption"] = row["StatusOption"].ToString();
@@ -67,7 +74,7 @@ FROM PIP_M_CheckListWOPM_Section s
 JOIN PIP_M_CheckListWOPM_Version v ON v.IDVersion=s.IDVersion
 JOIN PIP_M_CheckListWOPM_Item i ON s.IDSection = i.IDSection
 JOIN PIP_M_CheckListWOPM m ON m.IDTemplate = v.IDTemplate
-WHERE m.TemplateNo = @TemplateNo AND m.IsActive=1 AND ISNULL(m.TemplateType,'W')='W' AND v.Status='Active' AND (ISNULL(i.ModelCode,'')='' OR i.ModelCode=@ModelCode OR @ModelCode='')
+WHERE m.TemplateNo = @TemplateNo AND m.IsActive=1 AND ISNULL(m.TemplateType,'W')=@TemplateType AND v.Status='Active' AND (ISNULL(i.ModelCode,'')='' OR i.ModelCode=@ModelCode OR @ModelCode='')
 ORDER BY s.DisplayOrder, i.DisplayOrder",
                                         "@TemplateNo=" + row["TemplateNo"].ToString() + GF.Str2 +
                                         "@ModelCode=" + modelcode);
@@ -161,6 +168,46 @@ ORDER BY s.DisplayOrder, i.DisplayOrder",
             }
             return result;
         }
+        [WebMethod]
+        public static object getInspectionMasters(string section)
+        {
+            using (var br = new WAL.BR.CF())
+            {
+                DataTable types = br.EQuery(@"
+SELECT DISTINCT T.InspectionTypeCode, T.InspectionTypeName, T.SectionID
+FROM dbo.PIP_M_InspectionType T
+WHERE T.IsActive=1
+  AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@SectionList, ';') S WHERE S.val=T.SectionID)
+ORDER BY T.SectionID, T.InspectionTypeName",
+                    "@SectionList=" + section);
+
+                DataTable details = br.EQuery(@"
+SELECT D.InspectionTypeCode, D.InspectionTypeDetailCode,
+       D.InspectionTypeDetailName, CONVERT(VARCHAR(5), D.ScheduleTime, 108) ScheduleTime
+FROM dbo.PIP_M_InspectionType T
+JOIN dbo.PIP_M_InspectionTypeDetail D ON D.InspectionTypeCode=T.InspectionTypeCode
+WHERE T.IsActive=1 AND D.IsActive=1
+  AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@SectionList, ';') S WHERE S.val=T.SectionID)
+ORDER BY D.InspectionTypeCode, D.ScheduleTime, D.InspectionTypeDetailCode",
+                    "@SectionList=" + section);
+
+                var typeRows = types.AsEnumerable().Select(row => new
+                {
+                    InspectionTypeCode = GF.GetString(row["InspectionTypeCode"]),
+                    InspectionTypeName = GF.GetString(row["InspectionTypeName"]),
+                    SectionID = GF.GetString(row["SectionID"])
+                }).ToList();
+                var detailRows = details.AsEnumerable().Select(row => new
+                {
+                    InspectionTypeCode = GF.GetString(row["InspectionTypeCode"]),
+                    InspectionTypeDetailCode = GF.GetString(row["InspectionTypeDetailCode"]),
+                    InspectionTypeDetailName = GF.GetString(row["InspectionTypeDetailName"]),
+                    ScheduleTime = GF.GetString(row["ScheduleTime"])
+                }).ToList();
+                return new { types = typeRows, details = detailRows };
+            }
+        }
+
         [WebMethod]
         public static object getEmployees(string employeeid, string lastSync)
         {
