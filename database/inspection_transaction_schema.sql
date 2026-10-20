@@ -152,6 +152,31 @@ BEGIN
         SELECT 1
         FROM dbo.UTL_User U
         WHERE U.EmployeeID=@p_UpdateUser
+          AND
+          (
+              EXISTS
+              (
+                  SELECT 1 FROM dbo.SysWebUserCompanyLocation C
+                  WHERE C.UserID=U.UserID AND C.AppID='pip'
+                    AND C.CompanyID=@p_CompanyID AND C.LocationID=@p_LocationID
+              )
+              OR EXISTS
+              (
+                  SELECT 1 FROM dbo.F_SelectOneLogin('pip', U.EmployeeID, '') L
+                  WHERE L.CompanyID=@p_CompanyID AND L.LocationID=@p_LocationID
+              )
+          )
+    )
+    BEGIN
+        RAISERROR('Employee is not authorized for this company/location.', 16, 1);
+        RETURN;
+    END;
+
+    IF NOT EXISTS
+    (
+        SELECT 1
+        FROM dbo.UTL_User U
+        WHERE U.EmployeeID=@p_UpdateUser
           AND ISNULL(U.IsWO,0)=1
           AND EXISTS
               (SELECT 1 FROM dbo.SplitStringConvertToTable(U.Section, ';') S
