@@ -639,7 +639,6 @@
                         </div>
                         <button type="button" class="btn btn-outline-secondary btn-sm" onclick="resetInspectionTypeDetailForm()">New Detail</button>
                     </div>
-                    <input type="hidden" id="inspectionTypeDetailEditingCode" />
                     <div class="row g-2 align-items-end mb-3">
                         <div class="col-md-3">
                             <label for="inspectionTypeDetailCode" class="form-label">Detail Code</label>
