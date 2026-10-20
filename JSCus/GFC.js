@@ -611,7 +611,16 @@ async function getCheckList() {
         //let groups = result.d.data.groups;
         var tx = db.transaction("checklist_templates","readwrite");
         var store = tx.objectStore("checklist_templates");
+        // The WO cache is keyed by TemplateNo. Keep the first result, ordered
+        // by selected scope before all-company scope, if duplicate numbers exist.
+        const uniqueTemplates = [];
+        const seenTemplateNos = new Set();
         for (let dt of templates) {
+            if (seenTemplateNos.has(dt.TemplateNo)) continue;
+            seenTemplateNos.add(dt.TemplateNo);
+            uniqueTemplates.push(dt);
+        }
+        for (let dt of uniqueTemplates) {
             store.put(dt);
         }
         //tx = db.transaction("checklist_sections","readwrite");
