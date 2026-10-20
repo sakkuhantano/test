@@ -769,8 +769,10 @@ async function updateTotalPendingSync() {
         meterSyncStatistics.draft +
         meterSyncStatistics.error;
 
-    // WO tetap pakai cara lama
     total += await countPendingSyncWO();
+    if (typeof countPendingSyncInspections === "function") {
+        total += await countPendingSyncInspections();
+    }
 
     const badge =
         document.getElementById("badgePendingSync");
