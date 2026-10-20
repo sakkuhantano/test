@@ -74,11 +74,19 @@ FROM PIP_M_CheckListWOPM_Section s
 JOIN PIP_M_CheckListWOPM_Version v ON v.IDVersion=s.IDVersion
 JOIN PIP_M_CheckListWOPM_Item i ON s.IDSection = i.IDSection
 JOIN PIP_M_CheckListWOPM m ON m.IDTemplate = v.IDTemplate
-WHERE m.TemplateNo = @TemplateNo AND m.IsActive=1 AND ISNULL(m.TemplateType,'W')=@TemplateType AND v.Status='Active' AND (ISNULL(i.ModelCode,'')='' OR i.ModelCode=@ModelCode OR @ModelCode='')
+WHERE m.IDTemplate=@IDTemplate
+  AND v.IDVersion=@IDVersion
+  AND m.TemplateNo = @TemplateNo
+  AND m.IsActive=1
+  AND ISNULL(m.TemplateType,'W')=@TemplateType
+  AND v.Status='Active'
+  AND (ISNULL(i.ModelCode,'')='' OR i.ModelCode=@ModelCode OR @ModelCode='')
 ORDER BY s.DisplayOrder, i.DisplayOrder",
                                         "@TemplateNo=" + row["TemplateNo"].ToString() + GF.Str2 +
                                         "@ModelCode=" + modelcode + GF.Str2 +
-                                        "@TemplateType=" + templateType);
+                                        "@TemplateType=" + templateType + GF.Str2 +
+                                        "@IDTemplate=" + row["IDTemplate"].ToString() + GF.Str2 +
+                                        "@IDVersion=" + row["IDVersion"].ToString());
                     DataTable dt2 = br.EQuery("SELECT IDItem, GroupName, FieldList, Unit, DisplayOrder " +
                                               "FROM PIP_M_CheckListWOPM_ItemGroup");
                     var sections = dt1.AsEnumerable()
