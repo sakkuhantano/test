@@ -77,7 +77,8 @@ JOIN PIP_M_CheckListWOPM m ON m.IDTemplate = v.IDTemplate
 WHERE m.TemplateNo = @TemplateNo AND m.IsActive=1 AND ISNULL(m.TemplateType,'W')=@TemplateType AND v.Status='Active' AND (ISNULL(i.ModelCode,'')='' OR i.ModelCode=@ModelCode OR @ModelCode='')
 ORDER BY s.DisplayOrder, i.DisplayOrder",
                                         "@TemplateNo=" + row["TemplateNo"].ToString() + GF.Str2 +
-                                        "@ModelCode=" + modelcode);
+                                        "@ModelCode=" + modelcode + GF.Str2 +
+                                        "@TemplateType=" + templateType);
                     DataTable dt2 = br.EQuery("SELECT IDItem, GroupName, FieldList, Unit, DisplayOrder " +
                                               "FROM PIP_M_CheckListWOPM_ItemGroup");
                     var sections = dt1.AsEnumerable()
