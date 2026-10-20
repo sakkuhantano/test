@@ -856,6 +856,41 @@ string.Format(@"
                 DataTable dtChecklistgroups = GFC.JsonToDataTable(arrChecklistgroups);
                 DataTable dtChecklistsummarys = GFC.JsonToDataTable(arrChecklistsummarys);
 
+                // Server-side section/role validation protects against a client attempting
+                // to upload a cached WO belonging to another division.
+                foreach (DataRow summary in dtChecklistsummarys.Rows)
+                {
+                    string keyHD = Convert.ToString(summary["KeyHD"]);
+                    string actionSPV = dtChecklistsummarys.Columns.Contains("ActionSPV")
+                        ? Convert.ToString(summary["ActionSPV"]) : "";
+
+                    using (var auth = new WAL.BR.CF())
+                    {
+                        DataTable allowed = auth.EQueryP(@"
+SELECT TOP 1 1
+FROM dbo.PIP_T_WO W
+JOIN dbo.UTL_User U ON U.EmployeeID=@EmployeeID
+WHERE W.KeyHD=@KeyHD
+  AND EXISTS
+      (SELECT 1 FROM dbo.SplitStringConvertToTable(U.Section, ';') S
+       WHERE S.val=W.SectionID)
+  AND
+      (
+          (ISNULL(@ActionSPV,'')<>'' AND ISNULL(U.IsSPV,0)=1 AND ISNULL(W.IsSampling,0)=1)
+          OR
+          (ISNULL(@ActionSPV,'')='' AND ISNULL(U.IsWO,0)=1)
+      )",
+                            new SqlParameter[]
+                            {
+                                new SqlParameter("@EmployeeID", userid),
+                                new SqlParameter("@KeyHD", Convert.ToInt32(keyHD)),
+                                new SqlParameter("@ActionSPV", actionSPV)
+                            });
+                        if (allowed.Rows.Count == 0)
+                            throw new Exception("Work Order " + keyHD + " is not authorized for this employee/section. No data was uploaded.");
+                    }
+                }
+
                 using (var br=new BRC.PIP_T_WO())
                 {
                     br.UpdateUser = userid;
