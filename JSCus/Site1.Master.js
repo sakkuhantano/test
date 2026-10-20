@@ -585,8 +585,15 @@ async function countPendingSyncWO() {
 
             let data = req.result || [];
 
-            let pending = data.filter(x => (x.Status == "DONE" || x.StatusSPV === "PENDING") && 
-                                     getLoginData().section.includes(x.SectionID));
+            const login = getLoginData();
+            const companyLocation = (login.curcompany || "").split(";");
+            // Count pending records from every section on this shared device.
+            // Upload still filters strictly by the recorded owner.
+            let pending = data.filter(x =>
+                (x.Status === "DONE" || x.StatusSPV === "PENDING") &&
+                x.CompanyID === (companyLocation[0] || "") &&
+                x.LocationID === (companyLocation[1] || "")
+            );
 
             resolve(pending.length);
         };
