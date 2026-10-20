@@ -950,7 +950,7 @@ async function syncAllData() {
         if (role.IsELC) totalSteps++;
         if (role.IsWTR) totalSteps++;
         if (role.IsGAS) totalSteps++;
-        if (role.IsWO) totalSteps+=3;
+        if (role.IsWO) totalSteps+=4;
         
         let step = 0;
 
@@ -994,7 +994,12 @@ async function syncAllData() {
             step++;
             updateSyncProgress(step,totalSteps,"Downloading checklist");
             await getCheckList();
-			window.dispatchEvent(new CustomEvent("syncCompleted"));
+            if (role.IsWO) {
+                step++;
+                updateSyncProgress(step, totalSteps, "Downloading inspection templates");
+                await getInspectionData();
+            }
+            window.dispatchEvent(new CustomEvent("syncCompleted"));
         }
 
         // FINISH
