@@ -4881,7 +4881,10 @@ async function openInspectionTypeManager()
     if (preferred && roots.some(function(x) { return x.SectionID === preferred; }))
         sectionSelect.value = preferred;
 
-    sectionSelect.onchange = loadInspectionTypeManager;
+    sectionSelect.onchange = async function() {
+        resetInspectionTypeForm();
+        await loadInspectionTypeManager();
+    };
     const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('inspectionTypeModal'));
     modal.show();
     resetInspectionTypeForm();
@@ -4906,7 +4909,7 @@ async function loadInspectionTypeManager()
         }
         const table = document.createElement('table');
         table.className = 'table table-sm table-hover align-middle';
-        table.innerHTML = '<thead><tr><th>Code</th><th>Name</th><th>SectionID</th><th>Status</th><th></th></tr></thead><tbody></tbody>';
+        table.innerHTML = '<thead><tr><th>Code</th><th>Name</th><th>SectionID</th><th>Status</th><th>Details</th><th></th></tr></thead><tbody></tbody>';
         const tbody = table.querySelector('tbody');
         rows.forEach(function(row) {
             const tr = document.createElement('tr');
@@ -4915,6 +4918,15 @@ async function loadInspectionTypeManager()
                 td.textContent = value;
                 tr.appendChild(td);
             });
+            const detailsCell = document.createElement('td');
+            detailsCell.textContent = '…';
+            promisifyPageMethod(PageMethods.GetInspectionTypeDetails, row.InspectionTypeCode)
+                .then(function(detailRaw) {
+                    detailsCell.textContent = JSON.parse(detailRaw || '[]').length;
+                })
+                .catch(function() { detailsCell.textContent = '—'; });
+            tr.appendChild(detailsCell);
+
             const actionCell = document.createElement('td');
             const edit = document.createElement('button');
             edit.type = 'button';
@@ -4939,6 +4951,9 @@ function resetInspectionTypeForm()
     if (code) { code.value = ''; code.disabled = false; }
     if (name) name.value = '';
     if (active) active.checked = true;
+    const panel = document.getElementById('inspectionTypeDetailsPanel');
+    if (panel) panel.style.display = 'none';
+    resetInspectionTypeDetailForm();
 }
 function editInspectionType(row)
 {
@@ -4950,6 +4965,13 @@ function editInspectionType(row)
     if (name) name.value = row.InspectionTypeName;
     if (active) active.checked = !!row.IsActive;
     if (section) section.value = row.SectionID;
+
+    const panel = document.getElementById('inspectionTypeDetailsPanel');
+    const header = document.getElementById('inspectionTypeDetailsHeader');
+    if (panel) panel.style.display = '';
+    if (header) header.textContent = row.InspectionTypeCode + ' - ' + row.InspectionTypeName;
+    resetInspectionTypeDetailForm();
+    loadInspectionTypeDetails(row.InspectionTypeCode);
 }
 async function saveInspectionType()
 {
@@ -4976,22 +4998,165 @@ async function saveInspectionType()
             alert(result.message || 'Unable to save Inspection Type.');
             return;
         }
+
+        const savedRow = {
+            InspectionTypeCode: code.value.trim().toUpperCase(),
+            InspectionTypeName: name.value.trim(),
+            SectionID: section.value,
+            IsActive: !!active.checked
+        };
+        code.value = savedRow.InspectionTypeCode;
+        code.disabled = true;
         await loadInspectionTypeManager();
-        if (currentTemplate && currentTemplate.SectionID === section.value &&
-            currentTemplate.TemplateType === 'I') {
-            const select = document.getElementById('propInspectionType');
-            if (select) {
-                const raw = await promisifyPageMethod(PageMethods.GetInspectionTypes, currentTemplate.SectionID);
-                const types = JSON.parse(raw || '[]');
-                select.innerHTML = '';
-                select.add(new Option('-- Select Inspection Type --', ''));
-                types.forEach(function(item) {
-                    select.add(new Option(item.InspectionTypeCode + ' - ' + item.InspectionTypeName, item.InspectionTypeCode));
-                });
-                select.value = currentTemplate.InspectionTypeCode || '';
-            }
+        editInspectionType(savedRow);
+
+        if (currentTemplate && currentTemplate.SectionID === section.value)
+            await refreshInspectionTypeDropdown(currentTemplate);
+        showToast('Inspection Type saved.');
+    } catch (ex) {
+        hideLoading();
+        alert(ex.message || ex);
+    }
+}
+async function refreshInspectionTypeDropdown(template)
+{
+    const select = document.getElementById('propInspectionType');
+    if (!select || !template || !template.SectionID) return;
+
+    const selectedCode = template.InspectionTypeCode || '';
+    try {
+        const raw = await promisifyPageMethod(PageMethods.GetInspectionTypes, template.SectionID);
+        const types = JSON.parse(raw || '[]');
+        select.innerHTML = '';
+        select.add(new Option('-- Select Inspection Type --', ''));
+        types.forEach(function(item) {
+            select.add(new Option(item.InspectionTypeCode + ' - ' + item.InspectionTypeName, item.InspectionTypeCode));
+        });
+        if (selectedCode && !types.some(function(x) { return x.InspectionTypeCode === selectedCode; }))
+            select.add(new Option(selectedCode + ' (inactive/unavailable)', selectedCode));
+        select.value = selectedCode;
+    } catch (ex) {
+        select.innerHTML = '';
+        select.add(new Option('Failed to load inspection types', ''));
+        console.error(ex);
+    }
+}
+function resetInspectionTypeDetailForm()
+{
+    const editing = document.getElementById('inspectionTypeDetailEditingCode');
+    const code = document.getElementById('inspectionTypeDetailCode');
+    const name = document.getElementById('inspectionTypeDetailName');
+    const time = document.getElementById('inspectionTypeDetailTime');
+    const active = document.getElementById('inspectionTypeDetailActive');
+    if (editing) editing.value = '';
+    if (code) { code.value = ''; code.disabled = false; }
+    if (name) name.value = '';
+    if (time) time.value = '';
+    if (active) active.checked = true;
+}
+async function loadInspectionTypeDetails(inspectionTypeCode)
+{
+    const host = document.getElementById('inspectionTypeDetailList');
+    if (!host) return;
+    host.textContent = 'Loading details...';
+    try {
+        const raw = await promisifyPageMethod(PageMethods.GetInspectionTypeDetails, inspectionTypeCode);
+        const rows = JSON.parse(raw || '[]');
+        host.innerHTML = '';
+        if (!rows.length) {
+            host.textContent = 'No schedule details configured yet.';
+            return;
         }
-        resetInspectionTypeForm();
+        const table = document.createElement('table');
+        table.className = 'table table-sm table-hover align-middle';
+        table.innerHTML = '<thead><tr><th>Detail Code</th><th>Description / Location</th><th>Schedule</th><th>Status</th><th></th></tr></thead><tbody></tbody>';
+        const tbody = table.querySelector('tbody');
+        rows.forEach(function(row) {
+            const tr = document.createElement('tr');
+            [row.InspectionTypeDetailCode, row.InspectionTypeDetailName, row.ScheduleTime, row.IsActive ? 'Active' : 'Inactive'].forEach(function(value) {
+                const td = document.createElement('td');
+                td.textContent = value;
+                tr.appendChild(td);
+            });
+            const actions = document.createElement('td');
+            const edit = document.createElement('button');
+            edit.type = 'button';
+            edit.className = 'btn btn-outline-secondary btn-sm me-1';
+            edit.textContent = 'Edit';
+            edit.addEventListener('click', function() {
+                document.getElementById('inspectionTypeDetailEditingCode').value = row.InspectionTypeDetailCode;
+                const detailCode = document.getElementById('inspectionTypeDetailCode');
+                detailCode.value = row.InspectionTypeDetailCode;
+                detailCode.disabled = true;
+                document.getElementById('inspectionTypeDetailName').value = row.InspectionTypeDetailName;
+                document.getElementById('inspectionTypeDetailTime').value = row.ScheduleTime;
+                document.getElementById('inspectionTypeDetailActive').checked = !!row.IsActive;
+            });
+            actions.appendChild(edit);
+            const del = document.createElement('button');
+            del.type = 'button';
+            del.className = 'btn btn-outline-danger btn-sm';
+            del.textContent = 'Delete';
+            del.addEventListener('click', async function() {
+                if (!confirm('Delete detail ' + row.InspectionTypeDetailCode + '?')) return;
+                try {
+                    const result = await promisifyPageMethod(PageMethods.DeleteInspectionTypeDetail, inspectionTypeCode, row.InspectionTypeDetailCode);
+                    if (!result.success) {
+                        alert(result.message || 'Unable to delete detail.');
+                        return;
+                    }
+                    await loadInspectionTypeDetails(inspectionTypeCode);
+                    await loadInspectionTypeManager();
+                    resetInspectionTypeDetailForm();
+                } catch (ex) {
+                    alert(ex.message || ex);
+                }
+            });
+            actions.appendChild(del);
+            tr.appendChild(actions);
+            tbody.appendChild(tr);
+        });
+        host.appendChild(table);
+    } catch (ex) {
+        host.textContent = 'Failed to load schedule details.';
+        console.error(ex);
+    }
+}
+async function saveInspectionTypeDetail()
+{
+    const headerCode = document.getElementById('inspectionTypeCode');
+    const code = document.getElementById('inspectionTypeDetailCode');
+    const name = document.getElementById('inspectionTypeDetailName');
+    const time = document.getElementById('inspectionTypeDetailTime');
+    const active = document.getElementById('inspectionTypeDetailActive');
+    if (!headerCode || !headerCode.value || !headerCode.disabled) {
+        alert('Save or select an Inspection Type header first.');
+        return;
+    }
+    if (!code.value.trim() || !name.value.trim() || !time.value) {
+        alert('Detail Code, description and schedule time are required.');
+        return;
+    }
+    try {
+        showLoading();
+        const result = await promisifyPageMethod(
+            PageMethods.SaveInspectionTypeDetail,
+            headerCode.value.trim().toUpperCase(),
+            code.value.trim().toUpperCase(),
+            name.value.trim(),
+            time.value,
+            !!active.checked,
+            getLoginData().employeeid
+        );
+        hideLoading();
+        if (!result.success) {
+            alert(result.message || 'Unable to save schedule detail.');
+            return;
+        }
+        await loadInspectionTypeDetails(headerCode.value.trim().toUpperCase());
+        await loadInspectionTypeManager();
+        resetInspectionTypeDetailForm();
+        showToast('Inspection schedule detail saved.');
     } catch (ex) {
         hideLoading();
         alert(ex.message || ex);
@@ -5170,6 +5335,8 @@ async function appendTemplateMetadataControls(template)
         template.TemplateType = this.value;
         if (template.TemplateType !== 'I') template.InspectionTypeCode = '';
         markMetadataDirty();
+        if (template.TemplateType === 'I')
+            await refreshInspectionTypeDropdown(template);
         await appendTemplateMetadataRefresh(template);
     });
 
@@ -5181,23 +5348,7 @@ async function appendTemplateMetadataControls(template)
             await renderTemplateEmployeeAssignments(template);
     });
 
-    try {
-        const raw = await promisifyPageMethod(PageMethods.GetInspectionTypes, template.SectionID);
-        const types = JSON.parse(raw || '[]');
-        inspectionSelect.innerHTML = '';
-        inspectionSelect.add(new Option('-- Select Inspection Type --', ''));
-        types.forEach(function(item) {
-            inspectionSelect.add(new Option(item.InspectionTypeCode + ' - ' + item.InspectionTypeName, item.InspectionTypeCode));
-        });
-        if (template.InspectionTypeCode && !types.some(function(x) { return x.InspectionTypeCode === template.InspectionTypeCode; })) {
-            inspectionSelect.add(new Option(template.InspectionTypeCode + ' (inactive/unavailable)', template.InspectionTypeCode));
-        }
-        inspectionSelect.value = template.InspectionTypeCode;
-    } catch (ex) {
-        inspectionSelect.innerHTML = '';
-        inspectionSelect.add(new Option('Failed to load inspection types', ''));
-        console.error(ex);
-    }
+    await refreshInspectionTypeDropdown(template);
 
     inspectionSelect.addEventListener('change', function() {
         template.InspectionTypeCode = this.value;
