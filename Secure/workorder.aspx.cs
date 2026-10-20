@@ -125,6 +125,9 @@ namespace UTL1.Secure
                 }
                 if (keyhd != 0)
                     _condition += ((_condition != "" ? " AND " : "") + "a.keyhd=" + keyhd);
+                string[] companyLocationParts = (companyLocation ?? "").Split(';');
+                string selectedCompanyID = companyLocationParts.Length > 0 ? companyLocationParts[0] : "";
+                string selectedLocationID = companyLocationParts.Length > 1 ? companyLocationParts[1] : "";
                 DataTable dt = br.EQueryP(
 @"DECLARE @V_GetDate DATETIME = GETDATE()
 UPDATE UserSession SET LastSyncWO=@V_GetDate WHERE IsActive=1
@@ -152,13 +155,33 @@ EndTime=(SELECT TOP 1 NULLIF(AA.EndDate,'') FROM PIP_T_H_WO_Employee AA WHERE AA
 FROM pip_t_wo a JOIN PIP_M_D_SchedulePM d JOIN PIP_M_H_SchedulePM h ON d.KeyHD=h.KeyHD ON h.CompanyID=a.CompanyID AND h.LocationID=a.LocationID 
 JOIN PIP_M_Equipment eqp ON eqp.CompanyID=a.CompanyID AND eqp.LocationID=a.LocationID AND eqp.EquipmentCode=h.EquipmentCode AND a.WONo=d.WONo
 WHERE a.WOType='p' AND a.CompanyID+';'+a.LocationID=@CompanyLocation 
-AND EXISTS (SELECT * FROM dbo.SplitStringConvertToTable(@sectionlist,';') b WHERE b.val=a.sectionid) 
+AND EXISTS (SELECT * FROM dbo.SplitStringConvertToTable(@sectionlist,';') b WHERE b.val=a.sectionid)
+AND EXISTS
+(
+    SELECT 1 FROM dbo.PIP_M_CheckListWOPM T
+    WHERE T.TemplateNo=a.TemplateWOPM
+      AND T.SectionID=a.SectionID
+      AND ISNULL(T.TemplateType,'W')='W'
+      AND
+      (
+          ISNULL(T.CompanyScope,'S')='A'
+          OR EXISTS
+          (
+              SELECT 1 FROM dbo.PIP_M_CheckListWOPM_CompanyLocation ScopeRow
+              WHERE ScopeRow.IDTemplate=T.IDTemplate
+                AND ScopeRow.CompanyID=@CompanyID
+                AND ScopeRow.LocationID=@LocationID
+          )
+      )
+)
 AND " + _condition +
 " ORDER BY a.KeyHD",
                                 new SqlParameter[] 
                                 {
                                     new SqlParameter("@CompanyLocation", companyLocation),
-                                    new SqlParameter("@sectionlist", section)
+                                    new SqlParameter("@sectionlist", section),
+                                    new SqlParameter("@CompanyID", selectedCompanyID),
+                                    new SqlParameter("@LocationID", selectedLocationID)
                                 });
                 foreach (DataRow row in dt.Rows)
                 {
