@@ -1893,6 +1893,9 @@ async function uploadPendingWO() {
         }
     }
 
+    const submittedWorkOrders = rawChecklistData.map(itemData => itemData.wo);
+    if (!submittedWorkOrders.length) return;
+
     const checklists = [];
     const checklistgroups = [];
     const checklistsummarys = [];
@@ -1974,7 +1977,7 @@ async function uploadPendingWO() {
         const result = JSON.parse(resultText).d;
 
         if (result.success) {
-            for (const wo of list) {
+            for (const wo of submittedWorkOrders) {
                 await markWOSynced(wo, result.serverTime);
             }
         } else {
