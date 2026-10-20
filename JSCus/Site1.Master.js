@@ -1610,9 +1610,14 @@ async function downloadWorkOrder() {
                     let existingData = event.target.result;
                     // if (existingData && existingData.Status != "SYNCED" && 
                     //                      wo.Status === "PENDING") {
-                    if (existingData && (wo.Status === "PENDING")) {
-                        resolve(); // Dilewati jika status lokal bukan PENDING tapi server meminta PENDING
-                        return; 
+                    if (existingData && (
+                        wo.Status === "PENDING" ||
+                        existingData.Status === "DRAFT" ||
+                        existingData.Status === "DONE"
+                    )) {
+                        // Never overwrite an unsynced local draft/completion with server refresh data.
+                        resolve();
+                        return;
                     }
                     // if (existingData && wo.StatusSPV != "" && 
                     //     existingData.StatusSPV != "") {
