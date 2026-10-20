@@ -7,6 +7,7 @@ let inspectionTemplates = [];
 let inspectionRecords = [];
 let currentInspectionRecord = null;
 let currentInspectionReadOnly = false;
+let inspectionAutoSaveTimer = null;
 
 document.addEventListener("DOMContentLoaded", async function () {
     try {
@@ -62,6 +63,8 @@ function wireInspectionEvents() {
         if (!button) return;
         await openSavedInspection(button.dataset.openInspection);
     });
+    document.getElementById("inspectionChecklistHost").addEventListener("input", scheduleInspectionAutosave);
+    document.getElementById("txtInspectionSummary").addEventListener("input", scheduleInspectionAutosave);
 }
 
 async function loadInspectionCache() {
@@ -197,6 +200,8 @@ async function startNewInspection() {
         Items: []
     };
 
+    await persistInspectionRecord(currentInspectionRecord);
+    await refreshSavedInspectionList();
     renderInspectionForm(currentInspectionRecord, false);
 }
 
@@ -389,19 +394,43 @@ async function saveInspection(status) {
     currentInspectionRecord.UpdatedAt = new Date().toISOString();
     if (status === "DONE") currentInspectionRecord.EndDateTime = new Date().toISOString();
 
-    await new Promise((resolve, reject) => {
-        const tx = db.transaction("inspection_records", "readwrite");
-        tx.objectStore("inspection_records").put(currentInspectionRecord);
-        tx.oncomplete = () => resolve();
-        tx.onerror = () => reject(tx.error);
-        tx.onabort = () => reject(tx.error || new Error("Gagal menyimpan inspeksi."));
-    });
+    if (inspectionAutoSaveTimer) clearTimeout(inspectionAutoSaveTimer);
+    await persistInspectionRecord(currentInspectionRecord);
 
     showInspectionNotice(status === "DONE"
         ? "Inspeksi selesai dan tersimpan offline. Tekan Sync untuk mengirimnya."
         : "Draft tersimpan offline.", "success");
     await refreshSavedInspectionList();
     if (status === "DONE") renderInspectionForm(currentInspectionRecord, true);
+}
+
+function scheduleInspectionAutosave() {
+    if (!currentInspectionRecord || currentInspectionReadOnly || currentInspectionRecord.Status === "DONE") return;
+    if (inspectionAutoSaveTimer) clearTimeout(inspectionAutoSaveTimer);
+    inspectionAutoSaveTimer = setTimeout(async function () {
+        try {
+            const login = getLoginData();
+            if (!login || currentInspectionRecord.OwnerEmployeeID !== login.employeeid) return;
+            currentInspectionRecord.Items = collectInspectionItems();
+            currentInspectionRecord.Summary = document.getElementById("txtInspectionSummary").value.trim();
+            currentInspectionRecord.SyncStatus = "PENDING";
+            currentInspectionRecord.UpdatedAt = new Date().toISOString();
+            await persistInspectionRecord(currentInspectionRecord);
+            await refreshSavedInspectionList();
+        } catch (err) {
+            console.error("Inspection autosave failed:", err);
+        }
+    }, 600);
+}
+
+function persistInspectionRecord(record) {
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction("inspection_records", "readwrite");
+        tx.objectStore("inspection_records").put(record);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+        tx.onabort = () => reject(tx.error || new Error("Gagal menyimpan inspeksi."));
+    });
 }
 
 async function refreshSavedInspectionList() {
