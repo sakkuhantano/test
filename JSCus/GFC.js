@@ -586,17 +586,19 @@ async function getCheckList() {
     try {
         if (!navigator.onLine) return;
         let data = getLoginData();
+        const companyLocation = (data.curcompany || "").split(";");
         let response = await fetch(
             "dashboard.aspx/getCheckList",
             {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    // employeeid: data.employeeid
-					section: data.section,
+                    section: data.section,
                     templateNo: "",
                     version: "",
-                    modelcode: ""
+                    modelcode: "",
+                    companyId: companyLocation[0] || "",
+                    locationId: companyLocation[1] || ""
                 })
             }
         );
