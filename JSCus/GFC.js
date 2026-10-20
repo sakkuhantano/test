@@ -752,6 +752,7 @@ async function uploadPendingInspections() {
 
     const payload = ownedRecords.map(record => ({
         ClientInspectionID: record.LocalInspectionID,
+        OwnerEmployeeID: record.OwnerEmployeeID,
         CompanyID: record.CompanyID,
         LocationID: record.LocationID,
         SectionID: record.SectionID,
@@ -815,6 +816,7 @@ async function countPendingSyncInspections() {
         const req = tx.objectStore("inspection_records").getAll();
         req.onsuccess = () => resolve((req.result || []).filter(record =>
             record.SyncStatus !== "SYNCED" &&
+            record.OwnerEmployeeID === login.employeeid &&
             record.CompanyID === (companyLocation[0] || "") &&
             record.LocationID === (companyLocation[1] || "")
         ).length);
