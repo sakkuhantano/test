@@ -617,19 +617,22 @@ async function getCheckList() {
         //let sections = result.d.data.sections;
         //let items = result.d.data.items;
         //let groups = result.d.data.groups;
-        var tx = db.transaction("checklist_templates","readwrite");
-        var store = tx.objectStore("checklist_templates");
-        // The WO cache is keyed by TemplateNo. Keep the first result, ordered
-        // by selected scope before all-company scope, if duplicate numbers exist.
+        var tx = db.transaction(["checklist_templates", "checklist_templates_scoped"], "readwrite");
+        var legacyStore = tx.objectStore("checklist_templates");
+        var scopedStore = tx.objectStore("checklist_templates_scoped");
+
+        // Keep the old cache for backward compatibility, but use the scoped
+        // cache for all new reads so different sections can share TemplateNo.
         const uniqueTemplates = [];
         const seenTemplateNos = new Set();
         for (let dt of templates) {
+            scopedStore.put(dt);
             if (seenTemplateNos.has(dt.TemplateNo)) continue;
             seenTemplateNos.add(dt.TemplateNo);
             uniqueTemplates.push(dt);
         }
         for (let dt of uniqueTemplates) {
-            store.put(dt);
+            legacyStore.put(dt);
         }
         //tx = db.transaction("checklist_sections","readwrite");
         //store = tx.objectStore("checklist_sections");
