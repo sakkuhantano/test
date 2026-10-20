@@ -1629,6 +1629,9 @@ async function downloadWorkOrder() {
                         LastUpdated: wo.LastUpdated,
                         StatusSPV: "",
                         ActionSPV: "",
+                        // Preserve offline ownership when refreshing server WO data.
+                        InspectionOwnerID: (existingData && existingData.InspectionOwnerID) || "",
+                        SupervisorActionOwnerID: (existingData && existingData.SupervisorActionOwnerID) || "",
                         ModelCode: wo.ModelCode
                     });
 
@@ -1819,48 +1822,67 @@ async function downloadWorkOrder() {
     }
 }
 async function uploadPendingWO() {
-    let v_login = getLoginData();
-    
-    // 1. Ambil semua list WO yang berstatus DONE
-    let tx = db.transaction(["wo_checklist", "workorder"], "readonly");
-    let wostore = tx.objectStore("workorder");
-    let store = tx.objectStore("wo_checklist");
+    const v_login = getLoginData();
+    if (!v_login) return;
 
-    let list = await new Promise((resolve, reject) => {
-        let req = wostore.getAll();
-        req.onsuccess = () => {
-            let data = req.result.filter(x => x.Status === "DONE" || x.StatusSPV === "PENDING");
-            resolve(data);
-        };
+    const companyLocation = (v_login.curcompany || "").split(";");
+    const companyId = companyLocation[0] || "";
+    const locationId = companyLocation[1] || "";
+    const allowedSections = (v_login.section || "").split(";").filter(Boolean);
+
+    // Never upload another technician's offline completion under the current login.
+    const allLocal = await new Promise((resolve, reject) => {
+        const tx = db.transaction("workorder", "readonly");
+        const req = tx.objectStore("workorder").getAll();
+        req.onsuccess = () => resolve(req.result || []);
         req.onerror = () => reject(req.error);
     });
 
-    // 2. Ambil semua data checklist sekaligus dari IndexedDB selagi transaksi 'tx' masih aktif
-    let rawChecklistData = [];
-    for (let wo of list) {
-        let data = await new Promise((resolve, reject) => {
-            let req = store.get(wo.KeyHD);
+    const pending = allLocal.filter(x =>
+        (x.Status === "DONE" || x.StatusSPV === "PENDING") &&
+        x.CompanyID === companyId &&
+        x.LocationID === locationId &&
+        allowedSections.includes(x.SectionID)
+    );
+
+    const list = pending.filter(x => {
+        if (x.Status === "DONE") {
+            return !!v_login.employeeid &&
+                x.InspectionOwnerID === v_login.employeeid;
+        }
+        if (x.StatusSPV === "PENDING") {
+            return !!v_login.employeeid &&
+                x.SupervisorActionOwnerID === v_login.employeeid;
+        }
+        return false;
+    });
+
+    if (pending.length > list.length) {
+        showToast("Ada WO offline milik teknisi lain atau belum memiliki pemilik. Data tersebut tidak dikirim; login dengan akun pemilik untuk sync.", "warning");
+    }
+    if (!list.length) return;
+
+    const rawChecklistData = [];
+    for (const wo of list) {
+        const checklist = await new Promise((resolve, reject) => {
+            const tx = db.transaction("wo_checklist", "readonly");
+            const req = tx.objectStore("wo_checklist").get(wo.KeyHD);
             req.onsuccess = () => resolve(req.result);
             req.onerror = () => reject(req.error);
         });
-        
-        // Simpan pasangan data WO dan Checklist-nya ke array sementara
-        if (data && data.Items) {
-            rawChecklistData.push({ wo: wo, checklist: data });
+        if (checklist && checklist.Items) {
+            rawChecklistData.push({ wo, checklist });
         }
     }
-    
-    // Setelah loop ini selesai, transaksi 'tx' otomatis ditutup dengan aman karena tugasnya sudah selesai
 
-    let checklists = [];
-    let checklistgroups = [];
-    let checklistsummarys = [];
-    let photos = [];
+    const checklists = [];
+    const checklistgroups = [];
+    const checklistsummarys = [];
+    const photos = [];
 
-    // 3. Lakukan pemrosesan foto dan Base64 di luar transaksi IndexedDB utama
-    for (let itemData of rawChecklistData) {
-        let wo = itemData.wo;
-        let data = itemData.checklist;
+    for (const itemData of rawChecklistData) {
+        const wo = itemData.wo;
+        const data = itemData.checklist;
 
         checklistsummarys.push({
             KeyHD: wo.KeyHD,
@@ -1876,7 +1898,7 @@ async function uploadPendingWO() {
         });
 
         if (wo.Status === "DONE") {
-            for (let item of data.Items) {
+            for (const item of (data.Items || [])) {
                 checklists.push({
                     KeyHD: data.KeyHD,
                     IDItem: item.IDItem,
@@ -1884,9 +1906,8 @@ async function uploadPendingWO() {
                     Remark: item.Remark || "",
                     IsAnomali: item.IsAnomali || false
                 });
-
                 if (item.Type === "GROUP" && item.Values) {
-                    for (let key in item.Values) {
+                    for (const key in item.Values) {
                         checklistgroups.push({
                             KeyHD: data.KeyHD,
                             IDItem: item.IDItem,
@@ -1896,109 +1917,53 @@ async function uploadPendingWO() {
                     }
                 }
             }
-            // Operasi asinkron eksternal (Aman dijalankan di sini karena transaksi utama sudah selesai)
+
             let before = await getPhotosByWO(wo.KeyHD, "BEFORE");
             let after = await getPhotosByWO(wo.KeyHD, "AFTER");
-            
             before = await convertPhotosToBase64(before);
             after = await convertPhotosToBase64(after);
-
-            before.forEach(p => {
-                photos.push({
-                    KeyHD: wo.KeyHD,
-                    Type: "WO1",
-                    FileName: p.FileName,
-                    OrderNo: p.OrderNo,
-                    Base64: p.Base64
-                });
-            });
-
-            after.forEach(p => {
-                photos.push({
-                    KeyHD: wo.KeyHD,
-                    Type: "WO2",
-                    FileName: p.FileName,
-                    OrderNo: p.OrderNo,
-                    Base64: p.Base64
-                });
-            });
-
+            before.forEach(photo => photos.push({
+                KeyHD: wo.KeyHD, Type: "WO1", FileName: photo.FileName,
+                OrderNo: photo.OrderNo, Base64: photo.Base64
+            }));
+            after.forEach(photo => photos.push({
+                KeyHD: wo.KeyHD, Type: "WO2", FileName: photo.FileName,
+                OrderNo: photo.OrderNo, Base64: photo.Base64
+            }));
         } else {
             let sampling = await getPhotosByWO(wo.KeyHD, "SAMPLING");
             sampling = await convertPhotosToBase64(sampling);
-            sampling.forEach(p => {
-                photos.push({
-                    KeyHD: wo.KeyHD,
-                    Type: "WO3",
-                    FileName: p.FileName,
-                    OrderNo: p.OrderNo,
-                    Base64: p.Base64
-                });
-            });
-
+            sampling.forEach(photo => photos.push({
+                KeyHD: wo.KeyHD, Type: "WO3", FileName: photo.FileName,
+                OrderNo: photo.OrderNo, Base64: photo.Base64
+            }));
         }
-
     }
 
-    //alert(JSON.stringify(photos, null, 2));
-
-    // 4. Kirim data ke Server
     try {
-        // const payload = {
-        //     checklists,
-        //     checklistgroups,
-        //     photos,
-        //     userid: v_login.employeeid,
-        //     checklistsummarys
-        // };
-
-        // const json = JSON.stringify(payload);
-
-        // alert(
-        //     "Photos = " + photos.length +
-        //     "\nJSON = " + (json.length / 1024).toFixed(0) + " KB"
-        // );        
-
-        let res = await fetch("workorder.aspx/SyncWO", {
+        const response = await fetch("workorder.aspx/SyncWO", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-                checklists: checklists,
-                checklistgroups: checklistgroups,
-                photos: photos,
+                checklists,
+                checklistgroups,
+                photos,
                 userid: v_login.employeeid,
-                checklistsummarys: checklistsummarys
+                checklistsummarys
             })
         });
-
-        let text = await res.text();
-        // prompt("Sync Response", text);
-
-        // let result = await res.json();
-        let result = JSON.parse(text);
-        result = result.d;
+        const resultText = await response.text();
+        const result = JSON.parse(resultText).d;
 
         if (result.success) {
-            for (let wo of list) {
-                try {
-                    // Pastikan fungsi markWOSynced membuka transaksi baru di dalamnya jika menyentuh DB lagi
-                    await markWOSynced(wo, result.serverTime);
-                } catch (ex) {
-                    console.error(ex);
-                }
+            for (const wo of list) {
+                await markWOSynced(wo, result.serverTime);
             }
         } else {
             alert(result.message);
-            // console.error("SYNC FAILED", result.message);
         }
-
-    }
-    catch(ex) {
-        alert(
-            "FETCH ERROR\n\n" +
-            ex.toString()
-        );
-
+    } catch (ex) {
+        alert("FETCH ERROR\n\n" + ex.toString());
     }
 }
 async function markWOSynced(wo, lastUpdate) {
