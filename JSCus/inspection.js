@@ -324,14 +324,18 @@ function collectInspectionItems() {
             templateItem.isToleranceRequired === "true"
         ));
         if (useTolerance && numericValue !== null && !Number.isNaN(numericValue)) {
-            const minTolerance = Number(templateItem.mintol);
-            const maxTolerance = Number(templateItem.maxtol);
+            const minTolerance = templateItem.mintol == null || String(templateItem.mintol).trim() === ""
+                ? NaN : Number(templateItem.mintol);
+            const maxTolerance = templateItem.maxtol == null || String(templateItem.maxtol).trim() === ""
+                ? NaN : Number(templateItem.maxtol);
             let lowerLimit;
             let upperLimit;
             if (Number.isFinite(minTolerance) && Number.isFinite(maxTolerance)) {
                 if (type === "RANGE") {
-                    const min = Number(templateItem.min);
-                    const max = Number(templateItem.max);
+                    const min = templateItem.min == null || String(templateItem.min).trim() === ""
+                        ? NaN : Number(templateItem.min);
+                    const max = templateItem.max == null || String(templateItem.max).trim() === ""
+                        ? NaN : Number(templateItem.max);
                     if (Number.isFinite(min) && Number.isFinite(max)) {
                         lowerLimit = min - minTolerance;
                         upperLimit = max + maxTolerance;
