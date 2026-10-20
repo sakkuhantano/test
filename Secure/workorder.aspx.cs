@@ -858,12 +858,37 @@ string.Format(@"
 
                 // Server-side section/role validation protects against a client attempting
                 // to upload a cached WO belonging to another division.
-                foreach (DataRow summary in dtChecklistsummarys.Rows)
+                var actionByKey = new Dictionary<int, string>();
+                if (dtChecklistsummarys.Columns.Contains("KeyHD"))
                 {
-                    string keyHD = Convert.ToString(summary["KeyHD"]);
-                    string actionSPV = dtChecklistsummarys.Columns.Contains("ActionSPV")
-                        ? Convert.ToString(summary["ActionSPV"]) : "";
+                    foreach (DataRow summary in dtChecklistsummarys.Rows)
+                    {
+                        int summaryKey;
+                        if (Int32.TryParse(Convert.ToString(summary["KeyHD"]), out summaryKey))
+                        {
+                            string action = dtChecklistsummarys.Columns.Contains("ActionSPV")
+                                ? Convert.ToString(summary["ActionSPV"]) : "";
+                            actionByKey[summaryKey] = action ?? "";
+                        }
+                    }
+                }
 
+                var incomingKeys = new HashSet<int>();
+                DataTable[] incomingTables = new DataTable[] { dtChecklist, dtChecklistgroups, dtPhotos, dtChecklistsummarys };
+                foreach (DataTable incomingTable in incomingTables)
+                {
+                    if (!incomingTable.Columns.Contains("KeyHD")) continue;
+                    foreach (DataRow incomingRow in incomingTable.Rows)
+                    {
+                        int incomingKey;
+                        if (Int32.TryParse(Convert.ToString(incomingRow["KeyHD"]), out incomingKey))
+                            incomingKeys.Add(incomingKey);
+                    }
+                }
+
+                foreach (int keyHD in incomingKeys)
+                {
+                    string actionSPV = actionByKey.ContainsKey(keyHD) ? actionByKey[keyHD] : "";
                     using (var auth = new WAL.BR.CF())
                     {
                         DataTable allowed = auth.EQueryP(@"
@@ -883,7 +908,7 @@ WHERE W.KeyHD=@KeyHD
                             new SqlParameter[]
                             {
                                 new SqlParameter("@EmployeeID", userid),
-                                new SqlParameter("@KeyHD", Convert.ToInt32(keyHD)),
+                                new SqlParameter("@KeyHD", keyHD),
                                 new SqlParameter("@ActionSPV", actionSPV)
                             });
                         if (allowed.Rows.Count == 0)
