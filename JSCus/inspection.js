@@ -507,6 +507,7 @@ async function syncInspectionNow() {
     try {
         const button = document.getElementById("btnInspectionSync");
         button.disabled = true;
+        await flushInspectionAutosave();
         if (typeof syncAllData === "function") {
             await syncAllData();
         } else if (typeof uploadPendingInspections === "function") {
@@ -514,13 +515,33 @@ async function syncInspectionNow() {
         }
         await loadInspectionCache();
         await refreshSavedInspectionList();
-        showInspectionNotice("Proses sync selesai. Periksa status setiap inspeksi di daftar lokal.", "success");
+        const pendingCount = inspectionRecords.filter(record => record.SyncStatus !== "SYNCED").length;
+        if (pendingCount) {
+            showInspectionNotice(pendingCount + " inspeksi milik akun ini masih belum sync. Data tetap tersimpan lokal; periksa koneksi atau pesan error.", "warning");
+        } else {
+            showInspectionNotice("Semua inspeksi milik akun ini sudah tersinkron.", "success");
+        }
     } catch (err) {
         console.error(err);
         showInspectionNotice("Sync gagal. Data tetap tersimpan di perangkat: " + (err.message || err), "danger");
     } finally {
         document.getElementById("btnInspectionSync").disabled = false;
     }
+}
+
+async function flushInspectionAutosave() {
+    if (inspectionAutoSaveTimer) {
+        clearTimeout(inspectionAutoSaveTimer);
+        inspectionAutoSaveTimer = null;
+    }
+    if (!currentInspectionRecord || currentInspectionReadOnly || currentInspectionRecord.Status === "DONE") return;
+    const login = getLoginData();
+    if (!login || currentInspectionRecord.OwnerEmployeeID !== login.employeeid) return;
+    currentInspectionRecord.Items = collectInspectionItems();
+    currentInspectionRecord.Summary = document.getElementById("txtInspectionSummary").value.trim();
+    currentInspectionRecord.SyncStatus = "PENDING";
+    currentInspectionRecord.UpdatedAt = new Date().toISOString();
+    await persistInspectionRecord(currentInspectionRecord);
 }
 
 function showInspectionNotice(message, type) {
