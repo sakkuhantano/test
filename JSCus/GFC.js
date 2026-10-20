@@ -710,16 +710,21 @@ async function uploadPendingInspections() {
         req.onerror = () => reject(req.error);
     });
 
-    const pendingInScope = allRecords.filter(record =>
+    const pendingInCompany = allRecords.filter(record =>
         record.SyncStatus !== "SYNCED" &&
         record.CompanyID === companyId &&
-        record.LocationID === locationId &&
+        record.LocationID === locationId
+    );
+    const pendingInScope = pendingInCompany.filter(record =>
         allowedSections.includes(record.SectionID)
     );
     const ownedRecords = pendingInScope.filter(record =>
         record.OwnerEmployeeID === login.employeeid
     );
 
+    if (pendingInCompany.length > pendingInScope.length) {
+        showToast("Ada inspeksi offline dari section lain di perangkat ini. Data tersebut tetap disimpan dan tidak dikirim oleh login ini.", "warning");
+    }
     if (pendingInScope.length > ownedRecords.length) {
         showToast("Ada inspeksi offline milik teknisi lain. Data tersebut tidak dikirim oleh login ini.", "warning");
     }
