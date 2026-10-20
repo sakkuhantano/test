@@ -2046,6 +2046,19 @@ async function openWO(keyHD, el) {
         return;
     }       
 
+    // A shared device may contain offline work completed by another login.
+    if (currentMode === "entry" && wo && ["DRAFT", "DONE"].includes(wo.Status)) {
+        const login = getLoginData();
+        if (!wo.InspectionOwnerID) {
+            showToast("WO offline ini belum memiliki identitas teknisi pemilik. Jangan ubah atau sync sebelum data lama diperiksa.", "warning");
+            return;
+        }
+        if (!login || wo.InspectionOwnerID !== login.employeeid) {
+            showToast("WO offline ini dibuat oleh teknisi lain. Login dengan akun pemilik untuk melanjutkan.", "warning");
+            return;
+        }
+    }
+
 	if (wo && (currentMode === "entry" || (currentMode === "approval" && isSampling === "YES"))) 
     {
     	currentWO = wo;
@@ -2509,13 +2522,28 @@ async function saveToIndexedDB(payload) {
             };
             checklistStore.put(data);
 			let getReq1 = woStore.get(payload.KeyHD);
-			getReq1.onsuccess = function () {
-				let dataWO = getReq1.result;
-				dataWO.Status = payload.Status;
+            getReq1.onsuccess = function () {
+                const dataWO = getReq1.result;
+                const login = getLoginData();
+                if (!dataWO || !login || !login.employeeid) {
+                    reject(new Error("WO atau identitas login tidak ditemukan."));
+                    return;
+                }
+                const existingOwner = dataWO.InspectionOwnerID || "";
+                if (existingOwner && existingOwner !== login.employeeid) {
+                    reject(new Error("WO ini dimiliki teknisi lain; data tidak disimpan."));
+                    return;
+                }
+                if (!existingOwner && ["DRAFT", "DONE"].includes(dataWO.Status)) {
+                    reject(new Error("WO offline lama belum memiliki pemilik; data perlu diperiksa sebelum disimpan."));
+                    return;
+                }
+                dataWO.InspectionOwnerID = existingOwner || login.employeeid;
+                dataWO.Status = payload.Status;
                 dataWO.DataCheckListJSON = data;
-				woStore.put(dataWO);
-			};
-			getReq1.onerror = (e) => reject(e);
+                woStore.put(dataWO);
+            };
+            getReq1.onerror = (e) => reject(e.target.error);
         };
 
         getReq.onerror =
@@ -3711,6 +3739,8 @@ async function submitVoidToIndexedDb(type, reason) {
                 let data = getReq1.result;
                 if (!data) return reject(new Error("Data workorder tidak ditemukan"));
 
+                const login = getLoginData();
+                data.SupervisorActionOwnerID = (login && login.employeeid) || "";
                 data.Status = "";
                 data.StatusSPV = "PENDING";
                 data.ActionSPV = (type === "0" ? "VOID" : "APPROVED");
