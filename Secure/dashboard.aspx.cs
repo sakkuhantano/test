@@ -18,7 +18,7 @@ namespace UTL1.Secure
 
         }
         [WebMethod]
-        public static object getCheckList(string section, string templateNo, string version, string modelcode = "")
+        public static object getCheckList(string section, string templateNo, string version, string modelcode = "", string companyId = "", string locationId = "")
         {
             var result = new List<Dictionary<string, object>>();
             using (var br = new WAL.BR.CF())
@@ -26,13 +26,21 @@ namespace UTL1.Secure
                 DataTable dt = br.EQuery(
 @"SELECT B.TemplateNo, B.TemplateName, a.StatusOption FROM PIP_M_CheckListWOPM_Version a 
 JOIN PIP_M_CheckListWOPM b on A.IDTemplate=B.IDTemplate 
-WHERE b.IsActive=1 AND a.Status='Active' AND EXISTS (SELECT * FROM dbo.SplitStringConvertToTable(@sectionlist,';') c WHERE c.val=b.sectionid)
+WHERE b.IsActive=1
+AND ISNULL(b.TemplateType,'W')='W'
+AND a.Status='Active'
+AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@sectionlist,';') c WHERE c.val=b.sectionid)
+AND (ISNULL(b.CompanyScope,'S')='A' OR EXISTS
+    (SELECT 1 FROM dbo.PIP_M_CheckListWOPM_CompanyLocation sc
+     WHERE sc.IDTemplate=b.IDTemplate AND sc.CompanyID=@CompanyID AND sc.LocationID=@LocationID))
 AND B.TemplateNo=CASE WHEN @templateno='' THEN B.TemplateNo ELSE @templateno END
 AND a.Version=CASE WHEN @version='' THEN a.Version ELSE @version END
 ",
 "@sectionlist=" + section + GF.Str2 +
 "@templateno=" + templateNo + GF.Str2 +
-"@version=" + version);
+"@version=" + version + GF.Str2 +
+"@CompanyID=" + companyId + GF.Str2 +
+"@LocationID=" + locationId);
                 foreach (DataRow row in dt.Rows)
                 {
                     var dict = new Dictionary<string, object>();
@@ -59,7 +67,7 @@ FROM PIP_M_CheckListWOPM_Section s
 JOIN PIP_M_CheckListWOPM_Version v ON v.IDVersion=s.IDVersion
 JOIN PIP_M_CheckListWOPM_Item i ON s.IDSection = i.IDSection
 JOIN PIP_M_CheckListWOPM m ON m.IDTemplate = v.IDTemplate
-WHERE m.TemplateNo = @TemplateNo AND m.IsActive=1 AND v.Status='Active' AND (ISNULL(i.ModelCode,'')='' OR i.ModelCode=@ModelCode OR @ModelCode='')
+WHERE m.TemplateNo = @TemplateNo AND m.IsActive=1 AND ISNULL(m.TemplateType,'W')='W' AND v.Status='Active' AND (ISNULL(i.ModelCode,'')='' OR i.ModelCode=@ModelCode OR @ModelCode='')
 ORDER BY s.DisplayOrder, i.DisplayOrder",
                                         "@TemplateNo=" + row["TemplateNo"].ToString() + GF.Str2 +
                                         "@ModelCode=" + modelcode);
