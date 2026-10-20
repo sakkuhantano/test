@@ -2064,7 +2064,13 @@ async function openWO(keyHD, el) {
     	currentWO = wo;
         if (!currentWO.DataCheckListJSON)
             currentWO.DataCheckListJSON = await getChecklistByWO(currentWO.KeyHD);
-    	let template = await getTemplate(currentWO.TemplateWOPM, currentWO.ModelCode);
+    	let template = await getTemplate(
+            currentWO.TemplateWOPM,
+            currentWO.ModelCode,
+            currentWO.SectionID,
+            currentWO.CompanyID,
+            currentWO.LocationID
+        );
         if (template.SectionID && String(template.SectionID) !== String(currentWO.SectionID)) {
             showToast("Template offline tidak sesuai dengan Section Work Order ini. Sync ulang atau periksa TemplateNo yang duplikat.", "warning");
             return;
@@ -2242,35 +2248,24 @@ async function getChecklistByWO(keyHD) {
 //         summary.value = data.Summary || "";
 //     }
 // }
-async function getTemplate(templateNo, modelCode) {
+async function getTemplate(templateNo, modelCode, sectionID, companyID, locationID) {
     return new Promise((resolve, reject) => {
-        let tx = db.transaction("checklist_templates", "readonly");
-        let store = tx.objectStore("checklist_templates");
-        let req = store.get(templateNo);
-        req.onsuccess = () => {
-            if (!req.result) {
-                reject("Template not found");
+        const finish = template => {
+            if (!template) {
+                reject("Template not found for current section/company/location. Sync templates before working offline.");
                 return;
             }
-            const template = req.result;
-            // ==============================
-            // FILTER ITEM BY MODEL CODE
-            // ==============================
             const filteredTemplate = {
                 ...template,
                 sections: (template.sections || [])
                     .map(section => {
-                        const filteredItems =
-                            (section.items || []).filter(item => {
-                                const itemModelCode =
-                                    (item.modelcode || "").trim();
-                                const currentModelCode =
-                                    (modelCode || "").trim();
-                                return (
-                                    itemModelCode === "" ||
-                                    itemModelCode === currentModelCode
-                                );
-                            }).map(item => ({
+                        const filteredItems = (section.items || [])
+                            .filter(item => {
+                                const itemModelCode = (item.modelcode || "").trim();
+                                const currentModelCode = (modelCode || "").trim();
+                                return itemModelCode === "" || itemModelCode === currentModelCode;
+                            })
+                            .map(item => ({
                                 ...item,
                                 remarkRequiredOptions: Array.isArray(item.remarkRequiredOptions)
                                     ? item.remarkRequiredOptions.map(String)
@@ -2278,22 +2273,45 @@ async function getTemplate(templateNo, modelCode) {
                                         ? item.RemarkRequiredOptions.map(String)
                                         : []
                             }));
-                        return {
-                            ...section,
-                            items: filteredItems
-                        };
+                        return { ...section, items: filteredItems };
                     })
-                    // buang section yang sudah tidak punya item
-                    .filter(section =>
-                        section.items &&
-                        section.items.length > 0
-                    )
+                    .filter(section => section.items && section.items.length > 0)
             };
             resolve(filteredTemplate);
         };
-        req.onerror = () => {
-            reject("DB error");
+
+        const key = [
+            String(templateNo || ""),
+            String(sectionID || ""),
+            String(companyID || ""),
+            String(locationID || "")
+        ];
+        const tx = db.transaction("checklist_templates_scoped", "readonly");
+        const req = tx.objectStore("checklist_templates_scoped").get(key);
+        req.onsuccess = () => {
+            if (req.result) {
+                finish(req.result);
+                return;
+            }
+
+            // Use a legacy cache entry only when its scope metadata matches exactly.
+            // Old unscoped cache rows are intentionally rejected to avoid cross-section mixups.
+            const legacyTx = db.transaction("checklist_templates", "readonly");
+            const legacyReq = legacyTx.objectStore("checklist_templates").get(String(templateNo || ""));
+            legacyReq.onsuccess = () => {
+                const legacy = legacyReq.result;
+                if (legacy &&
+                    String(legacy.SectionID || "") === String(sectionID || "") &&
+                    String(legacy.CompanyID || "") === String(companyID || "") &&
+                    String(legacy.LocationID || "") === String(locationID || "")) {
+                    finish(legacy);
+                } else {
+                    reject("Template not found for current section/company/location. Sync templates before working offline.");
+                }
+            };
+            legacyReq.onerror = () => reject("DB error");
         };
+        req.onerror = () => reject("DB error");
     });
 }
 // function getTemplate(templateNo) {
