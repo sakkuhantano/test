@@ -2520,7 +2520,6 @@ async function saveToIndexedDB(payload) {
                 StartTime: (existing ? existing.StartTime ?? startTime : startTime),
                 EndTime: (payload.Status === "DONE" ? new Date().toISOString() : "")
             };
-            checklistStore.put(data);
 			let getReq1 = woStore.get(payload.KeyHD);
             getReq1.onsuccess = function () {
                 const dataWO = getReq1.result;
@@ -2541,6 +2540,7 @@ async function saveToIndexedDB(payload) {
                 dataWO.InspectionOwnerID = existingOwner || login.employeeid;
                 dataWO.Status = payload.Status;
                 dataWO.DataCheckListJSON = data;
+                checklistStore.put(data);
                 woStore.put(dataWO);
             };
             getReq1.onerror = (e) => reject(e.target.error);
