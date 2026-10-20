@@ -35,6 +35,7 @@ AND (ISNULL(b.CompanyScope,'S')='A' OR EXISTS
      WHERE sc.IDTemplate=b.IDTemplate AND sc.CompanyID=@CompanyID AND sc.LocationID=@LocationID))
 AND B.TemplateNo=CASE WHEN @templateno='' THEN B.TemplateNo ELSE @templateno END
 AND a.Version=CASE WHEN @version='' THEN a.Version ELSE @version END
+ORDER BY CASE WHEN ISNULL(b.CompanyScope,'S')='S' THEN 0 ELSE 1 END, B.IDTemplate, a.IDVersion
 ",
 "@sectionlist=" + section + GF.Str2 +
 "@templateno=" + templateNo + GF.Str2 +
