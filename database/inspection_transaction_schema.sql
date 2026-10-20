@@ -150,6 +150,21 @@ BEGIN
     IF NOT EXISTS
     (
         SELECT 1
+        FROM dbo.UTL_User U
+        WHERE U.EmployeeID=@p_UpdateUser
+          AND ISNULL(U.IsWO,0)=1
+          AND EXISTS
+              (SELECT 1 FROM dbo.SplitStringConvertToTable(U.Section, ';') S
+               WHERE S.val=@p_SectionID)
+    )
+    BEGIN
+        RAISERROR('Employee is not authorized for this inspection section.', 16, 1);
+        RETURN;
+    END;
+
+    IF NOT EXISTS
+    (
+        SELECT 1
         FROM dbo.PIP_M_InspectionType T
         JOIN dbo.PIP_M_InspectionTypeDetail D
           ON D.InspectionTypeCode=T.InspectionTypeCode
