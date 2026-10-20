@@ -161,7 +161,7 @@ function getLoginData() {
 }
 function initIndexedDB() {
     return new Promise((resolve, reject) => {
-    const request = indexedDB.open("OfflineAppDB", 2);
+    const request = indexedDB.open("OfflineAppDB", 3);
 
     // JALAN jika DB belum ada / version naik
     request.onupgradeneeded = function (event) {
@@ -208,6 +208,14 @@ function initIndexedDB() {
                 "checklist_templates",
                 { keyPath: "TemplateNo" }
             );
+        }
+
+        // Scope the WO cache by section and company/location so shared devices
+        // can retain templates for more than one division without key collisions.
+        if (!db.objectStoreNames.contains("checklist_templates_scoped")) {
+            db.createObjectStore("checklist_templates_scoped", {
+                keyPath: ["TemplateNo", "SectionID", "CompanyID", "LocationID"]
+            });
         }
 
         // Inspection masters and offline inspection transactions (DB version 2).
