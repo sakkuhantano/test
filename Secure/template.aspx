@@ -598,36 +598,74 @@
 </div>
 
 <div class="modal fade" id="inspectionTypeModal" tabindex="-1" aria-labelledby="inspectionTypeModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="inspectionTypeModalLabel">Master Inspection Type</h5>
+                <h5 class="modal-title" id="inspectionTypeModalLabel">Master Inspection Type &amp; Schedule Details</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
                 <div class="row g-2 mb-3">
-                    <div class="col-md-4">
+                    <div class="col-md-3">
                         <label for="inspectionTypeSection" class="form-label">SectionID</label>
                         <select id="inspectionTypeSection" class="form-select form-select-sm"></select>
                     </div>
-                    <div class="col-md-3">
-                        <label for="inspectionTypeCode" class="form-label">Code (max 2)</label>
+                    <div class="col-md-2">
+                        <label for="inspectionTypeCode" class="form-label">Type Code (max 2)</label>
                         <input id="inspectionTypeCode" class="form-control form-control-sm text-uppercase" maxlength="2" autocomplete="off" />
                     </div>
                     <div class="col-md-5">
                         <label for="inspectionTypeName" class="form-label">Inspection Type Name</label>
                         <input id="inspectionTypeName" class="form-control form-control-sm" maxlength="100" autocomplete="off" />
                     </div>
-                </div>
-                <div class="form-check mb-3">
-                    <input id="inspectionTypeActive" class="form-check-input" type="checkbox" checked />
-                    <label for="inspectionTypeActive" class="form-check-label">Active (available for new templates)</label>
+                    <div class="col-md-2 d-flex align-items-end">
+                        <div class="form-check mb-2">
+                            <input id="inspectionTypeActive" class="form-check-input" type="checkbox" checked />
+                            <label for="inspectionTypeActive" class="form-check-label">Active</label>
+                        </div>
+                    </div>
                 </div>
                 <div class="d-flex gap-2 mb-3">
                     <button type="button" class="btn btn-primary btn-sm" onclick="saveInspectionType()">Save Type</button>
                     <button type="button" class="btn btn-outline-secondary btn-sm" onclick="resetInspectionTypeForm()">New / Clear</button>
                 </div>
-                <div id="inspectionTypeList" class="small text-muted">Select a section to load inspection types.</div>
+                <div id="inspectionTypeList" class="small text-muted mb-3">Select a section to load inspection types.</div>
+                <hr />
+                <div id="inspectionTypeDetailsPanel" style="display:none;">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <div>
+                            <h6 class="mb-0">Inspection Schedule Details</h6>
+                            <div class="small text-muted">Selected Inspection Type: <strong id="inspectionTypeDetailsHeader"></strong></div>
+                        </div>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="resetInspectionTypeDetailForm()">New Detail</button>
+                    </div>
+                    <input type="hidden" id="inspectionTypeDetailEditingCode" />
+                    <div class="row g-2 align-items-end mb-3">
+                        <div class="col-md-3">
+                            <label for="inspectionTypeDetailCode" class="form-label">Detail Code</label>
+                            <input id="inspectionTypeDetailCode" class="form-control form-control-sm text-uppercase" maxlength="20" autocomplete="off" />
+                        </div>
+                        <div class="col-md-4">
+                            <label for="inspectionTypeDetailName" class="form-label">Description / Location</label>
+                            <input id="inspectionTypeDetailName" class="form-control form-control-sm" maxlength="100" autocomplete="off" />
+                        </div>
+                        <div class="col-md-2">
+                            <label for="inspectionTypeDetailTime" class="form-label">Schedule Time</label>
+                            <input id="inspectionTypeDetailTime" type="time" class="form-control form-control-sm" />
+                        </div>
+                        <div class="col-md-1">
+                            <div class="form-check mb-1">
+                                <input id="inspectionTypeDetailActive" class="form-check-input" type="checkbox" checked />
+                                <label for="inspectionTypeDetailActive" class="form-check-label">Active</label>
+                            </div>
+                        </div>
+                        <div class="col-md-2 d-flex gap-1">
+                            <button type="button" class="btn btn-primary btn-sm" onclick="saveInspectionTypeDetail()">Save Detail</button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="resetInspectionTypeDetailForm()">Clear</button>
+                        </div>
+                    </div>
+                    <div id="inspectionTypeDetailList" class="small text-muted">Select or save an Inspection Type to manage its details.</div>
+                </div>
             </div>
         </div>
     </div>
