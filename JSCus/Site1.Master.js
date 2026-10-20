@@ -1666,6 +1666,18 @@ async function downloadWorkOrder() {
             });
         }
 
+        // Protect locally edited/completed WOs from all server-side cache refreshes.
+        // The header may already be protected above, but checklist and photo stores
+        // must be protected separately because uploadPendingWO reads those stores.
+        const protectedLocalKeys = await new Promise((resolve, reject) => {
+            const tx = db.transaction("workorder", "readonly");
+            const req = tx.objectStore("workorder").getAll();
+            req.onsuccess = () => resolve(new Set((req.result || [])
+                .filter(localWO => localWO.Status === "DRAFT" || localWO.Status === "DONE")
+                .map(localWO => Number(localWO.KeyHD))));
+            req.onerror = () => reject(req.error);
+        });
+
         // =================================================================
         // PROSES 2: PROSES FOTO (KHUSUS SPV)
         // =================================================================
@@ -1675,6 +1687,7 @@ async function downloadWorkOrder() {
                 if (!photoData) continue;
 
                 let keyHD = photoData.KeyHD;
+                if (protectedLocalKeys.has(Number(keyHD))) continue;
                 let tasks = [];
                 if (photoData.PhotoBefore) {
                     photoData.PhotoBefore.forEach(p => tasks.push({ item: p, type: "BEFORE" }));
@@ -1756,6 +1769,7 @@ async function downloadWorkOrder() {
             for (let wo of workorders) {
                 let checkListData = wo.DataCheckListJSON; 
                 if (!checkListData) continue;
+                if (protectedLocalKeys.has(Number(checkListData.KeyHD))) continue;
 
                 try {
                     await new Promise((resolve, reject) => {
