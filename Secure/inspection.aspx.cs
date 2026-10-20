@@ -42,6 +42,11 @@ namespace UTL1.Secure
                     if (String.IsNullOrWhiteSpace(clientId))
                         throw new Exception("ClientInspectionID is required.");
 
+                    string recordOwner = TokenString(record, "OwnerEmployeeID");
+                    if (String.IsNullOrWhiteSpace(recordOwner) ||
+                        !String.Equals(recordOwner, userId, StringComparison.OrdinalIgnoreCase))
+                        throw new Exception("This offline inspection belongs to another employee. No data was uploaded.");
+
                     DataTable items = new DataTable();
                     items.Columns.Add("IDItem", typeof(int));
                     items.Columns.Add("ItemLabel", typeof(string));
