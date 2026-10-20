@@ -694,6 +694,108 @@ async function getInspectionData() {
     }
 }
 
+async function uploadPendingInspections() {
+    if (!navigator.onLine || !db || !db.objectStoreNames.contains("inspection_records")) return;
+    const login = getLoginData();
+    if (!login || !login.employeeid) return;
+    const companyLocation = (login.curcompany || "").split(";");
+    const companyId = companyLocation[0] || "";
+    const locationId = companyLocation[1] || "";
+    const allowedSections = (login.section || "").split(";").filter(Boolean);
+
+    const allRecords = await new Promise((resolve, reject) => {
+        const tx = db.transaction("inspection_records", "readonly");
+        const req = tx.objectStore("inspection_records").getAll();
+        req.onsuccess = () => resolve(req.result || []);
+        req.onerror = () => reject(req.error);
+    });
+
+    const pendingInScope = allRecords.filter(record =>
+        record.SyncStatus !== "SYNCED" &&
+        record.CompanyID === companyId &&
+        record.LocationID === locationId &&
+        allowedSections.includes(record.SectionID)
+    );
+    const ownedRecords = pendingInScope.filter(record =>
+        record.OwnerEmployeeID === login.employeeid
+    );
+
+    if (pendingInScope.length > ownedRecords.length) {
+        showToast("Ada inspeksi offline milik teknisi lain. Data tersebut tidak dikirim oleh login ini.", "warning");
+    }
+    if (!ownedRecords.length) return;
+
+    const payload = ownedRecords.map(record => ({
+        ClientInspectionID: record.LocalInspectionID,
+        CompanyID: record.CompanyID,
+        LocationID: record.LocationID,
+        SectionID: record.SectionID,
+        InspectionTypeCode: record.InspectionTypeCode,
+        InspectionTypeDetailCode: record.InspectionTypeDetailCode,
+        IDTemplate: record.IDTemplate,
+        IDVersion: record.IDVersion,
+        TemplateNo: record.TemplateNo,
+        TemplateVersion: record.TemplateVersion || "",
+        InspectionDate: record.InspectionDate || "",
+        StartDateTime: record.StartDateTime || "",
+        EndDateTime: record.EndDateTime || "",
+        Status: record.Status,
+        Summary: record.Summary || "",
+        Items: record.Items || []
+    }));
+
+    const response = await fetch("inspection.aspx/SyncInspections", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ inspections: payload, userId: login.employeeid })
+    });
+    if (!response.ok) throw new Error("Upload Inspection failed");
+    const json = await response.json();
+    const result = json.d || {};
+    const outcomes = result.results || [];
+    const successfulIds = new Set(outcomes.filter(x => x.success).map(x => x.ClientInspectionID));
+
+    if (successfulIds.size) {
+        await new Promise((resolve, reject) => {
+            const tx = db.transaction("inspection_records", "readwrite");
+            const store = tx.objectStore("inspection_records");
+            ownedRecords.filter(record => successfulIds.has(record.LocalInspectionID)).forEach(record => {
+                const outcome = outcomes.find(x => x.ClientInspectionID === record.LocalInspectionID);
+                record.SyncStatus = "SYNCED";
+                record.ServerInspectionID = outcome ? outcome.InspectionID : record.ServerInspectionID;
+                record.LastSyncAt = new Date().toISOString();
+                store.put(record);
+            });
+            tx.oncomplete = () => resolve();
+            tx.onerror = () => reject(tx.error);
+        });
+    }
+
+    const failed = outcomes.filter(x => !x.success);
+    if (failed.length) {
+        showToast(failed.length + " inspeksi gagal sync. Data tetap disimpan offline.", "warning");
+    }
+    if (typeof updateTotalPendingSync === "function") await updateTotalPendingSync();
+    return { synced: successfulIds.size, failed: failed.length };
+}
+
+async function countPendingSyncInspections() {
+    if (!db || !db.objectStoreNames.contains("inspection_records")) return 0;
+    const login = getLoginData();
+    if (!login) return 0;
+    const companyLocation = (login.curcompany || "").split(";");
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction("inspection_records", "readonly");
+        const req = tx.objectStore("inspection_records").getAll();
+        req.onsuccess = () => resolve((req.result || []).filter(record =>
+            record.SyncStatus !== "SYNCED" &&
+            record.CompanyID === (companyLocation[0] || "") &&
+            record.LocationID === (companyLocation[1] || "")
+        ).length);
+        req.onerror = () => reject(req.error);
+    });
+}
+
 function blobToBase64(blob) {
     return new Promise((resolve, reject) => {
 
