@@ -773,6 +773,7 @@ async function updateTotalPendingSync() {
     if (typeof countPendingSyncInspections === "function") {
         total += await countPendingSyncInspections();
     }
+    totalPendingSync = total;
 
     const badge =
         document.getElementById("badgePendingSync");
@@ -2246,8 +2247,7 @@ async function logoutRoutine() {
         console.log("logoutRoutine called");
         // cek pending sync
         // var total = await getTotalPendingSync();
-        await updateTotalPendingSync();
-        var total = getTotalPendingSync();        
+        var total = await updateTotalPendingSync();        
         if (total > 0) {
             let result = await showConfirmation({
                 title: "Logout",
