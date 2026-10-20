@@ -939,19 +939,18 @@ async function syncAllData() {
         let login = getLoginData();
         if (!login) return;
 
-        let totalSteps = 0;
-
-        // upload meter
-        totalSteps += 1;
-        // upload workorder
-        totalSteps += 1;
-
         let role = login.role;
+        let totalSteps = 0;
+        const hasMeterRole = role.IsELC || role.IsWTR || role.IsGAS;
+
+        if (hasMeterRole) totalSteps++; // upload meter
+        if (role.IsWO || role.IsSPV) totalSteps++; // upload WO / SPV actions
         if (role.IsELC) totalSteps++;
         if (role.IsWTR) totalSteps++;
         if (role.IsGAS) totalSteps++;
-        if (role.IsWO) totalSteps+=4;
-        
+        if (role.IsWO || role.IsSPV) totalSteps += 2; // download WO and WO checklist
+        if (role.IsWO) totalSteps += 2; // upload pending inspections and download inspection data
+
         let step = 0;
 
         // UPLOAD METER
@@ -965,6 +964,11 @@ async function syncAllData() {
             step++;
             updateSyncProgress(step,totalSteps,"Uploading workorder");
             await uploadPendingWO();
+        }
+        if (role.IsWO) {
+            step++;
+            updateSyncProgress(step, totalSteps, "Uploading inspections");
+            await uploadPendingInspections();
         }
 
         // DOWNLOAD METER
