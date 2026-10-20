@@ -55,6 +55,27 @@ BEGIN
     );
 END;
 
+IF OBJECT_ID('dbo.PIP_M_InspectionTypeDetail', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.PIP_M_InspectionTypeDetail
+    (
+        InspectionTypeCode VARCHAR(2) NOT NULL,
+        InspectionTypeDetailCode VARCHAR(20) NOT NULL,
+        InspectionTypeDetailName VARCHAR(100) NOT NULL,
+        ScheduleTime TIME NOT NULL,
+        IsActive BIT NOT NULL CONSTRAINT DF_PIP_M_InspectionTypeDetail_IsActive DEFAULT (1),
+        EntryUser VARCHAR(50) NULL,
+        EntryDate DATETIME NULL,
+        UpdateUser VARCHAR(50) NULL,
+        UpdateDate DATETIME NULL,
+        CONSTRAINT PK_PIP_M_InspectionTypeDetail
+            PRIMARY KEY CLUSTERED (InspectionTypeCode, InspectionTypeDetailCode),
+        CONSTRAINT FK_PIP_M_InspectionTypeDetail_Header
+            FOREIGN KEY (InspectionTypeCode)
+            REFERENCES dbo.PIP_M_InspectionType (InspectionTypeCode)
+    );
+END;
+
 IF COL_LENGTH('dbo.PIP_M_CheckListWOPM', 'TemplateType') IS NULL
 BEGIN
     ALTER TABLE dbo.PIP_M_CheckListWOPM
