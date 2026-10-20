@@ -46,6 +46,8 @@ ORDER BY CASE WHEN ISNULL(b.CompanyScope,'S')='S' THEN 0 ELSE 1 END, B.IDTemplat
                 foreach (DataRow row in dt.Rows)
                 {
                     var dict = new Dictionary<string, object>();
+                    dict["CompanyID"] = companyId;
+                    dict["LocationID"] = locationId;
                     dict["IDTemplate"] = Convert.ToInt32(row["IDTemplate"]);
                     dict["IDVersion"] = Convert.ToInt32(row["IDVersion"]);
                     dict["Version"] = row["Version"].ToString();
