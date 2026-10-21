@@ -211,6 +211,17 @@ class="fw-bold">
 
 
 
+<!-- INSPECTION -->
+<section id="sectionInspectionDashboard" class="mb-4">
+    <div class="d-flex justify-content-between align-items-end mb-3">
+        <div>
+            <span class="text-uppercase fw-bold text-primary d-block mb-1" style="font-size:10px;letter-spacing:.2em;">Field Operations</span>
+            <h5 class="fw-bold mb-0">Inspections</h5>
+        </div>
+    </div>
+    <div id="inspectionDashboardCards" class="row g-3"></div>
+</section>
+
 <!-- WORK ORDER -->
 <section id="sectionWO" class="mb-4">
 
