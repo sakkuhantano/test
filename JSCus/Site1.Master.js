@@ -228,6 +228,11 @@ function loadSidebarMenu() {
              <i class="bi bi-journal-check me-3 fs-5"></i>
              <span>My Work Orders</span>
          </a>
+                <a class="nav-link-custom"
+            href="inspection.aspx">
+             <i class="bi bi-clipboard-check me-3 fs-5"></i>
+             <span>Inspection Entry</span>
+         </a>
             `;
         }
         if (role.supervisor) {
