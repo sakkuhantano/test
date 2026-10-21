@@ -216,7 +216,7 @@ FROM dbo.PIP_M_InspectionType WHERE InspectionTypeCode=@Code",
             string[] times = time.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries)
                 .Select(x => x.Trim()).Distinct().OrderBy(x => x).ToArray();
             if (code == "" || name == "" || times.Length == 0) { GF.MsgBox_2(this, "Detail Code, Description and at least one Schedule Time are required."); return false; }
-            if (times.Any(x => !System.Text.RegularExpressions.Regex.IsMatch(x, @"^([01]\\d|2[0-3]):[0-5]\\d$")))
+            if (times.Any(x => !System.Text.RegularExpressions.Regex.IsMatch(x, @"^([01]\d|2[0-3]):[0-5]\d$")))
             { GF.MsgBox_2(this, "Schedule Time must use HH:mm format."); return false; }
             time = String.Join(";", times);
             hidScheduleTimes.Value = time;
@@ -250,7 +250,8 @@ FROM dbo.PIP_M_InspectionType WHERE InspectionTypeCode=@Code",
         private void _PrepareDetail()
         {
             txtDetailOriginalCode.Text = "";
-            txtDetailCode.Text = txtDetailName.Text = "";\n            hidScheduleTimes.Value = "";
+            txtDetailCode.Text = txtDetailName.Text = "";
+            hidScheduleTimes.Value = "";
             txtDetailCode.ReadOnly = false;
             chkDetailActive.Checked = true;
         }
