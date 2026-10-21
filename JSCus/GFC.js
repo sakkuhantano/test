@@ -752,7 +752,7 @@ async function downloadReturnedInspections() {
             req.onsuccess = () => resolve(req.result || []);
             req.onerror = () => reject(req.error);
         });
-        const store = db.transaction("inspection_records", "readwrite").objectStore("inspection_records");
+        const updates = [];
         const parseDateOnly = value => {
             if (!value) return "";
             const match = String(value).match(/\\/Date\\((\\d+)/);
@@ -803,14 +803,18 @@ async function downloadReturnedInspections() {
             local.EndDateTime = "";
             local.ReasonVoid = serverRecord.ReasonVoid || "";
             local.UpdatedAt = new Date().toISOString();
-            store.put(local);
+            updates.push(local);
         }
-        await new Promise((resolve, reject) => {
-            const tx = db.transaction("inspection_records", "readwrite");
-            tx.oncomplete = () => resolve();
-            tx.onerror = () => reject(tx.error);
-            tx.onabort = () => reject(tx.error || new Error("Returned Inspection update aborted"));
-        });
+        if (updates.length) {
+            await new Promise((resolve, reject) => {
+                const tx = db.transaction("inspection_records", "readwrite");
+                const store = tx.objectStore("inspection_records");
+                updates.forEach(record => store.put(record));
+                tx.oncomplete = () => resolve();
+                tx.onerror = () => reject(tx.error);
+                tx.onabort = () => reject(tx.error || new Error("Returned Inspection update aborted"));
+            });
+        }
     } catch (err) {
         console.warn("Unable to download returned Inspection drafts:", err);
     }
