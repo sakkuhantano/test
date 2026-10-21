@@ -1151,6 +1151,7 @@ LEFT JOIN dbo.PIP_M_CheckListWOPM_Employee A
   ON A.IDTemplate=T.IDTemplate AND A.EmployeeID=E.EmployeeID
 WHERE E.SectionID=T.SectionID
   AND T.SectionID=@SectionID
+  AND ISNULL(E.TerminationDate,'')=''
   AND EXISTS (SELECT 1 FROM dbo.UTL_User U WHERE U.EmployeeID=E.EmployeeID)
   AND EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation CurrentPermission
               WHERE CurrentPermission.AppID='PIP' AND CurrentPermission.UserID=@UserID
@@ -1211,6 +1212,7 @@ SELECT T.TemplateType, T.CompanyScope, T.SectionID,
 FROM dbo.PIP_M_CheckListWOPM T
 JOIN dbo.M_HRD_Employee E ON E.EmployeeID=@EmployeeID
 WHERE T.IDTemplate=@IDTemplate
+  AND ISNULL(E.TerminationDate,'')=''
   AND EXISTS (SELECT 1 FROM dbo.UTL_User U WHERE U.EmployeeID=E.EmployeeID)
   AND EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation CurrentPermission
               WHERE CurrentPermission.AppID='PIP' AND CurrentPermission.UserID=@UpdateUser
