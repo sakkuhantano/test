@@ -5006,7 +5006,7 @@ async function appendTemplateMetadataControls(template)
     section.innerHTML =
         '<ul class="nav nav-tabs mb-3" role="tablist">' +
             '<li class="nav-item" role="presentation"><button class="nav-link active" id="tplMetaTab" data-bs-toggle="tab" data-bs-target="#tplMetaPane" type="button" role="tab">Template</button></li>' +
-            '<li class="nav-item" role="presentation"><button class="nav-link" id="tplCompanyTab" data-bs-toggle="tab" data-bs-target="#tplCompanyPane" type="button" role="tab">Company / Gedung</button></li>' +
+            '<li class="nav-item" role="presentation"><button class="nav-link" id="tplCompanyTab" data-bs-toggle="tab" data-bs-target="#tplCompanyPane" type="button" role="tab">Company</button></li>' +
             '<li class="nav-item" id="tplEmployeeTabItem" role="presentation" style="display:none;"><button class="nav-link" id="tplEmployeeTab" title="Employee Assignment" aria-label="Employee Assignment" data-bs-toggle="tab" data-bs-target="#tplEmployeePane" type="button" role="tab">Employees</button></li>' +
         '</ul>' +
         '<div class="tab-content">' +
