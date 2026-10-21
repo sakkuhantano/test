@@ -471,6 +471,22 @@ WHERE h.CompanyID+';'+h.LocationID=@CompanyLocation AND h.WONo=@WONo",
                          (isSPV ? "value=\"" + item1["Value"] + "\" disabled" : ""),
                          (isSPV ? "value=\"" + item1["Remark"] + "\" disabled" : ""));
                                     break;
+                                case "TEXT":
+                                    sCheckList += string.Format(@"
+                <div class=""col-12"" data-item-id=""{0}"">
+                    <label class=""compact-label"">{1}</label>
+                    <div class=""row g-2"">
+                        <div class=""col-md-6"">
+                            <input type=""text"" maxlength=""50"" class=""form-control form-control-sm"" data-role=""value"" {2} />
+                        </div>
+                        <div class=""col-md-6"">
+                            <input class=""form-control form-control-sm"" data-role=""remark"" placeholder=""Remark..."" type=""text"" {3} />
+                        </div>
+                    </div>
+                </div>", item1["IDItem"].ToString(), item1["ItemLabel"].ToString(),
+                         (isSPV ? "value=\"" + item1["Value"].ToString() + "\" disabled" : ""),
+                         (isSPV ? "value=\"" + item1["Remark"].ToString() + "\" disabled" : ""));
+                                    break;
                                 case "INPUT":
                                     sCheckList += string.Format(@"
                 <div class=""col-12"" data-item-id=""{0}"">
