@@ -195,6 +195,8 @@ BEGIN
           ON D.InspectionTypeCode=T.InspectionTypeCode
         WHERE T.InspectionTypeCode=@p_InspectionTypeCode
           AND D.InspectionTypeDetailCode=@p_InspectionTypeDetailCode
+          AND D.CompanyID=@p_CompanyID
+          AND D.LocationID=@p_LocationID
           AND T.SectionID=@p_SectionID
           AND T.IsActive=1 AND D.IsActive=1
     )
@@ -210,6 +212,8 @@ BEGIN
            FROM dbo.PIP_M_InspectionTypeDetail D
            WHERE D.InspectionTypeCode=@p_InspectionTypeCode
              AND D.InspectionTypeDetailCode=@p_InspectionTypeDetailCode
+             AND D.CompanyID=@p_CompanyID
+             AND D.LocationID=@p_LocationID
              AND CHARINDEX(';' + @p_ScheduledTime + ';', ';' + D.ScheduleTime + ';') > 0
        )
     BEGIN
@@ -260,7 +264,9 @@ BEGIN
         FROM dbo.PIP_M_InspectionType T
         JOIN dbo.PIP_M_InspectionTypeDetail D ON D.InspectionTypeCode=T.InspectionTypeCode
         WHERE T.InspectionTypeCode=@p_InspectionTypeCode
-          AND D.InspectionTypeDetailCode=@p_InspectionTypeDetailCode;
+          AND D.InspectionTypeDetailCode=@p_InspectionTypeDetailCode
+          AND D.CompanyID=@p_CompanyID
+          AND D.LocationID=@p_LocationID;
 
         SELECT @V_TemplateName=TemplateName
         FROM dbo.PIP_M_CheckListWOPM
