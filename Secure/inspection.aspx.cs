@@ -67,7 +67,7 @@ namespace UTL1.Secure
                         row["C1"] = TokenInt(item, "IDItem").ToString(CultureInfo.InvariantCulture);
                         row["C2"] = Limit(TokenString(item, "ItemLabel"), 500);
                         row["C3"] = Limit(TokenString(item, "Type"), 20);
-                        row["C4"] = DbString(TokenString(item, "Value"));
+                        row["C4"] = DbString(Limit(TokenString(item, "Value"), 50));
                         row["C5"] = DbString(Limit(TokenString(item, "Remark"), 500));
                         row["C6"] = TokenBool(item, "IsAnomali") ? "1" : "0";
                         row["C7"] = (item["DisplayOrder"] == null ? displayOrder : TokenInt(item, "DisplayOrder")).ToString(CultureInfo.InvariantCulture);
