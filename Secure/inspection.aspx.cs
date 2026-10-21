@@ -313,7 +313,14 @@ FROM dbo.PIP_T_Inspection I
 WHERE I.OwnerEmployeeID=@EmployeeID AND I.CompanyID=@CompanyID AND I.LocationID=@LocationID
   AND I.Status='DRAFT' AND ISNULL(I.IsVoid,0)=1
   AND EXISTS (SELECT 1 FROM dbo.UTL_User U WHERE U.EmployeeID=@EmployeeID AND ISNULL(U.IsWO,0)=1
-              AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(U.Section,';') S WHERE S.val=I.SectionID))
+              AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(U.Section,';') S WHERE S.val=I.SectionID)
+              AND (
+                  EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
+                          WHERE C.UserID=U.UserID AND C.AppID='pip'
+                            AND C.CompanyID=I.CompanyID AND C.LocationID=I.LocationID)
+                  OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', U.EmployeeID, '') L
+                             WHERE L.CompanyID=I.CompanyID AND L.LocationID=I.LocationID)
+              ))
 ORDER BY I.UpdateDate DESC",
                     new SqlParameter[] {
                         new SqlParameter("@EmployeeID", employeeId),
