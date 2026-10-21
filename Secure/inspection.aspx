@@ -33,6 +33,27 @@
 
 <asp:Content ID="Content2" ContentPlaceHolderID="ContentPlaceHolder1" runat="server">
 <div class="container-fluid px-2 px-md-3 pb-4">
+    <div id="inspectionApprovalPanel" class="inspection-card p-3 mb-3 d-none">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <div>
+                <div class="text-uppercase text-primary fw-bold inspection-muted">Supervisor</div>
+                <h5 class="mb-0">Inspection Approval</h5>
+                <div class="inspection-muted">Inspeksi Complete dari teknisi pada section yang menjadi tanggung jawab Anda.</div>
+            </div>
+            <button type="button" id="btnRefreshInspectionApproval" class="btn btn-sm btn-outline-primary">Refresh</button>
+        </div>
+        <div id="inspectionApprovalNotice" class="alert alert-info py-2 small">Memuat antrean approval...</div>
+        <div class="row g-3">
+            <div class="col-12 col-lg-5"><div id="inspectionApprovalQueue" class="small">Memuat antrean...</div></div>
+            <div class="col-12 col-lg-7">
+                <div id="inspectionApprovalDetail" class="small text-muted">Pilih inspeksi untuk melihat detail checklist.</div>
+                <div id="inspectionApprovalActions" class="d-flex gap-2 mt-3 d-none">
+                    <button type="button" id="btnApproveInspection" class="btn btn-success flex-fill">Approve</button>
+                    <button type="button" id="btnVoidInspection" class="btn btn-outline-danger flex-fill">Void / Return to Technician</button>
+                </div>
+            </div>
+        </div>
+    </div>
     <div id="inspectionNotice" class="alert alert-info py-2 small mb-3">
         Pilih Inspection Type, detail inspeksi, lalu template. Data tersimpan di perangkat dan hanya disinkronkan oleh teknisi pemiliknya.
     </div>
