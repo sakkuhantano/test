@@ -148,6 +148,10 @@ document.addEventListener(
 		});
         if (page.indexOf("dashboard.aspx") >= 0) {
             const login = getLoginData().role;
+            const inspectionShortcut = document.getElementById("btnDashboardInspection");
+            if (inspectionShortcut && !login.IsWO) {
+                inspectionShortcut.classList.add("d-none");
+            }
             if (login.IsWO) {
                 document.getElementById("div_pendingWO")
                     .addEventListener(
