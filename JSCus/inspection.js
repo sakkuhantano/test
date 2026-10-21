@@ -16,14 +16,31 @@ document.addEventListener("DOMContentLoaded", async function () {
             window.location.href = "../Login.aspx";
             return;
         }
+        const companyLocation = (inspectionLogin.curcompany || "").split(";");
+        inspectionCompanyID = companyLocation[0] || "";
+        inspectionLocationID = companyLocation[1] || "";
+
+        const approvalMode = new URLSearchParams(window.location.search).get("mode") === "approval";
+        if (approvalMode) {
+            if (!inspectionLogin.role || !inspectionLogin.role.IsSPV) {
+                showInspectionNotice("Akun ini tidak memiliki akses approval Inspection.", "warning");
+                return;
+            }
+            document.getElementById("inspectionNotice").classList.add("d-none");
+            ["inspectionStartPanel", "inspectionFormPanel"].forEach(id => document.getElementById(id).classList.add("d-none"));
+            document.querySelectorAll(".inspection-card").forEach(el => {
+                if (el.id !== "inspectionApprovalPanel") el.classList.add("d-none");
+            });
+            document.getElementById("inspectionApprovalPanel").classList.remove("d-none");
+            wireInspectionApprovalEvents();
+            await loadInspectionApprovalQueue();
+            return;
+        }
+
         if (!inspectionLogin.role || !inspectionLogin.role.IsWO) {
             showInspectionNotice("Akun ini tidak memiliki akses input inspeksi teknisi.", "warning");
             return;
         }
-
-        const companyLocation = (inspectionLogin.curcompany || "").split(";");
-        inspectionCompanyID = companyLocation[0] || "";
-        inspectionLocationID = companyLocation[1] || "";
 
         if (typeof db === "undefined" || !db) {
             await initIndexedDB();
@@ -609,4 +626,144 @@ function escInspection(value) {
         .replace(/>/g, "&gt;")
         .replace(/"/g, "&quot;")
         .replace(/'/g, "&#39;");
+}
+
+
+let selectedInspectionApproval = null;
+
+function wireInspectionApprovalEvents() {
+    document.getElementById("btnRefreshInspectionApproval").addEventListener("click", loadInspectionApprovalQueue);
+    document.getElementById("inspectionApprovalQueue").addEventListener("click", function (event) {
+        const button = event.target.closest("[data-approval-id]");
+        if (button) loadInspectionApprovalDetail(Number(button.dataset.approvalId));
+    });
+    document.getElementById("btnApproveInspection").addEventListener("click", function () {
+        processInspectionApproval("APPROVE");
+    });
+    document.getElementById("btnVoidInspection").addEventListener("click", function () {
+        processInspectionApproval("VOID");
+    });
+}
+
+async function inspectionApprovalPost(method, args) {
+    const response = await fetch("inspection.aspx/" + method, {
+        method: "POST",
+        headers: { "Content-Type": "application/json; charset=utf-8" },
+        body: JSON.stringify(args)
+    });
+    const payload = await response.json();
+    if (!response.ok) {
+        const message = payload && payload.Message ? payload.Message : "Request approval gagal.";
+        throw new Error(message);
+    }
+    const result = payload && Object.prototype.hasOwnProperty.call(payload, "d") ? payload.d : payload;
+    if (result && result.success === false) throw new Error(result.message || "Request approval gagal.");
+    return result;
+}
+
+async function loadInspectionApprovalQueue() {
+    const notice = document.getElementById("inspectionApprovalNotice");
+    const host = document.getElementById("inspectionApprovalQueue");
+    notice.className = "alert alert-info py-2 small";
+    notice.textContent = "Memuat antrean approval...";
+    host.innerHTML = '<div class="text-muted py-2">Memuat...</div>';
+    selectedInspectionApproval = null;
+    document.getElementById("inspectionApprovalDetail").innerHTML = '<div class="text-muted">Pilih inspeksi untuk melihat detail checklist.</div>';
+    document.getElementById("inspectionApprovalActions").classList.add("d-none");
+    try {
+        const result = await inspectionApprovalPost("GetInspectionApprovalQueue", {
+            employeeId: inspectionLogin.employeeid,
+            companyId: inspectionCompanyID,
+            locationId: inspectionLocationID
+        });
+        const rows = result.data || [];
+        if (!rows.length) {
+            host.innerHTML = '<div class="text-muted py-3">Tidak ada inspeksi yang menunggu approval.</div>';
+        } else {
+            host.innerHTML = rows.map(row =>
+                '<button type="button" class="btn btn-outline-secondary text-start w-100 mb-2" data-approval-id="' + Number(row.InspectionID) + '">' +
+                '<span class="d-block fw-semibold">' + escInspection(row.InspectionTypeName || "") + ' • ' + escInspection(row.InspectionTypeDetailName || "") + '</span>' +
+                '<span class="d-block inspection-muted">' + escInspection(row.SectionID || "") + ' • ' + escInspection(row.OwnerEmployeeID || "") + '</span>' +
+                '<span class="d-block inspection-muted">' + escInspection(row.TemplateNo || "") + ' v' + escInspection(row.TemplateVersion || "") + ' • ' + escInspection(row.InspectionDate || "") + '</span>' +
+                '</button>'
+            ).join("");
+        }
+        notice.className = "alert alert-success py-2 small";
+        notice.textContent = rows.length + " inspeksi menunggu approval.";
+    } catch (err) {
+        host.innerHTML = "";
+        notice.className = "alert alert-danger py-2 small";
+        notice.textContent = err.message || "Gagal memuat antrean approval.";
+    }
+}
+
+async function loadInspectionApprovalDetail(inspectionId) {
+    const host = document.getElementById("inspectionApprovalDetail");
+    host.innerHTML = '<div class="text-muted">Memuat detail...</div>';
+    document.getElementById("inspectionApprovalActions").classList.add("d-none");
+    try {
+        const result = await inspectionApprovalPost("GetInspectionApprovalDetail", {
+            inspectionId: inspectionId,
+            employeeId: inspectionLogin.employeeid
+        });
+        selectedInspectionApproval = result.header;
+        const h = result.header || {};
+        const items = result.items || [];
+        host.innerHTML =
+            '<div class="border rounded p-3 mb-3">' +
+            '<h6>' + escInspection(h.InspectionTypeName || "") + ' — ' + escInspection(h.InspectionTypeDetailName || "") + '</h6>' +
+            '<div class="inspection-muted mb-1">Section ' + escInspection(h.SectionID || "") + ' • Teknisi ' + escInspection(h.OwnerEmployeeID || "") + '</div>' +
+            '<div class="inspection-muted mb-2">' + escInspection(h.TemplateNo || "") + ' v' + escInspection(h.TemplateVersion || "") + ' • Jadwal ' + escInspection(h.ScheduledTime || "-") + '</div>' +
+            '<div class="small mb-1"><strong>Summary:</strong> ' + escInspection(h.Summary || "-") + '</div>' +
+            '</div>' +
+            (items.length ? items.map(item =>
+                '<div class="border-bottom py-2">' +
+                '<div class="fw-semibold">' + escInspection(item.ItemLabel || ("Item " + item.IDItem)) +
+                (item.IsAnomali ? ' <span class="badge text-bg-danger">Anomali</span>' : '') + '</div>' +
+                '<div class="small">Hasil: ' + escInspection(item.Value || "-") + '</div>' +
+                (item.FieldName ? '<div class="small">' + escInspection(item.FieldName) + ': ' + escInspection(item.FieldValue || "-") + '</div>' : '') +
+                '<div class="inspection-muted">Remark: ' + escInspection(item.Remark || "-") + '</div>' +
+                '</div>'
+            ).join("") : '<div class="text-muted">Tidak ada hasil checklist.</div>');
+        document.getElementById("inspectionApprovalActions").classList.remove("d-none");
+    } catch (err) {
+        selectedInspectionApproval = null;
+        host.innerHTML = '<div class="alert alert-danger py-2 small">' + escInspection(err.message || "Gagal memuat detail.") + '</div>';
+    }
+}
+
+async function processInspectionApproval(action) {
+    if (!selectedInspectionApproval) return;
+    let remark = "";
+    if (action === "VOID") {
+        remark = window.prompt("Masukkan alasan Void / pengembalian ke teknisi:");
+        if (remark == null) return;
+        remark = remark.trim();
+        if (!remark) {
+            window.alert("Alasan Void wajib diisi.");
+            return;
+        }
+    } else {
+        remark = window.prompt("Catatan approval (opsional):") || "";
+    }
+    if (!window.confirm(action === "APPROVE" ? "Approve inspeksi ini?" : "Void dan kembalikan inspeksi ini sebagai Draft?")) return;
+
+    const inspectionId = Number(selectedInspectionApproval.InspectionID);
+    try {
+        await inspectionApprovalPost("ProcessInspectionApproval", {
+            inspectionId: inspectionId,
+            action: action,
+            employeeId: inspectionLogin.employeeid,
+            companyId: inspectionCompanyID,
+            locationId: inspectionLocationID,
+            remark: remark
+        });
+        document.getElementById("inspectionApprovalNotice").className = "alert alert-success py-2 small";
+        document.getElementById("inspectionApprovalNotice").textContent =
+            action === "APPROVE" ? "Inspection berhasil di-approve." : "Inspection di-void dan dikembalikan ke Draft.";
+        await loadInspectionApprovalQueue();
+    } catch (err) {
+        document.getElementById("inspectionApprovalNotice").className = "alert alert-danger py-2 small";
+        document.getElementById("inspectionApprovalNotice").textContent = err.message || "Gagal memproses approval.";
+    }
 }
