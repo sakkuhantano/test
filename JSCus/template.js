@@ -5317,7 +5317,7 @@ async function renderTemplateEmployeeAssignments(template)
                 assignAll.disabled = isReadonlyMode;
             }
             alert('Assigned ' + assigned + ' of ' + pending.length + ' employees.' +
-                (failed.length ? '\\nFailed: ' + failed.join('\\n') : ''));
+                (failed.length ? '\nFailed: ' + failed.join('\n') : ''));
         });
         host.appendChild(table);
     } catch (ex) {
