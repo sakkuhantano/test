@@ -69,14 +69,17 @@ namespace PIP.Secure
         protected void gridData_ItemCommand(object source, DataGridCommandEventArgs e)
         {
             string detailCode = Convert.ToString(e.CommandArgument);
+            DataGrid gridData = (DataGrid)source;
+            Label _lblID = (Label)e.Item.FindControl("_lblID");
+            txtIDDetail.Text = _lblID.Text;
+
             if (e.CommandName == "EditDetail")
             {
                 using (var br = new WAL.BR.CF())
                 {
-                    DataTable dt = br.EQueryP(@"SELECT InspectionTypeDetailCode, InspectionTypeDetailName,
-ScheduleTime, IsActive
-FROM dbo.PIP_M_InspectionTypeDetail WHERE InspectionTypeCode=@Code AND InspectionTypeDetailCode=@DetailCode",
-                        new SqlParameter[] { new SqlParameter("@Code", txtInspectionTypeCode.Text.Trim()), new SqlParameter("@DetailCode", detailCode) });
+                    DataTable dt = br.EQueryP(@"SELECT InspectionTypeDetailCode, InspectionTypeDetailName, 
+ScheduleTime, IsActive FROM dbo.PIP_M_InspectionTypeDetail WHERE ID=@ID",
+                        new SqlParameter[] { new SqlParameter("@ID", _lblID.Text.Trim()) });
                     if (dt.Rows.Count > 0)
                     {
                         txtDetailOriginalCode.Text = detailCode;
@@ -179,7 +182,9 @@ FROM dbo.PIP_M_InspectionTypeDetail WHERE InspectionTypeCode=@Code AND Inspectio
                     new SqlParameter("@p_H_SectionID", txtSectionID.Text.Trim()), 
                     new SqlParameter("@p_D_InspectionTypeDetailCode", ""), new SqlParameter("@p_D_InspectionTypeDetailName", ""),
                     new SqlParameter("@p_D_ScheduleTime", ""), new SqlParameter("@p_D_IsActive", false),
-                    new SqlParameter("@p_UpdateUser", Master.Mn_EmployeeID)
+                    new SqlParameter("@p_UpdateUser", Master.Mn_EmployeeID),
+                    new SqlParameter("@p_D_CompanyID", Master.Mn_CompanyID),
+                    new SqlParameter("@p_D_LocationID", Master.Mn_LocationID)
                 }, true);
             _Open();
             return true;
@@ -196,7 +201,9 @@ FROM dbo.PIP_M_InspectionTypeDetail WHERE InspectionTypeCode=@Code AND Inspectio
                     new SqlParameter("@p_H_SectionID", txtSectionID.Text.Trim()), 
                     new SqlParameter("@p_D_InspectionTypeDetailCode", ""), new SqlParameter("@p_D_InspectionTypeDetailName", ""),
                     new SqlParameter("@p_D_ScheduleTime", ""), new SqlParameter("@p_D_IsActive", false),
-                    new SqlParameter("@p_UpdateUser", Master.Mn_EmployeeID)
+                    new SqlParameter("@p_UpdateUser", Master.Mn_EmployeeID),
+                    new SqlParameter("@p_D_CompanyID", Master.Mn_CompanyID),
+                    new SqlParameter("@p_D_LocationID", Master.Mn_LocationID)
                 }, true);
             _PrepareScreen();
             return true;
@@ -225,7 +232,10 @@ FROM dbo.PIP_M_InspectionTypeDetail WHERE InspectionTypeCode=@Code AND Inspectio
                     new SqlParameter("@p_H_InspectionTypeName", txtInspectionTypeName.Text), new SqlParameter("@p_H_SectionID", txtSectionID.Text),
                     new SqlParameter("@p_D_InspectionTypeDetailCode", code),
                     new SqlParameter("@p_D_InspectionTypeDetailName", name), new SqlParameter("@p_D_ScheduleTime", time),
-                    new SqlParameter("@p_UpdateUser", Master.Mn_EmployeeID)
+                    new SqlParameter("@p_UpdateUser", Master.Mn_EmployeeID),
+                    new SqlParameter("@p_D_ID", txtIDDetail.Text),
+                    new SqlParameter("@p_D_CompanyID", Master.Mn_CompanyID),
+                    new SqlParameter("@p_D_LocationID", Master.Mn_LocationID)
                 }, true);
             _PrepareDetail();
             _RefreshDetails();
@@ -240,7 +250,10 @@ FROM dbo.PIP_M_InspectionTypeDetail WHERE InspectionTypeCode=@Code AND Inspectio
                 new SqlParameter("@p_H_InspectionTypeName", ""), new SqlParameter("@p_H_SectionID", ""),
                 new SqlParameter("@p_H_IsActive", false), new SqlParameter("@p_D_InspectionTypeDetailCode", detailCode),
                 new SqlParameter("@p_D_InspectionTypeDetailName", ""), new SqlParameter("@p_D_ScheduleTime", ""),
-                new SqlParameter("@p_D_IsActive", false), new SqlParameter("@p_UpdateUser", Master.Mn_EmployeeID)
+                new SqlParameter("@p_D_IsActive", false), new SqlParameter("@p_UpdateUser", Master.Mn_EmployeeID),
+                new SqlParameter("@p_D_ID", txtIDDetail.Text),
+                new SqlParameter("@p_D_CompanyID", Master.Mn_CompanyID),
+                new SqlParameter("@p_D_LocationID", Master.Mn_LocationID)
             };
         }
 
@@ -249,6 +262,7 @@ FROM dbo.PIP_M_InspectionTypeDetail WHERE InspectionTypeCode=@Code AND Inspectio
             txtDetailOriginalCode.Text = "";
             hidScheduleTimes.Value = "";
             txtDetailCode.Text = txtDetailName.Text = "";
+            txtIDDetail.Text = "0";
             txtDetailCode.ReadOnly = false;
             lBtnAddNewDetail.Visible = false;
         }
@@ -275,10 +289,15 @@ FROM dbo.PIP_M_InspectionTypeDetail WHERE InspectionTypeCode=@Code AND Inspectio
             using (var br = new WAL.BR.CF())
             {
                 gridData.DataSource = br.EQueryP(@"SELECT InspectionTypeDetailCode, InspectionTypeDetailName,
-ScheduleTime, IsActive
-FROM dbo.PIP_M_InspectionTypeDetail WHERE InspectionTypeCode=@Code
-ORDER BY ScheduleTime, InspectionTypeDetailCode",
-                    new SqlParameter[] { new SqlParameter("@Code", txtInspectionTypeCode.Text.Trim()) });
+ScheduleTime, IsActive, ID
+FROM dbo.PIP_M_InspectionTypeDetail WHERE InspectionTypeCode=@Code AND CompanyID=@CompanyID AND LocationID=@LocationID
+ORDER BY InspectionTypeDetailCode, ScheduleTime",
+                    new SqlParameter[] 
+                    { 
+                        new SqlParameter("@Code", txtInspectionTypeCode.Text.Trim()),  
+                        new SqlParameter("@CompanyID", Master.Mn_CompanyID),  
+                        new SqlParameter("@LocationID", Master.Mn_LocationID)
+                    });
                 gridData.DataBind();
             }
         }
