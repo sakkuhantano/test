@@ -762,7 +762,7 @@ async function downloadReturnedInspections() {
         for (const serverRecord of returned) {
             let local = existing.find(x => x.LocalInspectionID === serverRecord.ClientInspectionID);
             if (!local) {
-                const template = (await new Promise((resolve, reject) => {
+                const template = serverRecord.TemplateSnapshot || (await new Promise((resolve, reject) => {
                     const tx = db.transaction("inspection_templates", "readonly");
                     const req = tx.objectStore("inspection_templates").getAll();
                     req.onsuccess = () => resolve((req.result || []).find(x =>
