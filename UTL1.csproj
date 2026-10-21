@@ -96,6 +96,7 @@
     <Content Include="JSCus\template.js" />
     <Content Include="JSCus\templatelookup.js" />
     <Content Include="JSCus\workorder.js" />
+    <Content Include="JSCus\inspection.js" />
     <Content Include="Login.aspx" />
     <Content Include="Default.aspx" />
     <Content Include="ErrMsg.aspx" />
@@ -106,6 +107,7 @@
     <Content Include="Secure\profilesetting.aspx" />
     <Content Include="SearchList_2.aspx" />
     <Content Include="Secure\dashboard.aspx" />
+    <Content Include="Secure\inspection.aspx" />
     <Content Include="Secure\M_SuiteBIR.aspx" />
     <Content Include="Secure\Main.aspx" />
     <Content Include="Secure\MP_testBS5.aspx" />
@@ -203,6 +205,13 @@
     </Compile>
     <Compile Include="Secure\dashboard.aspx.designer.cs">
       <DependentUpon>dashboard.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="Secure\inspection.aspx.cs">
+      <DependentUpon>inspection.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="Secure\inspection.aspx.designer.cs">
+      <DependentUpon>inspection.aspx</DependentUpon>
     </Compile>
     <Compile Include="Secure\M_SuiteBIR.aspx.cs">
       <DependentUpon>M_SuiteBIR.aspx</DependentUpon>

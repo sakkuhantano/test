@@ -161,7 +161,7 @@ function getLoginData() {
 }
 function initIndexedDB() {
     return new Promise((resolve, reject) => {
-    const request = indexedDB.open("OfflineAppDB", 1);
+    const request = indexedDB.open("OfflineAppDB", 4);
 
     // JALAN jika DB belum ada / version naik
     request.onupgradeneeded = function (event) {
@@ -196,16 +196,9 @@ function initIndexedDB() {
 
         // WorkOrder
         if (!db.objectStoreNames.contains("workorder")) {
-            store = db.createObjectStore(
-                "workorder",
-                { keyPath: "KeyHD" }
-            );
-            //store.createIndex(
-            //    "KeyHD",
-            //    "KeyHD",
-            //    { unique: true }
-            //);
+            db.createObjectStore("workorder", { keyPath: "KeyHD" });
         }
+        store = tx.objectStore("workorder");
         if (!store.indexNames.contains("by_company_location_lastupdated")) {
             store.createIndex("by_company_location_lastupdated", ["CompanyID", "LocationID", "LastUpdated"], { unique: false });
         }
@@ -215,6 +208,38 @@ function initIndexedDB() {
                 "checklist_templates",
                 { keyPath: "TemplateNo" }
             );
+        }
+
+        // Scope the WO cache by section and company/location so shared devices
+        // can retain templates for more than one division without key collisions.
+        if (!db.objectStoreNames.contains("checklist_templates_scoped")) {
+            db.createObjectStore("checklist_templates_scoped", {
+                keyPath: ["TemplateNo", "SectionID", "CompanyID", "LocationID"]
+            });
+        }
+
+        // Inspection masters and offline inspection transactions (DB version 2).
+        if (!db.objectStoreNames.contains("inspection_types")) {
+            db.createObjectStore("inspection_types", { keyPath: "InspectionTypeCode" });
+        }
+        // Detail codes can repeat across properties; include company/location in the key.
+        if (db.objectStoreNames.contains("inspection_type_details")) {
+            db.deleteObjectStore("inspection_type_details");
+        }
+        db.createObjectStore("inspection_type_details", {
+            keyPath: ["CompanyID", "LocationID", "InspectionTypeCode", "InspectionTypeDetailCode"]
+        });
+        if (!db.objectStoreNames.contains("inspection_templates")) {
+            db.createObjectStore("inspection_templates", { keyPath: "IDTemplate" });
+        }
+        if (!db.objectStoreNames.contains("inspection_records")) {
+            const inspectionStore = db.createObjectStore("inspection_records", { keyPath: "LocalInspectionID" });
+            inspectionStore.createIndex("by_owner_status", ["OwnerEmployeeID", "Status"], { unique: false });
+            inspectionStore.createIndex("by_company_location", ["CompanyID", "LocationID"], { unique: false });
+        }
+        if (!db.objectStoreNames.contains("inspection_photos")) {
+            const inspectionPhotoStore = db.createObjectStore("inspection_photos", { keyPath: "ID", autoIncrement: true });
+            inspectionPhotoStore.createIndex("LocalInspectionID", "LocalInspectionID", { unique: false });
         }
         //if (!db.objectStoreNames.contains("checklist_sections")) {
         //    let store = db.createObjectStore(
@@ -571,17 +596,20 @@ async function getCheckList() {
     try {
         if (!navigator.onLine) return;
         let data = getLoginData();
+        const companyLocation = (data.curcompany || "").split(";");
         let response = await fetch(
             "dashboard.aspx/getCheckList",
             {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    // employeeid: data.employeeid
-					section: data.section,
+                    section: data.section,
                     templateNo: "",
                     version: "",
-                    modelcode: ""
+                    modelcode: "",
+                    companyId: companyLocation[0] || "",
+                    locationId: companyLocation[1] || "",
+                    templateType: "W"
                 })
             }
         );
@@ -591,10 +619,22 @@ async function getCheckList() {
         //let sections = result.d.data.sections;
         //let items = result.d.data.items;
         //let groups = result.d.data.groups;
-        var tx = db.transaction("checklist_templates","readwrite");
-        var store = tx.objectStore("checklist_templates");
+        var tx = db.transaction(["checklist_templates", "checklist_templates_scoped"], "readwrite");
+        var legacyStore = tx.objectStore("checklist_templates");
+        var scopedStore = tx.objectStore("checklist_templates_scoped");
+
+        // Keep the old cache for backward compatibility, but use the scoped
+        // cache for all new reads so different sections can share TemplateNo.
+        const uniqueTemplates = [];
+        const seenTemplateNos = new Set();
         for (let dt of templates) {
-            store.put(dt);
+            scopedStore.put(dt);
+            if (seenTemplateNos.has(dt.TemplateNo)) continue;
+            seenTemplateNos.add(dt.TemplateNo);
+            uniqueTemplates.push(dt);
+        }
+        for (let dt of uniqueTemplates) {
+            legacyStore.put(dt);
         }
         //tx = db.transaction("checklist_sections","readwrite");
         //store = tx.objectStore("checklist_sections");
@@ -616,6 +656,189 @@ async function getCheckList() {
 catch (err) {
     console.error("Checklist sync failed:",err);
 }
+}
+
+async function getInspectionData() {
+    try {
+        if (!navigator.onLine) return;
+        const login = getLoginData();
+        if (!login) return;
+        const companyLocation = (login.curcompany || "").split(";");
+
+        const masterResponse = await fetch("dashboard.aspx/getInspectionMasters", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                section: login.section || "",
+                employeeId: login.employeeid || "",
+                companyId: companyLocation[0] || "",
+                locationId: companyLocation[1] || ""
+            })
+        });
+        if (!masterResponse.ok) throw new Error("Download Inspection Type failed");
+        const masterResult = await masterResponse.json();
+        const masters = masterResult.d || { types: [], details: [] };
+
+        const templateResponse = await fetch("dashboard.aspx/getCheckList", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                section: login.section || "",
+                templateNo: "",
+                version: "",
+                modelcode: "",
+                companyId: companyLocation[0] || "",
+                locationId: companyLocation[1] || "",
+                templateType: "I",
+                employeeId: login.employeeid || ""
+            })
+        });
+        if (!templateResponse.ok) throw new Error("Download Inspection templates failed");
+        const templateResult = await templateResponse.json();
+        const templates = templateResult.d || [];
+        // Keep each detail as one IndexedDB row; ScheduleTime contains sorted HH:mm values separated by semicolons.
+        const details = (masters.details || []).map(function (detail) {
+            const times = String(detail.ScheduleTime || "").split(";")
+                .map(function (time) { return time.trim(); })
+                .filter(function (time) { return /^([01][0-9]|2[0-3]):[0-5][0-9]$/.test(time); })
+                .filter(function (time, index, all) { return all.indexOf(time) === index; })
+                .sort();
+            return Object.assign({}, detail, { ScheduleTime: times.join(";") });
+        });
+
+        const replaceStore = (name, rows) => new Promise((resolve, reject) => {
+            const tx = db.transaction(name, "readwrite");
+            const store = tx.objectStore(name);
+            store.clear();
+            (rows || []).forEach(row => store.put(row));
+            tx.oncomplete = () => resolve();
+            tx.onerror = () => reject(tx.error);
+            tx.onabort = () => reject(tx.error || new Error("IndexedDB transaction aborted"));
+        });
+
+        await replaceStore("inspection_types", masters.types || []);
+        await replaceStore("inspection_type_details", details);
+        await replaceStore("inspection_templates", templates);
+        console.log("Inspection offline data sync success", {
+            types: (masters.types || []).length,
+            details: details.length,
+            templates: templates.length
+        });
+        return { types: (masters.types || []).length, details: details.length, templates: templates.length };
+    } catch (err) {
+        console.error("Inspection offline data sync failed:", err);
+        throw err;
+    }
+}
+
+async function uploadPendingInspections() {
+    if (!navigator.onLine || !db || !db.objectStoreNames.contains("inspection_records")) return;
+    const login = getLoginData();
+    if (!login || !login.employeeid) return;
+    const companyLocation = (login.curcompany || "").split(";");
+    const companyId = companyLocation[0] || "";
+    const locationId = companyLocation[1] || "";
+    const allowedSections = (login.section || "").split(";").filter(Boolean);
+
+    const allRecords = await new Promise((resolve, reject) => {
+        const tx = db.transaction("inspection_records", "readonly");
+        const req = tx.objectStore("inspection_records").getAll();
+        req.onsuccess = () => resolve(req.result || []);
+        req.onerror = () => reject(req.error);
+    });
+
+    const pendingInCompany = allRecords.filter(record =>
+        record.SyncStatus !== "SYNCED" &&
+        record.CompanyID === companyId &&
+        record.LocationID === locationId
+    );
+    const pendingInScope = pendingInCompany.filter(record =>
+        allowedSections.includes(record.SectionID)
+    );
+    const ownedRecords = pendingInScope.filter(record =>
+        record.OwnerEmployeeID === login.employeeid
+    );
+
+    if (pendingInCompany.length > pendingInScope.length) {
+        showToast("Ada inspeksi offline dari section lain di perangkat ini. Data tersebut tetap disimpan dan tidak dikirim oleh login ini.", "warning");
+    }
+    if (pendingInScope.length > ownedRecords.length) {
+        showToast("Ada inspeksi offline milik teknisi lain. Data tersebut tidak dikirim oleh login ini.", "warning");
+    }
+    if (!ownedRecords.length) return;
+
+    const payload = ownedRecords.map(record => ({
+        ClientInspectionID: record.LocalInspectionID,
+        OwnerEmployeeID: record.OwnerEmployeeID,
+        CompanyID: record.CompanyID,
+        LocationID: record.LocationID,
+        SectionID: record.SectionID,
+        InspectionTypeCode: record.InspectionTypeCode,
+        InspectionTypeDetailCode: record.InspectionTypeDetailCode,
+        ScheduledTime: record.ScheduledTime || "",
+        IDTemplate: record.IDTemplate,
+        IDVersion: record.IDVersion,
+        TemplateNo: record.TemplateNo,
+        TemplateVersion: record.TemplateVersion || "",
+        InspectionDate: record.InspectionDate || "",
+        StartDateTime: record.StartDateTime || "",
+        EndDateTime: record.EndDateTime || "",
+        Status: record.Status,
+        Summary: record.Summary || "",
+        Items: record.Items || []
+    }));
+
+    const response = await fetch("inspection.aspx/SyncInspections", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ inspections: payload, userId: login.employeeid })
+    });
+    if (!response.ok) throw new Error("Upload Inspection failed");
+    const json = await response.json();
+    const result = json.d || {};
+    const outcomes = result.results || [];
+    const successfulIds = new Set(outcomes.filter(x => x.success).map(x => x.ClientInspectionID));
+
+    if (successfulIds.size) {
+        await new Promise((resolve, reject) => {
+            const tx = db.transaction("inspection_records", "readwrite");
+            const store = tx.objectStore("inspection_records");
+            ownedRecords.filter(record => successfulIds.has(record.LocalInspectionID)).forEach(record => {
+                const outcome = outcomes.find(x => x.ClientInspectionID === record.LocalInspectionID);
+                record.SyncStatus = "SYNCED";
+                record.ServerInspectionID = outcome ? outcome.InspectionID : record.ServerInspectionID;
+                record.LastSyncAt = new Date().toISOString();
+                store.put(record);
+            });
+            tx.oncomplete = () => resolve();
+            tx.onerror = () => reject(tx.error);
+        });
+    }
+
+    const failed = outcomes.filter(x => !x.success);
+    if (failed.length) {
+        showToast(failed.length + " inspeksi gagal sync. Data tetap disimpan offline.", "warning");
+    }
+    if (typeof updateTotalPendingSync === "function") await updateTotalPendingSync();
+    return { synced: successfulIds.size, failed: failed.length };
+}
+
+async function countPendingSyncInspections() {
+    if (!db || !db.objectStoreNames.contains("inspection_records")) return 0;
+    const login = getLoginData();
+    if (!login) return 0;
+    const companyLocation = (login.curcompany || "").split(";");
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction("inspection_records", "readonly");
+        const req = tx.objectStore("inspection_records").getAll();
+        req.onsuccess = () => resolve((req.result || []).filter(record =>
+            record.SyncStatus !== "SYNCED" &&
+            record.OwnerEmployeeID === login.employeeid &&
+            record.CompanyID === (companyLocation[0] || "") &&
+            record.LocationID === (companyLocation[1] || "")
+        ).length);
+        req.onerror = () => reject(req.error);
+    });
 }
 
 function blobToBase64(blob) {

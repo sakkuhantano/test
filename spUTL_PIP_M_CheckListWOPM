@@ -2,7 +2,7 @@ CREATE PROCEDURE spUTL_PIP_M_CheckListWOPM
 (
 	@p_CompanyID VARCHAR(10), @p_LocationID VARCHAR(3),
 	@p_dt_Template AS [Type_N_Tbl_C5] READONLY,
-	@p_dt_Version AS [Type_N_Tbl_C10] READONLY,
+	@p_dt_Version AS [Type_N_Tbl_C13] READONLY,
 	@p_dt_Section AS [Type_N_Tbl_C5] READONLY,
 	@p_dt_Item AS [Type_N_Tbl_C20] READONLY,
 	@p_dt_Group AS [Type_Tbl_C7] READONLY,
@@ -19,8 +19,8 @@ DECLARE @tbl_Template TABLE
 INSERT @tbl_Template SELECT * FROM @p_dt_Template
 
 DECLARE @tbl_Version TABLE 
-(IDVersion INT, RuntimeVersionID INT, RuntimeTemplateID INT, [Version] VARCHAR(10), Remark VARCHAR(255), [Status] VARCHAR(10), EffectiveDate SMALLDATETIME, StatusOption VARCHAR(50), GroupEquipment VARCHAR(10))
-INSERT @tbl_Version SELECT C1, C2, C3, C4, C5, C6, CAST(C7 AS SMALLDATETIME), C8, C9 FROM @p_dt_Version
+(IDVersion INT, RuntimeVersionID INT, RuntimeTemplateID INT, [Version] VARCHAR(10), Remark VARCHAR(255), [Status] VARCHAR(10), EffectiveDate SMALLDATETIME, StatusOption VARCHAR(50), GroupEquipment VARCHAR(10), SummarySampleText VARCHAR(500), RemarkRequiredOptions VARCHAR(8000))
+INSERT @tbl_Version SELECT C1, C2, C3, C4, C5, C6, CAST(C7 AS SMALLDATETIME), C8, C9, C10, C11 FROM @p_dt_Version
 
 DECLARE @tbl_Section TABLE 
 (IDSection INT, RuntimeSectionID INT, RuntimeVersionID INT, SectionName VARCHAR(200), DisplayOrder INT)
@@ -28,8 +28,8 @@ INSERT @tbl_Section SELECT C1, C2, C3, C4, ROW_NUMBER() OVER ( PARTITION BY C3 O
 
 DECLARE @tbl_Item TABLE 
 (IDItem INT, RuntimeItemID INT, RuntimeSectionID INT, ItemLabel VARCHAR(500), ItemType VARCHAR(20), Unit VARCHAR(20), IsRemarkRequired BIT,
-IsValueRequired BIT, ShowUnitInRange BIT, OptionList VARCHAR(200), MinValue DECIMAL, MaxValue DECIMAL, DisplayOrder INT, MinTolerance MONEY, MaxTolerance MONEY, ModelCode VARCHAR(50), IsToleranceRequired BIT)
-INSERT @tbl_Item SELECT C1, C2, C3, C4, C5, C6, C7, C8, C9, C10, C11, C12, ROW_NUMBER() OVER ( PARTITION BY C3 ORDER BY (SELECT NULL)), C13, C14, C15, CAST(C16 AS BIT) FROM @p_dt_Item
+IsValueRequired BIT, ShowUnitInRange BIT, OptionList VARCHAR(200), MinValue DECIMAL, MaxValue DECIMAL, DisplayOrder INT, MinTolerance MONEY, MaxTolerance MONEY, ModelCode VARCHAR(50), IsToleranceRequired BIT, RemarkRequiredOptions VARCHAR(8000))
+INSERT @tbl_Item SELECT C1, C2, C3, C4, C5, C6, C7, C8, C9, C10, C11, C12, ROW_NUMBER() OVER ( PARTITION BY C3 ORDER BY (SELECT NULL)), C13, C14, C15, CAST(C16 AS BIT), C17 FROM @p_dt_Item
 
 DECLARE @tbl_Group TABLE
 (IDGroup INT, RuntimeGroupID INT, RuntimeItemID INT, GroupName VARCHAR(100), FieldList VARCHAR(100), Unit VARCHAR(20), DisplayOrder INT)
@@ -71,21 +71,45 @@ JOIN PIP_M_CheckListWOPM_Section S3 ON S3.IDSection = S1.IDSection
 JOIN @tbl_Version S4 ON S4.IDVersion=S3.IDVersion
 JOIN PIP_M_CheckListWOPM_Version AS pmclwv ON pmclwv.IDVersion = S4.IDVersion
 JOIN PIP_M_CheckListWOPM AS pmclw ON pmclw.IDTemplate=pmclwv.IDTemplate
-WHERE NOT EXISTS (SELECT * FROM @tbl_Group S WHERE S.IDGroup=S2.IDGroup) 
-AND pmclw.CompanyID=@p_CompanyID AND pmclw.LocationID=@p_LocationID
+WHERE NOT EXISTS (SELECT * FROM @tbl_Group S WHERE S.IDGroup=S2.IDGroup)
+AND (ISNULL(pmclw.CompanyScope,'S')='A'
+     OR EXISTS
+     (
+         SELECT 1 FROM dbo.PIP_M_CheckListWOPM_CompanyLocation ScopeRow
+         WHERE ScopeRow.IDTemplate=pmclw.IDTemplate
+           AND ScopeRow.CompanyID=@p_CompanyID
+           AND ScopeRow.LocationID=@p_LocationID
+     ))
+
 
 DELETE S2 FROM PIP_M_CheckListWOPM_item S2 JOIN PIP_M_CheckListWOPM_Section S1 ON S1.IDSection = S2.IDSection
 JOIN @tbl_Version S3 ON S3.IDVersion=S1.IDVersion
 JOIN PIP_M_CheckListWOPM_Version AS pmclwv ON pmclwv.IDVersion = S3.IDVersion
 JOIN PIP_M_CheckListWOPM AS pmclw ON pmclw.IDTemplate=pmclwv.IDTemplate
 WHERE NOT EXISTS (SELECT * FROM @tbl_Item S WHERE S.IDItem=S2.IDItem)
-AND pmclw.CompanyID=@p_CompanyID AND pmclw.LocationID=@p_LocationID
+AND (ISNULL(pmclw.CompanyScope,'S')='A'
+     OR EXISTS
+     (
+         SELECT 1 FROM dbo.PIP_M_CheckListWOPM_CompanyLocation ScopeRow
+         WHERE ScopeRow.IDTemplate=pmclw.IDTemplate
+           AND ScopeRow.CompanyID=@p_CompanyID
+           AND ScopeRow.LocationID=@p_LocationID
+     ))
+
 
 DELETE S2 FROM PIP_M_CheckListWOPM_section S2 JOIN @tbl_Version S1 ON S1.IDVersion = S2.IDVersion
 JOIN PIP_M_CheckListWOPM_Version AS pmclwv ON pmclwv.IDVersion = S2.IDVersion
 JOIN PIP_M_CheckListWOPM AS pmclw ON pmclw.IDTemplate=pmclwv.IDTemplate
 WHERE NOT EXISTS (SELECT * FROM @tbl_Section S WHERE S.IDSection=S2.IDSection)
-AND pmclw.CompanyID=@p_CompanyID AND pmclw.LocationID=@p_LocationID
+AND (ISNULL(pmclw.CompanyScope,'S')='A'
+     OR EXISTS
+     (
+         SELECT 1 FROM dbo.PIP_M_CheckListWOPM_CompanyLocation ScopeRow
+         WHERE ScopeRow.IDTemplate=pmclw.IDTemplate
+           AND ScopeRow.CompanyID=@p_CompanyID
+           AND ScopeRow.LocationID=@p_LocationID
+     ))
+
 
 IF EXISTS (SELECT * FROM @tbl_DelVersion)
 BEGIN
@@ -94,26 +118,69 @@ BEGIN
 	JOIN @tbl_DelVersion B ON B.IDVersion=AAA.IDVersion
 	JOIN PIP_M_CheckListWOPM_Version AS pmclwv ON pmclwv.IDVersion = B.IDVersion
 	JOIN PIP_M_CheckListWOPM AS pmclw ON pmclw.IDTemplate=pmclwv.IDTemplate
-	WHERE pmclw.CompanyID=@p_CompanyID AND pmclw.LocationID=@p_LocationID
+	WHERE (ISNULL(pmclw.CompanyScope,'S')='A'
+       OR EXISTS (SELECT 1 FROM dbo.PIP_M_CheckListWOPM_CompanyLocation ScopeRow
+                  WHERE ScopeRow.IDTemplate=pmclw.IDTemplate
+                    AND ScopeRow.CompanyID=@p_CompanyID
+                    AND ScopeRow.LocationID=@p_LocationID))
+	
 	DELETE A FROM PIP_M_CheckListWOPM_item A JOIN PIP_M_CheckListWOPM_section AA ON AA.IDSection = A.IDSection
 	JOIN @tbl_DelVersion B ON B.IDVersion=AA.IDVersion
 	JOIN PIP_M_CheckListWOPM_Version AS pmclwv ON pmclwv.IDVersion = B.IDVersion
 	JOIN PIP_M_CheckListWOPM AS pmclw ON pmclw.IDTemplate=pmclwv.IDTemplate
-	WHERE pmclw.CompanyID=@p_CompanyID AND pmclw.LocationID=@p_LocationID
+	WHERE (ISNULL(pmclw.CompanyScope,'S')='A'
+       OR EXISTS (SELECT 1 FROM dbo.PIP_M_CheckListWOPM_CompanyLocation ScopeRow
+                  WHERE ScopeRow.IDTemplate=pmclw.IDTemplate
+                    AND ScopeRow.CompanyID=@p_CompanyID
+                    AND ScopeRow.LocationID=@p_LocationID))
+	
 	DELETE A FROM PIP_M_CheckListWOPM_section A JOIN @tbl_DelVersion B ON B.IDVersion=A.IDVersion
 	JOIN PIP_M_CheckListWOPM_Version AS pmclwv ON pmclwv.IDVersion = B.IDVersion
 	JOIN PIP_M_CheckListWOPM AS pmclw ON pmclw.IDTemplate=pmclwv.IDTemplate
-	WHERE pmclw.CompanyID=@p_CompanyID AND pmclw.LocationID=@p_LocationID
+	WHERE (ISNULL(pmclw.CompanyScope,'S')='A'
+       OR EXISTS (SELECT 1 FROM dbo.PIP_M_CheckListWOPM_CompanyLocation ScopeRow
+                  WHERE ScopeRow.IDTemplate=pmclw.IDTemplate
+                    AND ScopeRow.CompanyID=@p_CompanyID
+                    AND ScopeRow.LocationID=@p_LocationID))
+	
 END
 
-DELETE V FROM PIP_M_CheckListWOPM_version V 
+DELETE V FROM PIP_M_CheckListWOPM_version V
 INNER JOIN @tbl_DelVersion D ON V.IDTemplate = D.IDTemplate AND V.IDVersion = D.IDVersion
-JOIN PIP_M_CheckListWOPM AS pmclw ON pmclw.IDTemplate=v.IDTemplate
-WHERE pmclw.CompanyID=@p_CompanyID AND pmclw.LocationID=@p_LocationID
+JOIN PIP_M_CheckListWOPM AS pmclw ON pmclw.IDTemplate=V.IDTemplate
+WHERE (ISNULL(pmclw.CompanyScope,'S')='A'
+       OR EXISTS (SELECT 1 FROM dbo.PIP_M_CheckListWOPM_CompanyLocation ScopeRow
+                  WHERE ScopeRow.IDTemplate=pmclw.IDTemplate
+                    AND ScopeRow.CompanyID=@p_CompanyID
+                    AND ScopeRow.LocationID=@p_LocationID))
 
-DELETE T FROM PIP_M_CheckListWOPM T 
-INNER JOIN @tbl_DelTemplate D ON T.IDTemplate = D.IDTemplate
-WHERE T.CompanyID=@p_CompanyID AND T.LocationID=@p_LocationID
+
+/* Resolve which requested templates are visible in this company/location before removing their relations. */
+DECLARE @tbl_AllowedDelTemplate TABLE (IDTemplate INT PRIMARY KEY);
+INSERT INTO @tbl_AllowedDelTemplate (IDTemplate)
+SELECT T.IDTemplate
+FROM dbo.PIP_M_CheckListWOPM T
+JOIN @tbl_DelTemplate D ON D.IDTemplate=T.IDTemplate
+WHERE ISNULL(T.CompanyScope,'S')='A'
+   OR EXISTS
+   (
+       SELECT 1 FROM dbo.PIP_M_CheckListWOPM_CompanyLocation ScopeRow
+       WHERE ScopeRow.IDTemplate=T.IDTemplate
+         AND ScopeRow.CompanyID=@p_CompanyID
+         AND ScopeRow.LocationID=@p_LocationID
+   );
+
+DELETE A
+FROM dbo.PIP_M_CheckListWOPM_Employee A
+JOIN @tbl_AllowedDelTemplate D ON D.IDTemplate=A.IDTemplate;
+
+DELETE S
+FROM dbo.PIP_M_CheckListWOPM_CompanyLocation S
+JOIN @tbl_AllowedDelTemplate D ON D.IDTemplate=S.IDTemplate;
+
+DELETE T FROM PIP_M_CheckListWOPM T
+JOIN @tbl_AllowedDelTemplate D ON T.IDTemplate = D.IDTemplate
+
 
 --- TEMPLATE
 UPDATE T
@@ -148,6 +215,20 @@ OUTPUT
     inserted.IDTemplate   -- Tetap mengembalikan IDTemplate manual yang baru saja dimasukkan
 INTO @tbl_Identity (Entity, RuntimeID, ID);
 
+/* Every newly created template starts with the current property as its Selected Company scope. */
+INSERT dbo.PIP_M_CheckListWOPM_CompanyLocation
+    (IDTemplate, CompanyID, LocationID, EntryUser, EntryDate)
+SELECT I.ID, @p_CompanyID, @p_LocationID, @p_UpdateUser, GETDATE()
+FROM @tbl_Identity I
+WHERE I.Entity='Template'
+  AND NOT EXISTS
+  (
+      SELECT 1 FROM dbo.PIP_M_CheckListWOPM_CompanyLocation S
+      WHERE S.IDTemplate=I.ID
+        AND S.CompanyID=@p_CompanyID
+        AND S.LocationID=@p_LocationID
+  );
+
 --- Version
 UPDATE V
 SET 
@@ -155,7 +236,8 @@ SET
     V.[Status] = S.[Status],
     V.Remark = S.Remark,
     V.EffectiveDate = S.EffectiveDate,
-    V.StatusOption = S.StatusOption, V.UpdateUser=@p_UpdateUser, V.UpdateDate=GETDATE(), V.GroupEquipment=S.GroupEquipment
+    V.StatusOption = S.StatusOption, V.UpdateUser=@p_UpdateUser, V.UpdateDate=GETDATE(), 
+    V.GroupEquipment=S.GroupEquipment, V.SummarySampleText=S.SummarySampleText, V.RemarkRequiredOptions=S.RemarkRequiredOptions
 FROM PIP_M_CheckListWOPM_version V
 JOIN @tbl_Version S ON V.IDVersion = S.IDVersion
 WHERE S.IDVersion > 0 
@@ -169,7 +251,7 @@ USING (
         v.[Status],
         v.EffectiveDate,
         v.StatusOption,
-        v.GroupEquipment,
+        v.GroupEquipment, v.SummarySampleText, v.RemarkRequiredOptions,
         tmpl.IDTemplate, -- Hubungkan dengan tabel map untuk mendapatkan IDTemplate asli database
         (SELECT ISNULL(MAX(IDVersion), 0) FROM PIP_M_CheckListWOPM_version) 
         + ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) AS NewIDVersion
@@ -186,9 +268,9 @@ ON 1 = 0 -- Trik agar selalu memicu aksi INSERT
 WHEN NOT MATCHED THEN
     -- Sebutkan nama kolom target di tabel PIP_M_CheckListWOPM_version
     -- Kolom IDVersion tidak ditulis karena IDENTITY ON
-    INSERT (IDTemplate, IDVersion, [Version], StatusOption, EffectiveDate, Remark, [Status], EntryUser, EntryDate, UpdateUser, UpdateDate, GroupEquipment)
+    INSERT (IDTemplate, IDVersion, [Version], StatusOption, EffectiveDate, Remark, [Status], EntryUser, EntryDate, UpdateUser, UpdateDate, GroupEquipment, SummarySampleText, RemarkRequiredOptions)
     -- Masukkan nilai yang berasal dari blok USING (source)
-    VALUES (source.IDTemplate, source.NewIDVersion, source.[Version], source.StatusOption, source.EffectiveDate, source.Remark, source.[Status], @p_UpdateUser, GETDATE(), @p_UpdateUser, GETDATE(), source.GroupEquipment)
+    VALUES (source.IDTemplate, source.NewIDVersion, source.[Version], source.StatusOption, source.EffectiveDate, source.Remark, source.[Status], @p_UpdateUser, GETDATE(), @p_UpdateUser, GETDATE(), source.GroupEquipment, source.SummarySampleText, source.RemarkRequiredOptions)
 OUTPUT 
 	'Version' Entity,
     source.RuntimeVersionID,  -- Dari tabel asal
@@ -242,7 +324,8 @@ SET
     I.OptionList = S.OptionList,
     I.MinTolerance = S.MinTolerance, I.MaxTolerance = S.MaxTolerance, I.ModelCode = S.ModelCode,
     I.MinValue = S.MinValue,
-    I.MaxValue = S.MaxValue, I.DisplayOrder=S.DisplayOrder, I.IDSection=SS.IDSection, I.IsToleranceRequired=S.IsToleranceRequired
+    I.MaxValue = S.MaxValue, I.DisplayOrder=S.DisplayOrder, I.IDSection=SS.IDSection, I.IsToleranceRequired=S.IsToleranceRequired,
+    I.RemarkRequiredOptions=S.RemarkRequiredOptions
 FROM PIP_M_CheckListWOPM_item I
 JOIN @tbl_Item S JOIN @tbl_Section SS ON SS.RuntimeSectionID=S.RuntimeSectionID ON I.IDItem = S.IDItem
 WHERE S.IDItem > 0
@@ -253,7 +336,7 @@ USING (
         v.RuntimeSectionID,
         v.ItemLabel, v.ItemType, V.Unit, V.IsRemarkRequired, V.IsValueRequired, V.ShowUnitInRange,
         v.OptionList, v.MinValue, v.MaxValue, v.DisplayOrder,
-        tmpl.IDSection, v.MinTolerance, v.MaxTolerance, v.ModelCode, v.IsToleranceRequired,
+        tmpl.IDSection, v.MinTolerance, v.MaxTolerance, v.ModelCode, v.IsToleranceRequired, v.RemarkRequiredOptions,
         (SELECT ISNULL(MAX(IDItem), 0) FROM PIP_M_CheckListWOPM_item) 
         + ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) AS NewIDItem
     FROM @tbl_Item v
@@ -267,10 +350,10 @@ USING (
 ON 1 = 0 -- Trik agar selalu memicu aksi INSERT
 WHEN NOT MATCHED THEN
     INSERT (IDSection,IDItem,ItemLabel,ItemType,OptionList,MinValue,MaxValue,Unit,
-			ShowUnitInRange,IsValueRequired,IsRemarkRequired,DisplayOrder,MinTolerance,MaxTolerance,ModelCode,IsToleranceRequired)
+			ShowUnitInRange,IsValueRequired,IsRemarkRequired,DisplayOrder,MinTolerance,MaxTolerance,ModelCode,IsToleranceRequired,RemarkRequiredOptions)
     VALUES (source.IDSection, source.NewIDItem, source.ItemLabel, source.ItemType, source.OptionList, source.MinValue, source.MaxValue, source.Unit,
 			source.ShowUnitInRange, source.IsValueRequired, source.IsRemarkRequired, source.DisplayOrder, 
-			source.MinTolerance, source.MaxTolerance, source.ModelCode,source.IsToleranceRequired)
+			source.MinTolerance, source.MaxTolerance, source.ModelCode,source.IsToleranceRequired,source.RemarkRequiredOptions)
 OUTPUT
 	'Item' Entity, 
     source.RuntimeItemID,  

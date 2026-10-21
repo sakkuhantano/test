@@ -18,24 +18,69 @@ namespace UTL1.Secure
 
         }
         [WebMethod]
-        public static object getCheckList(string section, string templateNo, string version, string modelcode = "")
+        public static object getCheckList(string section, string templateNo, string version, string modelcode = "", string companyId = "", string locationId = "", string templateType = "W", string employeeId = "")
         {
             var result = new List<Dictionary<string, object>>();
             using (var br = new WAL.BR.CF())
             {
+                // Inspection master downloads must be scoped by the server-side UTL_User record,
+                // not by a section list supplied by browser localStorage.
+                if (String.Equals(templateType, "I", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (String.IsNullOrWhiteSpace(employeeId))
+                        throw new HttpException(403, "Employee identity is required for inspection template download.");
+
+                    DataTable auth = br.EQueryP(
+                        @"SELECT ISNULL(Section,'') Section, ISNULL(IsWO,0) IsWO
+                          FROM dbo.UTL_User WHERE EmployeeID=@EmployeeID",
+                        new SqlParameter[] { new SqlParameter("@EmployeeID", employeeId) });
+
+                    if (auth.Rows.Count == 0 || !Convert.ToBoolean(auth.Rows[0]["IsWO"]))
+                        throw new HttpException(403, "This account is not authorized for inspection entry.");
+
+                    var allowedSections = auth.Rows[0]["Section"].ToString()
+                        .Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries)
+                        .Select(s => s.Trim()).Where(s => s.Length > 0).ToList();
+                    var requestedSections = (section ?? "")
+                        .Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries)
+                        .Select(s => s.Trim()).Where(s => s.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+
+                    if (requestedSections.Count == 0 ||
+                        requestedSections.Any(s => !allowedSections.Contains(s, StringComparer.OrdinalIgnoreCase)))
+                        throw new HttpException(403, "Requested inspection section is not assigned to this employee.");
+                    section = String.Join(";", requestedSections);
+                }
                 DataTable dt = br.EQuery(
-@"SELECT B.TemplateNo, B.TemplateName, a.StatusOption FROM PIP_M_CheckListWOPM_Version a 
+@"SELECT B.IDTemplate, B.TemplateNo, B.TemplateName, B.SectionID, ISNULL(B.TemplateType,'W') TemplateType, ISNULL(B.InspectionTypeCode,'') InspectionTypeCode, a.IDVersion, a.Version, a.StatusOption FROM PIP_M_CheckListWOPM_Version a 
 JOIN PIP_M_CheckListWOPM b on A.IDTemplate=B.IDTemplate 
-WHERE b.IsActive=1 AND a.Status='Active' AND EXISTS (SELECT * FROM dbo.SplitStringConvertToTable(@sectionlist,';') c WHERE c.val=b.sectionid)
+WHERE b.IsActive=1
+AND ISNULL(b.TemplateType,'W')=@TemplateType
+AND a.Status='Active'
+AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@sectionlist,';') c WHERE c.val=b.sectionid)
+AND (ISNULL(b.CompanyScope,'S')='A' OR EXISTS
+    (SELECT 1 FROM dbo.PIP_M_CheckListWOPM_CompanyLocation sc
+     WHERE sc.IDTemplate=b.IDTemplate AND sc.CompanyID=@CompanyID AND sc.LocationID=@LocationID))
 AND B.TemplateNo=CASE WHEN @templateno='' THEN B.TemplateNo ELSE @templateno END
 AND a.Version=CASE WHEN @version='' THEN a.Version ELSE @version END
+ORDER BY CASE WHEN ISNULL(b.CompanyScope,'S')='S' THEN 0 ELSE 1 END, B.IDTemplate, a.IDVersion
 ",
 "@sectionlist=" + section + GF.Str2 +
 "@templateno=" + templateNo + GF.Str2 +
-"@version=" + version);
+"@version=" + version + GF.Str2 +
+"@CompanyID=" + companyId + GF.Str2 +
+"@LocationID=" + locationId + GF.Str2 +
+"@TemplateType=" + templateType);
                 foreach (DataRow row in dt.Rows)
                 {
                     var dict = new Dictionary<string, object>();
+                    dict["CompanyID"] = companyId;
+                    dict["LocationID"] = locationId;
+                    dict["IDTemplate"] = Convert.ToInt32(row["IDTemplate"]);
+                    dict["IDVersion"] = Convert.ToInt32(row["IDVersion"]);
+                    dict["Version"] = row["Version"].ToString();
+                    dict["SectionID"] = row["SectionID"].ToString();
+                    dict["TemplateType"] = row["TemplateType"].ToString();
+                    dict["InspectionTypeCode"] = row["InspectionTypeCode"].ToString();
                     dict["TemplateNo"] = row["TemplateNo"].ToString();
                     dict["TemplateName"] = row["TemplateName"].ToString();
                     dict["StatusOption"] = row["StatusOption"].ToString();
@@ -59,10 +104,19 @@ FROM PIP_M_CheckListWOPM_Section s
 JOIN PIP_M_CheckListWOPM_Version v ON v.IDVersion=s.IDVersion
 JOIN PIP_M_CheckListWOPM_Item i ON s.IDSection = i.IDSection
 JOIN PIP_M_CheckListWOPM m ON m.IDTemplate = v.IDTemplate
-WHERE m.TemplateNo = @TemplateNo AND m.IsActive=1 AND v.Status='Active' AND (ISNULL(i.ModelCode,'')='' OR i.ModelCode=@ModelCode OR @ModelCode='')
+WHERE m.IDTemplate=@IDTemplate
+  AND v.IDVersion=@IDVersion
+  AND m.TemplateNo = @TemplateNo
+  AND m.IsActive=1
+  AND ISNULL(m.TemplateType,'W')=@TemplateType
+  AND v.Status='Active'
+  AND (ISNULL(i.ModelCode,'')='' OR i.ModelCode=@ModelCode OR @ModelCode='')
 ORDER BY s.DisplayOrder, i.DisplayOrder",
                                         "@TemplateNo=" + row["TemplateNo"].ToString() + GF.Str2 +
-                                        "@ModelCode=" + modelcode);
+                                        "@ModelCode=" + modelcode + GF.Str2 +
+                                        "@TemplateType=" + templateType + GF.Str2 +
+                                        "@IDTemplate=" + row["IDTemplate"].ToString() + GF.Str2 +
+                                        "@IDVersion=" + row["IDVersion"].ToString());
                     DataTable dt2 = br.EQuery("SELECT IDItem, GroupName, FieldList, Unit, DisplayOrder " +
                                               "FROM PIP_M_CheckListWOPM_ItemGroup");
                     var sections = dt1.AsEnumerable()
@@ -153,6 +207,96 @@ ORDER BY s.DisplayOrder, i.DisplayOrder",
             }
             return result;
         }
+        [WebMethod]
+        public static object getInspectionMasters(string section, string employeeId, string companyId, string locationId)
+        {
+            using (var br = new WAL.BR.CF())
+            {
+                if (String.IsNullOrWhiteSpace(employeeId))
+                    throw new HttpException(403, "Employee identity is required for inspection master download.");
+
+                DataTable auth = br.EQueryP(
+                    @"SELECT ISNULL(Section,'') Section, ISNULL(IsWO,0) IsWO
+                      FROM dbo.UTL_User WHERE EmployeeID=@EmployeeID",
+                    new SqlParameter[] { new SqlParameter("@EmployeeID", employeeId) });
+
+                if (auth.Rows.Count == 0 || !Convert.ToBoolean(auth.Rows[0]["IsWO"]))
+                    throw new HttpException(403, "This account is not authorized for inspection entry.");
+
+                var allowedSections = auth.Rows[0]["Section"].ToString()
+                    .Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries)
+                    .Select(s => s.Trim()).Where(s => s.Length > 0).ToList();
+                var requestedSections = (section ?? "")
+                    .Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries)
+                    .Select(s => s.Trim()).Where(s => s.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+
+                if (requestedSections.Count == 0 ||
+                    requestedSections.Any(s => !allowedSections.Contains(s, StringComparer.OrdinalIgnoreCase)))
+                    throw new HttpException(403, "Requested inspection section is not assigned to this employee.");
+                section = String.Join(";", requestedSections);
+
+                if (String.IsNullOrWhiteSpace(companyId) || String.IsNullOrWhiteSpace(locationId))
+                    throw new HttpException(400, "Company and location are required for inspection master download.");
+
+                DataTable companyAuth = br.EQueryP(
+                    @"SELECT U.UserID
+                      FROM dbo.UTL_User U
+                      WHERE U.EmployeeID=@EmployeeID
+                        AND (
+                            EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
+                                    WHERE C.UserID=U.UserID AND C.AppID='pip'
+                                      AND C.CompanyID=@CompanyID AND C.LocationID=@LocationID)
+                            OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', U.EmployeeID, '') L
+                                       WHERE L.CompanyID=@CompanyID AND L.LocationID=@LocationID)
+                        )",
+                    new SqlParameter[] {
+                        new SqlParameter("@EmployeeID", employeeId),
+                        new SqlParameter("@CompanyID", companyId),
+                        new SqlParameter("@LocationID", locationId)
+                    });
+                if (companyAuth.Rows.Count == 0)
+                    throw new HttpException(403, "Employee is not authorized for this company/location.");
+
+                DataTable types = br.EQuery(@"
+SELECT DISTINCT T.InspectionTypeCode, T.InspectionTypeName, T.SectionID
+FROM dbo.PIP_M_InspectionType T
+WHERE T.IsActive=1
+  AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@SectionList, ';') S WHERE S.val=T.SectionID)
+ORDER BY T.SectionID, T.InspectionTypeName",
+                    "@SectionList=" + section);
+
+                DataTable details = br.EQuery(@"
+SELECT D.InspectionTypeCode, D.InspectionTypeDetailCode,
+       D.InspectionTypeDetailName, D.ScheduleTime
+FROM dbo.PIP_M_InspectionType T
+JOIN dbo.PIP_M_InspectionTypeDetail D ON D.InspectionTypeCode=T.InspectionTypeCode
+WHERE T.IsActive=1 AND D.IsActive=1
+  AND D.CompanyID=@CompanyID AND D.LocationID=@LocationID
+  AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@SectionList, ';') S WHERE S.val=T.SectionID)
+ORDER BY D.InspectionTypeCode, D.ScheduleTime, D.InspectionTypeDetailCode",
+                    "@SectionList=" + section + GF.Str2 +
+                    "@CompanyID=" + companyId + GF.Str2 +
+                    "@LocationID=" + locationId);
+
+                var typeRows = types.AsEnumerable().Select(row => new
+                {
+                    InspectionTypeCode = GF.GetString(row["InspectionTypeCode"]),
+                    InspectionTypeName = GF.GetString(row["InspectionTypeName"]),
+                    SectionID = GF.GetString(row["SectionID"])
+                }).ToList();
+                var detailRows = details.AsEnumerable().Select(row => new
+                {
+                    CompanyID = companyId,
+                    LocationID = locationId,
+                    InspectionTypeCode = GF.GetString(row["InspectionTypeCode"]),
+                    InspectionTypeDetailCode = GF.GetString(row["InspectionTypeDetailCode"]),
+                    InspectionTypeDetailName = GF.GetString(row["InspectionTypeDetailName"]),
+                    ScheduleTime = GF.GetString(row["ScheduleTime"])
+                }).ToList();
+                return new { types = typeRows, details = detailRows };
+            }
+        }
+
         [WebMethod]
         public static object getEmployees(string employeeid, string lastSync)
         {

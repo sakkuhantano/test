@@ -149,7 +149,7 @@ document.addEventListener(
         //initSortable();
         //renderGroupTable();
         clearCenterPanel();
-		clearBuilderPanel()
+        clearBuilderPanel()
         clearRightPanel();
         await loadTemplateExplorer();
     }
@@ -524,7 +524,11 @@ function createNewTemplate(sectionId)
         TemplateNo:"",
         TemplateName:"NEW TEMPLATE",
         Description:"",
-        GroupEquipment:""
+        GroupEquipment:"",
+        TemplateType:"W",
+        InspectionTypeCode:"",
+        CompanyScope:"S",
+        MetadataDirty:false
     };
 }
 function createNewGroup()
@@ -1005,10 +1009,10 @@ async function loadTemplateExplorer()
         clearRightPanel();
 
         //showExplorerLoading();
-		var loginData = getLoginData();
-		const res = await promisifyPageMethod(
-			PageMethods.GetTemplateExplorerRoot, loginData.userid, companyId, locationId
-		);	
+        var loginData = getLoginData();
+        const res = await promisifyPageMethod(
+            PageMethods.GetTemplateExplorerRoot, loginData.userid, companyId, locationId, loginData.employeeid
+        );  
 
         explorerRoot = res || [];
 
@@ -1076,28 +1080,28 @@ function renderTemplateExplorerRoot(data)
             <div class="accordion-item">
 
                 <h2 class="accordion-header">
-					<div class="d-flex align-items-center">
-					<button
-						class="category-header w-100 accordion-button collapsed"
-						type="button" id="rootHeader_${root.SectionID}"
-						data-bs-toggle="collapse"
-						data-bs-target="#root_${index}"
-						onclick="loadTemplatesBySection('${root.SectionID}', this)">
+                    <div class="d-flex align-items-center">
+                    <button
+                        class="category-header w-100 accordion-button collapsed"
+                        type="button" id="rootHeader_${root.SectionID}"
+                        data-bs-toggle="collapse"
+                        data-bs-target="#root_${index}"
+                        onclick="loadTemplatesBySection('${root.SectionID}', this)">
 
-						<span>
-							${root.SectionID}
-						</span>
+                        <span>
+                            ${root.SectionID}
+                        </span>
                         <span class="dirty-placeholder"></span>
-						<span class="badge bg-secondary text-xs ms-auto me-2">
-							${root.TotalTemplate}
-						</span>
-					</button>
-					<button type="button" data-section-id="${root.SectionID}"
-						class="btn btn-sm border-0 section-menu-btn"
-						onclick="showTemplateRootMenu(event,'${root.SectionID}',this)">
-						<i class="bi bi-three-dots-vertical"></i>
-					</button>
-					</div>
+                        <span class="badge bg-secondary text-xs ms-auto me-2">
+                            ${root.TotalTemplate}
+                        </span>
+                    </button>
+                    <button type="button" data-section-id="${root.SectionID}"
+                        class="btn btn-sm border-0 section-menu-btn"
+                        onclick="showTemplateRootMenu(event,'${root.SectionID}',this)">
+                        <i class="bi bi-three-dots-vertical"></i>
+                    </button>
+                    </div>
                 </h2>
 
                 <div id="root_${index}"
@@ -1247,10 +1251,16 @@ async function loadTemplatesBySection(sectionId, btn)
     
     try
     {
+        const loginData = getLoginData();
+
         const result =
             await promisifyPageMethod(
                 PageMethods.GetTemplatesBySection,
-                sectionId, companyId, locationId
+                sectionId,
+                companyId,
+                locationId,
+                loginData.employeeid,
+                loginData.userid
             );
         const templates =
             JSON.parse(result || "[]");
@@ -1393,7 +1403,7 @@ function renderTemplates(data, container, sectionId)
             <div class="accordion-item template-root-item">
                 <!-- TEMPLATE ROOT -->
                 <h2 class="accordion-header" id="${headingId}">
-					<div class="d-flex align-items-center">
+                    <div class="d-flex align-items-center">
                     <button class="template-group-header accordion-button ${isCurrent ? "" : "collapsed"} w-100"
                         type="button"
                         data-bs-toggle="collapse"
@@ -1420,12 +1430,12 @@ function renderTemplates(data, container, sectionId)
                             ${statusText}
                         </div>
                     </button>
-					<button type="button"
-						class="btn btn-sm border-0 template-menu-btn"
-						onclick="showTemplateMenu(event,'${sectionId}',${tpl.Template.RuntimeTemplateID});">
-						<i class="bi bi-three-dots-vertical"></i>
-					</button>
-					</div>
+                    <button type="button"
+                        class="btn btn-sm border-0 template-menu-btn"
+                        onclick="showTemplateMenu(event,'${sectionId}',${tpl.Template.RuntimeTemplateID});">
+                        <i class="bi bi-three-dots-vertical"></i>
+                    </button>
+                    </div>
                 </h2>
                 <!-- VERSION CONTAINER -->
                 <div id="${collapseId}" class="accordion-collapse collapse ${isCurrent ? "show" : ""}" aria-labelledby="${headingId}">
@@ -2279,17 +2289,17 @@ function showVersionProperties(version, isNewTemplate)
 
 async function loadTemplateVersions(idTemplate)
 {
-	// const ok = await confirmDiscardChanges();
+    // const ok = await confirmDiscardChanges();
 
-	// if (!ok)
-	// 	return;
+    // if (!ok)
+    //  return;
     try
     {
-		// =========================
+        // =========================
         // ACTIVE UI
         // =========================
         clearBuilderPanel();
-		clearPropertiesPanel();
+        clearPropertiesPanel();
         // =========================
         // SHOW TEMPLATE ROOT PROPERTIES
         // =========================
@@ -2299,36 +2309,36 @@ async function loadTemplateVersions(idTemplate)
             // btn.querySelector('.text-muted')?.innerText || '';
         currentSelectedSection = null;
         currentSelectedItem = null;
-		//isReadonlyMode = false;
-		isDirty = false;
-		// updateDirtyIndicator();
+        //isReadonlyMode = false;
+        isDirty = false;
+        // updateDirtyIndicator();
         // =========================
         // FIND VERSION CONTAINER
         // =========================
-		const versionContainer =
-				document.querySelector(
-					`.template-version-container[data-template-id="${idTemplate}"]`
-				);		
+        const versionContainer =
+                document.querySelector(
+                    `.template-version-container[data-template-id="${idTemplate}"]`
+                );      
         // const versionContainer =
             // btn.closest('.accordion-item')
                // .querySelector('.template-version-container');
-		currentTemplate =
-			currentTemplates.find(
-				x => x.Template.RuntimeTemplateID == idTemplate
-			);    
+        currentTemplate =
+            currentTemplates.find(
+                x => x.Template.RuntimeTemplateID == idTemplate
+            );    
 
-		// selectedDocument.Template = currentTemplate;
-		// selectedDocument.Version = null;
-		// selectedDocument.Section = null;
-		// selectedDocument.Item = null;
-			
-		await showTemplateRootProperties(currentTemplate.Template, null);
+        // selectedDocument.Template = currentTemplate;
+        // selectedDocument.Version = null;
+        // selectedDocument.Section = null;
+        // selectedDocument.Item = null;
+            
+        await showTemplateRootProperties(currentTemplate.Template, null);
         // =========================
         // PREVENT RELOAD
         // =========================
         if(versionContainer.dataset.loaded === '1') {
-			return;
-		}
+            return;
+        }
             
         // =========================
         // LOADING
@@ -2341,12 +2351,12 @@ async function loadTemplateVersions(idTemplate)
         // =========================
         // LOAD FROM SERVER
         // =========================
-		showLoading();
-		const result = await promisifyPageMethod(
-			PageMethods.GetTemplateVersions, idTemplate
-		);	
-		hideLoading();
-		//currentVersions = JSON.parse(result || '[]');
+        showLoading();
+        const result = await promisifyPageMethod(
+            PageMethods.GetTemplateVersions, idTemplate
+        );  
+        hideLoading();
+        //currentVersions = JSON.parse(result || '[]');
         // =========================
         // RENDER
         // =========================
@@ -4007,13 +4017,13 @@ function renderVersionStructure(data, isNewTemplate=false)
     currentVersion =
         data.VersionInfo;
     // render center builder
-	isReadonlyMode =
-		data.VersionInfo.Status !== 'Draft';
+    isReadonlyMode =
+        data.VersionInfo.Status !== 'Draft';
     renderSections(
         data.Sections || []
     );
-	initTooltips();
-	groupData = [];
+    initTooltips();
+    groupData = [];
     // version properties panel
         showVersionProperties(data.VersionInfo, isNewTemplate);
         // readonly mode
@@ -4848,6 +4858,30 @@ function selectSection(sectionBox)
     );
     switchMobileTab('builder');
 }
+
+async function refreshInspectionTypeDropdown(template)
+{
+    const select = document.getElementById('propInspectionType');
+    if (!select || !template || !template.SectionID) return;
+
+    const selectedCode = template.InspectionTypeCode || '';
+    try {
+        const raw = await promisifyPageMethod(PageMethods.GetInspectionTypes, template.SectionID);
+        const types = JSON.parse(raw || '[]');
+        select.innerHTML = '';
+        select.add(new Option('-- Select Inspection Type --', ''));
+        types.forEach(function(item) {
+            select.add(new Option(item.InspectionTypeCode + ' - ' + item.InspectionTypeName, item.InspectionTypeCode));
+        });
+        if (selectedCode && !types.some(function(x) { return x.InspectionTypeCode === selectedCode; }))
+            select.add(new Option(selectedCode + ' (inactive/unavailable)', selectedCode));
+        select.value = selectedCode;
+    } catch (ex) {
+        select.innerHTML = '';
+        select.add(new Option('Failed to load inspection types', ''));
+        console.error(ex);
+    }
+}
 async function showTemplateRootProperties(template, version)
 {
     const panel =
@@ -4951,8 +4985,303 @@ async function showTemplateRootProperties(template, version)
         );
         document.getElementById("propTemplateNo").focus();
     }
+    await appendTemplateMetadataControls(template);
+
     if (rightPanelSub != "") {
         showVersionPropertiesEvent(version);
+    }
+}
+async function appendTemplateMetadataControls(template)
+{
+    const body = document.querySelector('#panel-properties .panel-content .prop-group-body');
+    if (!body || document.getElementById('propTemplateType')) return;
+
+    template.TemplateType = template.TemplateType || "W";
+    template.CompanyScope = template.CompanyScope || "S";
+    template.InspectionTypeCode = template.InspectionTypeCode || "";
+
+    const section = document.createElement('div');
+    section.className = 'border-top mt-3 pt-3';
+    section.innerHTML =
+        '<ul class="nav nav-tabs mb-3" role="tablist">' +
+            '<li class="nav-item" role="presentation"><button class="nav-link active" id="tplMetaTab" data-bs-toggle="tab" data-bs-target="#tplMetaPane" type="button" role="tab">Template</button></li>' +
+            '<li class="nav-item" role="presentation"><button class="nav-link" id="tplCompanyTab" data-bs-toggle="tab" data-bs-target="#tplCompanyPane" type="button" role="tab">Company / Gedung</button></li>' +
+            '<li class="nav-item" id="tplEmployeeTabItem" role="presentation" style="display:none;"><button class="nav-link" id="tplEmployeeTab" data-bs-toggle="tab" data-bs-target="#tplEmployeePane" type="button" role="tab">Employee Assignment</button></li>' +
+        '</ul>' +
+        '<div class="tab-content">' +
+            '<div class="tab-pane fade show active" id="tplMetaPane" role="tabpanel">' +
+                '<div class="mb-3">' +
+                    '<label class="form-label">Template Type</label>' +
+                    '<select id="propTemplateType" class="form-select form-select-compact" ' + (isReadonlyMode ? 'disabled' : '') + '>' +
+                        '<option value="W">PM / WO</option><option value="I">Inspection</option>' +
+                    '</select>' +
+                '</div>' +
+                '<div class="mb-3" id="inspectionTypeField" style="display:none;">' +
+                    '<label class="form-label">Inspection Type</label>' +
+                    '<select id="propInspectionType" class="form-select form-select-compact" ' + (isReadonlyMode ? 'disabled' : '') + '><option value="">Loading...</option></select>' +
+                    '<div class="form-text">Filtered by SectionID ' + escapeHtml(template.SectionID || '') + '.</div>' +
+                '</div>' +
+                '<div class="mb-3">' +
+                    '<label class="form-label">Company Scope</label>' +
+                    '<select id="propCompanyScope" class="form-select form-select-compact" ' + (isReadonlyMode ? 'disabled' : '') + '>' +
+                        '<option value="S">Selected Company / Gedung</option><option value="A">All Company / Gedung</option>' +
+                    '</select>' +
+                '</div>' +
+            '</div>' +
+            '<div class="tab-pane fade" id="tplCompanyPane" role="tabpanel">' +
+                '<div class="small text-muted mb-2">For Selected Company, choose the locations where this template applies.</div>' +
+                '<div id="templateCompanyAssignments" class="small text-muted">Loading...</div>' +
+            '</div>' +
+            '<div class="tab-pane fade" id="tplEmployeePane" role="tabpanel">' +
+                '<div class="small text-muted mb-2">Employees must match the template SectionID and company/location scope. Assign each employee explicitly.</div>' +
+                '<div id="templateEmployeeAssignments" class="small text-muted">Loading...</div>' +
+            '</div>' +
+        '</div>';
+    body.appendChild(section);
+
+    const typeSelect = document.getElementById('propTemplateType');
+    const scopeSelect = document.getElementById('propCompanyScope');
+    const inspectionSelect = document.getElementById('propInspectionType');
+    typeSelect.value = template.TemplateType;
+    scopeSelect.value = template.CompanyScope;
+
+    const markMetadataDirty = function() {
+        template.MetadataDirty = true;
+        templateCache.Dirty = true;
+    };
+
+    typeSelect.addEventListener('change', async function() {
+        template.TemplateType = this.value;
+        if (template.TemplateType !== 'I') template.InspectionTypeCode = '';
+        markMetadataDirty();
+        if (template.TemplateType === 'I')
+            await refreshInspectionTypeDropdown(template);
+        await appendTemplateMetadataRefresh(template);
+    });
+
+    scopeSelect.addEventListener('change', async function() {
+        template.CompanyScope = this.value;
+        markMetadataDirty();
+        await renderTemplateCompanyAssignments(template);
+        if (template.TemplateType === 'I')
+            await renderTemplateEmployeeAssignments(template);
+    });
+
+    await refreshInspectionTypeDropdown(template);
+
+    inspectionSelect.addEventListener('change', function() {
+        template.InspectionTypeCode = this.value;
+        markMetadataDirty();
+    });
+
+    await appendTemplateMetadataRefresh(template);
+}
+async function appendTemplateMetadataRefresh(template)
+{
+    const isInspection = template.TemplateType === 'I';
+    const inspectionField = document.getElementById('inspectionTypeField');
+    const employeeTab = document.getElementById('tplEmployeeTabItem');
+    if (inspectionField) inspectionField.style.display = isInspection ? '' : 'none';
+    if (employeeTab) employeeTab.style.display = isInspection ? '' : 'none';
+    const activePane = document.querySelector('#tplEmployeePane.show.active');
+    if (!isInspection && activePane) {
+        const generalTab = document.getElementById('tplMetaTab');
+        if (generalTab && window.bootstrap && bootstrap.Tab)
+            bootstrap.Tab.getOrCreateInstance(generalTab).show();
+    }
+
+    await renderTemplateCompanyAssignments(template);
+    if (isInspection) await renderTemplateEmployeeAssignments(template);
+}
+async function renderTemplateCompanyAssignments(template)
+{
+    const host = document.getElementById('templateCompanyAssignments');
+    if (!host) return;
+    if (template.CompanyScope === 'A') {
+        host.textContent = 'All Company / Gedung: this template is available across all properties.';
+        return;
+    }
+    if (!template.IDTemplate || Number(template.IDTemplate) <= 0) {
+        host.textContent = 'Save the template first. You can then assign one or more company/location pairs.';
+        return;
+    }
+    if (template.MetadataDirty) {
+        host.textContent = 'Save Template settings first, then edit company/location assignments.';
+        return;
+    }
+    try {
+        const raw = await promisifyPageMethod(PageMethods.GetTemplateCompanyLocations, String(template.IDTemplate), companyId, locationId, getLoginData().employeeid);
+        const rows = JSON.parse(raw || '[]');
+        host.innerHTML = '';
+        if (!rows.length) {
+            host.textContent = 'No active company/location pairs are assigned to your PIP access.';
+            return;
+        }
+        const table = document.createElement('table');
+        table.className = 'table table-sm align-middle';
+        table.innerHTML = '<thead><tr><th>Use</th><th>Company</th><th>Gedung</th></tr></thead><tbody></tbody>';
+        const tbody = table.querySelector('tbody');
+        rows.forEach(function(row) {
+            const tr = document.createElement('tr');
+            const tdCheck = document.createElement('td');
+            const check = document.createElement('input');
+            check.type = 'checkbox';
+            check.className = 'form-check-input';
+            check.checked = !!row.IsAssigned;
+            // Keep the current property selected so the editor does not lose access mid-session.
+            check.disabled = isReadonlyMode ||
+                (String(row.CompanyID) === String(companyId) && String(row.LocationID) === String(locationId));
+            if (check.disabled && !isReadonlyMode)
+                check.title = 'To remove this property, open the template from another assigned property.';
+            check.addEventListener('change', async function() {
+                const oldValue = !this.checked;
+                try {
+                    showLoading();
+                    const result = await promisifyPageMethod(
+                        PageMethods.SetTemplateCompanyLocation,
+                        String(template.IDTemplate), row.CompanyID, row.LocationID,
+                        this.checked ? 'ADD' : 'REMOVE', getLoginData().employeeid, companyId, locationId
+                    );
+                    hideLoading();
+                    if (!result.success) {
+                        this.checked = oldValue;
+                        alert(result.message || 'Unable to update company/location assignment.');
+                        return;
+                    }
+                    if (template.TemplateType === 'I') await renderTemplateEmployeeAssignments(template);
+                    // Keep the current editor state; a full explorer reload clears the builder/properties panels.
+                } catch (ex) {
+                    hideLoading();
+                    this.checked = oldValue;
+                    alert(ex.message || ex);
+                }
+            });
+            tdCheck.appendChild(check);
+            const tdCompany = document.createElement('td');
+            tdCompany.textContent = row.CompanyName + ' (' + row.CompanyID + ')';
+            const tdLocation = document.createElement('td');
+            tdLocation.textContent = row.LocationName + ' (' + row.LocationID + ')';
+            tr.appendChild(tdCheck);
+            tr.appendChild(tdCompany);
+            tr.appendChild(tdLocation);
+            tbody.appendChild(tr);
+        });
+        host.appendChild(table);
+    } catch (ex) {
+        host.textContent = 'Failed to load company/location assignments.';
+        console.error(ex);
+    }
+}
+async function renderTemplateEmployeeAssignments(template)
+{
+    const host = document.getElementById('templateEmployeeAssignments');
+    if (!host) return;
+    if (template.TemplateType !== 'I') {
+        host.textContent = 'Employee assignment is only available for Inspection templates.';
+        return;
+    }
+    if (!template.IDTemplate || Number(template.IDTemplate) <= 0) {
+        host.textContent = 'Save the template first, then assign employees one by one.';
+        return;
+    }
+    if (template.MetadataDirty) {
+        host.textContent = 'Save Template settings first, then assign employees.';
+        return;
+    }
+    try {
+        const raw = await promisifyPageMethod(PageMethods.GetTemplateEmployees, String(template.IDTemplate), template.SectionID, companyId, locationId, getLoginData().employeeid);
+        const rows = JSON.parse(raw || '[]');
+        host.innerHTML = '';
+        if (!rows.length) {
+            host.textContent = 'No eligible employees found for this SectionID and company scope.';
+            return;
+        }
+        const table = document.createElement('table');
+        table.className = 'table table-sm align-middle';
+        table.innerHTML = '<thead><tr><th>Assign</th><th>Employee</th><th>Company</th><th>Gedung</th></tr></thead><tbody></tbody>';
+        const tbody = table.querySelector('tbody');
+        rows.forEach(function(row) {
+            const tr = document.createElement('tr');
+            const tdCheck = document.createElement('td');
+            const check = document.createElement('input');
+            check.type = 'checkbox';
+            check.className = 'form-check-input';
+            check.checked = !!row.IsAssigned;
+            check.disabled = isReadonlyMode;
+            check.addEventListener('change', async function() {
+                const oldValue = !this.checked;
+                try {
+                    showLoading();
+                    const result = await promisifyPageMethod(
+                        PageMethods.SetTemplateEmployeeAssignment,
+                        String(template.IDTemplate), row.EmployeeID,
+                        this.checked ? 'ADD' : 'REMOVE', getLoginData().employeeid, companyId, locationId
+                    );
+                    hideLoading();
+                    if (!result.success) {
+                        this.checked = oldValue;
+                        alert(result.message || 'Unable to update employee assignment.');
+                    }
+                } catch (ex) {
+                    hideLoading();
+                    this.checked = oldValue;
+                    alert(ex.message || ex);
+                }
+            });
+            tdCheck.appendChild(check);
+            const tdEmployee = document.createElement('td');
+            tdEmployee.textContent = row.EmployeeID + ' - ' + row.Name;
+            const tdCompany = document.createElement('td');
+            tdCompany.textContent = row.CompanyID;
+            const tdLocation = document.createElement('td');
+            tdLocation.textContent = row.LocationID;
+            tr.appendChild(tdCheck);
+            tr.appendChild(tdEmployee);
+            tr.appendChild(tdCompany);
+            tr.appendChild(tdLocation);
+            tbody.appendChild(tr);
+        });
+        host.appendChild(table);
+    } catch (ex) {
+        host.textContent = 'Failed to load employee assignments.';
+        console.error(ex);
+    }
+}
+function hasDirtyTemplateMetadata()
+{
+    return Object.values(templateCache.sections || {}).some(function(section) {
+        return Object.values(section.Templates || {}).some(function(node) {
+            return !!(node.Template && node.Template.MetadataDirty);
+        });
+    });
+}
+async function saveDirtyTemplateMetadata()
+{
+    const pending = [];
+    Object.values(templateCache.sections || {}).forEach(function(section) {
+        Object.values(section.Templates || {}).forEach(function(node) {
+            if (node.Template && node.Template.MetadataDirty) pending.push(node.Template);
+        });
+    });
+    for (let i = 0; i < pending.length; i++) {
+        const template = pending[i];
+        if (!template.IDTemplate || Number(template.IDTemplate) <= 0)
+            throw new Error('Template identity was not returned by Save All. Save the template draft first.');
+        const result = await promisifyPageMethod(
+            PageMethods.SaveTemplateMetadata,
+            String(template.IDTemplate),
+            template.TemplateType || 'W',
+            template.InspectionTypeCode || '',
+            template.CompanyScope || 'S',
+            getLoginData().employeeid,
+            companyId,
+            locationId
+        );
+        if (!result.success) throw new Error(result.message || 'Failed to save template settings.');
+        template.MetadataDirty = false;
+        if (currentTemplate && Number(currentTemplate.IDTemplate) === Number(template.IDTemplate)) {
+            await appendTemplateMetadataRefresh(template);
+        }
     }
 }
 function refreshGroupEquipmentCaption(template)
@@ -5274,7 +5603,7 @@ function initItemSortable(container)
             container,
             {
                 group: 'shared-items',
-				disabled: isReadonlyMode,
+                disabled: isReadonlyMode,
                 animation: 150,
                 handle:
                     '.item-drag-handle',
@@ -5295,16 +5624,16 @@ function initSortable() {
     const sectionsContainer = document.getElementById('sectionsContainer');
     if (!sectionsContainer)
         return;
-	if (sectionSortable) {
+    if (sectionSortable) {
         sectionSortable.destroy();
         sectionSortable = null;
-    }		
-		
+    }       
+        
     sectionSortable = new Sortable(sectionsContainer, {
         animation: 150,
         handle: '.section-drag-handle',
         ghostClass: 'sortable-ghost',
-		disabled: isReadonlyMode,
+        disabled: isReadonlyMode,
         onEnd: function () {
             syncSectionOrder();
             updateNumbers();
@@ -5317,7 +5646,7 @@ function initSortable() {
         {
             initItemSortable(container);
         });
-	
+    
     // document.querySelectorAll('.items-container')
         // .forEach(container => {
             // new Sortable(container, {
@@ -5325,7 +5654,7 @@ function initSortable() {
                 // animation: 150,
                 // handle: '.item-drag-handle',
                 // ghostClass: 'sortable-ghost',
-				// disabled: isReadOnlyMode,
+                // disabled: isReadOnlyMode,
                 // onEnd: function () {
                     // updateNumbers();
                     // updateItemCounts();
@@ -5434,8 +5763,8 @@ function bindGlobalEvents()
                 //evaluateDirtyState();
                 markCurrentVersionDirty();
             }
-		}
-    );	
+        }
+    );  
     // =========================
     // Add Item
     // =========================
@@ -5514,7 +5843,7 @@ function bindGlobalEvents()
         //evaluateDirtyState();
         markCurrentVersionDirty();
     });
-	
+    
     // =========================
     // Hide context menu
     // =========================
@@ -6560,6 +6889,8 @@ async function cloneTemplate()
     newTemplate.RuntimeTemplateID =
         generateRuntimeID();
     newTemplate.Dirty = true;
+    // Clone type metadata, but create a fresh property scope and no employee assignments.
+    newTemplate.MetadataDirty = true;
     newTemplate.TemplateNo += "_COPY";    
 
     // ==========================
@@ -7818,196 +8149,69 @@ function clearDeletedList(idTemplate)
 }
 function patchSavedIdentity(saveResult)
 {
-    if (
-        !saveResult ||
-        !saveResult.IdentityMap ||
-        !currentTemplate
-    )
+    if (!saveResult || !saveResult.IdentityMap)
         return;
 
-    //----------------------------------------
-    // Current Template Cache
-    //----------------------------------------
-
-    const tpl =
-        getTemplateCache(
-            currentTemplate.SectionID,
-            currentTemplate.RuntimeTemplateID
-        );
-
-    if (!tpl)
-        return;
-
-    const structure =
-        currentVersionData;
-
-    //----------------------------------------
-    // Apply Identity
-    //----------------------------------------
-
-    saveResult.IdentityMap.forEach(function (m)
+    const templateNodes = [];
+    Object.values(templateCache.sections || {}).forEach(function(section)
     {
-        switch (m.Entity)
+        Object.values(section.Templates || {}).forEach(function(node)
         {
-            //--------------------------------
-            // TEMPLATE
-            //--------------------------------
+            templateNodes.push(node);
+        });
+    });
 
-            case "Template":
+    saveResult.IdentityMap.forEach(function(m)
+    {
+        templateNodes.forEach(function(node)
+        {
+            const template = node.Template;
+            if (m.Entity === "Template" &&
+                template.RuntimeTemplateID == m.RuntimeID)
+            {
+                template.IDTemplate = m.ID;
+            }
 
-                tpl.Template.IDTemplate = m.ID;
-                break;
-
-            //--------------------------------
-            // VERSION
-            //--------------------------------
-
-            case "Version":
-
-                Object.values(tpl.Versions)
-                .forEach(function (ver)
+            Object.values(node.Versions || {}).forEach(function(ver)
+            {
+                const structure = ver.Structure;
+                if (m.Entity === "Version" &&
+                    ver.VersionInfo.RuntimeVersionID == m.RuntimeID)
                 {
-                    if (
-                        ver.VersionInfo.RuntimeVersionID !=
-                        m.RuntimeID
-                    )
-                        return;
+                    ver.VersionInfo.IDVersion = m.ID;
+                    if (ver.Info) ver.Info.IDVersion = m.ID;
+                    if (structure && structure.VersionInfo)
+                        structure.VersionInfo.IDVersion = m.ID;
+                }
 
-                    ver.VersionInfo.IDVersion =
-                        m.ID;
-
-                    if (ver.Info)
+                if (!structure || !structure.Sections) return;
+                structure.Sections.forEach(function(sec)
+                {
+                    if (m.Entity === "Section" && sec.RuntimeSectionID == m.RuntimeID)
                     {
-                        ver.Info.IDVersion =
-                            m.ID;
+                        sec.IDSection = m.ID;
+                        const sectionElement = document.querySelector('[data-id="' + m.RuntimeID + '"]');
+                        if (sectionElement) sectionElement.dataset.sectionId = m.ID;
                     }
 
-                    if (
-                        ver.Structure &&
-                        ver.Structure.VersionInfo
-                    )
+                    (sec.Items || []).forEach(function(item)
                     {
-                        ver.Structure
-                        .VersionInfo
-                        .IDVersion =
-                            m.ID;
-                    }
-                });
-
-                break;
-
-            //--------------------------------
-            // SECTION
-            //--------------------------------
-
-            case "Section":
-
-                if (
-                    !structure ||
-                    !structure.Sections
-                )
-                    break;
-
-                structure.Sections.forEach(function (sec)
-                {
-                    if (
-                        sec.RuntimeSectionID ==
-                        m.RuntimeID
-                    )
-                    {
-                        sec.IDSection =
-                            m.ID;
-
-                        const el =
-                            document.querySelector(
-                                `[data-id="${m.RuntimeID}"]`
-                            );
-
-                        if (el)
+                        if (m.Entity === "Item" && item.RuntimeItemID == m.RuntimeID)
                         {
-                            el.dataset.sectionId =
-                                m.ID;
+                            item.IDItem = m.ID;
+                            const itemElement = document.querySelector('[data-id="' + m.RuntimeID + '"]');
+                            if (itemElement) itemElement.dataset.itemId = m.ID;
                         }
-                    }
-                });
 
-                break;
-
-            //--------------------------------
-            // ITEM
-            //--------------------------------
-
-            case "Item":
-
-                if (
-                    !structure ||
-                    !structure.Sections
-                )
-                    break;
-
-                structure.Sections.forEach(function (sec)
-                {
-                    (sec.Items || [])
-                    .forEach(function (item)
-                    {
-                        if (
-                            item.RuntimeItemID ==
-                            m.RuntimeID
-                        )
+                        (item.Groups || []).forEach(function(group)
                         {
-                            item.IDItem =
-                                m.ID;
-
-                            const el =
-                                document.querySelector(
-                                    `[data-id="${m.RuntimeID}"]`
-                                );
-
-                            if (el)
-                            {
-                                el.dataset.itemId =
-                                    m.ID;
-                            }
-                        }
-                    });
-                });
-
-                break;
-
-            //--------------------------------
-            // GROUP
-            //--------------------------------
-
-            case "Group":
-
-                if (
-                    !structure ||
-                    !structure.Sections
-                )
-                    break;
-
-                structure.Sections.forEach(function (sec)
-                {
-                    (sec.Items || [])
-                    .forEach(function (item)
-                    {
-                        (item.Groups || [])
-                        .forEach(function (grp)
-                        {
-                            if (
-                                grp.RuntimeGroupID ==
-                                m.RuntimeID
-                            )
-                            {
-                                grp.IDGroup =
-                                    m.ID;
-                            }
+                            if (m.Entity === "Group" && group.RuntimeGroupID == m.RuntimeID)
+                                group.IDGroup = m.ID;
                         });
                     });
                 });
-
-                break;
-        }
+            });
+        });
     });
 }
 async function saveAllTemplate()
@@ -8022,10 +8226,12 @@ async function saveAllTemplate()
         ||
         (templateCache.deleted.versions || []).length > 0
     );
+    const hasMetadataDirty = hasDirtyTemplateMetadata();
 
     if(
         !templateCache.Dirty &&
-        !hasPendingDelete
+        !hasPendingDelete &&
+        !hasMetadataDirty
     )
     {
         showToast(
@@ -8155,6 +8361,8 @@ async function saveAllTemplate()
         payload.Templates.length == 0
         &&
         !hasDelete
+        &&
+        !hasMetadataDirty
     )
     {
         showToast(
@@ -8230,7 +8438,10 @@ async function saveAllTemplate()
         templateCache.deleted.templates=[];
         templateCache.deleted.versions=[];
 
-        //clearDeletedList();
+        // Save template metadata after template/version identities have been assigned.
+        await saveDirtyTemplateMetadata();
+        if (currentTemplate && Number(currentTemplate.IDTemplate) > 0)
+            await appendTemplateMetadataRefresh(currentTemplate);
 
         //--------------------------------
         // Clear Dirty

@@ -125,13 +125,26 @@ namespace UTL1.Secure
                 }
                 if (keyhd != 0)
                     _condition += ((_condition != "" ? " AND " : "") + "a.keyhd=" + keyhd);
+                string[] companyLocationParts = (companyLocation ?? "").Split(';');
+                string selectedCompanyID = companyLocationParts.Length > 0 ? companyLocationParts[0] : "";
+                string selectedLocationID = companyLocationParts.Length > 1 ? companyLocationParts[1] : "";
                 DataTable dt = br.EQueryP(
 @"DECLARE @V_GetDate DATETIME = GETDATE()
 UPDATE UserSession SET LastSyncWO=@V_GetDate WHERE IsActive=1
 SELECT TOP 10 a.KeyHD,a.WONo,a.WODate,a.EquipmentCode,a.LocationNo,a.[Description], a.SectionID, 
 Status=CASE WHEN ReasonRespondDC<>'' THEN 'DRAFT' WHEN ISNULL(a.RemarkTechnician,'')<>'' THEN 'SYNCED' ELSE 'PENDING' END, 
 ISNULL(a.TemplateWOPM,'') TemplateWOPM, a.ReasonRespondDC ReasonVoid, LastUpdated=@V_GetDate, a.CompanyID, a.LocationID,a.RemarkTechnician,a.IsCompleteDC, ISNULL(a.TemplateVersion,'') TemplateVersion,
-SummarySampleText=ISNULL((SELECT TOP 1 vv.SummarySampleText FROM PIP_M_CheckListWOPM_Version vv JOIN PIP_M_CheckListWOPM tt ON tt.IDTemplate=vv.IDTemplate WHERE tt.TemplateNo=a.TemplateWOPM AND tt.CompanyID=a.CompanyID AND tt.LocationID=a.LocationID AND vv.Version=a.TemplateVersion),''),
+SummarySampleText=ISNULL((SELECT TOP 1 vv.SummarySampleText
+FROM PIP_M_CheckListWOPM_Version vv
+JOIN PIP_M_CheckListWOPM tt ON tt.IDTemplate=vv.IDTemplate
+WHERE tt.TemplateNo=a.TemplateWOPM
+  AND ISNULL(tt.TemplateType,'W')='W'
+  AND tt.SectionID=a.SectionID
+  AND (ISNULL(tt.CompanyScope,'S')='A' OR EXISTS
+       (SELECT 1 FROM dbo.PIP_M_CheckListWOPM_CompanyLocation sc
+        WHERE sc.IDTemplate=tt.IDTemplate AND sc.CompanyID=a.CompanyID AND sc.LocationID=a.LocationID))
+  AND vv.Version=a.TemplateVersion
+ORDER BY CASE WHEN ISNULL(tt.CompanyScope,'S')='S' THEN 0 ELSE 1 END, tt.IDTemplate),''),
 FollowUp=CASE WHEN ISNULL(a.isFollowUp,0)=1 THEN 'Recommend Follow Up' ELSE 'No Follow Up' END, 
 FollowUpSection=ISNULL(FollowUpSection,0), FollowUpRemark=ISNULL(FollowUpRemark,''),
 IsSampling=ISNULL(a.IsSampling,0), RemarkSupervisor=ISNULL(RemarkSupervisor,''),
@@ -142,13 +155,33 @@ EndTime=(SELECT TOP 1 NULLIF(AA.EndDate,'') FROM PIP_T_H_WO_Employee AA WHERE AA
 FROM pip_t_wo a JOIN PIP_M_D_SchedulePM d JOIN PIP_M_H_SchedulePM h ON d.KeyHD=h.KeyHD ON h.CompanyID=a.CompanyID AND h.LocationID=a.LocationID 
 JOIN PIP_M_Equipment eqp ON eqp.CompanyID=a.CompanyID AND eqp.LocationID=a.LocationID AND eqp.EquipmentCode=h.EquipmentCode AND a.WONo=d.WONo
 WHERE a.WOType='p' AND a.CompanyID+';'+a.LocationID=@CompanyLocation 
-AND EXISTS (SELECT * FROM dbo.SplitStringConvertToTable(@sectionlist,';') b WHERE b.val=a.sectionid) 
+AND EXISTS (SELECT * FROM dbo.SplitStringConvertToTable(@sectionlist,';') b WHERE b.val=a.sectionid)
+AND EXISTS
+(
+    SELECT 1 FROM dbo.PIP_M_CheckListWOPM T
+    WHERE T.TemplateNo=a.TemplateWOPM
+      AND T.SectionID=a.SectionID
+      AND ISNULL(T.TemplateType,'W')='W'
+      AND
+      (
+          ISNULL(T.CompanyScope,'S')='A'
+          OR EXISTS
+          (
+              SELECT 1 FROM dbo.PIP_M_CheckListWOPM_CompanyLocation ScopeRow
+              WHERE ScopeRow.IDTemplate=T.IDTemplate
+                AND ScopeRow.CompanyID=@CompanyID
+                AND ScopeRow.LocationID=@LocationID
+          )
+      )
+)
 AND " + _condition +
 " ORDER BY a.KeyHD",
                                 new SqlParameter[] 
                                 {
                                     new SqlParameter("@CompanyLocation", companyLocation),
-                                    new SqlParameter("@sectionlist", section)
+                                    new SqlParameter("@sectionlist", section),
+                                    new SqlParameter("@CompanyID", selectedCompanyID),
+                                    new SqlParameter("@LocationID", selectedLocationID)
                                 });
                 foreach (DataRow row in dt.Rows)
                 {
@@ -712,7 +745,10 @@ string.Format(@"
                         var _checkList = Secure.dashboard.getCheckList(row["SectionID"].ToString(),
                                                                         row["TemplateWOPM"].ToString(),
                                                                         row["TemplateVersion"].ToString(),
-                                                                        _modelCode
+                                                                        _modelCode,
+                                                                        row["CompanyID"].ToString(),
+                                                                        row["LocationID"].ToString(),
+                                                                        "W"
                                                                         );
                         var listData = _checkList as List<Dictionary<string, object>>;
                         dict["TemplateJSON"] = listData[0];
@@ -843,6 +879,66 @@ string.Format(@"
                 DataTable dtPhotos = GFC.JsonToDataTable(arrPhotos);
                 DataTable dtChecklistgroups = GFC.JsonToDataTable(arrChecklistgroups);
                 DataTable dtChecklistsummarys = GFC.JsonToDataTable(arrChecklistsummarys);
+
+                // Server-side section/role validation protects against a client attempting
+                // to upload a cached WO belonging to another division.
+                var actionByKey = new Dictionary<int, string>();
+                if (dtChecklistsummarys.Columns.Contains("KeyHD"))
+                {
+                    foreach (DataRow summary in dtChecklistsummarys.Rows)
+                    {
+                        int summaryKey;
+                        if (Int32.TryParse(Convert.ToString(summary["KeyHD"]), out summaryKey))
+                        {
+                            string action = dtChecklistsummarys.Columns.Contains("ActionSPV")
+                                ? Convert.ToString(summary["ActionSPV"]) : "";
+                            actionByKey[summaryKey] = action ?? "";
+                        }
+                    }
+                }
+
+                var incomingKeys = new HashSet<int>();
+                DataTable[] incomingTables = new DataTable[] { dtChecklist, dtChecklistgroups, dtPhotos, dtChecklistsummarys };
+                foreach (DataTable incomingTable in incomingTables)
+                {
+                    if (!incomingTable.Columns.Contains("KeyHD")) continue;
+                    foreach (DataRow incomingRow in incomingTable.Rows)
+                    {
+                        int incomingKey;
+                        if (Int32.TryParse(Convert.ToString(incomingRow["KeyHD"]), out incomingKey))
+                            incomingKeys.Add(incomingKey);
+                    }
+                }
+
+                foreach (int keyHD in incomingKeys)
+                {
+                    string actionSPV = actionByKey.ContainsKey(keyHD) ? actionByKey[keyHD] : "";
+                    using (var auth = new WAL.BR.CF())
+                    {
+                        DataTable allowed = auth.EQueryP(@"
+SELECT TOP 1 1
+FROM dbo.PIP_T_WO W
+JOIN dbo.UTL_User U ON U.EmployeeID=@EmployeeID
+WHERE W.KeyHD=@KeyHD
+  AND EXISTS
+      (SELECT 1 FROM dbo.SplitStringConvertToTable(U.Section, ';') S
+       WHERE S.val=W.SectionID)
+  AND
+      (
+          (ISNULL(@ActionSPV,'')<>'' AND ISNULL(U.IsSPV,0)=1 AND ISNULL(W.IsSampling,0)=1)
+          OR
+          (ISNULL(@ActionSPV,'')='' AND ISNULL(U.IsWO,0)=1)
+      )",
+                            new SqlParameter[]
+                            {
+                                new SqlParameter("@EmployeeID", userid),
+                                new SqlParameter("@KeyHD", keyHD),
+                                new SqlParameter("@ActionSPV", actionSPV)
+                            });
+                        if (allowed.Rows.Count == 0)
+                            throw new Exception("Work Order " + keyHD + " is not authorized for this employee/section. No data was uploaded.");
+                    }
+                }
 
                 using (var br=new BRC.PIP_T_WO())
                 {

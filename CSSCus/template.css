@@ -120,7 +120,7 @@ body {
 @media (min-width: 992px) {
     .panel-explorer { width: 280px; flex-shrink: 0; }
     .panel-builder { flex: 1 1 0; min-width: 300px; }
-    .panel-properties { width: 340px; flex-shrink: 0; }
+    .panel-properties { width: 285px; flex: 0 0 285px; min-width: 0; }
     .mobile-nav-tabs {
         display: none !important;
     }
@@ -667,4 +667,25 @@ body {
 }
 .tooltip-inner{
     white-space: pre-line;
+}
+
+
+/* Compact properties panel and tidy RemarkRequiredOptions checkboxes. */
+#panel-properties .panel-content { padding: .45rem; }
+#panel-properties .nav-tabs { display: flex; flex-wrap: wrap; gap: .15rem; border-bottom: 1px solid var(--bs-border-color); }
+#panel-properties .nav-tabs .nav-item { flex: 1 1 auto; min-width: 0; }
+#panel-properties .nav-tabs .nav-link { width: 100%; padding: .35rem .4rem; font-size: .76rem; line-height: 1.2; white-space: normal; }
+#panel-properties .form-label { margin-bottom: .25rem; font-size: .8rem; }
+#panel-properties .mb-3 { margin-bottom: .65rem !important; }
+#versionRemarkRequiredOptions,
+#itemRemarkRequiredOptions { display: flex; flex-wrap: wrap; gap: .3rem; min-width: 0; }
+#versionRemarkRequiredOptions .form-check-inline,
+#itemRemarkRequiredOptions .form-check-inline { display: inline-flex; align-items: flex-start; gap: .3rem; margin: 0; padding: .25rem .4rem; max-width: 100%; white-space: normal; }
+#versionRemarkRequiredOptions .form-check-input,
+#itemRemarkRequiredOptions .form-check-input { float: none; flex: 0 0 auto; margin: .1rem 0 0; }
+#versionRemarkRequiredOptions .form-check-label,
+#itemRemarkRequiredOptions .form-check-label { min-width: 0; overflow-wrap: anywhere; line-height: 1.25; }
+@media (max-width: 1199.98px) and (min-width: 992px) {
+    .panel-explorer { width: 235px; }
+    .panel-properties { width: 265px; flex-basis: 265px; }
 }
