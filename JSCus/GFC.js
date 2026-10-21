@@ -712,6 +712,7 @@ async function getInspectionData() {
         await replaceStore("inspection_types", masters.types || []);
         await replaceStore("inspection_type_details", details);
         await replaceStore("inspection_templates", templates);
+        await downloadReturnedInspections();
         console.log("Inspection offline data sync success", {
             types: (masters.types || []).length,
             details: details.length,
@@ -721,6 +722,97 @@ async function getInspectionData() {
     } catch (err) {
         console.error("Inspection offline data sync failed:", err);
         throw err;
+    }
+}
+
+async function downloadReturnedInspections() {
+    if (!navigator.onLine || !db || !db.objectStoreNames.contains("inspection_records")) return;
+    const login = getLoginData();
+    if (!login || !login.employeeid) return;
+    const scope = (login.curcompany || "").split(";");
+    try {
+        const response = await fetch("inspection.aspx/GetReturnedInspections", {
+            method: "POST",
+            headers: { "Content-Type": "application/json; charset=utf-8" },
+            body: JSON.stringify({
+                employeeId: login.employeeid,
+                companyId: scope[0] || "",
+                locationId: scope[1] || ""
+            })
+        });
+        const payload = await response.json();
+        if (!response.ok) throw new Error((payload && payload.Message) || "Returned Inspection download failed");
+        const result = payload && Object.prototype.hasOwnProperty.call(payload, "d") ? payload.d : payload;
+        const returned = result.data || [];
+        if (!returned.length) return;
+
+        const existing = await new Promise((resolve, reject) => {
+            const tx = db.transaction("inspection_records", "readonly");
+            const req = tx.objectStore("inspection_records").getAll();
+            req.onsuccess = () => resolve(req.result || []);
+            req.onerror = () => reject(req.error);
+        });
+        const store = db.transaction("inspection_records", "readwrite").objectStore("inspection_records");
+        const parseDateOnly = value => {
+            if (!value) return "";
+            const match = String(value).match(/\\/Date\\((\\d+)/);
+            if (match) return new Date(Number(match[1])).toISOString().slice(0, 10);
+            return String(value).slice(0, 10);
+        };
+        for (const serverRecord of returned) {
+            let local = existing.find(x => x.LocalInspectionID === serverRecord.ClientInspectionID);
+            if (!local) {
+                const template = (await new Promise((resolve, reject) => {
+                    const tx = db.transaction("inspection_templates", "readonly");
+                    const req = tx.objectStore("inspection_templates").getAll();
+                    req.onsuccess = () => resolve((req.result || []).find(x =>
+                        Number(x.IDTemplate) === Number(serverRecord.IDTemplate) &&
+                        Number(x.IDVersion) === Number(serverRecord.IDVersion)));
+                    req.onerror = () => reject(req.error);
+                }));
+                if (!template) {
+                    console.warn("Returned Inspection needs its exact template version, which is not cached:", serverRecord.ClientInspectionID);
+                    continue;
+                }
+                local = {
+                    LocalInspectionID: serverRecord.ClientInspectionID,
+                    ServerInspectionID: Number(serverRecord.InspectionID || 0),
+                    CompanyID: serverRecord.CompanyID,
+                    LocationID: serverRecord.LocationID,
+                    SectionID: serverRecord.SectionID,
+                    OwnerEmployeeID: serverRecord.OwnerEmployeeID,
+                    InspectionTypeCode: serverRecord.InspectionTypeCode,
+                    InspectionTypeName: serverRecord.InspectionTypeName,
+                    InspectionTypeDetailCode: serverRecord.InspectionTypeDetailCode,
+                    InspectionTypeDetailName: serverRecord.InspectionTypeDetailName,
+                    ScheduledTime: serverRecord.ScheduledTime || "",
+                    IDTemplate: Number(serverRecord.IDTemplate),
+                    IDVersion: Number(serverRecord.IDVersion),
+                    TemplateNo: serverRecord.TemplateNo,
+                    TemplateName: serverRecord.TemplateName,
+                    TemplateVersion: String(serverRecord.TemplateVersion || ""),
+                    TemplateSnapshot: template
+                };
+            }
+            local.Status = "DRAFT";
+            local.SyncStatus = "SYNCED";
+            local.Items = serverRecord.Items || [];
+            local.Summary = serverRecord.Summary || "";
+            local.InspectionDate = parseDateOnly(serverRecord.InspectionDate);
+            local.StartDateTime = serverRecord.StartDateTime || "";
+            local.EndDateTime = "";
+            local.ReasonVoid = serverRecord.ReasonVoid || "";
+            local.UpdatedAt = new Date().toISOString();
+            store.put(local);
+        }
+        await new Promise((resolve, reject) => {
+            const tx = db.transaction("inspection_records", "readwrite");
+            tx.oncomplete = () => resolve();
+            tx.onerror = () => reject(tx.error);
+            tx.onabort = () => reject(tx.error || new Error("Returned Inspection update aborted"));
+        });
+    } catch (err) {
+        console.warn("Unable to download returned Inspection drafts:", err);
     }
 }
 
