@@ -72,8 +72,9 @@ BEGIN
               AND CompanyID=@p_CompanyID
               AND LocationID=@p_LocationID
               AND Status='DONE'
-              AND ISNULL(IsApprove,0)=0
-              AND ISNULL(IsVoid,0)=0
+              AND IsApprove IS NULL
+              AND ApprovedBy IS NULL
+              AND ApprovedDate IS NULL
         )
         BEGIN
             RAISERROR('Inspection is not pending approval or has already been processed.', 16, 1);
@@ -83,7 +84,7 @@ BEGIN
         BEGIN
             UPDATE dbo.PIP_T_Inspection
             SET IsApprove=1, ApprovedBy=@p_EmployeeID, ApprovedDate=GETDATE(),
-                ApprovalRemark=NULLIF(@p_Remark, ''), IsVoid=0,
+                ApprovalRemark=NULLIF(@p_Remark, ''), ReasonVoid=NULL,
                 UpdateUser=@p_EmployeeID, UpdateDate=GETDATE()
             WHERE InspectionID=@p_InspectionID;
         END
@@ -93,9 +94,8 @@ BEGIN
                 RAISERROR('Reason for void is required.', 16, 1);
 
             UPDATE dbo.PIP_T_Inspection
-            SET Status='DRAFT', IsApprove=0, ApprovedBy=NULL, ApprovedDate=NULL,
-                ApprovalRemark=NULL, IsVoid=1, ReasonVoid=@p_Remark,
-                VoidBy=@p_EmployeeID, VoidDate=GETDATE(),
+            SET Status='DRAFT', IsApprove=0, ApprovedBy=@p_EmployeeID, ApprovedDate=GETDATE(),
+                ApprovalRemark=NULL, ReasonVoid=@p_Remark,
                 UpdateUser=@p_EmployeeID, UpdateDate=GETDATE()
             WHERE InspectionID=@p_InspectionID;
         END;
