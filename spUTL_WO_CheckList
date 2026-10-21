@@ -46,7 +46,8 @@ CREATE TABLE #tblEmail
 	[From] VARCHAR(200),
 	EmailAddressTo VARCHAR(200),
 	WONo VARCHAR(10),
-	[Subject] VARCHAR(200), 
+	[Subject] VARCHAR(200),
+	BCC_EmailAddress VARCHAR(MAX)
 )
 
 DECLARE @V_CompanyID VARCHAR(10), @V_LocationID VARCHAR(3), @V_WONo VARCHAR(10), @V_KeyHD INT, @v_counter INT=0
@@ -221,6 +222,7 @@ BEGIN
 		and s.APPID = 'PIP'
 		
 		INSERT INTO #tblEmail
+			(FormEmail, EmailAddressFrom, [From], EmailAddressTo, WONo, [Subject], BCC_EmailAddress)
 			SELECT DISTINCT FormEmail=
 '<html>
 <head></head>
