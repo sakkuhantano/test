@@ -74,6 +74,9 @@ async function loadInspectionCache() {
 
     const sections = (inspectionLogin.section || "").split(";").filter(Boolean);
     inspectionTypes = inspectionTypes.filter(x => sections.includes(x.SectionID));
+    inspectionDetails = inspectionDetails.filter(x =>
+        x.CompanyID === inspectionCompanyID && x.LocationID === inspectionLocationID
+    );
     inspectionTemplates = inspectionTemplates.filter(x =>
         sections.includes(x.SectionID) &&
         x.TemplateType === "I" &&
@@ -101,7 +104,11 @@ function readInspectionStore(storeName) {
 function onInspectionTypeChanged() {
     const typeCode = document.getElementById("selInspectionType").value;
     const type = inspectionTypes.find(x => x.InspectionTypeCode === typeCode);
-    const details = inspectionDetails.filter(x => x.InspectionTypeCode === typeCode);
+    const details = inspectionDetails.filter(x =>
+        x.InspectionTypeCode === typeCode &&
+        x.CompanyID === inspectionCompanyID &&
+        x.LocationID === inspectionLocationID
+    );
     const detailSelect = document.getElementById("selInspectionDetail");
 
     detailSelect.innerHTML = '<option value="">Pilih detail...</option>' +
