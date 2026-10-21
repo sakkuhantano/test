@@ -5193,13 +5193,37 @@ async function renderTemplateEmployeeAssignments(template)
         const rows = JSON.parse(raw || '[]');
         host.innerHTML = '';
         if (!rows.length) {
-            host.textContent = 'No eligible employees found for this SectionID and company scope.';
+            host.textContent = 'No active employees found for this SectionID and company/location scope.';
             return;
         }
+
+        const toolbar = document.createElement('div');
+        toolbar.className = 'd-flex flex-wrap gap-2 align-items-center mb-2';
+        const search = document.createElement('input');
+        search.type = 'search';
+        search.className = 'form-control form-control-sm';
+        search.placeholder = 'Search employee name or NIK...';
+        search.setAttribute('aria-label', 'Search employee name or NIK');
+        search.style.maxWidth = '360px';
+        const assignAll = document.createElement('button');
+        assignAll.type = 'button';
+        assignAll.className = 'btn btn-sm btn-outline-primary';
+        assignAll.textContent = 'Assign All Eligible';
+        assignAll.disabled = isReadonlyMode;
+        const clearSearch = document.createElement('button');
+        clearSearch.type = 'button';
+        clearSearch.className = 'btn btn-sm btn-outline-secondary';
+        clearSearch.textContent = 'Clear Search';
+        toolbar.appendChild(search);
+        toolbar.appendChild(assignAll);
+        toolbar.appendChild(clearSearch);
+        host.appendChild(toolbar);
+
         const table = document.createElement('table');
         table.className = 'table table-sm align-middle';
-        table.innerHTML = '<thead><tr><th>Assign</th><th>Employee</th><th>Company</th><th>Gedung</th></tr></thead><tbody></tbody>';
+        table.innerHTML = '<thead><tr><th>Assign</th><th>Employee / NIK</th><th>Company</th><th>Gedung</th></tr></thead><tbody></tbody>';
         const tbody = table.querySelector('tbody');
+        const employeeRows = [];
         rows.forEach(function(row) {
             const tr = document.createElement('tr');
             const tdCheck = document.createElement('td');
@@ -5221,6 +5245,8 @@ async function renderTemplateEmployeeAssignments(template)
                     if (!result.success) {
                         this.checked = oldValue;
                         alert(result.message || 'Unable to update employee assignment.');
+                    } else {
+                        row.IsAssigned = this.checked;
                     }
                 } catch (ex) {
                     hideLoading();
@@ -5240,6 +5266,56 @@ async function renderTemplateEmployeeAssignments(template)
             tr.appendChild(tdCompany);
             tr.appendChild(tdLocation);
             tbody.appendChild(tr);
+            employeeRows.push({ row: row, element: tr, checkbox: check });
+        });
+        search.addEventListener('input', function() {
+            const term = this.value.trim().toLowerCase();
+            employeeRows.forEach(function(item) {
+                const matches = (String(item.row.EmployeeID) + ' ' + String(item.row.Name)).toLowerCase().indexOf(term) >= 0;
+                item.element.style.display = matches ? '' : 'none';
+            });
+        });
+        clearSearch.addEventListener('click', function() {
+            search.value = '';
+            search.dispatchEvent(new Event('input'));
+            search.focus();
+        });
+        assignAll.addEventListener('click', async function() {
+            const pending = employeeRows.filter(function(item) { return !item.row.IsAssigned; });
+            if (!pending.length) {
+                alert('All eligible employees are already assigned.');
+                return;
+            }
+            if (!confirm('Assign this template to all ' + pending.length + ' eligible active employees in the selected company/location scope?')) return;
+            let assigned = 0;
+            const failed = [];
+            assignAll.disabled = true;
+            showLoading();
+            try {
+                for (const item of pending) {
+                    try {
+                        const result = await promisifyPageMethod(
+                            PageMethods.SetTemplateEmployeeAssignment,
+                            String(template.IDTemplate), item.row.EmployeeID,
+                            'ADD', getLoginData().employeeid, companyId, locationId
+                        );
+                        if (result && result.success) {
+                            item.row.IsAssigned = true;
+                            item.checkbox.checked = true;
+                            assigned++;
+                        } else {
+                            failed.push(item.row.EmployeeID + ': ' + ((result && result.message) || 'assignment failed'));
+                        }
+                    } catch (ex) {
+                        failed.push(item.row.EmployeeID + ': ' + (ex.message || ex));
+                    }
+                }
+            } finally {
+                hideLoading();
+                assignAll.disabled = isReadonlyMode;
+            }
+            alert('Assigned ' + assigned + ' of ' + pending.length + ' employees.' +
+                (failed.length ? '\\nFailed: ' + failed.join('\\n') : ''));
         });
         host.appendChild(table);
     } catch (ex) {
