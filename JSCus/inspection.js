@@ -260,6 +260,7 @@ function renderInspectionForm(record, readOnly) {
     document.getElementById("btnCompleteInspection").classList.toggle("d-none", currentInspectionReadOnly);
     document.getElementById("txtInspectionSummary").disabled = currentInspectionReadOnly;
     document.getElementById("inspectionFormMessage").textContent =
+        record.ReasonVoid ? ("Dikembalikan SPV ke Draft: " + record.ReasonVoid + ". Simpan perubahan lalu Sync untuk diajukan kembali.") :
         record.SyncStatus === "SYNCED" ? "Sudah tersinkron ke server." :
         record.Status === "DONE" ? "Selesai offline; menunggu sync." :
         "Draft tersimpan lokal saat tombol Save Draft ditekan.";
