@@ -245,7 +245,7 @@ ORDER BY T.SectionID, T.InspectionTypeName",
 
                 DataTable details = br.EQuery(@"
 SELECT D.InspectionTypeCode, D.InspectionTypeDetailCode,
-       D.InspectionTypeDetailName, CONVERT(VARCHAR(5), D.ScheduleTime, 108) ScheduleTime
+       D.InspectionTypeDetailName, D.ScheduleTime
 FROM dbo.PIP_M_InspectionType T
 JOIN dbo.PIP_M_InspectionTypeDetail D ON D.InspectionTypeCode=T.InspectionTypeCode
 WHERE T.IsActive=1 AND D.IsActive=1
