@@ -106,9 +106,12 @@ function onInspectionTypeChanged() {
 
     detailSelect.innerHTML = '<option value="">Pilih detail...</option>' +
         details.map(detail =>
-            '<option value="' + escInspection(detail.InspectionTypeDetailCode) + '">' +
-            escInspection(detail.InspectionTypeDetailName + " • " + (detail.ScheduleTime || "--:--")) +
-            '</option>'
+            String(detail.ScheduleTime || "").split(";").map(function (time) { return time.trim(); })
+                .filter(function (time) { return /^([01]\\d|2[0-3]):[0-5]\\d$/.test(time); })
+                .map(function (time) {
+                    return '<option value="' + escInspection(detail.InspectionTypeDetailCode + "|" + time) + '">' +
+                        escInspection(detail.InspectionTypeDetailName + " • " + time) + '</option>';
+                }).join("")
         ).join("");
     detailSelect.disabled = !typeCode || details.length === 0;
     document.getElementById("inspectionScheduleHint").textContent = type
@@ -160,7 +163,10 @@ function updateStartButton() {
 
 async function startNewInspection() {
     const typeCode = document.getElementById("selInspectionType").value;
-    const detailCode = document.getElementById("selInspectionDetail").value;
+    const detailSelection = document.getElementById("selInspectionDetail").value;
+    const detailParts = detailSelection.split("|");
+    const detailCode = detailParts[0] || "";
+    const scheduledTime = detailParts[1] || "";
     const templateId = Number(document.getElementById("selInspectionTemplate").value);
     const type = inspectionTypes.find(x => x.InspectionTypeCode === typeCode);
     const detail = inspectionDetails.find(x =>
@@ -184,7 +190,7 @@ async function startNewInspection() {
         InspectionTypeName: type.InspectionTypeName,
         InspectionTypeDetailCode: detail.InspectionTypeDetailCode,
         InspectionTypeDetailName: detail.InspectionTypeDetailName,
-        ScheduledTime: detail.ScheduleTime || "",
+        ScheduledTime: scheduledTime,
         IDTemplate: Number(template.IDTemplate),
         IDVersion: Number(template.IDVersion),
         TemplateNo: template.TemplateNo,
@@ -504,7 +510,7 @@ async function openSavedInspection(localId) {
     const typeSelect = document.getElementById("selInspectionType");
     typeSelect.value = record.InspectionTypeCode;
     onInspectionTypeChanged();
-    document.getElementById("selInspectionDetail").value = record.InspectionTypeDetailCode;
+    document.getElementById("selInspectionDetail").value = record.InspectionTypeDetailCode + "|" + (record.ScheduledTime || "");
     onInspectionDetailChanged();
     document.getElementById("selInspectionTemplate").value = String(record.IDTemplate);
     document.getElementById("txtInspectionDate").value = record.InspectionDate || localDateString(new Date());
