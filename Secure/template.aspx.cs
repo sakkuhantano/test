@@ -999,7 +999,10 @@ COMMIT TRANSACTION;",
             {
                 DataTable dt = br.EQuery(@"
 SELECT L.CompanyID, L.LocationID, L.CompanyName, L.LocationName,
-       IsAssigned=CAST(CASE WHEN S.IDTemplate IS NULL THEN 0 ELSE 1 END AS BIT)
+       IsAssigned=CAST(CASE
+           WHEN S.IDTemplate IS NOT NULL THEN 1
+           WHEN @IDTemplate<=0 AND L.CompanyID=@CompanyID AND L.LocationID=@LocationID THEN 1
+           ELSE 0 END AS BIT)
 FROM
 (
     SELECT swc.CompanyID, swl.LocationID, swc.CompanyName, swl.LocationName
@@ -1014,16 +1017,23 @@ LEFT JOIN dbo.PIP_M_CheckListWOPM_CompanyLocation S
   ON S.IDTemplate=@IDTemplate AND S.CompanyID=L.CompanyID AND S.LocationID=L.LocationID
 WHERE EXISTS
 (
-    SELECT 1 FROM dbo.PIP_M_CheckListWOPM T
-    WHERE T.IDTemplate=@IDTemplate
-      AND EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation CurrentPermission
-                  WHERE CurrentPermission.AppID='PIP' AND CurrentPermission.UserID=@UserID
-                    AND CurrentPermission.CompanyID=@CompanyID AND CurrentPermission.LocationID=@LocationID)
-      AND (ISNULL(T.CompanyScope,'S')='A' OR EXISTS
-           (SELECT 1 FROM dbo.PIP_M_CheckListWOPM_CompanyLocation AccessScope
-            WHERE AccessScope.IDTemplate=T.IDTemplate
-              AND AccessScope.CompanyID=@CompanyID
-              AND AccessScope.LocationID=@LocationID))
+    SELECT 1 FROM dbo.SysWebUserCompanyLocation CurrentPermission
+    WHERE CurrentPermission.AppID='PIP' AND CurrentPermission.UserID=@UserID
+      AND CurrentPermission.CompanyID=@CompanyID AND CurrentPermission.LocationID=@LocationID
+)
+AND
+(
+    @IDTemplate<=0
+    OR EXISTS
+    (
+        SELECT 1 FROM dbo.PIP_M_CheckListWOPM T
+        WHERE T.IDTemplate=@IDTemplate
+          AND (ISNULL(T.CompanyScope,'S')='A' OR EXISTS
+               (SELECT 1 FROM dbo.PIP_M_CheckListWOPM_CompanyLocation AccessScope
+                WHERE AccessScope.IDTemplate=T.IDTemplate
+                  AND AccessScope.CompanyID=@CompanyID
+                  AND AccessScope.LocationID=@LocationID))
+    )
 )
 ORDER BY L.CompanyID, L.LocationID",
                     "@IDTemplate=" + id + GF.Str2 +
