@@ -84,7 +84,7 @@ function showScheduleModal(scheduleString, detailName) {
     title.textContent = "Schedule Time — " + (detailName || "Inspection Detail");
     host.innerHTML = "";
     var times = (scheduleString || "").split(";").map(function (x) { return x.trim(); })
-        .filter(function (x) { return /^([01]\\d|2[0-3]):[0-5]\\d$/.test(x); })
+        .filter(function (x) { return /^([01]\d|2[0-3]):[0-5]\d$/.test(x); })
         .filter(function (x, i, all) { return all.indexOf(x) === i; }).sort();
     if (!times.length) {
         var empty = document.createElement("span");
