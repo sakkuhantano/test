@@ -147,6 +147,138 @@ namespace UTL1.Secure
             return new { success = allSuccess, results = outcomes };
         }
 
+        [WebMethod]
+        public static object GetInspectionApprovalQueue(string employeeId, string companyId, string locationId)
+        {
+            if (String.IsNullOrWhiteSpace(employeeId))
+                throw new HttpException(403, "Supervisor identity is required.");
+
+            using (var br = new WAL.BR.CF())
+            {
+                DataTable rows = br.EQueryP(@"
+SELECT I.InspectionID, I.ClientInspectionID, I.CompanyID, I.LocationID, I.SectionID,
+       I.InspectionTypeName, I.InspectionTypeDetailName, I.ScheduledTime,
+       I.TemplateNo, I.TemplateVersion, I.InspectionDate, I.StartDateTime,
+       I.EndDateTime, I.Summary, I.OwnerEmployeeID, I.Status
+FROM dbo.PIP_T_Inspection I
+WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID
+  AND I.Status='DONE' AND ISNULL(I.IsApprove,0)=0 AND ISNULL(I.IsVoid,0)=0
+  AND EXISTS (
+      SELECT 1 FROM dbo.UTL_User U
+      WHERE U.EmployeeID=@EmployeeID AND ISNULL(U.IsSPV,0)=1
+        AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(U.Section,';') S WHERE S.val=I.SectionID)
+        AND (
+          EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
+                  WHERE C.UserID=U.UserID AND C.AppID='pip'
+                    AND C.CompanyID=I.CompanyID AND C.LocationID=I.LocationID)
+          OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', U.EmployeeID, '') L
+                     WHERE L.CompanyID=I.CompanyID AND L.LocationID=I.LocationID)
+        )
+  )
+ORDER BY I.InspectionDate DESC, I.InspectionID DESC",
+                    new SqlParameter[] {
+                        new SqlParameter("@EmployeeID", employeeId),
+                        new SqlParameter("@CompanyID", companyId),
+                        new SqlParameter("@LocationID", locationId)
+                    });
+                var result = new List<Dictionary<string, object>>();
+                foreach (DataRow row in rows.Rows)
+                {
+                    var item = new Dictionary<string, object>();
+                    foreach (DataColumn col in rows.Columns)
+                        item[col.ColumnName] = row[col] == DBNull.Value ? null : row[col];
+                    result.Add(item);
+                }
+                return new { success = true, data = result };
+            }
+        }
+
+        [WebMethod]
+        public static object GetInspectionApprovalDetail(long inspectionId, string employeeId)
+        {
+            if (String.IsNullOrWhiteSpace(employeeId))
+                throw new HttpException(403, "Supervisor identity is required.");
+
+            using (var br = new WAL.BR.CF())
+            {
+                DataTable header = br.EQueryP(@"
+SELECT I.InspectionID, I.CompanyID, I.LocationID, I.SectionID, I.InspectionTypeName,
+       I.InspectionTypeDetailName, I.ScheduledTime, I.TemplateNo, I.TemplateVersion,
+       I.InspectionDate, I.StartDateTime, I.EndDateTime, I.Summary, I.OwnerEmployeeID
+FROM dbo.PIP_T_Inspection I
+WHERE I.InspectionID=@InspectionID AND I.Status='DONE'
+  AND ISNULL(I.IsApprove,0)=0 AND ISNULL(I.IsVoid,0)=0
+  AND EXISTS (
+      SELECT 1 FROM dbo.UTL_User U
+      WHERE U.EmployeeID=@EmployeeID AND ISNULL(U.IsSPV,0)=1
+        AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(U.Section,';') S WHERE S.val=I.SectionID)
+        AND (
+          EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
+                  WHERE C.UserID=U.UserID AND C.AppID='pip'
+                    AND C.CompanyID=I.CompanyID AND C.LocationID=I.LocationID)
+          OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', U.EmployeeID, '') L
+                     WHERE L.CompanyID=I.CompanyID AND L.LocationID=I.LocationID)
+        )
+  )",
+                    new SqlParameter[] {
+                        new SqlParameter("@InspectionID", inspectionId),
+                        new SqlParameter("@EmployeeID", employeeId)
+                    });
+                if (header.Rows.Count == 0)
+                    throw new HttpException(404, "Inspection not found or not authorized for approval.");
+
+                DataTable results = br.EQueryP(@"
+SELECT R.IDItem, R.ItemLabel, R.ItemType, R.Value, R.Remark, R.IsAnomali,
+       V.FieldName, V.Value AS FieldValue, R.DisplayOrder
+FROM dbo.PIP_T_InspectionResult R
+JOIN dbo.PIP_T_Inspection I ON I.InspectionID=R.InspectionID
+LEFT JOIN dbo.PIP_T_InspectionResultValue V ON V.InspectionResultID=R.InspectionResultID
+WHERE I.InspectionID=@InspectionID
+ORDER BY R.DisplayOrder, V.FieldName",
+                    new SqlParameter[] { new SqlParameter("@InspectionID", inspectionId) });
+
+                var itemRows = new List<Dictionary<string, object>>();
+                foreach (DataRow row in results.Rows)
+                {
+                    var item = new Dictionary<string, object>();
+                    foreach (DataColumn col in results.Columns)
+                        item[col.ColumnName] = row[col] == DBNull.Value ? null : row[col];
+                    itemRows.Add(item);
+                }
+                var h = new Dictionary<string, object>();
+                foreach (DataColumn col in header.Columns)
+                    h[col.ColumnName] = header.Rows[0][col] == DBNull.Value ? null : header.Rows[0][col];
+                return new { success = true, header = h, items = itemRows };
+            }
+        }
+
+        [WebMethod]
+        public static object ProcessInspectionApproval(long inspectionId, string action, string employeeId,
+            string companyId, string locationId, string remark)
+        {
+            if (String.IsNullOrWhiteSpace(employeeId))
+                throw new HttpException(403, "Supervisor identity is required.");
+            if (!String.Equals(action, "APPROVE", StringComparison.OrdinalIgnoreCase) &&
+                !String.Equals(action, "VOID", StringComparison.OrdinalIgnoreCase))
+                throw new HttpException(400, "Invalid inspection action.");
+            if (String.Equals(action, "VOID", StringComparison.OrdinalIgnoreCase) &&
+                String.IsNullOrWhiteSpace(remark))
+                throw new HttpException(400, "Reason for void is required.");
+
+            using (var br = new WAL.BR.CF())
+            {
+                DataTable saved = br.EQueryP("spUTL_PIP_T_Inspection_Approval", new SqlParameter[] {
+                    new SqlParameter("@p_InspectionID", inspectionId),
+                    new SqlParameter("@p_Action", action.ToUpperInvariant()),
+                    new SqlParameter("@p_EmployeeID", employeeId),
+                    new SqlParameter("@p_CompanyID", companyId),
+                    new SqlParameter("@p_LocationID", locationId),
+                    new SqlParameter("@p_Remark", (object)(remark ?? "") ?? DBNull.Value)
+                }, true, true);
+                return new { success = true, action = action.ToUpperInvariant(), inspectionId = inspectionId };
+            }
+        }
+
         private static string TokenString(JObject obj, string name)
         {
             JToken token = obj == null ? null : obj[name];
