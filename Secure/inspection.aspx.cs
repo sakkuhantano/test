@@ -194,6 +194,49 @@ ORDER BY I.InspectionDate DESC, I.InspectionID DESC",
         }
 
         [WebMethod]
+        public static object GetInspectionDashboardSummary(string employeeId, string companyId, string locationId)
+        {
+            if (String.IsNullOrWhiteSpace(employeeId))
+                throw new HttpException(403, "Supervisor identity is required.");
+            using (var br = new WAL.BR.CF())
+            {
+                DataTable rows = br.EQueryP(@"
+SELECT
+    SUM(CASE WHEN I.Status='DONE' AND ISNULL(I.IsApprove,0)=0 AND ISNULL(I.IsVoid,0)=0 THEN 1 ELSE 0 END) PendingApproval,
+    SUM(CASE WHEN ISNULL(I.IsApprove,0)=1 AND I.ApprovedDate>=CONVERT(DATETIME, CONVERT(VARCHAR(10), GETDATE(), 120), 120) THEN 1 ELSE 0 END) ApprovedToday,
+    SUM(CASE WHEN ISNULL(I.IsVoid,0)=1 THEN 1 ELSE 0 END) VoidCount
+FROM dbo.PIP_T_Inspection I
+WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID
+  AND EXISTS (
+      SELECT 1 FROM dbo.UTL_User U
+      WHERE U.EmployeeID=@EmployeeID AND ISNULL(U.IsSPV,0)=1
+        AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(U.Section,';') S WHERE S.val=I.SectionID)
+        AND (
+          EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
+                  WHERE C.UserID=U.UserID AND C.AppID='pip'
+                    AND C.CompanyID=I.CompanyID AND C.LocationID=I.LocationID)
+          OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', U.EmployeeID, '') L
+                     WHERE L.CompanyID=I.CompanyID AND L.LocationID=I.LocationID)
+        )
+  )",
+                    new SqlParameter[] {
+                        new SqlParameter("@EmployeeID", employeeId),
+                        new SqlParameter("@CompanyID", companyId),
+                        new SqlParameter("@LocationID", locationId)
+                    });
+                if (rows.Rows.Count == 0)
+                    return new { success = true, pendingApproval = 0, approvedToday = 0, voidCount = 0 };
+                DataRow row = rows.Rows[0];
+                return new {
+                    success = true,
+                    pendingApproval = row["PendingApproval"] == DBNull.Value ? 0 : Convert.ToInt32(row["PendingApproval"]),
+                    approvedToday = row["ApprovedToday"] == DBNull.Value ? 0 : Convert.ToInt32(row["ApprovedToday"]),
+                    voidCount = row["VoidCount"] == DBNull.Value ? 0 : Convert.ToInt32(row["VoidCount"])
+                };
+            }
+        }
+
+        [WebMethod]
         public static object GetInspectionApprovalDetail(long inspectionId, string employeeId)
         {
             if (String.IsNullOrWhiteSpace(employeeId))
