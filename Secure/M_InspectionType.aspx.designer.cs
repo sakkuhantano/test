@@ -14,7 +14,7 @@ namespace PIP.Secure
         protected global::System.Web.UI.WebControls.LinkButton lBtnCloseDetail;
         protected global::System.Web.UI.WebControls.TextBox txtDetailCode;
         protected global::System.Web.UI.WebControls.TextBox txtDetailName;
-        protected global::System.Web.UI.WebControls.TextBox txtScheduleTime;
+        protected global::System.Web.UI.WebControls.HiddenField hidScheduleTimes;
         protected global::System.Web.UI.WebControls.CheckBox chkDetailActive;
         protected global::System.Web.UI.WebControls.LinkButton lBtnSaveDetail;
         protected global::System.Web.UI.WebControls.DataGrid gridData;
