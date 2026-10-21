@@ -359,6 +359,96 @@ ORDER BY R.DisplayOrder, V.FieldName",
                     foreach (DataColumn col in headers.Columns)
                         record[col.ColumnName] = header[col] == DBNull.Value ? null : header[col];
                     record["Items"] = grouped.Values.OrderBy(x => Convert.ToInt32(x["DisplayOrder"])).ToList();
+
+                    DataTable meta = br.EQueryP(@"
+SELECT T.IDTemplate, T.TemplateNo, T.TemplateName, T.SectionID, T.InspectionTypeCode,
+       V.IDVersion, V.Version, V.StatusOption
+FROM dbo.PIP_M_CheckListWOPM T
+JOIN dbo.PIP_M_CheckListWOPM_Version V ON V.IDTemplate=T.IDTemplate
+WHERE T.IDTemplate=@IDTemplate AND V.IDVersion=@IDVersion AND ISNULL(T.TemplateType,'W')='I'",
+                        new SqlParameter[] {
+                            new SqlParameter("@IDTemplate", Convert.ToInt32(header["IDTemplate"])),
+                            new SqlParameter("@IDVersion", Convert.ToInt32(header["IDVersion"]))
+                        });
+                    if (meta.Rows.Count > 0)
+                    {
+                        DataRow m = meta.Rows[0];
+                        DataTable templateItems = br.EQueryP(@"
+SELECT S.IDSection, S.SectionName, S.DisplayOrder AS SectionOrder,
+       I.IDItem, I.ItemLabel, I.ItemType, ISNULL(I.OptionList,'') OptionList,
+       I.MinValue, I.MaxValue, ISNULL(I.Unit,'') Unit, I.IsValueRequired,
+       I.IsRemarkRequired, I.DisplayOrder AS ItemOrder, V.StatusOption,
+       I.ModelCode, I.MinTolerance, I.MaxTolerance, I.IsToleranceRequired
+FROM dbo.PIP_M_CheckListWOPM_Section S
+JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDSection=S.IDSection
+JOIN dbo.PIP_M_CheckListWOPM_Version V ON V.IDVersion=S.IDVersion
+WHERE V.IDVersion=@IDVersion
+ORDER BY S.DisplayOrder, I.DisplayOrder",
+                            new SqlParameter[] { new SqlParameter("@IDVersion", Convert.ToInt32(header["IDVersion"])) });
+                        DataTable templateGroups = br.EQueryP(@"
+SELECT G.IDItem, G.GroupName, G.FieldList, G.Unit, G.DisplayOrder
+FROM dbo.PIP_M_CheckListWOPM_ItemGroup G
+JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDItem=G.IDItem
+JOIN dbo.PIP_M_CheckListWOPM_Section S ON S.IDSection=I.IDSection
+WHERE S.IDVersion=@IDVersion
+ORDER BY G.DisplayOrder",
+                            new SqlParameter[] { new SqlParameter("@IDVersion", Convert.ToInt32(header["IDVersion"])) });
+
+                        var sections = templateItems.AsEnumerable()
+                            .GroupBy(row => new {
+                                IDSection = Convert.ToInt32(row["IDSection"]),
+                                SectionName = row["SectionName"].ToString(),
+                                SectionOrder = Convert.ToInt32(row["SectionOrder"])
+                            })
+                            .OrderBy(group => group.Key.SectionOrder)
+                            .Select(group => new {
+                                idSection = group.Key.IDSection,
+                                sectionName = group.Key.SectionName,
+                                items = group.Select(itemRow => {
+                                    string itemType = itemRow["ItemType"].ToString();
+                                    string optionList = itemType == "OPTION"
+                                        ? (String.IsNullOrEmpty(itemRow["OptionList"].ToString())
+                                            ? itemRow["StatusOption"].ToString() : itemRow["OptionList"].ToString())
+                                        : "";
+                                    var itemGroups = templateGroups.AsEnumerable()
+                                        .Where(g => g["IDItem"].ToString() == itemRow["IDItem"].ToString())
+                                        .OrderBy(g => g["DisplayOrder"])
+                                        .Select(g => new {
+                                            groupName = g["GroupName"].ToString(),
+                                            fieldList = g["FieldList"].ToString(),
+                                            unit = g["Unit"].ToString()
+                                        }).ToList();
+                                    return new {
+                                        idItem = Convert.ToInt32(itemRow["IDItem"]),
+                                        label = itemRow["ItemLabel"].ToString(),
+                                        type = itemType,
+                                        optionList = optionList,
+                                        min = itemRow["MinValue"] == DBNull.Value ? (decimal?)null : Convert.ToDecimal(itemRow["MinValue"]),
+                                        max = itemRow["MaxValue"] == DBNull.Value ? (decimal?)null : Convert.ToDecimal(itemRow["MaxValue"]),
+                                        unit = itemRow["Unit"].ToString(),
+                                        isValueRequired = Convert.ToBoolean(itemRow["IsValueRequired"]),
+                                        isRemarkRequired = Convert.ToBoolean(itemRow["IsRemarkRequired"]),
+                                        isToleranceRequired = itemRow["IsToleranceRequired"] != DBNull.Value && Convert.ToBoolean(itemRow["IsToleranceRequired"]),
+                                        mintol = itemRow["MinTolerance"] == DBNull.Value ? (decimal?)null : Convert.ToDecimal(itemRow["MinTolerance"]),
+                                        maxtol = itemRow["MaxTolerance"] == DBNull.Value ? (decimal?)null : Convert.ToDecimal(itemRow["MaxTolerance"]),
+                                        modelcode = itemRow["ModelCode"] == DBNull.Value ? "" : itemRow["ModelCode"].ToString(),
+                                        groups = itemGroups.Count > 0 ? itemGroups : null
+                                    };
+                                }).ToList()
+                            }).ToList();
+                        record["TemplateSnapshot"] = new {
+                            IDTemplate = Convert.ToInt32(m["IDTemplate"]),
+                            IDVersion = Convert.ToInt32(m["IDVersion"]),
+                            Version = m["Version"].ToString(),
+                            SectionID = m["SectionID"].ToString(),
+                            TemplateType = "I",
+                            InspectionTypeCode = m["InspectionTypeCode"].ToString(),
+                            TemplateNo = m["TemplateNo"].ToString(),
+                            TemplateName = m["TemplateName"].ToString(),
+                            StatusOption = m["StatusOption"].ToString(),
+                            sections = sections
+                        };
+                    }
                     result.Add(record);
                 }
                 return new { success = true, data = result };
