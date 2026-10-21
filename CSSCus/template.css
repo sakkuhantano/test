@@ -689,3 +689,58 @@ body {
     .panel-explorer { width: 235px; }
     .panel-properties { width: 265px; flex-basis: 265px; }
 }
+
+
+/* Properties panel: keep all metadata tabs on one compact row and give option checks breathing room. */
+#panel-properties .nav-tabs {
+    flex-wrap: nowrap !important;
+    gap: .1rem;
+    overflow: hidden;
+}
+#panel-properties .nav-tabs .nav-item {
+    flex: 1 1 0;
+    min-width: 0;
+}
+#panel-properties .nav-tabs .nav-link {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    padding: .35rem .2rem;
+    font-size: .68rem;
+    letter-spacing: -.015em;
+}
+#versionRemarkRequiredOptions,
+#itemRemarkRequiredOptions {
+    padding: .2rem .15rem .25rem .25rem;
+    gap: .4rem !important;
+}
+#versionRemarkRequiredOptions .form-check-inline,
+#itemRemarkRequiredOptions .form-check-inline {
+    box-sizing: border-box;
+    padding: .35rem .55rem !important;
+    gap: .45rem;
+    margin: 0 !important;
+    align-items: center;
+}
+#versionRemarkRequiredOptions .form-check,
+#itemRemarkRequiredOptions .form-check {
+    padding-left: 0;
+}
+#versionRemarkRequiredOptions .form-check-input,
+#itemRemarkRequiredOptions .form-check-input {
+    margin: 0 !important;
+    width: 1rem;
+    height: 1rem;
+}
+#versionRemarkRequiredOptions .form-check-label,
+#itemRemarkRequiredOptions .form-check-label {
+    display: inline-block;
+    padding-left: 0;
+}
+#panel-properties #templateCompanyAssignments .table td:first-child,
+#panel-properties #templateCompanyAssignments .table th:first-child {
+    padding-left: .65rem;
+    padding-right: .65rem;
+    width: 2.5rem;
+}
