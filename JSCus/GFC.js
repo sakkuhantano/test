@@ -693,7 +693,7 @@ async function getInspectionData() {
         const details = (masters.details || []).map(function (detail) {
             const times = String(detail.ScheduleTime || "").split(";")
                 .map(function (time) { return time.trim(); })
-                .filter(function (time) { return /^([01]\\d|2[0-3]):[0-5]\\d$/.test(time); })
+                .filter(function (time) { return /^([01][0-9]|2[0-3]):[0-5][0-9]$/.test(time); })
                 .filter(function (time, index, all) { return all.indexOf(time) === index; })
                 .sort();
             return Object.assign({}, detail, { ScheduleTime: times.join(";") });
