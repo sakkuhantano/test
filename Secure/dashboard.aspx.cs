@@ -18,11 +18,38 @@ namespace UTL1.Secure
 
         }
         [WebMethod]
-        public static object getCheckList(string section, string templateNo, string version, string modelcode = "", string companyId = "", string locationId = "", string templateType = "W")
+        public static object getCheckList(string section, string templateNo, string version, string modelcode = "", string companyId = "", string locationId = "", string templateType = "W", string employeeId = "")
         {
             var result = new List<Dictionary<string, object>>();
             using (var br = new WAL.BR.CF())
             {
+                // Inspection master downloads must be scoped by the server-side UTL_User record,
+                // not by a section list supplied by browser localStorage.
+                if (String.Equals(templateType, "I", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (String.IsNullOrWhiteSpace(employeeId))
+                        throw new HttpException(403, "Employee identity is required for inspection template download.");
+
+                    DataTable auth = br.EQueryP(
+                        @"SELECT ISNULL(Section,'') Section, ISNULL(IsWO,0) IsWO
+                          FROM dbo.UTL_User WHERE EmployeeID=@EmployeeID",
+                        new SqlParameter[] { new SqlParameter("@EmployeeID", employeeId) });
+
+                    if (auth.Rows.Count == 0 || !Convert.ToBoolean(auth.Rows[0]["IsWO"]))
+                        throw new HttpException(403, "This account is not authorized for inspection entry.");
+
+                    var allowedSections = auth.Rows[0]["Section"].ToString()
+                        .Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries)
+                        .Select(s => s.Trim()).Where(s => s.Length > 0).ToList();
+                    var requestedSections = (section ?? "")
+                        .Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries)
+                        .Select(s => s.Trim()).Where(s => s.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+
+                    if (requestedSections.Count == 0 ||
+                        requestedSections.Any(s => !allowedSections.Contains(s, StringComparer.OrdinalIgnoreCase)))
+                        throw new HttpException(403, "Requested inspection section is not assigned to this employee.");
+                    section = String.Join(";", requestedSections);
+                }
                 DataTable dt = br.EQuery(
 @"SELECT B.IDTemplate, B.TemplateNo, B.TemplateName, B.SectionID, ISNULL(B.TemplateType,'W') TemplateType, ISNULL(B.InspectionTypeCode,'') InspectionTypeCode, a.IDVersion, a.Version, a.StatusOption FROM PIP_M_CheckListWOPM_Version a 
 JOIN PIP_M_CheckListWOPM b on A.IDTemplate=B.IDTemplate 
@@ -181,10 +208,33 @@ ORDER BY s.DisplayOrder, i.DisplayOrder",
             return result;
         }
         [WebMethod]
-        public static object getInspectionMasters(string section)
+        public static object getInspectionMasters(string section, string employeeId)
         {
             using (var br = new WAL.BR.CF())
             {
+                if (String.IsNullOrWhiteSpace(employeeId))
+                    throw new HttpException(403, "Employee identity is required for inspection master download.");
+
+                DataTable auth = br.EQueryP(
+                    @"SELECT ISNULL(Section,'') Section, ISNULL(IsWO,0) IsWO
+                      FROM dbo.UTL_User WHERE EmployeeID=@EmployeeID",
+                    new SqlParameter[] { new SqlParameter("@EmployeeID", employeeId) });
+
+                if (auth.Rows.Count == 0 || !Convert.ToBoolean(auth.Rows[0]["IsWO"]))
+                    throw new HttpException(403, "This account is not authorized for inspection entry.");
+
+                var allowedSections = auth.Rows[0]["Section"].ToString()
+                    .Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries)
+                    .Select(s => s.Trim()).Where(s => s.Length > 0).ToList();
+                var requestedSections = (section ?? "")
+                    .Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries)
+                    .Select(s => s.Trim()).Where(s => s.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+
+                if (requestedSections.Count == 0 ||
+                    requestedSections.Any(s => !allowedSections.Contains(s, StringComparer.OrdinalIgnoreCase)))
+                    throw new HttpException(403, "Requested inspection section is not assigned to this employee.");
+                section = String.Join(";", requestedSections);
+
                 DataTable types = br.EQuery(@"
 SELECT DISTINCT T.InspectionTypeCode, T.InspectionTypeName, T.SectionID
 FROM dbo.PIP_M_InspectionType T
