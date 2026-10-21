@@ -722,7 +722,7 @@ async function loadInspectionApprovalDetail(inspectionId) {
                 '<div class="fw-semibold">' + escInspection(item.ItemLabel || ("Item " + item.IDItem)) +
                 (item.IsAnomali ? ' <span class="badge text-bg-danger">Anomali</span>' : '') + '</div>' +
                 '<div class="small">Hasil: ' + escInspection(item.Value || "-") + '</div>' +
-                (item.FieldName ? '<div class="small">' + escInspection(item.FieldName) + ': ' + escInspection(item.FieldValue || "-") + '</div>' : '') +
+                Object.keys(item.Values || {}).map(field => '<div class="small">' + escInspection(field) + ': ' + escInspection(item.Values[field] || "-") + '</div>').join("") +
                 '<div class="inspection-muted">Remark: ' + escInspection(item.Remark || "-") + '</div>' +
                 '</div>'
             ).join("") : '<div class="text-muted">Tidak ada hasil checklist.</div>');
