@@ -927,6 +927,27 @@ async function renderChecklist(template, isEntryMode) {
             }
 
             // =========================
+            // TEXT (free text, max 50 characters)
+            // =========================
+            else if (item.type === "TEXT") {
+                html += `
+                <div class="col-12" data-item-id="${item.idItem}">
+                    <label class="compact-label">${item.label}</label>
+                    <div class="row g-2">
+                        <div class="col-md-6">
+                            <input type="text" maxlength="50" class="form-control form-control-sm" data-role="value"
+                            ${!isEntryMode ? "disabled" : ""} value="${V_Value}"/>
+                        </div>
+                        <div class="col-md-6">
+                            <input class="form-control form-control-sm" data-role="remark"
+                                   placeholder="Remark..." type="text" value="${V_Remark}"
+                                   ${!isEntryMode ? "disabled" : ""}/>
+                        </div>
+                    </div>
+                </div>`;
+            }
+
+            // =========================
             // INPUT
             // =========================
             else if (item.type === "INPUT") {
