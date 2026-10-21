@@ -147,30 +147,16 @@ IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id=OBJECT_ID('dbo.PIP_T_Inspec
     ALTER TABLE dbo.PIP_T_Inspection ALTER COLUMN IsApprove BIT NULL;
 GO
 
-IF TYPE_ID('dbo.Type_PIP_T_InspectionResult') IS NULL
-    EXEC('CREATE TYPE dbo.Type_PIP_T_InspectionResult AS TABLE
-    (
-        IDItem INT NOT NULL,
-        ItemLabel VARCHAR(500) NOT NULL,
-        ItemType VARCHAR(20) NOT NULL,
-        Value VARCHAR(500) NULL,
-        Remark VARCHAR(500) NULL,
-        IsAnomali BIT NOT NULL,
-        DisplayOrder INT NOT NULL
-    )');
-GO
-
-IF TYPE_ID('dbo.Type_PIP_T_InspectionResultValue') IS NULL
-    EXEC('CREATE TYPE dbo.Type_PIP_T_InspectionResultValue AS TABLE
-    (
-        IDItem INT NOT NULL,
-        FieldName VARCHAR(100) NOT NULL,
-        Value VARCHAR(500) NULL
-    )');
-GO
-
 IF OBJECT_ID('dbo.spUTL_PIP_T_Inspection_Sync', 'P') IS NOT NULL
     DROP PROCEDURE dbo.spUTL_PIP_T_Inspection_Sync;
+GO
+
+/* Remove the two TVP types from the earlier draft; inspection now reuses shared types. */
+IF TYPE_ID('dbo.Type_PIP_T_InspectionResult') IS NOT NULL
+    DROP TYPE dbo.Type_PIP_T_InspectionResult;
+GO
+IF TYPE_ID('dbo.Type_PIP_T_InspectionResultValue') IS NOT NULL
+    DROP TYPE dbo.Type_PIP_T_InspectionResultValue;
 GO
 
 CREATE PROCEDURE dbo.spUTL_PIP_T_Inspection_Sync
@@ -192,13 +178,40 @@ CREATE PROCEDURE dbo.spUTL_PIP_T_Inspection_Sync
     @p_Status VARCHAR(10),
     @p_Summary VARCHAR(500),
     @p_UpdateUser VARCHAR(50),
-    @p_Items dbo.Type_PIP_T_InspectionResult READONLY,
-    @p_ItemValues dbo.Type_PIP_T_InspectionResultValue READONLY
+    @p_Items dbo.Type_N_Tbl_C10 READONLY,
+    @p_ItemValues dbo.Type_N_Tbl_C5 READONLY
 )
 AS
 BEGIN
     SET NOCOUNT ON;
     SET XACT_ABORT ON;
+
+    /* Map shared generic TVPs to the inspection-specific row shape. */
+    DECLARE @tbl_Items TABLE
+    (
+        IDItem INT NOT NULL,
+        ItemLabel VARCHAR(500) NOT NULL,
+        ItemType VARCHAR(20) NOT NULL,
+        Value VARCHAR(500) NULL,
+        Remark VARCHAR(500) NULL,
+        IsAnomali BIT NOT NULL,
+        DisplayOrder INT NOT NULL
+    );
+    INSERT INTO @tbl_Items (IDItem, ItemLabel, ItemType, Value, Remark, IsAnomali, DisplayOrder)
+    SELECT CAST(C1 AS INT), C2, C3, C4, C5,
+           CAST(ISNULL(NULLIF(C6, ''), '0') AS BIT),
+           CAST(ISNULL(NULLIF(C7, ''), '0') AS INT)
+    FROM @p_Items;
+
+    DECLARE @tbl_ItemValues TABLE
+    (
+        IDItem INT NOT NULL,
+        FieldName VARCHAR(100) NOT NULL,
+        Value VARCHAR(500) NULL
+    );
+    INSERT INTO @tbl_ItemValues (IDItem, FieldName, Value)
+    SELECT CAST(C1 AS INT), C2, C3
+    FROM @p_ItemValues;
 
     IF @p_Status NOT IN ('DRAFT', 'DONE')
     BEGIN
@@ -446,7 +459,7 @@ BEGIN
             INTO @V_ResultMap (IDItem, InspectionResultID)
         SELECT @V_InspectionID, I.IDItem, I.ItemLabel, I.ItemType, I.Value, I.Remark,
                I.IsAnomali, I.DisplayOrder, @p_UpdateUser, GETDATE(), @p_UpdateUser, GETDATE()
-        FROM @p_Items I;
+        FROM @tbl_Items I;
 
         INSERT dbo.PIP_T_InspectionResultValue
         (
@@ -454,7 +467,7 @@ BEGIN
         )
         SELECT M.InspectionResultID, V.FieldName, V.Value,
                @p_UpdateUser, GETDATE(), @p_UpdateUser, GETDATE()
-        FROM @p_ItemValues V
+        FROM @tbl_ItemValues V
         JOIN @V_ResultMap M ON M.IDItem=V.IDItem;
 
         COMMIT TRANSACTION;
