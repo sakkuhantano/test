@@ -53,11 +53,7 @@ BEGIN
         UPDATE dbo.PIP_M_InspectionTypeDetail
         SET InspectionTypeDetailName=@p_D_InspectionTypeDetailName, ScheduleTime=@p_D_ScheduleTime,
             IsActive=@p_D_IsActive, UpdateUser=@p_UpdateUser, UpdateDate=GETDATE()
-        WHERE ID=@p_D_ID
-          AND InspectionTypeCode=@p_H_InspectionTypeCode
-          AND InspectionTypeDetailCode=@p_D_InspectionTypeDetailCode
-          AND CompanyID=@p_D_CompanyID
-          AND LocationID=@p_D_LocationID;
+        WHERE ID=@p_D_ID;
 
         IF @@ROWCOUNT=0
         BEGIN
@@ -68,11 +64,7 @@ BEGIN
     ELSE IF @p_D_Tipe = '3'
     BEGIN
         DELETE dbo.PIP_M_InspectionTypeDetail
-        WHERE ID=@p_D_ID
-          AND InspectionTypeCode=@p_H_InspectionTypeCode
-          AND InspectionTypeDetailCode=@p_D_InspectionTypeDetailCode
-          AND CompanyID=@p_D_CompanyID
-          AND LocationID=@p_D_LocationID;
+        WHERE ID=@p_D_ID;
 
         IF @@ROWCOUNT=0
         BEGIN
