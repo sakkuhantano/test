@@ -3179,11 +3179,15 @@ function showItemProperties(itemData)
                             <option value="GROUP">
                                 GROUP
                             </option>
+
+                            <option value="TEXT">
+                                TEXT
+                            </option>
                         </select>
 
                     </div>
 
-                    <div class="col-5" id="rowUnit">
+                    <div class="col-5" id="rowUnit" style="${itemType === 'TEXT' || itemType === 'GROUP' ? 'display:none;' : ''}">
 
                         <label class="form-label text-xs fw-bold mb-1">
                             Unit
@@ -3590,10 +3594,14 @@ function showItemProperties(itemData)
                     itemData.MaxTolerance = "";
                 }
 
-                if(this.value == "GROUP")
+                if(this.value == "GROUP" || this.value == "TEXT")
                 {
                     itemData.Unit = "";
                 }
+                $("#rowUnit").toggle(
+                    this.value !== "GROUP" &&
+                    this.value !== "TEXT"
+                );
 
                 if(this.value == "OPTION")
                 {
