@@ -72,7 +72,7 @@ namespace PIP.Secure
                 using (var br = new WAL.BR.CF())
                 {
                     DataTable dt = br.EQueryP(@"SELECT InspectionTypeDetailCode, InspectionTypeDetailName,
-CONVERT(VARCHAR(5), ScheduleTime, 108) AS ScheduleTime, IsActive
+ScheduleTime, IsActive
 FROM dbo.PIP_M_InspectionTypeDetail WHERE InspectionTypeCode=@Code AND InspectionTypeDetailCode=@DetailCode",
                         new SqlParameter[] { new SqlParameter("@Code", txtInspectionTypeCode.Text.Trim()), new SqlParameter("@DetailCode", detailCode) });
                     if (dt.Rows.Count > 0)
@@ -80,7 +80,7 @@ FROM dbo.PIP_M_InspectionTypeDetail WHERE InspectionTypeCode=@Code AND Inspectio
                         txtDetailOriginalCode.Text = detailCode;
                         txtDetailCode.Text = detailCode;
                         txtDetailName.Text = Convert.ToString(dt.Rows[0]["InspectionTypeDetailName"]);
-                        txtScheduleTime.Text = Convert.ToString(dt.Rows[0]["ScheduleTime"]);
+                        hidScheduleTimes.Value = Convert.ToString(dt.Rows[0]["ScheduleTime"]);
                         chkDetailActive.Checked = Convert.ToBoolean(dt.Rows[0]["IsActive"]);
                         txtDetailCode.ReadOnly = true;
                         GF.ShowPanel(ref pnlDetails, true);
@@ -211,8 +211,15 @@ FROM dbo.PIP_M_InspectionType WHERE InspectionTypeCode=@Code",
         private bool _SaveDetail()
         {
             if (txtInspectionTypeCode.Text.Trim() == "" || txtIsNew.Text == "1") { GF.MsgBox_2(this, "Save or select an Inspection Type header first."); return false; }
-            string code = txtDetailCode.Text.Trim().ToUpperInvariant(), name = txtDetailName.Text.Trim(), time = txtScheduleTime.Text.Trim();
-            if (code == "" || name == "" || time == "") { GF.MsgBox_2(this, "Detail Code, Description and Schedule Time are required."); return false; }
+            string code = txtDetailCode.Text.Trim().ToUpperInvariant(), name = txtDetailName.Text.Trim();
+            string time = (hidScheduleTimes.Value ?? "").Trim();
+            string[] times = time.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries)
+                .Select(x => x.Trim()).Distinct().OrderBy(x => x).ToArray();
+            if (code == "" || name == "" || times.Length == 0) { GF.MsgBox_2(this, "Detail Code, Description and at least one Schedule Time are required."); return false; }
+            if (times.Any(x => !System.Text.RegularExpressions.Regex.IsMatch(x, @"^([01]\\d|2[0-3]):[0-5]\\d$")))
+            { GF.MsgBox_2(this, "Schedule Time must use HH:mm format."); return false; }
+            time = String.Join(";", times);
+            hidScheduleTimes.Value = time;
             string type = txtDetailOriginalCode.Text.Trim() == "" ? "1" : "2";
             using (var br = new WAL.BR.CF())
                 br.EQueryP("spPIP_InsertUpdateDeleteInput_PIP_M_HD_InspectionType", new SqlParameter[] {
@@ -243,7 +250,7 @@ FROM dbo.PIP_M_InspectionType WHERE InspectionTypeCode=@Code",
         private void _PrepareDetail()
         {
             txtDetailOriginalCode.Text = "";
-            txtDetailCode.Text = txtDetailName.Text = txtScheduleTime.Text = "";
+            txtDetailCode.Text = txtDetailName.Text = "";\n            hidScheduleTimes.Value = "";
             txtDetailCode.ReadOnly = false;
             chkDetailActive.Checked = true;
         }
@@ -254,7 +261,7 @@ FROM dbo.PIP_M_InspectionType WHERE InspectionTypeCode=@Code",
             using (var br = new WAL.BR.CF())
             {
                 gridData.DataSource = br.EQueryP(@"SELECT InspectionTypeDetailCode, InspectionTypeDetailName,
-CONVERT(VARCHAR(5), ScheduleTime, 108) AS ScheduleTime, IsActive
+ScheduleTime, IsActive
 FROM dbo.PIP_M_InspectionTypeDetail WHERE InspectionTypeCode=@Code
 ORDER BY ScheduleTime, InspectionTypeDetailCode",
                     new SqlParameter[] { new SqlParameter("@Code", txtInspectionTypeCode.Text.Trim()) });
