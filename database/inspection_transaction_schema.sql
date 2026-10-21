@@ -14,6 +14,7 @@ BEGIN
     (
         InspectionID BIGINT IDENTITY(1,1) NOT NULL,
         ClientInspectionID VARCHAR(36) NOT NULL,
+        InspectionNo VARCHAR(10) NULL,
         CompanyID VARCHAR(10) NOT NULL,
         LocationID VARCHAR(3) NOT NULL,
         SectionID VARCHAR(10) NOT NULL,
@@ -42,6 +43,12 @@ BEGIN
         CONSTRAINT CK_PIP_T_Inspection_Status CHECK (Status IN ('DRAFT', 'DONE'))
     );
 END;
+GO
+
+/* Add the transaction number column on existing installations too.
+   Existing inspections remain NULL; new inspections receive a generated number. */
+IF COL_LENGTH('dbo.PIP_T_Inspection', 'InspectionNo') IS NULL
+    ALTER TABLE dbo.PIP_T_Inspection ADD InspectionNo VARCHAR(10) NULL;
 GO
 
 IF OBJECT_ID('dbo.PIP_T_InspectionResult', 'U') IS NULL
@@ -367,9 +374,24 @@ BEGIN
         END
         ELSE
         BEGIN
+            DECLARE @V_InspectionNo VARCHAR(10);
+            DECLARE @V_AutoNum VARCHAR(30);
+            DECLARE @V_AutoNumResult TABLE (ID VARCHAR(10), SeqNo INT);
+
+            SET @V_AutoNum = 'PIPINS' + @p_CompanyID + @p_LocationID;
+            INSERT INTO @V_AutoNumResult
+            EXECUTE dbo.sp_GetGenerateAutoNumID 'pip', @V_AutoNum, 1;
+
+            SELECT @V_InspectionNo = ID FROM @V_AutoNumResult;
+
+            IF ISNULL(@V_InspectionNo, '') = ''
+            BEGIN
+                RAISERROR('Failed to generate InspectionNo.', 16, 1);
+            END;
+
             INSERT dbo.PIP_T_Inspection
             (
-                ClientInspectionID, CompanyID, LocationID, SectionID,
+                ClientInspectionID, InspectionNo, CompanyID, LocationID, SectionID,
                 InspectionTypeCode, InspectionTypeName, InspectionTypeDetailCode,
                 InspectionTypeDetailName, ScheduledTime, IDTemplate, IDVersion,
                 TemplateNo, TemplateName, TemplateVersion, InspectionDate,
@@ -378,7 +400,7 @@ BEGIN
             )
             VALUES
             (
-                @p_ClientInspectionID, @p_CompanyID, @p_LocationID, @p_SectionID,
+                @p_ClientInspectionID, @V_InspectionNo, @p_CompanyID, @p_LocationID, @p_SectionID,
                 @p_InspectionTypeCode, @V_InspectionTypeName, @p_InspectionTypeDetailCode,
                 @V_InspectionTypeDetailName, @p_ScheduledTime, @p_IDTemplate, @p_IDVersion,
                 @p_TemplateNo, @V_TemplateName, @p_TemplateVersion, @p_InspectionDate,
