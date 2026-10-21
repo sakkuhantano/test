@@ -3,6 +3,7 @@ using System.Data;
 using System.Data.SqlClient;
 using System.Linq;
 using System.Web.UI.WebControls;
+using System.Web;
 using WAL;
 
 namespace PIP.Secure
@@ -254,6 +255,23 @@ FROM dbo.PIP_M_InspectionType WHERE InspectionTypeCode=@Code",
             hidScheduleTimes.Value = "";
             txtDetailCode.ReadOnly = false;
             chkDetailActive.Checked = true;
+        }
+
+        protected string GetScheduleSummary(object value)
+        {
+            string[] times = (Convert.ToString(value) ?? "").Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries)
+                .Select(x => x.Trim()).Where(x => x != "").Distinct().OrderBy(x => x).ToArray();
+            if (times.Length == 0) return "No schedules";
+            string preview = String.Join(", ", times.Take(2));
+            if (times.Length > 2) preview += ", …";
+            return times.Length + (times.Length == 1 ? " schedule · " : " schedules · ") + preview;
+        }
+
+        protected string GetScheduleClientScript(object scheduleValue, object detailNameValue)
+        {
+            string schedule = HttpUtility.JavaScriptStringEncode(Convert.ToString(scheduleValue) ?? "");
+            string detailName = HttpUtility.JavaScriptStringEncode(Convert.ToString(detailNameValue) ?? "");
+            return "return showScheduleModal('" + schedule + "', '" + detailName + "');";
         }
 
         private void _RefreshDetails()
