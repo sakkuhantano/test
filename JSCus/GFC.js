@@ -755,7 +755,7 @@ async function downloadReturnedInspections() {
         const updates = [];
         const parseDateOnly = value => {
             if (!value) return "";
-            const match = String(value).match(/\\/Date\\((\\d+)/);
+            const match = String(value).match(/\/Date\((\d+)/);
             if (match) return new Date(Number(match[1])).toISOString().slice(0, 10);
             return String(value).slice(0, 10);
         };
