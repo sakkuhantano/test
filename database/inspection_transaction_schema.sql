@@ -143,6 +143,10 @@ IF TYPE_ID('dbo.Type_PIP_T_InspectionResultValue') IS NULL
     )');
 GO
 
+IF OBJECT_ID('dbo.spUTL_PIP_T_Inspection_Sync', 'P') IS NOT NULL
+    DROP PROCEDURE dbo.spUTL_PIP_T_Inspection_Sync;
+GO
+
 CREATE PROCEDURE dbo.spUTL_PIP_T_Inspection_Sync
 (
     @p_ClientInspectionID VARCHAR(36),
