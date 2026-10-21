@@ -133,6 +133,81 @@ function renderCards() {
 		`;
 		}
 		document.getElementById("dashboardCards").innerHTML = _cardsHTML;
+        renderInspectionDashboardCards();
 	}
     
+}
+
+
+async function renderInspectionDashboardCards() {
+    const loginData = getLoginData();
+    const role = loginData && loginData.role ? loginData.role : {};
+    const section = document.getElementById("sectionInspectionDashboard");
+    const host = document.getElementById("inspectionDashboardCards");
+    if (!section || !host) return;
+
+    const cards = [];
+    if (role.IsWO) {
+        cards.push(
+            '<div class="col-12 col-md-6"><a href="inspection.aspx" class="text-decoration-none text-dark card-custom air-shadow p-3 d-flex justify-content-between align-items-center">' +
+            '<div><div class="fw-bold">Technician Inspection</div><div class="text-muted small">Start checklist or continue saved inspection</div></div>' +
+            '<div class="text-end"><span id="inspectionPendingSync" class="h3 fw-bold text-primary mb-0 d-block">0</span><span class="text-muted small">Pending Sync</span></div></a></div>'
+        );
+    }
+    if (role.IsSPV) {
+        cards.push(
+            '<div class="col-12 col-md-6"><a href="inspection.aspx?mode=approval" class="text-decoration-none text-dark card-custom air-shadow p-3 d-flex justify-content-between align-items-center">' +
+            '<div><div class="fw-bold">Inspection Approval</div><div class="text-muted small">Review completed inspections for your sections</div></div>' +
+            '<div class="text-end"><span id="inspectionPendingApproval" class="h3 fw-bold text-warning mb-0 d-block">0</span><span class="text-muted small">Pending Approval</span></div></a></div>'
+        );
+    }
+    if (!cards.length) {
+        section.classList.add("d-none");
+        return;
+    }
+    section.classList.remove("d-none");
+    host.innerHTML = cards.join("");
+
+    if (role.IsWO && typeof db !== "undefined" && db &&
+        db.objectStoreNames.contains("inspection_records")) {
+        try {
+            const scope = (loginData.curcompany || "").split(";");
+            const pending = await new Promise((resolve, reject) => {
+                const tx = db.transaction("inspection_records", "readonly");
+                const req = tx.objectStore("inspection_records").getAll();
+                req.onsuccess = () => resolve((req.result || []).filter(x =>
+                    x.OwnerEmployeeID === loginData.employeeid &&
+                    x.CompanyID === (scope[0] || "") &&
+                    x.LocationID === (scope[1] || "") &&
+                    x.SyncStatus !== "SYNCED").length);
+                req.onerror = () => reject(req.error);
+            });
+            const count = document.getElementById("inspectionPendingSync");
+            if (count) count.textContent = pending;
+        } catch (err) {
+            console.warn("Unable to count local inspection sync queue:", err);
+        }
+    }
+
+    if (role.IsSPV && navigator.onLine) {
+        try {
+            const scope = (loginData.curcompany || "").split(";");
+            const response = await fetch("inspection.aspx/GetInspectionApprovalQueue", {
+                method: "POST",
+                headers: { "Content-Type": "application/json; charset=utf-8" },
+                body: JSON.stringify({
+                    employeeId: loginData.employeeid,
+                    companyId: scope[0] || "",
+                    locationId: scope[1] || ""
+                })
+            });
+            const payload = await response.json();
+            if (!response.ok) throw new Error("Approval count request failed");
+            const result = payload && Object.prototype.hasOwnProperty.call(payload, "d") ? payload.d : payload;
+            const count = document.getElementById("inspectionPendingApproval");
+            if (count) count.textContent = (result.data || []).length;
+        } catch (err) {
+            console.warn("Unable to count pending inspection approvals:", err);
+        }
+    }
 }
