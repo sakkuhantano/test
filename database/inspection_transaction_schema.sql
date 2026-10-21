@@ -439,7 +439,11 @@ BEGIN
         JOIN @V_ResultMap M ON M.IDItem=V.IDItem;
 
         COMMIT TRANSACTION;
-        SELECT @V_InspectionID AS InspectionID, @p_ClientInspectionID AS ClientInspectionID;
+        SELECT @V_InspectionID AS InspectionID,
+               @p_ClientInspectionID AS ClientInspectionID,
+               InspectionNo
+        FROM dbo.PIP_T_Inspection
+        WHERE InspectionID=@V_InspectionID;
     END TRY
     BEGIN CATCH
         IF XACT_STATE() <> 0 ROLLBACK TRANSACTION;
