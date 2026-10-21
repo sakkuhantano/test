@@ -296,6 +296,76 @@ ORDER BY R.DisplayOrder, V.FieldName",
         }
 
         [WebMethod]
+        public static object GetReturnedInspections(string employeeId, string companyId, string locationId)
+        {
+            if (String.IsNullOrWhiteSpace(employeeId))
+                throw new HttpException(403, "Technician identity is required.");
+            using (var br = new WAL.BR.CF())
+            {
+                DataTable headers = br.EQueryP(@"
+SELECT I.InspectionID, I.ClientInspectionID, I.CompanyID, I.LocationID, I.SectionID,
+       I.InspectionTypeCode, I.InspectionTypeName, I.InspectionTypeDetailCode,
+       I.InspectionTypeDetailName, I.ScheduledTime, I.IDTemplate, I.IDVersion,
+       I.TemplateNo, I.TemplateName, I.TemplateVersion, I.InspectionDate,
+       I.StartDateTime, I.EndDateTime, I.Status, I.Summary, I.OwnerEmployeeID,
+       I.ReasonVoid, I.UpdateDate
+FROM dbo.PIP_T_Inspection I
+WHERE I.OwnerEmployeeID=@EmployeeID AND I.CompanyID=@CompanyID AND I.LocationID=@LocationID
+  AND I.Status='DRAFT' AND ISNULL(I.IsVoid,0)=1
+  AND EXISTS (SELECT 1 FROM dbo.UTL_User U WHERE U.EmployeeID=@EmployeeID AND ISNULL(U.IsWO,0)=1
+              AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(U.Section,';') S WHERE S.val=I.SectionID))
+ORDER BY I.UpdateDate DESC",
+                    new SqlParameter[] {
+                        new SqlParameter("@EmployeeID", employeeId),
+                        new SqlParameter("@CompanyID", companyId),
+                        new SqlParameter("@LocationID", locationId)
+                    });
+                var result = new List<Dictionary<string, object>>();
+                foreach (DataRow header in headers.Rows)
+                {
+                    long id = Convert.ToInt64(header["InspectionID"]);
+                    DataTable rows = br.EQueryP(@"
+SELECT R.IDItem, R.ItemLabel, R.ItemType, R.Value, R.Remark, R.IsAnomali, R.DisplayOrder,
+       V.FieldName, V.Value AS FieldValue
+FROM dbo.PIP_T_InspectionResult R
+LEFT JOIN dbo.PIP_T_InspectionResultValue V ON V.InspectionResultID=R.InspectionResultID
+WHERE R.InspectionID=@InspectionID
+ORDER BY R.DisplayOrder, V.FieldName",
+                        new SqlParameter[] { new SqlParameter("@InspectionID", id) });
+                    var grouped = new Dictionary<int, Dictionary<string, object>>();
+                    foreach (DataRow row in rows.Rows)
+                    {
+                        int itemId = Convert.ToInt32(row["IDItem"]);
+                        Dictionary<string, object> item;
+                        if (!grouped.TryGetValue(itemId, out item))
+                        {
+                            item = new Dictionary<string, object> {
+                                { "IDItem", itemId },
+                                { "ItemLabel", row["ItemLabel"] == DBNull.Value ? "" : row["ItemLabel"].ToString() },
+                                { "Type", row["ItemType"] == DBNull.Value ? "" : row["ItemType"].ToString() },
+                                { "Value", row["Value"] == DBNull.Value ? "" : row["Value"].ToString() },
+                                { "Remark", row["Remark"] == DBNull.Value ? "" : row["Remark"].ToString() },
+                                { "IsAnomali", row["IsAnomali"] != DBNull.Value && Convert.ToBoolean(row["IsAnomali"]) },
+                                { "DisplayOrder", row["DisplayOrder"] == DBNull.Value ? 0 : Convert.ToInt32(row["DisplayOrder"]) },
+                                { "Values", new Dictionary<string, object>() }
+                            };
+                            grouped.Add(itemId, item);
+                        }
+                        if (row["FieldName"] != DBNull.Value)
+                            ((Dictionary<string, object>)item["Values"])[row["FieldName"].ToString()] =
+                                row["FieldValue"] == DBNull.Value ? "" : row["FieldValue"].ToString();
+                    }
+                    var record = new Dictionary<string, object>();
+                    foreach (DataColumn col in headers.Columns)
+                        record[col.ColumnName] = header[col] == DBNull.Value ? null : header[col];
+                    record["Items"] = grouped.Values.OrderBy(x => Convert.ToInt32(x["DisplayOrder"])).ToList();
+                    result.Add(record);
+                }
+                return new { success = true, data = result };
+            }
+        }
+
+        [WebMethod]
         public static object ProcessInspectionApproval(long inspectionId, string action, string employeeId,
             string companyId, string locationId, string remark)
         {
