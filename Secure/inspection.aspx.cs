@@ -147,6 +147,364 @@ namespace UTL1.Secure
             return new { success = allSuccess, results = outcomes };
         }
 
+        [WebMethod]
+        public static object GetInspectionApprovalQueue(string employeeId, string companyId, string locationId)
+        {
+            if (String.IsNullOrWhiteSpace(employeeId))
+                throw new HttpException(403, "Supervisor identity is required.");
+
+            using (var br = new WAL.BR.CF())
+            {
+                DataTable rows = br.EQueryP(@"
+SELECT I.InspectionID, I.ClientInspectionID, I.CompanyID, I.LocationID, I.SectionID,
+       I.InspectionTypeName, I.InspectionTypeDetailName, I.ScheduledTime,
+       I.TemplateNo, I.TemplateVersion, I.InspectionDate, I.StartDateTime,
+       I.EndDateTime, I.Summary, I.OwnerEmployeeID, I.Status
+FROM dbo.PIP_T_Inspection I
+WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID
+  AND I.Status='DONE' AND ISNULL(I.IsApprove,0)=0 AND ISNULL(I.IsVoid,0)=0
+  AND EXISTS (
+      SELECT 1 FROM dbo.UTL_User U
+      WHERE U.EmployeeID=@EmployeeID AND ISNULL(U.IsSPV,0)=1
+        AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(U.Section,';') S WHERE S.val=I.SectionID)
+        AND (
+          EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
+                  WHERE C.UserID=U.UserID AND C.AppID='pip'
+                    AND C.CompanyID=I.CompanyID AND C.LocationID=I.LocationID)
+          OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', U.EmployeeID, '') L
+                     WHERE L.CompanyID=I.CompanyID AND L.LocationID=I.LocationID)
+        )
+  )
+ORDER BY I.InspectionDate DESC, I.InspectionID DESC",
+                    new SqlParameter[] {
+                        new SqlParameter("@EmployeeID", employeeId),
+                        new SqlParameter("@CompanyID", companyId),
+                        new SqlParameter("@LocationID", locationId)
+                    });
+                var result = new List<Dictionary<string, object>>();
+                foreach (DataRow row in rows.Rows)
+                {
+                    var item = new Dictionary<string, object>();
+                    foreach (DataColumn col in rows.Columns)
+                        item[col.ColumnName] = row[col] == DBNull.Value ? null : row[col];
+                    result.Add(item);
+                }
+                return new { success = true, data = result };
+            }
+        }
+
+        [WebMethod]
+        public static object GetInspectionDashboardSummary(string employeeId, string companyId, string locationId)
+        {
+            if (String.IsNullOrWhiteSpace(employeeId))
+                throw new HttpException(403, "Supervisor identity is required.");
+            using (var br = new WAL.BR.CF())
+            {
+                DataTable rows = br.EQueryP(@"
+SELECT
+    SUM(CASE WHEN I.Status='DONE' AND ISNULL(I.IsApprove,0)=0 AND ISNULL(I.IsVoid,0)=0 THEN 1 ELSE 0 END) PendingApproval,
+    SUM(CASE WHEN ISNULL(I.IsApprove,0)=1 AND I.ApprovedDate>=CONVERT(DATETIME, CONVERT(VARCHAR(10), GETDATE(), 120), 120) THEN 1 ELSE 0 END) ApprovedToday,
+    SUM(CASE WHEN ISNULL(I.IsVoid,0)=1 THEN 1 ELSE 0 END) VoidCount
+FROM dbo.PIP_T_Inspection I
+WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID
+  AND EXISTS (
+      SELECT 1 FROM dbo.UTL_User U
+      WHERE U.EmployeeID=@EmployeeID AND ISNULL(U.IsSPV,0)=1
+        AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(U.Section,';') S WHERE S.val=I.SectionID)
+        AND (
+          EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
+                  WHERE C.UserID=U.UserID AND C.AppID='pip'
+                    AND C.CompanyID=I.CompanyID AND C.LocationID=I.LocationID)
+          OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', U.EmployeeID, '') L
+                     WHERE L.CompanyID=I.CompanyID AND L.LocationID=I.LocationID)
+        )
+  )",
+                    new SqlParameter[] {
+                        new SqlParameter("@EmployeeID", employeeId),
+                        new SqlParameter("@CompanyID", companyId),
+                        new SqlParameter("@LocationID", locationId)
+                    });
+                if (rows.Rows.Count == 0)
+                    return new { success = true, pendingApproval = 0, approvedToday = 0, voidCount = 0 };
+                DataRow row = rows.Rows[0];
+                return new {
+                    success = true,
+                    pendingApproval = row["PendingApproval"] == DBNull.Value ? 0 : Convert.ToInt32(row["PendingApproval"]),
+                    approvedToday = row["ApprovedToday"] == DBNull.Value ? 0 : Convert.ToInt32(row["ApprovedToday"]),
+                    voidCount = row["VoidCount"] == DBNull.Value ? 0 : Convert.ToInt32(row["VoidCount"])
+                };
+            }
+        }
+
+        [WebMethod]
+        public static object GetInspectionApprovalDetail(long inspectionId, string employeeId)
+        {
+            if (String.IsNullOrWhiteSpace(employeeId))
+                throw new HttpException(403, "Supervisor identity is required.");
+
+            using (var br = new WAL.BR.CF())
+            {
+                DataTable header = br.EQueryP(@"
+SELECT I.InspectionID, I.CompanyID, I.LocationID, I.SectionID, I.InspectionTypeName,
+       I.InspectionTypeDetailName, I.ScheduledTime, I.TemplateNo, I.TemplateVersion,
+       I.InspectionDate, I.StartDateTime, I.EndDateTime, I.Summary, I.OwnerEmployeeID
+FROM dbo.PIP_T_Inspection I
+WHERE I.InspectionID=@InspectionID AND I.Status='DONE'
+  AND ISNULL(I.IsApprove,0)=0 AND ISNULL(I.IsVoid,0)=0
+  AND EXISTS (
+      SELECT 1 FROM dbo.UTL_User U
+      WHERE U.EmployeeID=@EmployeeID AND ISNULL(U.IsSPV,0)=1
+        AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(U.Section,';') S WHERE S.val=I.SectionID)
+        AND (
+          EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
+                  WHERE C.UserID=U.UserID AND C.AppID='pip'
+                    AND C.CompanyID=I.CompanyID AND C.LocationID=I.LocationID)
+          OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', U.EmployeeID, '') L
+                     WHERE L.CompanyID=I.CompanyID AND L.LocationID=I.LocationID)
+        )
+  )",
+                    new SqlParameter[] {
+                        new SqlParameter("@InspectionID", inspectionId),
+                        new SqlParameter("@EmployeeID", employeeId)
+                    });
+                if (header.Rows.Count == 0)
+                    throw new HttpException(404, "Inspection not found or not authorized for approval.");
+
+                DataTable results = br.EQueryP(@"
+SELECT R.IDItem, R.ItemLabel, R.ItemType, R.Value, R.Remark, R.IsAnomali,
+       V.FieldName, V.Value AS FieldValue, R.DisplayOrder
+FROM dbo.PIP_T_InspectionResult R
+JOIN dbo.PIP_T_Inspection I ON I.InspectionID=R.InspectionID
+LEFT JOIN dbo.PIP_T_InspectionResultValue V ON V.InspectionResultID=R.InspectionResultID
+WHERE I.InspectionID=@InspectionID
+ORDER BY R.DisplayOrder, V.FieldName",
+                    new SqlParameter[] { new SqlParameter("@InspectionID", inspectionId) });
+
+                var groupedItems = new Dictionary<int, Dictionary<string, object>>();
+                foreach (DataRow row in results.Rows)
+                {
+                    int itemId = Convert.ToInt32(row["IDItem"]);
+                    Dictionary<string, object> item;
+                    if (!groupedItems.TryGetValue(itemId, out item))
+                    {
+                        item = new Dictionary<string, object> {
+                            { "IDItem", itemId },
+                            { "ItemLabel", row["ItemLabel"] == DBNull.Value ? "" : row["ItemLabel"].ToString() },
+                            { "ItemType", row["ItemType"] == DBNull.Value ? "" : row["ItemType"].ToString() },
+                            { "Value", row["Value"] == DBNull.Value ? "" : row["Value"].ToString() },
+                            { "Remark", row["Remark"] == DBNull.Value ? "" : row["Remark"].ToString() },
+                            { "IsAnomali", row["IsAnomali"] != DBNull.Value && Convert.ToBoolean(row["IsAnomali"]) },
+                            { "DisplayOrder", row["DisplayOrder"] == DBNull.Value ? 0 : Convert.ToInt32(row["DisplayOrder"]) },
+                            { "Values", new Dictionary<string, object>() }
+                        };
+                        groupedItems.Add(itemId, item);
+                    }
+                    if (row["FieldName"] != DBNull.Value)
+                        ((Dictionary<string, object>)item["Values"])[row["FieldName"].ToString()] =
+                            row["FieldValue"] == DBNull.Value ? "" : row["FieldValue"].ToString();
+                }
+                var itemRows = groupedItems.Values.OrderBy(x => Convert.ToInt32(x["DisplayOrder"])).ToList();
+                var h = new Dictionary<string, object>();
+                foreach (DataColumn col in header.Columns)
+                    h[col.ColumnName] = header.Rows[0][col] == DBNull.Value ? null : header.Rows[0][col];
+                return new { success = true, header = h, items = itemRows };
+            }
+        }
+
+        [WebMethod]
+        public static object GetReturnedInspections(string employeeId, string companyId, string locationId)
+        {
+            if (String.IsNullOrWhiteSpace(employeeId))
+                throw new HttpException(403, "Technician identity is required.");
+            using (var br = new WAL.BR.CF())
+            {
+                DataTable headers = br.EQueryP(@"
+SELECT I.InspectionID, I.ClientInspectionID, I.CompanyID, I.LocationID, I.SectionID,
+       I.InspectionTypeCode, I.InspectionTypeName, I.InspectionTypeDetailCode,
+       I.InspectionTypeDetailName, I.ScheduledTime, I.IDTemplate, I.IDVersion,
+       I.TemplateNo, I.TemplateName, I.TemplateVersion, I.InspectionDate,
+       I.StartDateTime, I.EndDateTime, I.Status, I.Summary, I.OwnerEmployeeID,
+       I.ReasonVoid, I.UpdateDate
+FROM dbo.PIP_T_Inspection I
+WHERE I.OwnerEmployeeID=@EmployeeID AND I.CompanyID=@CompanyID AND I.LocationID=@LocationID
+  AND I.Status='DRAFT' AND ISNULL(I.IsVoid,0)=1
+  AND EXISTS (SELECT 1 FROM dbo.UTL_User U WHERE U.EmployeeID=@EmployeeID AND ISNULL(U.IsWO,0)=1
+              AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(U.Section,';') S WHERE S.val=I.SectionID)
+              AND (
+                  EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
+                          WHERE C.UserID=U.UserID AND C.AppID='pip'
+                            AND C.CompanyID=I.CompanyID AND C.LocationID=I.LocationID)
+                  OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', U.EmployeeID, '') L
+                             WHERE L.CompanyID=I.CompanyID AND L.LocationID=I.LocationID)
+              ))
+ORDER BY I.UpdateDate DESC",
+                    new SqlParameter[] {
+                        new SqlParameter("@EmployeeID", employeeId),
+                        new SqlParameter("@CompanyID", companyId),
+                        new SqlParameter("@LocationID", locationId)
+                    });
+                var result = new List<Dictionary<string, object>>();
+                foreach (DataRow header in headers.Rows)
+                {
+                    long id = Convert.ToInt64(header["InspectionID"]);
+                    DataTable rows = br.EQueryP(@"
+SELECT R.IDItem, R.ItemLabel, R.ItemType, R.Value, R.Remark, R.IsAnomali, R.DisplayOrder,
+       V.FieldName, V.Value AS FieldValue
+FROM dbo.PIP_T_InspectionResult R
+LEFT JOIN dbo.PIP_T_InspectionResultValue V ON V.InspectionResultID=R.InspectionResultID
+WHERE R.InspectionID=@InspectionID
+ORDER BY R.DisplayOrder, V.FieldName",
+                        new SqlParameter[] { new SqlParameter("@InspectionID", id) });
+                    var grouped = new Dictionary<int, Dictionary<string, object>>();
+                    foreach (DataRow row in rows.Rows)
+                    {
+                        int itemId = Convert.ToInt32(row["IDItem"]);
+                        Dictionary<string, object> item;
+                        if (!grouped.TryGetValue(itemId, out item))
+                        {
+                            item = new Dictionary<string, object> {
+                                { "IDItem", itemId },
+                                { "ItemLabel", row["ItemLabel"] == DBNull.Value ? "" : row["ItemLabel"].ToString() },
+                                { "Type", row["ItemType"] == DBNull.Value ? "" : row["ItemType"].ToString() },
+                                { "Value", row["Value"] == DBNull.Value ? "" : row["Value"].ToString() },
+                                { "Remark", row["Remark"] == DBNull.Value ? "" : row["Remark"].ToString() },
+                                { "IsAnomali", row["IsAnomali"] != DBNull.Value && Convert.ToBoolean(row["IsAnomali"]) },
+                                { "DisplayOrder", row["DisplayOrder"] == DBNull.Value ? 0 : Convert.ToInt32(row["DisplayOrder"]) },
+                                { "Values", new Dictionary<string, object>() }
+                            };
+                            grouped.Add(itemId, item);
+                        }
+                        if (row["FieldName"] != DBNull.Value)
+                            ((Dictionary<string, object>)item["Values"])[row["FieldName"].ToString()] =
+                                row["FieldValue"] == DBNull.Value ? "" : row["FieldValue"].ToString();
+                    }
+                    var record = new Dictionary<string, object>();
+                    foreach (DataColumn col in headers.Columns)
+                        record[col.ColumnName] = header[col] == DBNull.Value ? null : header[col];
+                    record["Items"] = grouped.Values.OrderBy(x => Convert.ToInt32(x["DisplayOrder"])).ToList();
+
+                    DataTable meta = br.EQueryP(@"
+SELECT T.IDTemplate, T.TemplateNo, T.TemplateName, T.SectionID, T.InspectionTypeCode,
+       V.IDVersion, V.Version, V.StatusOption
+FROM dbo.PIP_M_CheckListWOPM T
+JOIN dbo.PIP_M_CheckListWOPM_Version V ON V.IDTemplate=T.IDTemplate
+WHERE T.IDTemplate=@IDTemplate AND V.IDVersion=@IDVersion AND ISNULL(T.TemplateType,'W')='I'",
+                        new SqlParameter[] {
+                            new SqlParameter("@IDTemplate", Convert.ToInt32(header["IDTemplate"])),
+                            new SqlParameter("@IDVersion", Convert.ToInt32(header["IDVersion"]))
+                        });
+                    if (meta.Rows.Count > 0)
+                    {
+                        DataRow m = meta.Rows[0];
+                        DataTable templateItems = br.EQueryP(@"
+SELECT S.IDSection, S.SectionName, S.DisplayOrder AS SectionOrder,
+       I.IDItem, I.ItemLabel, I.ItemType, ISNULL(I.OptionList,'') OptionList,
+       I.MinValue, I.MaxValue, ISNULL(I.Unit,'') Unit, I.IsValueRequired,
+       I.IsRemarkRequired, I.DisplayOrder AS ItemOrder, V.StatusOption,
+       I.ModelCode, I.MinTolerance, I.MaxTolerance, I.IsToleranceRequired
+FROM dbo.PIP_M_CheckListWOPM_Section S
+JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDSection=S.IDSection
+JOIN dbo.PIP_M_CheckListWOPM_Version V ON V.IDVersion=S.IDVersion
+WHERE V.IDVersion=@IDVersion
+ORDER BY S.DisplayOrder, I.DisplayOrder",
+                            new SqlParameter[] { new SqlParameter("@IDVersion", Convert.ToInt32(header["IDVersion"])) });
+                        DataTable templateGroups = br.EQueryP(@"
+SELECT G.IDItem, G.GroupName, G.FieldList, G.Unit, G.DisplayOrder
+FROM dbo.PIP_M_CheckListWOPM_ItemGroup G
+JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDItem=G.IDItem
+JOIN dbo.PIP_M_CheckListWOPM_Section S ON S.IDSection=I.IDSection
+WHERE S.IDVersion=@IDVersion
+ORDER BY G.DisplayOrder",
+                            new SqlParameter[] { new SqlParameter("@IDVersion", Convert.ToInt32(header["IDVersion"])) });
+
+                        var sections = templateItems.AsEnumerable()
+                            .GroupBy(row => new {
+                                IDSection = Convert.ToInt32(row["IDSection"]),
+                                SectionName = row["SectionName"].ToString(),
+                                SectionOrder = Convert.ToInt32(row["SectionOrder"])
+                            })
+                            .OrderBy(group => group.Key.SectionOrder)
+                            .Select(group => new {
+                                idSection = group.Key.IDSection,
+                                sectionName = group.Key.SectionName,
+                                items = group.Select(itemRow => {
+                                    string itemType = itemRow["ItemType"].ToString();
+                                    string optionList = itemType == "OPTION"
+                                        ? (String.IsNullOrEmpty(itemRow["OptionList"].ToString())
+                                            ? itemRow["StatusOption"].ToString() : itemRow["OptionList"].ToString())
+                                        : "";
+                                    var itemGroups = templateGroups.AsEnumerable()
+                                        .Where(g => g["IDItem"].ToString() == itemRow["IDItem"].ToString())
+                                        .OrderBy(g => g["DisplayOrder"])
+                                        .Select(g => new {
+                                            groupName = g["GroupName"].ToString(),
+                                            fieldList = g["FieldList"].ToString(),
+                                            unit = g["Unit"].ToString()
+                                        }).ToList();
+                                    return new {
+                                        idItem = Convert.ToInt32(itemRow["IDItem"]),
+                                        label = itemRow["ItemLabel"].ToString(),
+                                        type = itemType,
+                                        optionList = optionList,
+                                        min = itemRow["MinValue"] == DBNull.Value ? (decimal?)null : Convert.ToDecimal(itemRow["MinValue"]),
+                                        max = itemRow["MaxValue"] == DBNull.Value ? (decimal?)null : Convert.ToDecimal(itemRow["MaxValue"]),
+                                        unit = itemRow["Unit"].ToString(),
+                                        isValueRequired = Convert.ToBoolean(itemRow["IsValueRequired"]),
+                                        isRemarkRequired = Convert.ToBoolean(itemRow["IsRemarkRequired"]),
+                                        isToleranceRequired = itemRow["IsToleranceRequired"] != DBNull.Value && Convert.ToBoolean(itemRow["IsToleranceRequired"]),
+                                        mintol = itemRow["MinTolerance"] == DBNull.Value ? (decimal?)null : Convert.ToDecimal(itemRow["MinTolerance"]),
+                                        maxtol = itemRow["MaxTolerance"] == DBNull.Value ? (decimal?)null : Convert.ToDecimal(itemRow["MaxTolerance"]),
+                                        modelcode = itemRow["ModelCode"] == DBNull.Value ? "" : itemRow["ModelCode"].ToString(),
+                                        groups = itemGroups.Count > 0 ? itemGroups : null
+                                    };
+                                }).ToList()
+                            }).ToList();
+                        record["TemplateSnapshot"] = new {
+                            IDTemplate = Convert.ToInt32(m["IDTemplate"]),
+                            IDVersion = Convert.ToInt32(m["IDVersion"]),
+                            Version = m["Version"].ToString(),
+                            SectionID = m["SectionID"].ToString(),
+                            TemplateType = "I",
+                            InspectionTypeCode = m["InspectionTypeCode"].ToString(),
+                            TemplateNo = m["TemplateNo"].ToString(),
+                            TemplateName = m["TemplateName"].ToString(),
+                            StatusOption = m["StatusOption"].ToString(),
+                            sections = sections
+                        };
+                    }
+                    result.Add(record);
+                }
+                return new { success = true, data = result };
+            }
+        }
+
+        [WebMethod]
+        public static object ProcessInspectionApproval(long inspectionId, string action, string employeeId,
+            string companyId, string locationId, string remark)
+        {
+            if (String.IsNullOrWhiteSpace(employeeId))
+                throw new HttpException(403, "Supervisor identity is required.");
+            if (!String.Equals(action, "APPROVE", StringComparison.OrdinalIgnoreCase) &&
+                !String.Equals(action, "VOID", StringComparison.OrdinalIgnoreCase))
+                throw new HttpException(400, "Invalid inspection action.");
+            if (String.Equals(action, "VOID", StringComparison.OrdinalIgnoreCase) &&
+                String.IsNullOrWhiteSpace(remark))
+                throw new HttpException(400, "Reason for void is required.");
+
+            using (var br = new WAL.BR.CF())
+            {
+                DataTable saved = br.EQueryP("spUTL_PIP_T_Inspection_Approval", new SqlParameter[] {
+                    new SqlParameter("@p_InspectionID", inspectionId),
+                    new SqlParameter("@p_Action", action.ToUpperInvariant()),
+                    new SqlParameter("@p_EmployeeID", employeeId),
+                    new SqlParameter("@p_CompanyID", companyId),
+                    new SqlParameter("@p_LocationID", locationId),
+                    new SqlParameter("@p_Remark", String.IsNullOrEmpty(remark) ? (object)DBNull.Value : remark)
+                }, true, true);
+                return new { success = true, action = action.ToUpperInvariant(), inspectionId = inspectionId };
+            }
+        }
+
         private static string TokenString(JObject obj, string name)
         {
             JToken token = obj == null ? null : obj[name];
