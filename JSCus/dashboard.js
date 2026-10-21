@@ -156,9 +156,11 @@ async function renderInspectionDashboardCards() {
     }
     if (role.IsSPV) {
         cards.push(
-            '<div class="col-12 col-md-6"><a href="inspection.aspx?mode=approval" class="text-decoration-none text-dark card-custom air-shadow p-3 d-flex justify-content-between align-items-center">' +
-            '<div><div class="fw-bold">Inspection Approval</div><div class="text-muted small">Review completed inspections for your sections</div></div>' +
-            '<div class="text-end"><span id="inspectionPendingApproval" class="h3 fw-bold text-warning mb-0 d-block">0</span><span class="text-muted small">Pending Approval</span></div></a></div>'
+            '<div class="col-12 col-md-4"><a href="inspection.aspx?mode=approval" class="text-decoration-none text-dark card-custom air-shadow p-3 d-flex justify-content-between align-items-center">' +
+            '<div><div class="fw-bold">Inspection Approval</div><div class="text-muted small">Review completed inspections</div></div>' +
+            '<div class="text-end"><span id="inspectionPendingApproval" class="h3 fw-bold text-warning mb-0 d-block">0</span><span class="text-muted small">Pending</span></div></a></div>' +
+            '<div class="col-6 col-md-4"><div class="card-custom air-shadow p-3"><div class="fw-bold">Approved Today</div><div id="inspectionApprovedToday" class="h3 fw-bold text-success mb-0">0</div></div></div>' +
+            '<div class="col-6 col-md-4"><div class="card-custom air-shadow p-3"><div class="fw-bold">Void / Returned</div><div id="inspectionVoidCount" class="h3 fw-bold text-danger mb-0">0</div></div></div>'
         );
     }
     if (!cards.length) {
@@ -192,7 +194,7 @@ async function renderInspectionDashboardCards() {
     if (role.IsSPV && navigator.onLine) {
         try {
             const scope = (loginData.curcompany || "").split(";");
-            const response = await fetch("inspection.aspx/GetInspectionApprovalQueue", {
+            const response = await fetch("inspection.aspx/GetInspectionDashboardSummary", {
                 method: "POST",
                 headers: { "Content-Type": "application/json; charset=utf-8" },
                 body: JSON.stringify({
@@ -202,12 +204,16 @@ async function renderInspectionDashboardCards() {
                 })
             });
             const payload = await response.json();
-            if (!response.ok) throw new Error("Approval count request failed");
+            if (!response.ok) throw new Error("Inspection dashboard summary request failed");
             const result = payload && Object.prototype.hasOwnProperty.call(payload, "d") ? payload.d : payload;
-            const count = document.getElementById("inspectionPendingApproval");
-            if (count) count.textContent = (result.data || []).length;
+            const pending = document.getElementById("inspectionPendingApproval");
+            const approved = document.getElementById("inspectionApprovedToday");
+            const voided = document.getElementById("inspectionVoidCount");
+            if (pending) pending.textContent = result.pendingApproval || 0;
+            if (approved) approved.textContent = result.approvedToday || 0;
+            if (voided) voided.textContent = result.voidCount || 0;
         } catch (err) {
-            console.warn("Unable to count pending inspection approvals:", err);
+            console.warn("Unable to load Inspection dashboard summary:", err);
         }
     }
 }
