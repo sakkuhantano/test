@@ -107,7 +107,7 @@ function onInspectionTypeChanged() {
     detailSelect.innerHTML = '<option value="">Pilih detail...</option>' +
         details.map(detail =>
             String(detail.ScheduleTime || "").split(";").map(function (time) { return time.trim(); })
-                .filter(function (time) { return /^([01]\\d|2[0-3]):[0-5]\\d$/.test(time); })
+                .filter(function (time) { return /^([01]\d|2[0-3]):[0-5]\d$/.test(time); })
                 .map(function (time) {
                     return '<option value="' + escInspection(detail.InspectionTypeDetailCode + "|" + time) + '">' +
                         escInspection(detail.InspectionTypeDetailName + " • " + time) + '</option>';
