@@ -528,7 +528,8 @@ function createNewTemplate(sectionId)
         TemplateType:"W",
         InspectionTypeCode:"",
         CompanyScope:"S",
-        MetadataDirty:false
+        // Ensure Save All persists the default Company/Location as the initial Selected Company scope.
+        MetadataDirty:true
     };
 }
 function createNewGroup()
@@ -5101,11 +5102,8 @@ async function renderTemplateCompanyAssignments(template)
         host.textContent = 'All Company / Gedung: this template is available across all properties.';
         return;
     }
-    if (!template.IDTemplate || Number(template.IDTemplate) <= 0) {
-        host.textContent = 'Save the template first. You can then assign one or more company/location pairs.';
-        return;
-    }
-    if (template.MetadataDirty) {
+    const isNewTemplate = !template.IDTemplate || Number(template.IDTemplate) <= 0;
+    if (!isNewTemplate && template.MetadataDirty) {
         host.textContent = 'Save Template settings first, then edit company/location assignments.';
         return;
     }
@@ -5129,10 +5127,14 @@ async function renderTemplateCompanyAssignments(template)
             check.className = 'form-check-input';
             check.checked = !!row.IsAssigned;
             // Keep the current property selected so the editor does not lose access mid-session.
-            check.disabled = isReadonlyMode ||
+            check.disabled = isReadonlyMode || isNewTemplate ||
                 (String(row.CompanyID) === String(companyId) && String(row.LocationID) === String(locationId));
-            if (check.disabled && !isReadonlyMode)
-                check.title = 'To remove this property, open the template from another assigned property.';
+            if (check.disabled && !isReadonlyMode) {
+                if (isNewTemplate)
+                    check.title = 'The default Company/Gedung will be saved with the new template. Save it first to add other properties.';
+                else if (String(row.CompanyID) === String(companyId) && String(row.LocationID) === String(locationId))
+                    check.title = 'To remove this property, open the template from another assigned property.';
+            }
             check.addEventListener('change', async function() {
                 const oldValue = !this.checked;
                 try {
