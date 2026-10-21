@@ -4,11 +4,11 @@ CREATE PROCEDURE dbo.spPIP_InsertUpdateDeleteInput_PIP_M_HD_InspectionType
     @p_H_InspectionTypeCode VARCHAR(2),
     @p_H_InspectionTypeName VARCHAR(100),
     @p_H_SectionID VARCHAR(10),
-    @p_H_IsActive BIT,
+    @p_H_IsActive BIT=1,
     @p_D_InspectionTypeDetailCode VARCHAR(20),
     @p_D_InspectionTypeDetailName VARCHAR(100),
     @p_D_ScheduleTime VARCHAR(200),
-    @p_D_IsActive BIT,
+    @p_D_IsActive BIT=1,
     @p_UpdateUser VARCHAR(50)
 AS
 BEGIN
