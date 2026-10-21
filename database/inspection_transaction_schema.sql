@@ -60,7 +60,7 @@ BEGIN
         IDItem INT NOT NULL,
         ItemLabel VARCHAR(500) NOT NULL,
         ItemType VARCHAR(20) NOT NULL,
-        Value VARCHAR(500) NULL,
+        Value VARCHAR(50) NULL,
         Remark VARCHAR(500) NULL,
         IsAnomali BIT NOT NULL CONSTRAINT DF_PIP_T_InspectionResult_IsAnomali DEFAULT (0),
         DisplayOrder INT NOT NULL CONSTRAINT DF_PIP_T_InspectionResult_DisplayOrder DEFAULT (0),
@@ -74,6 +74,11 @@ BEGIN
             REFERENCES dbo.PIP_T_Inspection (InspectionID)
     );
 END;
+GO
+
+/* Keep existing installations aligned with the 50-character checklist Value field. */
+IF COL_LENGTH('dbo.PIP_T_InspectionResult', 'Value') IS NOT NULL
+    ALTER TABLE dbo.PIP_T_InspectionResult ALTER COLUMN Value VARCHAR(50) NULL;
 GO
 
 IF OBJECT_ID('dbo.PIP_T_InspectionResultValue', 'U') IS NULL
@@ -192,7 +197,7 @@ BEGIN
         IDItem INT NOT NULL,
         ItemLabel VARCHAR(500) NOT NULL,
         ItemType VARCHAR(20) NOT NULL,
-        Value VARCHAR(500) NULL,
+        Value VARCHAR(50) NULL,
         Remark VARCHAR(500) NULL,
         IsAnomali BIT NOT NULL,
         DisplayOrder INT NOT NULL
