@@ -75,6 +75,33 @@
         renderTimes();
     });
 })();
+
+function showScheduleModal(scheduleString, detailName) {
+    var modalElement = document.getElementById("scheduleListModal");
+    var title = document.getElementById("scheduleListModalTitle");
+    var host = document.getElementById("scheduleListModalTimes");
+    if (!modalElement || !host) return false;
+    title.textContent = "Schedule Time — " + (detailName || "Inspection Detail");
+    host.innerHTML = "";
+    var times = (scheduleString || "").split(";").map(function (x) { return x.trim(); })
+        .filter(function (x) { return /^([01]\\d|2[0-3]):[0-5]\\d$/.test(x); })
+        .filter(function (x, i, all) { return all.indexOf(x) === i; }).sort();
+    if (!times.length) {
+        var empty = document.createElement("span");
+        empty.className = "schedule-time-empty";
+        empty.textContent = "Belum ada schedule time.";
+        host.appendChild(empty);
+    } else {
+        times.forEach(function (time) {
+            var chip = document.createElement("span");
+            chip.className = "schedule-time-chip";
+            chip.textContent = time;
+            host.appendChild(chip);
+        });
+    }
+    if (window.bootstrap && bootstrap.Modal) bootstrap.Modal.getOrCreateInstance(modalElement).show();
+    return false;
+}
 </script>
 </asp:Content>
 <asp:Content ID="Content2" ContentPlaceHolderID="ContentPlaceHolder1" runat="server">
@@ -134,7 +161,11 @@
                 <Columns>
                     <asp:BoundColumn DataField="InspectionTypeDetailCode" HeaderText="Detail Code" />
                     <asp:BoundColumn DataField="InspectionTypeDetailName" HeaderText="Description" />
-                    <asp:BoundColumn DataField="ScheduleTime" HeaderText="Schedule Time" />
+                    <asp:TemplateColumn HeaderText="Schedule Time"><ItemTemplate>
+                        <div class="small text-secondary"><%# GetScheduleSummary(DataBinder.Eval(Container.DataItem, "ScheduleTime")) %></div>
+                        <asp:LinkButton ID="lBtnViewSchedule" runat="server" CausesValidation="false" CssClass="btn btn-sm btn-outline-info mt-1"
+                            OnClientClick='<%# GetScheduleClientScript(DataBinder.Eval(Container.DataItem, "ScheduleTime"), DataBinder.Eval(Container.DataItem, "InspectionTypeDetailName")) %>'>View Schedule</asp:LinkButton>
+                    </ItemTemplate></asp:TemplateColumn>
                     <asp:TemplateColumn HeaderText="Active"><ItemTemplate><asp:Label ID="lblActive" runat="server" Text='<%# Convert.ToBoolean(DataBinder.Eval(Container.DataItem, "IsActive")) ? "Yes" : "No" %>' /></ItemTemplate></asp:TemplateColumn>
                     <asp:TemplateColumn HeaderText=""><ItemTemplate>
                         <asp:LinkButton ID="lBtnEditDetail" runat="server" CommandName="EditDetail" CommandArgument='<%# DataBinder.Eval(Container.DataItem, "InspectionTypeDetailCode") %>' CausesValidation="false" CssClass="btn btn-sm btn-outline-secondary">Edit</asp:LinkButton>
@@ -143,6 +174,16 @@
                 </Columns>
             </asp:DataGrid>
         </div></div>
+        <div class="modal fade" id="scheduleListModal" tabindex="-1" aria-labelledby="scheduleListModalTitle" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered"><div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title fz-custom1" id="scheduleListModalTitle">Schedule Time</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body"><div id="scheduleListModalTimes" class="schedule-time-chips pt-0"></div></div>
+                <div class="modal-footer"><button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Close</button></div>
+            </div></div>
+        </div>
     </div></div>
     </asp:Panel>
     <div class="row my-1"><div class="col-sm-6 mb-1">
