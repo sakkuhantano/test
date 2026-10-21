@@ -7,7 +7,7 @@ CREATE PROCEDURE dbo.spPIP_InsertUpdateDeleteInput_PIP_M_HD_InspectionType
     @p_H_IsActive BIT,
     @p_D_InspectionTypeDetailCode VARCHAR(20),
     @p_D_InspectionTypeDetailName VARCHAR(100),
-    @p_D_ScheduleTime VARCHAR(5),
+    @p_D_ScheduleTime VARCHAR(200),
     @p_D_IsActive BIT,
     @p_UpdateUser VARCHAR(50)
 AS
@@ -41,7 +41,7 @@ BEGIN
         INSERT INTO dbo.PIP_M_InspectionTypeDetail
             (InspectionTypeCode, InspectionTypeDetailCode, InspectionTypeDetailName, ScheduleTime, IsActive, EntryUser, EntryDate, UpdateUser, UpdateDate)
         VALUES
-            (@p_H_InspectionTypeCode, @p_D_InspectionTypeDetailCode, @p_D_InspectionTypeDetailName, CAST(@p_D_ScheduleTime AS TIME), @p_D_IsActive, @p_UpdateUser, GETDATE(), @p_UpdateUser, GETDATE());
+            (@p_H_InspectionTypeCode, @p_D_InspectionTypeDetailCode, @p_D_InspectionTypeDetailName, @p_D_ScheduleTime, @p_D_IsActive, @p_UpdateUser, GETDATE(), @p_UpdateUser, GETDATE());
     END
     ELSE IF @p_D_Tipe = '2'
         UPDATE dbo.PIP_M_InspectionTypeDetail
