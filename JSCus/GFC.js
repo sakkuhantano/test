@@ -689,6 +689,15 @@ async function getInspectionData() {
         if (!templateResponse.ok) throw new Error("Download Inspection templates failed");
         const templateResult = await templateResponse.json();
         const templates = templateResult.d || [];
+        // Keep each detail as one IndexedDB row; ScheduleTime contains sorted HH:mm values separated by semicolons.
+        const details = (masters.details || []).map(function (detail) {
+            const times = String(detail.ScheduleTime || "").split(";")
+                .map(function (time) { return time.trim(); })
+                .filter(function (time) { return /^([01]\\d|2[0-3]):[0-5]\\d$/.test(time); })
+                .filter(function (time, index, all) { return all.indexOf(time) === index; })
+                .sort();
+            return Object.assign({}, detail, { ScheduleTime: times.join(";") });
+        });
 
         const replaceStore = (name, rows) => new Promise((resolve, reject) => {
             const tx = db.transaction(name, "readwrite");
@@ -701,14 +710,14 @@ async function getInspectionData() {
         });
 
         await replaceStore("inspection_types", masters.types || []);
-        await replaceStore("inspection_type_details", masters.details || []);
+        await replaceStore("inspection_type_details", details);
         await replaceStore("inspection_templates", templates);
         console.log("Inspection offline data sync success", {
             types: (masters.types || []).length,
-            details: (masters.details || []).length,
+            details: details.length,
             templates: templates.length
         });
-        return { types: (masters.types || []).length, details: (masters.details || []).length, templates: templates.length };
+        return { types: (masters.types || []).length, details: details.length, templates: templates.length };
     } catch (err) {
         console.error("Inspection offline data sync failed:", err);
         throw err;
