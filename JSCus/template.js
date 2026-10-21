@@ -5007,7 +5007,7 @@ async function appendTemplateMetadataControls(template)
         '<ul class="nav nav-tabs mb-3" role="tablist">' +
             '<li class="nav-item" role="presentation"><button class="nav-link active" id="tplMetaTab" data-bs-toggle="tab" data-bs-target="#tplMetaPane" type="button" role="tab">Template</button></li>' +
             '<li class="nav-item" role="presentation"><button class="nav-link" id="tplCompanyTab" data-bs-toggle="tab" data-bs-target="#tplCompanyPane" type="button" role="tab">Company / Gedung</button></li>' +
-            '<li class="nav-item" id="tplEmployeeTabItem" role="presentation" style="display:none;"><button class="nav-link" id="tplEmployeeTab" data-bs-toggle="tab" data-bs-target="#tplEmployeePane" type="button" role="tab">Employee Assignment</button></li>' +
+            '<li class="nav-item" id="tplEmployeeTabItem" role="presentation" style="display:none;"><button class="nav-link" id="tplEmployeeTab" title="Employee Assignment" aria-label="Employee Assignment" data-bs-toggle="tab" data-bs-target="#tplEmployeePane" type="button" role="tab">Employees</button></li>' +
         '</ul>' +
         '<div class="tab-content">' +
             '<div class="tab-pane fade show active" id="tplMetaPane" role="tabpanel">' +
@@ -5115,6 +5115,13 @@ async function renderTemplateCompanyAssignments(template)
             host.textContent = 'No active company/location pairs are assigned to your PIP access.';
             return;
         }
+        if (isNewTemplate) {
+            const defaultInfo = document.createElement('div');
+            defaultInfo.className = 'alert alert-info py-2 px-2 mb-2';
+            defaultInfo.textContent = 'Default Company/Gedung: ' + companyId + ' / ' + locationId +
+                ' (selected automatically and saved with the template). Save All first to add other properties.';
+            host.appendChild(defaultInfo);
+        }
         const table = document.createElement('table');
         table.className = 'table table-sm align-middle';
         table.innerHTML = '<thead><tr><th>Use</th><th>Company</th><th>Gedung</th></tr></thead><tbody></tbody>';
@@ -5183,7 +5190,7 @@ async function renderTemplateEmployeeAssignments(template)
         return;
     }
     if (!template.IDTemplate || Number(template.IDTemplate) <= 0) {
-        host.textContent = 'Save the template first, then assign employees one by one.';
+        host.textContent = 'Save All Template first so the template gets an ID. Then you can assign employees here; the active employee list is filtered by SectionID and permitted company/location scope.';
         return;
     }
     if (template.MetadataDirty) {
@@ -6246,7 +6253,7 @@ function renderRemarkRequiredOptionChecks(containerId, optionList, selectedOptio
 
     options.forEach((option, index) => {
         const label = document.createElement("label");
-        label.className = "form-check form-check-inline border rounded px-2 py-1 mb-1";
+        label.className = "form-check form-check-inline border rounded mb-1";
         label.style.cursor = isReadonlyMode ? "default" : "pointer";
         const input = document.createElement("input");
         input.type = "checkbox";
