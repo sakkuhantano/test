@@ -31,8 +31,20 @@ namespace UTL1.Secure
                         throw new HttpException(403, "Employee identity is required for inspection template download.");
 
                     DataTable auth = br.EQueryP(
-                        @"SELECT ISNULL(Section,'') Section, ISNULL(IsWO,0) IsWO
-                          FROM dbo.UTL_User WHERE EmployeeID=@EmployeeID",
+                        @"SELECT ISNULL(U.Section,'') Section, ISNULL(U.IsWO,0) IsWO
+                          FROM dbo.UTL_User U
+                          WHERE U.EmployeeID=@EmployeeID
+                            AND (
+                                EXISTS (
+                                    SELECT 1 FROM dbo.SysWebUserCompanyLocation C
+                                    WHERE C.UserID=U.UserID AND C.AppID='pip'
+                                      AND C.CompanyID=@CompanyID AND C.LocationID=@LocationID
+                                )
+                                OR EXISTS (
+                                    SELECT 1 FROM dbo.F_SelectOneLogin('pip', U.EmployeeID, '') L
+                                    WHERE L.CompanyID=@CompanyID AND L.LocationID=@LocationID
+                                )
+                            )",
                         new SqlParameter[] { new SqlParameter("@EmployeeID", employeeId) });
 
                     if (auth.Rows.Count == 0 || !Convert.ToBoolean(auth.Rows[0]["IsWO"]))
@@ -56,6 +68,11 @@ JOIN PIP_M_CheckListWOPM b on A.IDTemplate=B.IDTemplate
 WHERE b.IsActive=1
 AND ISNULL(b.TemplateType,'W')=@TemplateType
 AND a.Status='Active'
+AND (
+    @TemplateType <> 'I'
+    OR NOT EXISTS (SELECT 1 FROM dbo.PIP_M_CheckListWOPM_Employee EA WHERE EA.IDTemplate=B.IDTemplate)
+    OR EXISTS (SELECT 1 FROM dbo.PIP_M_CheckListWOPM_Employee EA WHERE EA.IDTemplate=B.IDTemplate AND EA.EmployeeID=@EmployeeID)
+)
 AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@sectionlist,';') c WHERE c.val=b.sectionid)
 AND (ISNULL(b.CompanyScope,'S')='A' OR EXISTS
     (SELECT 1 FROM dbo.PIP_M_CheckListWOPM_CompanyLocation sc
@@ -69,7 +86,8 @@ ORDER BY CASE WHEN ISNULL(b.CompanyScope,'S')='S' THEN 0 ELSE 1 END, B.IDTemplat
 "@version=" + version + GF.Str2 +
 "@CompanyID=" + companyId + GF.Str2 +
 "@LocationID=" + locationId + GF.Str2 +
-"@TemplateType=" + templateType);
+"@TemplateType=" + templateType + GF.Str2 +
+"@EmployeeID=" + employeeId);
                 foreach (DataRow row in dt.Rows)
                 {
                     var dict = new Dictionary<string, object>();
