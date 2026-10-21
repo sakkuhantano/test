@@ -761,6 +761,8 @@ async function downloadReturnedInspections() {
         };
         for (const serverRecord of returned) {
             let local = existing.find(x => x.LocalInspectionID === serverRecord.ClientInspectionID);
+            // Never overwrite edits waiting to sync; the returned server copy is only a baseline.
+            if (local && local.SyncStatus !== "SYNCED") continue;
             if (!local) {
                 const template = serverRecord.TemplateSnapshot || (await new Promise((resolve, reject) => {
                     const tx = db.transaction("inspection_templates", "readonly");
