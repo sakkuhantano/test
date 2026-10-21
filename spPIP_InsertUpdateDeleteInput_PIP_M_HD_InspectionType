@@ -1,4 +1,4 @@
-CREATE PROCEDURE dbo.spPIP_InsertUpdateDeleteInput_PIP_M_HD_InspectionType
+ALTER PROCEDURE dbo.spPIP_InsertUpdateDeleteInput_PIP_M_HD_InspectionType
     @p_H_Tipe VARCHAR(1),
     @p_D_Tipe VARCHAR(1),
     @p_H_InspectionTypeCode VARCHAR(2),
