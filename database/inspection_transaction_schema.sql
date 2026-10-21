@@ -279,6 +279,12 @@ BEGIN
           AND V.Status='Active'
           AND
           (
+              NOT EXISTS (SELECT 1 FROM dbo.PIP_M_CheckListWOPM_Employee EA WHERE EA.IDTemplate=T.IDTemplate)
+              OR EXISTS (SELECT 1 FROM dbo.PIP_M_CheckListWOPM_Employee EA
+                         WHERE EA.IDTemplate=T.IDTemplate AND EA.EmployeeID=@p_UpdateUser)
+          )
+          AND
+          (
               ISNULL(T.CompanyScope,'S')='A'
               OR EXISTS
               (
