@@ -280,14 +280,30 @@ WHERE I.InspectionID=@InspectionID
 ORDER BY R.DisplayOrder, V.FieldName",
                     new SqlParameter[] { new SqlParameter("@InspectionID", inspectionId) });
 
-                var itemRows = new List<Dictionary<string, object>>();
+                var groupedItems = new Dictionary<int, Dictionary<string, object>>();
                 foreach (DataRow row in results.Rows)
                 {
-                    var item = new Dictionary<string, object>();
-                    foreach (DataColumn col in results.Columns)
-                        item[col.ColumnName] = row[col] == DBNull.Value ? null : row[col];
-                    itemRows.Add(item);
+                    int itemId = Convert.ToInt32(row["IDItem"]);
+                    Dictionary<string, object> item;
+                    if (!groupedItems.TryGetValue(itemId, out item))
+                    {
+                        item = new Dictionary<string, object> {
+                            { "IDItem", itemId },
+                            { "ItemLabel", row["ItemLabel"] == DBNull.Value ? "" : row["ItemLabel"].ToString() },
+                            { "ItemType", row["ItemType"] == DBNull.Value ? "" : row["ItemType"].ToString() },
+                            { "Value", row["Value"] == DBNull.Value ? "" : row["Value"].ToString() },
+                            { "Remark", row["Remark"] == DBNull.Value ? "" : row["Remark"].ToString() },
+                            { "IsAnomali", row["IsAnomali"] != DBNull.Value && Convert.ToBoolean(row["IsAnomali"]) },
+                            { "DisplayOrder", row["DisplayOrder"] == DBNull.Value ? 0 : Convert.ToInt32(row["DisplayOrder"]) },
+                            { "Values", new Dictionary<string, object>() }
+                        };
+                        groupedItems.Add(itemId, item);
+                    }
+                    if (row["FieldName"] != DBNull.Value)
+                        ((Dictionary<string, object>)item["Values"])[row["FieldName"].ToString()] =
+                            row["FieldValue"] == DBNull.Value ? "" : row["FieldValue"].ToString();
                 }
+                var itemRows = groupedItems.Values.OrderBy(x => Convert.ToInt32(x["DisplayOrder"])).ToList();
                 var h = new Dictionary<string, object>();
                 foreach (DataColumn col in header.Columns)
                     h[col.ColumnName] = header.Rows[0][col] == DBNull.Value ? null : header.Rows[0][col];
