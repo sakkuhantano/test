@@ -49,11 +49,35 @@ BEGIN
             (@p_H_InspectionTypeCode, @p_D_InspectionTypeDetailCode, @p_D_InspectionTypeDetailName, @p_D_ScheduleTime, @p_D_IsActive, @p_UpdateUser, GETDATE(), @p_UpdateUser, GETDATE(), @p_D_CompanyID, @p_D_LocationID, @p_D_ID);
     END
     ELSE IF @p_D_Tipe = '2'
+    BEGIN
         UPDATE dbo.PIP_M_InspectionTypeDetail
         SET InspectionTypeDetailName=@p_D_InspectionTypeDetailName, ScheduleTime=@p_D_ScheduleTime,
             IsActive=@p_D_IsActive, UpdateUser=@p_UpdateUser, UpdateDate=GETDATE()
-        WHERE ID=@p_D_ID;
+        WHERE ID=@p_D_ID
+          AND InspectionTypeCode=@p_H_InspectionTypeCode
+          AND InspectionTypeDetailCode=@p_D_InspectionTypeDetailCode
+          AND CompanyID=@p_D_CompanyID
+          AND LocationID=@p_D_LocationID;
+
+        IF @@ROWCOUNT=0
+        BEGIN
+            RAISERROR('Inspection detail was not found in the current company/location.', 16, 1);
+            RETURN;
+        END;
+    END
     ELSE IF @p_D_Tipe = '3'
+    BEGIN
         DELETE dbo.PIP_M_InspectionTypeDetail
-        WHERE ID=@p_D_ID;
+        WHERE ID=@p_D_ID
+          AND InspectionTypeCode=@p_H_InspectionTypeCode
+          AND InspectionTypeDetailCode=@p_D_InspectionTypeDetailCode
+          AND CompanyID=@p_D_CompanyID
+          AND LocationID=@p_D_LocationID;
+
+        IF @@ROWCOUNT=0
+        BEGIN
+            RAISERROR('Inspection detail was not found in the current company/location.', 16, 1);
+            RETURN;
+        END;
+    END
 END
