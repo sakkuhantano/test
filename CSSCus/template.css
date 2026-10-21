@@ -698,7 +698,7 @@ body {
     overflow: hidden;
 }
 #panel-properties .nav-tabs .nav-item {
-    flex: 1 1 0;
+    flex: 1 1 auto;
     min-width: 0;
 }
 #panel-properties .nav-tabs .nav-link {
