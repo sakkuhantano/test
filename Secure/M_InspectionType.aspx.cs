@@ -78,14 +78,8 @@ namespace PIP.Secure
                 using (var br = new WAL.BR.CF())
                 {
                     DataTable dt = br.EQueryP(@"SELECT InspectionTypeDetailCode, InspectionTypeDetailName, 
-ScheduleTime, IsActive FROM dbo.PIP_M_InspectionTypeDetail
-WHERE ID=@ID AND InspectionTypeCode=@Code AND CompanyID=@CompanyID AND LocationID=@LocationID",
-                        new SqlParameter[] {
-                            new SqlParameter("@ID", _lblID.Text.Trim()),
-                            new SqlParameter("@Code", txtInspectionTypeCode.Text.Trim()),
-                            new SqlParameter("@CompanyID", Master.Mn_CompanyID),
-                            new SqlParameter("@LocationID", Master.Mn_LocationID)
-                        });
+ScheduleTime, IsActive FROM dbo.PIP_M_InspectionTypeDetail WHERE ID=@ID",
+                        new SqlParameter[] { new SqlParameter("@ID", _lblID.Text.Trim()) });
                     if (dt.Rows.Count > 0)
                     {
                         txtDetailOriginalCode.Text = detailCode;
