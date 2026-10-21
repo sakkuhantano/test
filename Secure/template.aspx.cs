@@ -720,6 +720,7 @@ WHERE a.SectionID = @SectionID
                                                 itemRemarkRequiredOptionsStr = string.Join(";", requiredOptions.ToArray());
                                             }
 
+                                            string itemType = Convert.ToString(item["ItemType"]);
                                             DataRow iRow = dtItem.NewRow();
                                             iRow["C1"] = idItem;
                                             iRow["C2"] = item["RuntimeItemID"];
