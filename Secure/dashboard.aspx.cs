@@ -208,7 +208,7 @@ ORDER BY s.DisplayOrder, i.DisplayOrder",
             return result;
         }
         [WebMethod]
-        public static object getInspectionMasters(string section, string employeeId)
+        public static object getInspectionMasters(string section, string employeeId, string companyId, string locationId)
         {
             using (var br = new WAL.BR.CF())
             {
@@ -235,6 +235,28 @@ ORDER BY s.DisplayOrder, i.DisplayOrder",
                     throw new HttpException(403, "Requested inspection section is not assigned to this employee.");
                 section = String.Join(";", requestedSections);
 
+                if (String.IsNullOrWhiteSpace(companyId) || String.IsNullOrWhiteSpace(locationId))
+                    throw new HttpException(400, "Company and location are required for inspection master download.");
+
+                DataTable companyAuth = br.EQueryP(
+                    @"SELECT U.UserID
+                      FROM dbo.UTL_User U
+                      WHERE U.EmployeeID=@EmployeeID
+                        AND (
+                            EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
+                                    WHERE C.UserID=U.UserID AND C.AppID='pip'
+                                      AND C.CompanyID=@CompanyID AND C.LocationID=@LocationID)
+                            OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', U.EmployeeID, '') L
+                                       WHERE L.CompanyID=@CompanyID AND L.LocationID=@LocationID)
+                        )",
+                    new SqlParameter[] {
+                        new SqlParameter("@EmployeeID", employeeId),
+                        new SqlParameter("@CompanyID", companyId),
+                        new SqlParameter("@LocationID", locationId)
+                    });
+                if (companyAuth.Rows.Count == 0)
+                    throw new HttpException(403, "Employee is not authorized for this company/location.");
+
                 DataTable types = br.EQuery(@"
 SELECT DISTINCT T.InspectionTypeCode, T.InspectionTypeName, T.SectionID
 FROM dbo.PIP_M_InspectionType T
@@ -249,9 +271,12 @@ SELECT D.InspectionTypeCode, D.InspectionTypeDetailCode,
 FROM dbo.PIP_M_InspectionType T
 JOIN dbo.PIP_M_InspectionTypeDetail D ON D.InspectionTypeCode=T.InspectionTypeCode
 WHERE T.IsActive=1 AND D.IsActive=1
+  AND D.CompanyID=@CompanyID AND D.LocationID=@LocationID
   AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@SectionList, ';') S WHERE S.val=T.SectionID)
 ORDER BY D.InspectionTypeCode, D.ScheduleTime, D.InspectionTypeDetailCode",
-                    "@SectionList=" + section);
+                    "@SectionList=" + section + GF.Str2 +
+                    "@CompanyID=" + companyId + GF.Str2 +
+                    "@LocationID=" + locationId);
 
                 var typeRows = types.AsEnumerable().Select(row => new
                 {
@@ -261,6 +286,8 @@ ORDER BY D.InspectionTypeCode, D.ScheduleTime, D.InspectionTypeDetailCode",
                 }).ToList();
                 var detailRows = details.AsEnumerable().Select(row => new
                 {
+                    CompanyID = companyId,
+                    LocationID = locationId,
                     InspectionTypeCode = GF.GetString(row["InspectionTypeCode"]),
                     InspectionTypeDetailCode = GF.GetString(row["InspectionTypeDetailCode"]),
                     InspectionTypeDetailName = GF.GetString(row["InspectionTypeDetailName"]),
