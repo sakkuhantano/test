@@ -92,6 +92,35 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id=OBJECT_ID('dbo.PIP_T_In
         ON dbo.PIP_T_Inspection (OwnerEmployeeID, Status, InspectionDate);
 GO
 
+/* Approval fields are created here too so the sync procedure can be compiled
+   before inspection_approval_schema.sql is run. The approval migration remains idempotent. */
+IF COL_LENGTH('dbo.PIP_T_Inspection', 'IsApprove') IS NULL
+    ALTER TABLE dbo.PIP_T_Inspection ADD IsApprove BIT NOT NULL
+        CONSTRAINT DF_PIP_T_Inspection_IsApprove DEFAULT (0);
+GO
+IF COL_LENGTH('dbo.PIP_T_Inspection', 'ApprovedBy') IS NULL
+    ALTER TABLE dbo.PIP_T_Inspection ADD ApprovedBy VARCHAR(50) NULL;
+GO
+IF COL_LENGTH('dbo.PIP_T_Inspection', 'ApprovedDate') IS NULL
+    ALTER TABLE dbo.PIP_T_Inspection ADD ApprovedDate DATETIME NULL;
+GO
+IF COL_LENGTH('dbo.PIP_T_Inspection', 'ApprovalRemark') IS NULL
+    ALTER TABLE dbo.PIP_T_Inspection ADD ApprovalRemark VARCHAR(500) NULL;
+GO
+IF COL_LENGTH('dbo.PIP_T_Inspection', 'ReasonVoid') IS NULL
+    ALTER TABLE dbo.PIP_T_Inspection ADD ReasonVoid VARCHAR(500) NULL;
+GO
+IF COL_LENGTH('dbo.PIP_T_Inspection', 'IsVoid') IS NULL
+    ALTER TABLE dbo.PIP_T_Inspection ADD IsVoid BIT NOT NULL
+        CONSTRAINT DF_PIP_T_Inspection_IsVoid DEFAULT (0);
+GO
+IF COL_LENGTH('dbo.PIP_T_Inspection', 'VoidBy') IS NULL
+    ALTER TABLE dbo.PIP_T_Inspection ADD VoidBy VARCHAR(50) NULL;
+GO
+IF COL_LENGTH('dbo.PIP_T_Inspection', 'VoidDate') IS NULL
+    ALTER TABLE dbo.PIP_T_Inspection ADD VoidDate DATETIME NULL;
+GO
+
 IF TYPE_ID('dbo.Type_PIP_T_InspectionResult') IS NULL
     EXEC('CREATE TYPE dbo.Type_PIP_T_InspectionResult AS TABLE
     (
@@ -281,6 +310,15 @@ BEGIN
                 RAISERROR('This offline inspection belongs to another employee.', 16, 1);
             END;
 
+            IF EXISTS
+            (
+                SELECT 1 FROM dbo.PIP_T_Inspection
+                WHERE InspectionID=@V_InspectionID AND ISNULL(IsApprove,0)=1
+            )
+            BEGIN
+                RAISERROR('Approved inspections are locked and cannot be changed.', 16, 1);
+            END;
+
             UPDATE dbo.PIP_T_Inspection
             SET CompanyID=@p_CompanyID, LocationID=@p_LocationID, SectionID=@p_SectionID,
                 InspectionTypeCode=@p_InspectionTypeCode, InspectionTypeName=@V_InspectionTypeName,
@@ -290,6 +328,8 @@ BEGIN
                 TemplateName=@V_TemplateName, TemplateVersion=@p_TemplateVersion,
                 InspectionDate=@p_InspectionDate, StartDateTime=@p_StartDateTime,
                 EndDateTime=@p_EndDateTime, Status=@p_Status, Summary=@p_Summary,
+                IsApprove=0, ApprovedBy=NULL, ApprovedDate=NULL, ApprovalRemark=NULL,
+                IsVoid=0, ReasonVoid=NULL, VoidBy=NULL, VoidDate=NULL,
                 UpdateUser=@p_UpdateUser, UpdateDate=GETDATE()
             WHERE InspectionID=@V_InspectionID;
         END
