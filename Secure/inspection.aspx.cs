@@ -483,7 +483,7 @@ ORDER BY G.DisplayOrder",
                     new SqlParameter("@p_EmployeeID", employeeId),
                     new SqlParameter("@p_CompanyID", companyId),
                     new SqlParameter("@p_LocationID", locationId),
-                    new SqlParameter("@p_Remark", (object)(remark ?? "") ?? DBNull.Value)
+                    new SqlParameter("@p_Remark", String.IsNullOrEmpty(remark) ? (object)DBNull.Value : remark)
                 }, true, true);
                 return new { success = true, action = action.ToUpperInvariant(), inspectionId = inspectionId };
             }
