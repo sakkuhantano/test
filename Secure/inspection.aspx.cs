@@ -166,7 +166,7 @@ SELECT I.InspectionID, I.ClientInspectionID, I.InspectionNo, I.CompanyID, I.Loca
        I.EndDateTime, I.Summary, I.OwnerEmployeeID, I.Status
 FROM dbo.PIP_T_Inspection I
 WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID
-  AND I.Status='DONE' AND ISNULL(I.IsApprove,0)=0 AND ISNULL(I.IsVoid,0)=0
+  AND I.Status='DONE' AND I.IsApprove IS NULL AND I.ApprovedBy IS NULL AND I.ApprovedDate IS NULL
   AND EXISTS (
       SELECT 1 FROM dbo.UTL_User U
       WHERE U.EmployeeID=@EmployeeID AND ISNULL(U.IsSPV,0)=1
@@ -206,9 +206,9 @@ ORDER BY I.InspectionDate DESC, I.InspectionID DESC",
             {
                 DataTable rows = br.EQueryP(@"
 SELECT
-    SUM(CASE WHEN I.Status='DONE' AND ISNULL(I.IsApprove,0)=0 AND ISNULL(I.IsVoid,0)=0 THEN 1 ELSE 0 END) PendingApproval,
+    SUM(CASE WHEN I.Status='DONE' AND I.IsApprove IS NULL AND I.ApprovedBy IS NULL AND I.ApprovedDate IS NULL THEN 1 ELSE 0 END) PendingApproval,
     SUM(CASE WHEN ISNULL(I.IsApprove,0)=1 AND I.ApprovedDate>=CONVERT(DATETIME, CONVERT(VARCHAR(10), GETDATE(), 120), 120) THEN 1 ELSE 0 END) ApprovedToday,
-    SUM(CASE WHEN ISNULL(I.IsVoid,0)=1 THEN 1 ELSE 0 END) VoidCount
+    SUM(CASE WHEN I.IsApprove=0 AND I.ApprovedBy IS NOT NULL AND I.ApprovedDate IS NOT NULL THEN 1 ELSE 0 END) VoidCount
 FROM dbo.PIP_T_Inspection I
 WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID
   AND EXISTS (
@@ -254,7 +254,7 @@ SELECT I.InspectionID, I.CompanyID, I.LocationID, I.SectionID, I.InspectionTypeN
        I.InspectionDate, I.StartDateTime, I.EndDateTime, I.Summary, I.OwnerEmployeeID
 FROM dbo.PIP_T_Inspection I
 WHERE I.InspectionID=@InspectionID AND I.Status='DONE'
-  AND ISNULL(I.IsApprove,0)=0 AND ISNULL(I.IsVoid,0)=0
+  AND I.IsApprove IS NULL AND I.ApprovedBy IS NULL AND I.ApprovedDate IS NULL
   AND EXISTS (
       SELECT 1 FROM dbo.UTL_User U
       WHERE U.EmployeeID=@EmployeeID AND ISNULL(U.IsSPV,0)=1
@@ -331,7 +331,7 @@ SELECT I.InspectionID, I.ClientInspectionID, I.InspectionNo, I.CompanyID, I.Loca
        I.ReasonVoid, I.UpdateDate
 FROM dbo.PIP_T_Inspection I
 WHERE I.OwnerEmployeeID=@EmployeeID AND I.CompanyID=@CompanyID AND I.LocationID=@LocationID
-  AND I.Status='DRAFT' AND ISNULL(I.IsVoid,0)=1
+  AND I.Status='DRAFT' AND I.IsApprove=0 AND I.ApprovedBy IS NOT NULL AND I.ApprovedDate IS NOT NULL
   AND EXISTS (SELECT 1 FROM dbo.UTL_User U WHERE U.EmployeeID=@EmployeeID AND ISNULL(U.IsWO,0)=1
               AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(U.Section,';') S WHERE S.val=I.SectionID)
               AND (
