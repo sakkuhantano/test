@@ -666,7 +666,7 @@ async function getInspectionData() {
         const masterResponse = await fetch("dashboard.aspx/getInspectionMasters", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ section: login.section || "" })
+            body: JSON.stringify({ section: login.section || "", employeeId: login.employeeid || "" })
         });
         if (!masterResponse.ok) throw new Error("Download Inspection Type failed");
         const masterResult = await masterResponse.json();
@@ -682,7 +682,8 @@ async function getInspectionData() {
                 modelcode: "",
                 companyId: companyLocation[0] || "",
                 locationId: companyLocation[1] || "",
-                templateType: "I"
+                templateType: "I",
+                employeeId: login.employeeid || ""
             })
         });
         if (!templateResponse.ok) throw new Error("Download Inspection templates failed");
