@@ -203,6 +203,20 @@ BEGIN
         RETURN;
     END;
 
+    IF ISNULL(@p_ScheduledTime, '') <> ''
+       AND NOT EXISTS
+       (
+           SELECT 1
+           FROM dbo.PIP_M_InspectionTypeDetail D
+           WHERE D.InspectionTypeCode=@p_InspectionTypeCode
+             AND D.InspectionTypeDetailCode=@p_InspectionTypeDetailCode
+             AND CHARINDEX(';' + @p_ScheduledTime + ';', ';' + D.ScheduleTime + ';') > 0
+       )
+    BEGIN
+        RAISERROR('Scheduled time is not configured for this inspection detail.', 16, 1);
+        RETURN;
+    END;
+
     IF NOT EXISTS
     (
         SELECT 1
