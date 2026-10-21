@@ -786,6 +786,7 @@ async function downloadReturnedInspections() {
                 local = {
                     LocalInspectionID: serverRecord.ClientInspectionID,
                     ServerInspectionID: Number(serverRecord.InspectionID || 0),
+                    InspectionNo: serverRecord.InspectionNo || "",
                     CompanyID: serverRecord.CompanyID,
                     LocationID: serverRecord.LocationID,
                     SectionID: serverRecord.SectionID,
@@ -803,6 +804,8 @@ async function downloadReturnedInspections() {
                     TemplateSnapshot: template
                 };
             }
+            local.ServerInspectionID = Number(serverRecord.InspectionID || local.ServerInspectionID || 0);
+            local.InspectionNo = serverRecord.InspectionNo || local.InspectionNo || "";
             local.Status = "DRAFT";
             local.SyncStatus = "SYNCED";
             local.Items = serverRecord.Items || [];
@@ -905,6 +908,7 @@ async function uploadPendingInspections() {
                 const outcome = outcomes.find(x => x.ClientInspectionID === record.LocalInspectionID);
                 record.SyncStatus = "SYNCED";
                 record.ServerInspectionID = outcome ? outcome.InspectionID : record.ServerInspectionID;
+                record.InspectionNo = outcome ? (outcome.InspectionNo || record.InspectionNo || "") : (record.InspectionNo || "");
                 record.LastSyncAt = new Date().toISOString();
                 store.put(record);
             });
