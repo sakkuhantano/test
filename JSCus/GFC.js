@@ -161,7 +161,7 @@ function getLoginData() {
 }
 function initIndexedDB() {
     return new Promise((resolve, reject) => {
-    const request = indexedDB.open("OfflineAppDB", 3);
+    const request = indexedDB.open("OfflineAppDB", 4);
 
     // JALAN jika DB belum ada / version naik
     request.onupgradeneeded = function (event) {
@@ -222,11 +222,13 @@ function initIndexedDB() {
         if (!db.objectStoreNames.contains("inspection_types")) {
             db.createObjectStore("inspection_types", { keyPath: "InspectionTypeCode" });
         }
-        if (!db.objectStoreNames.contains("inspection_type_details")) {
-            db.createObjectStore("inspection_type_details", {
-                keyPath: ["InspectionTypeCode", "InspectionTypeDetailCode"]
-            });
+        // Detail codes can repeat across properties; include company/location in the key.
+        if (db.objectStoreNames.contains("inspection_type_details")) {
+            db.deleteObjectStore("inspection_type_details");
         }
+        db.createObjectStore("inspection_type_details", {
+            keyPath: ["CompanyID", "LocationID", "InspectionTypeCode", "InspectionTypeDetailCode"]
+        });
         if (!db.objectStoreNames.contains("inspection_templates")) {
             db.createObjectStore("inspection_templates", { keyPath: "IDTemplate" });
         }
@@ -666,7 +668,12 @@ async function getInspectionData() {
         const masterResponse = await fetch("dashboard.aspx/getInspectionMasters", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ section: login.section || "", employeeId: login.employeeid || "" })
+            body: JSON.stringify({
+                section: login.section || "",
+                employeeId: login.employeeid || "",
+                companyId: companyLocation[0] || "",
+                locationId: companyLocation[1] || ""
+            })
         });
         if (!masterResponse.ok) throw new Error("Download Inspection Type failed");
         const masterResult = await masterResponse.json();
