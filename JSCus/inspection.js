@@ -303,6 +303,9 @@ function renderInspectionItem(item, savedItems, readOnly) {
                     '"' + disabled + (item.isValueRequired ? " required" : "") + '></div>').join("") +
                 '</div></div>';
         }).join("");
+    } else if (type === "TEXT") {
+        control = '<input type="text" maxlength="50" data-role="value" class="form-control form-control-sm" value="' +
+            escInspection(saved.Value == null ? "" : saved.Value) + '"' + disabled + required + '>';
     } else if (type === "RANGE") {
         const hint = item.min != null || item.max != null
             ? '<div class="inspection-muted mb-1">Rentang acuan: ' + escInspection(item.min == null ? "-" : item.min) +
