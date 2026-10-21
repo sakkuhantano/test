@@ -369,7 +369,10 @@ WHERE a.SectionID = @SectionID
                     ArrayList items = (ArrayList)sec["Items"];
                     foreach (Dictionary<string, object> item in items)
                     {
+                        string itemType = Convert.ToString(item["ItemType"]);
                         bool useTolerance =
+                            (itemType == "INPUT" || itemType == "RANGE")
+                            &&
                             item.ContainsKey("UseTolerance")
                             &&
                             Convert.ToBoolean(item["UseTolerance"]);
@@ -392,7 +395,6 @@ WHERE a.SectionID = @SectionID
                                 errorDetails.Add("message", _errMsg);
                             }
                         }
-                        string itemType = Convert.ToString(item["ItemType"]);
 
                         bool useDefault =
                             item.ContainsKey("UseDefaultOption")
@@ -724,7 +726,7 @@ WHERE a.SectionID = @SectionID
                                             iRow["C3"] = section["RuntimeSectionID"];
                                             iRow["C4"] = item["ItemName"];
                                             iRow["C5"] = item["ItemType"];
-                                            iRow["C6"] = item["Unit"];
+                                            iRow["C6"] = itemType == "TEXT" ? "" : item["Unit"];
                                             iRow["C7"] = item["IsRemarkRequired"];
                                             iRow["C8"] = item["IsValueRequired"];
                                             iRow["C9"] = item["ShowUnitInRange"];
@@ -746,7 +748,7 @@ WHERE a.SectionID = @SectionID
                                             else
                                                 iRow["C14"] = GF.GetString(item["MaxTolerance"]);
                                             iRow["C15"] = item["ModelCode"];
-                                            iRow["C16"] = item["UseTolerance"];
+                                            iRow["C16"] = (itemType == "INPUT" || itemType == "RANGE") && Convert.ToBoolean(item["UseTolerance"]);
                                             iRow["C17"] = itemRemarkRequiredOptionsStr;
                                             dtItem.Rows.Add(iRow);
 
