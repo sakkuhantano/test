@@ -41,7 +41,7 @@ BEGIN
         InspectionTypeCode VARCHAR(2) NOT NULL,
         InspectionTypeDetailCode VARCHAR(20) NOT NULL,
         InspectionTypeDetailName VARCHAR(100) NOT NULL,
-        ScheduleTime TIME NOT NULL,
+        ScheduleTime VARCHAR(200) NOT NULL,
         IsActive BIT NOT NULL CONSTRAINT DF_PIP_M_InspectionTypeDetail_IsActive DEFAULT (1),
         EntryUser VARCHAR(50) NULL,
         EntryDate DATETIME NULL,
