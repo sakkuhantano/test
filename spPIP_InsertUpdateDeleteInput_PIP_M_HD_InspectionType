@@ -45,7 +45,7 @@ BEGIN
     END
     ELSE IF @p_D_Tipe = '2'
         UPDATE dbo.PIP_M_InspectionTypeDetail
-        SET InspectionTypeDetailName=@p_D_InspectionTypeDetailName, ScheduleTime=CAST(@p_D_ScheduleTime AS TIME),
+        SET InspectionTypeDetailName=@p_D_InspectionTypeDetailName, ScheduleTime=@p_D_ScheduleTime,
             IsActive=@p_D_IsActive, UpdateUser=@p_UpdateUser, UpdateDate=GETDATE()
         WHERE InspectionTypeCode=@p_H_InspectionTypeCode AND InspectionTypeDetailCode=@p_D_InspectionTypeDetailCode;
     ELSE IF @p_D_Tipe = '3'
