@@ -133,7 +133,6 @@ function renderCards() {
 		`;
 		}
 		document.getElementById("dashboardCards").innerHTML = _cardsHTML;
-        renderInspectionDashboardCards();
 	}
     
 }
