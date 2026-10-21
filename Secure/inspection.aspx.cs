@@ -127,6 +127,9 @@ namespace UTL1.Secure
                             ClientInspectionID = clientId,
                             success = true,
                             InspectionID = inspectionId,
+                            InspectionNo = saved.Rows.Count > 0 && saved.Columns.Contains("InspectionNo") && saved.Rows[0]["InspectionNo"] != DBNull.Value
+                                ? Convert.ToString(saved.Rows[0]["InspectionNo"])
+                                : "",
                             message = ""
                         });
                     }
@@ -138,6 +141,7 @@ namespace UTL1.Secure
                         ClientInspectionID = clientId,
                         success = false,
                         InspectionID = 0,
+                        InspectionNo = "",
                         message = ex.Message
                     });
                 }
@@ -156,7 +160,7 @@ namespace UTL1.Secure
             using (var br = new WAL.BR.CF())
             {
                 DataTable rows = br.EQueryP(@"
-SELECT I.InspectionID, I.ClientInspectionID, I.CompanyID, I.LocationID, I.SectionID,
+SELECT I.InspectionID, I.ClientInspectionID, I.InspectionNo, I.CompanyID, I.LocationID, I.SectionID,
        I.InspectionTypeName, I.InspectionTypeDetailName, I.ScheduledTime,
        I.TemplateNo, I.TemplateVersion, I.InspectionDate, I.StartDateTime,
        I.EndDateTime, I.Summary, I.OwnerEmployeeID, I.Status
@@ -319,7 +323,7 @@ ORDER BY R.DisplayOrder, V.FieldName",
             using (var br = new WAL.BR.CF())
             {
                 DataTable headers = br.EQueryP(@"
-SELECT I.InspectionID, I.ClientInspectionID, I.CompanyID, I.LocationID, I.SectionID,
+SELECT I.InspectionID, I.ClientInspectionID, I.InspectionNo, I.CompanyID, I.LocationID, I.SectionID,
        I.InspectionTypeCode, I.InspectionTypeName, I.InspectionTypeDetailCode,
        I.InspectionTypeDetailName, I.ScheduledTime, I.IDTemplate, I.IDVersion,
        I.TemplateNo, I.TemplateName, I.TemplateVersion, I.InspectionDate,
