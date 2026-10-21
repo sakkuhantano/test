@@ -120,7 +120,7 @@
 <table border="0" cellspacing="0" cellpadding="0" style="width:100%;">
 <tr class="d-none"><td>
     <asp:TextBox ID="txtConfirmAction" runat="server" AutoPostBack="true" OnTextChanged="TextBox_TextChanged" />
-    <asp:TextBox ID="txtIsNew" runat="server" />
+    <asp:TextBox ID="txtIsNew" runat="server" /><asp:TextBox ID="txtIDDetail" runat="server" />
     <asp:TextBox ID="txtDetailOriginalCode" runat="server" />
 </td></tr>
 <tr><td>
@@ -252,6 +252,8 @@
                                         style="margin-left:0;margin-right:2"
                                         Text='<%# DataBinder.Eval(Container.DataItem, "InspectionTypeDetailCode") %>' 
                                         ID="_lblInspectionTypeDetailCode"/>
+                        <asp:label		runat="server" Text='<%# DataBinder.Eval(Container.DataItem, "ID") %>' 
+                                        ID="_lblID" Visible="false"/>
                     </itemtemplate>
                 </asp:TemplateColumn >                                        
                 <asp:TemplateColumn runat="server" 
