@@ -47,19 +47,16 @@ namespace UTL1.Secure
                         !String.Equals(recordOwner, userId, StringComparison.OrdinalIgnoreCase))
                         throw new Exception("This offline inspection belongs to another employee. No data was uploaded.");
 
+                    // dbo.Type_N_Tbl_C10: C1=IDItem, C2=ItemLabel, C3=ItemType,
+                    // C4=Value, C5=Remark, C6=IsAnomali, C7=DisplayOrder; C8-C10 unused.
                     DataTable items = new DataTable();
-                    items.Columns.Add("IDItem", typeof(int));
-                    items.Columns.Add("ItemLabel", typeof(string));
-                    items.Columns.Add("ItemType", typeof(string));
-                    items.Columns.Add("Value", typeof(string));
-                    items.Columns.Add("Remark", typeof(string));
-                    items.Columns.Add("IsAnomali", typeof(bool));
-                    items.Columns.Add("DisplayOrder", typeof(int));
+                    for (int i = 1; i <= 10; i++)
+                        items.Columns.Add("C" + i, typeof(string));
 
+                    // dbo.Type_N_Tbl_C5: C1=IDItem, C2=FieldName, C3=Value; C4-C5 unused.
                     DataTable itemValues = new DataTable();
-                    itemValues.Columns.Add("IDItem", typeof(int));
-                    itemValues.Columns.Add("FieldName", typeof(string));
-                    itemValues.Columns.Add("Value", typeof(string));
+                    for (int i = 1; i <= 5; i++)
+                        itemValues.Columns.Add("C" + i, typeof(string));
 
                     JArray itemArray = record["Items"] as JArray ?? new JArray();
                     int displayOrder = 0;
@@ -67,13 +64,13 @@ namespace UTL1.Secure
                     {
                         displayOrder++;
                         DataRow row = items.NewRow();
-                        row["IDItem"] = TokenInt(item, "IDItem");
-                        row["ItemLabel"] = Limit(TokenString(item, "ItemLabel"), 500);
-                        row["ItemType"] = Limit(TokenString(item, "Type"), 20);
-                        row["Value"] = DbString(TokenString(item, "Value"));
-                        row["Remark"] = DbString(Limit(TokenString(item, "Remark"), 500));
-                        row["IsAnomali"] = TokenBool(item, "IsAnomali");
-                        row["DisplayOrder"] = item["DisplayOrder"] == null ? displayOrder : TokenInt(item, "DisplayOrder");
+                        row["C1"] = TokenInt(item, "IDItem").ToString(CultureInfo.InvariantCulture);
+                        row["C2"] = Limit(TokenString(item, "ItemLabel"), 500);
+                        row["C3"] = Limit(TokenString(item, "Type"), 20);
+                        row["C4"] = DbString(TokenString(item, "Value"));
+                        row["C5"] = DbString(Limit(TokenString(item, "Remark"), 500));
+                        row["C6"] = TokenBool(item, "IsAnomali") ? "1" : "0";
+                        row["C7"] = (item["DisplayOrder"] == null ? displayOrder : TokenInt(item, "DisplayOrder")).ToString(CultureInfo.InvariantCulture);
                         items.Rows.Add(row);
 
                         JObject values = item["Values"] as JObject;
@@ -82,9 +79,9 @@ namespace UTL1.Secure
                             foreach (JProperty field in values.Properties())
                             {
                                 DataRow valueRow = itemValues.NewRow();
-                                valueRow["IDItem"] = TokenInt(item, "IDItem");
-                                valueRow["FieldName"] = Limit(field.Name, 100);
-                                valueRow["Value"] = DbString(field.Value == null || field.Value.Type == JTokenType.Null ? "" : field.Value.ToString());
+                                valueRow["C1"] = TokenInt(item, "IDItem").ToString(CultureInfo.InvariantCulture);
+                                valueRow["C2"] = Limit(field.Name, 100);
+                                valueRow["C3"] = DbString(field.Value == null || field.Value.Type == JTokenType.Null ? "" : field.Value.ToString());
                                 itemValues.Rows.Add(valueRow);
                             }
                         }
