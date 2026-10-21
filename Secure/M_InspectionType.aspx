@@ -15,7 +15,7 @@
         var field = document.getElementById("hidScheduleTimes");
         return (field && field.value ? field.value.split(";") : [])
             .map(function (x) { return x.trim(); })
-            .filter(function (x) { return /^([01]\\d|2[0-3]):[0-5]\\d$/.test(x); })
+            .filter(function (x) { return /^([01]\d|2[0-3]):[0-5]\d$/.test(x); })
             .filter(function (x, i, all) { return all.indexOf(x) === i; })
             .sort();
     }
@@ -58,7 +58,7 @@
         var input = document.getElementById("scheduleTimeInput");
         if (add && input) add.addEventListener("click", function () {
             var time = input.value;
-            if (!/^([01]\\d|2[0-3]):[0-5]\\d$/.test(time)) {
+            if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(time)) {
                 input.focus();
                 return;
             }
