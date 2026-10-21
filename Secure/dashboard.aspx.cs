@@ -31,8 +31,20 @@ namespace UTL1.Secure
                         throw new HttpException(403, "Employee identity is required for inspection template download.");
 
                     DataTable auth = br.EQueryP(
-                        @"SELECT ISNULL(Section,'') Section, ISNULL(IsWO,0) IsWO
-                          FROM dbo.UTL_User WHERE EmployeeID=@EmployeeID",
+                        @"SELECT ISNULL(U.Section,'') Section, ISNULL(U.IsWO,0) IsWO
+                          FROM dbo.UTL_User U
+                          WHERE U.EmployeeID=@EmployeeID
+                            AND (
+                                EXISTS (
+                                    SELECT 1 FROM dbo.SysWebUserCompanyLocation C
+                                    WHERE C.UserID=U.UserID AND C.AppID='pip'
+                                      AND C.CompanyID=@CompanyID AND C.LocationID=@LocationID
+                                )
+                                OR EXISTS (
+                                    SELECT 1 FROM dbo.F_SelectOneLogin('pip', U.EmployeeID, '') L
+                                    WHERE L.CompanyID=@CompanyID AND L.LocationID=@LocationID
+                                )
+                            )",
                         new SqlParameter[] { new SqlParameter("@EmployeeID", employeeId) });
 
                     if (auth.Rows.Count == 0 || !Convert.ToBoolean(auth.Rows[0]["IsWO"]))
