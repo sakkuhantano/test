@@ -56,6 +56,11 @@ JOIN PIP_M_CheckListWOPM b on A.IDTemplate=B.IDTemplate
 WHERE b.IsActive=1
 AND ISNULL(b.TemplateType,'W')=@TemplateType
 AND a.Status='Active'
+AND (
+    @TemplateType <> 'I'
+    OR NOT EXISTS (SELECT 1 FROM dbo.PIP_M_CheckListWOPM_Employee EA WHERE EA.IDTemplate=B.IDTemplate)
+    OR EXISTS (SELECT 1 FROM dbo.PIP_M_CheckListWOPM_Employee EA WHERE EA.IDTemplate=B.IDTemplate AND EA.EmployeeID=@EmployeeID)
+)
 AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@sectionlist,';') c WHERE c.val=b.sectionid)
 AND (ISNULL(b.CompanyScope,'S')='A' OR EXISTS
     (SELECT 1 FROM dbo.PIP_M_CheckListWOPM_CompanyLocation sc
@@ -69,7 +74,8 @@ ORDER BY CASE WHEN ISNULL(b.CompanyScope,'S')='S' THEN 0 ELSE 1 END, B.IDTemplat
 "@version=" + version + GF.Str2 +
 "@CompanyID=" + companyId + GF.Str2 +
 "@LocationID=" + locationId + GF.Str2 +
-"@TemplateType=" + templateType);
+"@TemplateType=" + templateType + GF.Str2 +
+"@EmployeeID=" + employeeId);
                 foreach (DataRow row in dt.Rows)
                 {
                     var dict = new Dictionary<string, object>();
