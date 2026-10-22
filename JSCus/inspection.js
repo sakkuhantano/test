@@ -6,6 +6,7 @@ let inspectionDetails = [];
 let inspectionTemplates = [];
 let inspectionRecords = [];
 let serverSubmittedInspectionRecords = [];
+let serverSlotRecords = [];
 let currentInspectionRecord = null;
 let currentInspectionReadOnly = false;
 let inspectionAutoSaveTimer = null;
@@ -78,10 +79,25 @@ function wireInspectionEvents() {
     document.getElementById("btnInspectionSync").addEventListener("click", syncInspectionNow);
     ["inspectionDraftList", "inspectionSubmittedList"].forEach(function (listId) {
         document.getElementById(listId).addEventListener("click", async function (event) {
+            const deleteButton = event.target.closest("[data-delete-conflict]");
+            if (deleteButton) {
+                await queueConflictInspectionDelete(deleteButton.dataset.deleteConflict);
+                return;
+            }
             const button = event.target.closest("[data-open-inspection]");
             if (!button) return;
             await openSavedInspection(button.dataset.openInspection);
         });
+    });
+    window.addEventListener("inspectionConflict", function (event) {
+        refreshSavedInspectionList().catch(console.error);
+        const count = event.detail && event.detail.count ? event.detail.count : 1;
+        const badge = document.getElementById("inspectionConflictBadge");
+        if (badge) {
+            badge.textContent = "!";
+            badge.classList.remove("d-none");
+        }
+        window.alert(count + " inspeksi mengalami konflik saat sync. Buka daftar inspeksi untuk melihat alasan dan pilih Delete Local Transaction bila record lokal memang harus dibuang.");
     });
     document.getElementById("inspectionChecklistHost").addEventListener("input", scheduleInspectionAutosave);
     document.getElementById("txtInspectionSummary").addEventListener("input", scheduleInspectionAutosave);
@@ -207,6 +223,15 @@ async function startNewInspection() {
     }
 
     const inspectionDate = document.getElementById("txtInspectionDate").value || localDateString(new Date());
+    if (navigator.onLine && typeof downloadTodayInspectionSlots === "function") {
+        try {
+            await downloadTodayInspectionSlots();
+            await refreshSavedInspectionList();
+        } catch (scheduleError) {
+            console.warn("Today schedule refresh failed before Start Inspection:", scheduleError);
+            showInspectionNotice("Jadwal server belum berhasil diperbarui. Pemeriksaan lokal tetap dilakukan; jika koneksi bermasalah, lanjutkan dengan hati-hati.", "warning");
+        }
+    }
     const duplicate = inspectionRecords.find(record =>
         record.InspectionDate === inspectionDate &&
         record.CompanyID === inspectionCompanyID &&
@@ -222,6 +247,23 @@ async function startNewInspection() {
             (duplicate.InspectionNo || "TEMP-" + String(duplicate.LocalInspectionID || "").substring(0, 8)) +
             "). Buka record yang sudah ada, jangan membuat duplikat.", "warning");
         await openSavedInspection(duplicate.LocalInspectionID);
+        return;
+    }
+
+    const serverDuplicate = serverSlotRecords.find(record =>
+        parseInspectionDate(record.InspectionDate) === inspectionDate &&
+        record.CompanyID === inspectionCompanyID &&
+        record.LocationID === inspectionLocationID &&
+        record.SectionID === type.SectionID &&
+        record.InspectionTypeCode === type.InspectionTypeCode &&
+        record.InspectionTypeDetailCode === detail.InspectionTypeDetailCode &&
+        String(record.ScheduledTime || "") === String(scheduledTime || "") &&
+        Number(record.IDTemplate) === Number(template.IDTemplate)
+    );
+    if (serverDuplicate) {
+        showInspectionNotice("Jadwal ini sudah terisi di server (" +
+            (serverDuplicate.InspectionNo || serverDuplicate.Status || "inspection") +
+            "). Record server tetap dipertahankan; jangan membuat transaksi duplikat.", "warning");
         return;
     }
 
@@ -553,11 +595,15 @@ function persistInspectionRecord(record) {
 
 async function refreshSavedInspectionList() {
     const all = await readInspectionStore("inspection_records");
+    serverSlotRecords = all.filter(record => record.ServerOnly && record.CompanyID === inspectionCompanyID &&
+        record.LocationID === inspectionLocationID);
     inspectionRecords = all.filter(record =>
+        !record.ServerOnly &&
         record.OwnerEmployeeID === inspectionLogin.employeeid &&
         record.CompanyID === inspectionCompanyID &&
         record.LocationID === inspectionLocationID
     ).sort((a, b) => String(b.UpdatedAt || b.StartDateTime || "").localeCompare(String(a.UpdatedAt || a.StartDateTime || "")));
+    updateInspectionConflictBadge();
 
     serverSubmittedInspectionRecords = [];
     if (navigator.onLine) {
@@ -622,15 +668,23 @@ function renderInspectionRecordTable(records, host, submitted) {
         const numberHtml = localExists
             ? '<button type="button" class="btn btn-link btn-sm p-0 text-nowrap" data-open-inspection="' + escInspection(localId) + '">' + escInspection(number) + '</button>'
             : escInspection(number);
+        const conflictHtml = record.SyncStatus === "CONFLICT"
+            ? '<div class="text-danger small mt-1"><strong>CONFLICT:</strong> ' + escInspection(record.ConflictReason || "Server menolak transaksi.") + '</div>'
+            : record.SyncStatus === "DELETE_PENDING"
+                ? '<div class="text-warning small mt-1">Menunggu arsip server sebelum dihapus lokal.</div>'
+                : "";
+        const deleteHtml = record.SyncStatus === "CONFLICT"
+            ? '<button type="button" class="btn btn-sm btn-outline-danger mt-1" data-delete-conflict="' + escInspection(localId) + '">Delete Local Transaction</button>'
+            : "";
         return '<tr>' +
-            '<td class="text-nowrap">' + numberHtml + '</td>' +
+            '<td class="text-nowrap">' + numberHtml + conflictHtml + '</td>' +
             '<td class="text-nowrap">' + escInspection(date || "—") + '</td>' +
             '<td class="text-nowrap">' + escInspection(record.ScheduledTime || "—") + '</td>' +
             '<td class="text-nowrap">' + escInspection(start || "—") + '</td>' +
             '<td class="text-nowrap">' + escInspection(end || "—") + '</td>' +
             '<td>' + escInspection(record.InspectionTypeName || "—") + '</td>' +
             '<td>' + escInspection(record.InspectionTypeDetailName || "—") + '</td>' +
-            '<td>' + escInspection(record.TechnicianName || record.OwnerEmployeeID || "—") + '</td>' +
+            '<td>' + escInspection(record.TechnicianName || record.OwnerEmployeeID || "—") + deleteHtml + '</td>' +
             '</tr>';
     }).join("");
     host.innerHTML = '<div class="table-responsive"><table class="table table-sm table-hover align-middle mb-0">' +
@@ -722,9 +776,13 @@ async function syncInspectionNow() {
         }
         await loadInspectionCache();
         await refreshSavedInspectionList();
-        const pendingCount = inspectionRecords.filter(record => record.SyncStatus !== "SYNCED").length;
-        if (pendingCount) {
-            showInspectionNotice(pendingCount + " inspeksi milik akun ini masih belum sync. Data tetap tersimpan lokal; periksa koneksi atau pesan error.", "warning");
+        const conflictCount = inspectionRecords.filter(record => record.SyncStatus === "CONFLICT").length;
+        const deleteCount = inspectionRecords.filter(record => record.SyncStatus === "DELETE_PENDING").length;
+        const pendingCount = inspectionRecords.filter(record => record.SyncStatus === "PENDING" || !record.SyncStatus).length;
+        if (conflictCount || deleteCount) {
+            showInspectionNotice(conflictCount + " konflik perlu ditangani; " + deleteCount + " penghapusan menunggu arsip server. Data lokal belum dibuang sebelum arsip dikonfirmasi.", "warning");
+        } else if (pendingCount) {
+            showInspectionNotice(pendingCount + " inspeksi masih menunggu sync. Data tetap tersimpan lokal.", "warning");
         } else {
             showInspectionNotice("Semua inspeksi milik akun ini sudah tersinkron.", "success");
         }
@@ -749,6 +807,46 @@ async function flushInspectionAutosave() {
     currentInspectionRecord.SyncStatus = "PENDING";
     currentInspectionRecord.UpdatedAt = new Date().toISOString();
     await persistInspectionRecord(currentInspectionRecord);
+}
+
+function updateInspectionConflictBadge() {
+    const badge = document.getElementById("inspectionConflictBadge");
+    if (!badge) return;
+    const count = inspectionRecords.filter(record => record.SyncStatus === "CONFLICT").length;
+    badge.textContent = count ? String(count) : "!";
+    badge.classList.toggle("d-none", count === 0);
+}
+
+async function queueConflictInspectionDelete(localId) {
+    const record = inspectionRecords.find(item => item.LocalInspectionID === localId && item.SyncStatus === "CONFLICT");
+    if (!record) {
+        showInspectionNotice("Record konflik tidak ditemukan atau sudah berubah.", "warning");
+        return;
+    }
+    const ok = window.confirm("Hapus transaksi konflik ini dari daftar lokal? Snapshot transaksi dan checklist akan diarsipkan ke server terlebih dahulu. Record server yang menyebabkan konflik tidak akan dihapus.");
+    if (!ok) return;
+    record.SyncStatus = "DELETE_PENDING";
+    record.DeleteQueuedAt = new Date().toISOString();
+    record.UpdatedAt = record.DeleteQueuedAt;
+    await persistInspectionRecord(record);
+    await refreshSavedInspectionList();
+    if (!navigator.onLine) {
+        showInspectionNotice("Penghapusan masuk antrean. Data lokal tetap disimpan sampai arsip server berhasil dikonfirmasi.", "warning");
+        return;
+    }
+    try {
+        if (typeof uploadPendingInspections === "function") await uploadPendingInspections();
+        await refreshSavedInspectionList();
+        const stillQueued = (await readInspectionStore("inspection_records")).some(item =>
+            item.LocalInspectionID === localId && item.SyncStatus === "DELETE_PENDING");
+        showInspectionNotice(stillQueued
+            ? "Arsip server belum terkonfirmasi. Data lokal tetap aman dan akan dicoba lagi saat Sync."
+            : "Snapshot transaksi berhasil diarsipkan; transaksi konflik lokal sudah dibuang. Data server tidak diubah.",
+            stillQueued ? "warning" : "success");
+    } catch (err) {
+        console.error("Archive conflict deletion failed:", err);
+        showInspectionNotice("Arsip gagal. Data lokal tetap disimpan untuk retry: " + (err.message || err), "danger");
+    }
 }
 
 function showInspectionNotice(message, type) {
