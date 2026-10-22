@@ -922,11 +922,26 @@ WHERE T.IDTemplate=@IDTemplate
               WHERE CurrentPermission.AppID='PIP' AND CurrentPermission.UserID=@UpdateUser
                 AND CurrentPermission.CompanyID=@CompanyID
                 AND CurrentPermission.LocationID=@LocationID)
-  AND (ISNULL(T.CompanyScope,'S')='A' OR EXISTS
-       (SELECT 1 FROM dbo.PIP_M_CheckListWOPM_CompanyLocation AccessScope
-        WHERE AccessScope.IDTemplate=T.IDTemplate
-          AND AccessScope.CompanyID=@CompanyID
-          AND AccessScope.LocationID=@LocationID))",
+  AND
+  (
+       ISNULL(T.CompanyScope,'S')='A'
+       OR EXISTS
+       (
+           SELECT 1
+           FROM dbo.PIP_M_CheckListWOPM_CompanyLocation AccessScope
+           WHERE AccessScope.IDTemplate=T.IDTemplate
+             AND AccessScope.CompanyID=@CompanyID
+             AND AccessScope.LocationID=@LocationID
+       )
+       -- A brand-new template has no scope row yet; allow this first metadata save
+       -- to create the initial Selected Company / Location assignment below.
+       OR NOT EXISTS
+       (
+           SELECT 1
+           FROM dbo.PIP_M_CheckListWOPM_CompanyLocation AnyScope
+           WHERE AnyScope.IDTemplate=T.IDTemplate
+       )
+  )",
                     "@IDTemplate=" + id + GF.Str2 +
                     "@InspectionTypeCode=" + inspectionTypeCode + GF.Str2 +
                     "@CompanyID=" + companyId + GF.Str2 + "@LocationID=" + locationId + GF.Str2 +
