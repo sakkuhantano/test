@@ -5,6 +5,7 @@ let inspectionTypes = [];
 let inspectionDetails = [];
 let inspectionTemplates = [];
 let inspectionRecords = [];
+let serverSubmittedInspectionRecords = [];
 let currentInspectionRecord = null;
 let currentInspectionReadOnly = false;
 let inspectionAutoSaveTimer = null;
@@ -75,10 +76,12 @@ function wireInspectionEvents() {
     document.getElementById("btnSaveInspectionDraft").addEventListener("click", () => saveInspection("DRAFT"));
     document.getElementById("btnCompleteInspection").addEventListener("click", () => saveInspection("DONE"));
     document.getElementById("btnInspectionSync").addEventListener("click", syncInspectionNow);
-    document.getElementById("inspectionSavedList").addEventListener("click", async function (event) {
-        const button = event.target.closest("[data-open-inspection]");
-        if (!button) return;
-        await openSavedInspection(button.dataset.openInspection);
+    ["inspectionDraftList", "inspectionSubmittedList"].forEach(function (listId) {
+        document.getElementById(listId).addEventListener("click", async function (event) {
+            const button = event.target.closest("[data-open-inspection]");
+            if (!button) return;
+            await openSavedInspection(button.dataset.openInspection);
+        });
     });
     document.getElementById("inspectionChecklistHost").addEventListener("input", scheduleInspectionAutosave);
     document.getElementById("txtInspectionSummary").addEventListener("input", scheduleInspectionAutosave);
@@ -203,6 +206,25 @@ async function startNewInspection() {
         return;
     }
 
+    const inspectionDate = document.getElementById("txtInspectionDate").value || localDateString(new Date());
+    const duplicate = inspectionRecords.find(record =>
+        record.InspectionDate === inspectionDate &&
+        record.CompanyID === inspectionCompanyID &&
+        record.LocationID === inspectionLocationID &&
+        record.SectionID === type.SectionID &&
+        record.InspectionTypeCode === type.InspectionTypeCode &&
+        record.InspectionTypeDetailCode === detail.InspectionTypeDetailCode &&
+        String(record.ScheduledTime || "") === String(scheduledTime || "") &&
+        Number(record.IDTemplate) === Number(template.IDTemplate)
+    );
+    if (duplicate) {
+        showInspectionNotice("Jadwal ini sudah memiliki inspeksi di perangkat (" +
+            (duplicate.InspectionNo || "TEMP-" + String(duplicate.LocalInspectionID || "").substring(0, 8)) +
+            "). Buka record yang sudah ada, jangan membuat duplikat.", "warning");
+        await openSavedInspection(duplicate.LocalInspectionID);
+        return;
+    }
+
     currentInspectionRecord = {
         LocalInspectionID: newInspectionId(),
         ServerInspectionID: 0,
@@ -221,7 +243,7 @@ async function startNewInspection() {
         TemplateName: template.TemplateName,
         TemplateVersion: String(template.Version || ""),
         TemplateSnapshot: JSON.parse(JSON.stringify(template)),
-        InspectionDate: document.getElementById("txtInspectionDate").value || localDateString(new Date()),
+        InspectionDate: inspectionDate,
         StartDateTime: new Date().toISOString(),
         EndDateTime: "",
         Status: "DRAFT",
@@ -504,25 +526,102 @@ async function refreshSavedInspectionList() {
         record.LocationID === inspectionLocationID
     ).sort((a, b) => String(b.UpdatedAt || b.StartDateTime || "").localeCompare(String(a.UpdatedAt || a.StartDateTime || "")));
 
-    const host = document.getElementById("inspectionSavedList");
-    if (!inspectionRecords.length) {
-        host.innerHTML = '<div class="text-muted py-2">Belum ada inspeksi milik akun ini di perangkat.</div>';
+    serverSubmittedInspectionRecords = [];
+    if (navigator.onLine) {
+        try {
+            const response = await fetch("inspection.aspx/GetInspectionEntryList", {
+                method: "POST",
+                headers: { "Content-Type": "application/json; charset=utf-8" },
+                body: JSON.stringify({
+                    employeeId: inspectionLogin.employeeid,
+                    companyId: inspectionCompanyID,
+                    locationId: inspectionLocationID
+                })
+            });
+            const payload = await response.json();
+            if (!response.ok) throw new Error((payload && payload.Message) || "Gagal memuat daftar submitted.");
+            const result = payload && Object.prototype.hasOwnProperty.call(payload, "d") ? payload.d : payload;
+            serverSubmittedInspectionRecords = result.data || [];
+        } catch (err) {
+            console.warn("Unable to refresh submitted inspections from server:", err);
+        }
+    }
+
+    const today = localDateString(new Date());
+    const drafts = inspectionRecords.filter(record => record.Status === "DRAFT");
+    const submittedById = new Map();
+    inspectionRecords.filter(record => record.Status === "DONE" && parseInspectionDate(record.InspectionDate) === today)
+        .forEach(record => submittedById.set(record.LocalInspectionID, record));
+    serverSubmittedInspectionRecords.forEach(record => {
+        const key = record.ClientInspectionID || String(record.InspectionID);
+        const local = inspectionRecords.find(item => item.LocalInspectionID === key);
+        submittedById.set(key, local ? Object.assign({}, record, local, {
+            InspectionNo: record.InspectionNo || local.InspectionNo || "",
+            TechnicianName: record.TechnicianName || local.TechnicianName || ""
+        }) : record);
+    });
+    renderInspectionRecordTable(drafts, document.getElementById("inspectionDraftList"), false);
+    renderInspectionRecordTable(Array.from(submittedById.values()).filter(record =>
+        parseInspectionDate(record.InspectionDate) === today
+    ), document.getElementById("inspectionSubmittedList"), true);
+}
+
+function renderInspectionRecordTable(records, host, submitted) {
+    if (!records.length) {
+        host.innerHTML = '<div class="text-muted py-2">' +
+            (submitted ? "Belum ada inspeksi submitted untuk hari ini." : "Belum ada draft inspeksi.") +
+            '</div>';
         return;
     }
-    host.innerHTML = inspectionRecords.map(record => {
-        const statusText = record.Status === "DONE" ? "Complete" : "Draft";
-        const syncText = record.SyncStatus === "SYNCED" ? "Synced" : "Belum sync";
-        const badge = record.SyncStatus === "SYNCED" ? "text-bg-success" :
-            record.Status === "DONE" ? "text-bg-warning" : "text-bg-secondary";
-        return '<div class="inspection-saved-row d-flex justify-content-between align-items-center gap-2">' +
-            '<div class="min-w-0"><div class="fw-semibold text-truncate">' +
-            escInspection(record.InspectionTypeName + " • " + record.InspectionTypeDetailName) +
-            '</div><div class="inspection-muted text-truncate">' +
-            escInspection(record.TemplateNo + " v" + record.TemplateVersion + " • " + record.InspectionDate) +
-            '</div><span class="badge ' + badge + ' mt-1">' + escInspection(statusText + " • " + syncText) + '</span></div>' +
-            '<button type="button" class="btn btn-sm btn-outline-primary flex-shrink-0" data-open-inspection="' +
-            escInspection(record.LocalInspectionID) + '">Open</button></div>';
+    const columns = ["Inspection No.", "Date", "Schedule Time", "Start Time", "End Time",
+        "Inspection Type", "Location/Area", "Technician"];
+    const header = '<thead><tr>' + columns.map(column => '<th class="text-nowrap">' + column + '</th>').join("") + '</tr></thead>';
+    const rows = records.slice().sort((a, b) =>
+        String(b.StartDateTime || b.InspectionDate || "").localeCompare(String(a.StartDateTime || a.InspectionDate || ""))
+    ).map(record => {
+        const localId = record.LocalInspectionID || record.ClientInspectionID || "";
+        const number = record.InspectionNo ||
+            (localId ? "TEMP-" + String(localId).substring(0, 8).toUpperCase() : "—");
+        const start = formatInspectionDateTime(record.StartDateTime);
+        const end = formatInspectionDateTime(record.EndDateTime);
+        const date = parseInspectionDate(record.InspectionDate);
+        const localExists = !!inspectionRecords.find(item => item.LocalInspectionID === localId);
+        const numberHtml = localExists
+            ? '<button type="button" class="btn btn-link btn-sm p-0 text-nowrap" data-open-inspection="' + escInspection(localId) + '">' + escInspection(number) + '</button>'
+            : escInspection(number);
+        return '<tr>' +
+            '<td class="text-nowrap">' + numberHtml + '</td>' +
+            '<td class="text-nowrap">' + escInspection(date || "—") + '</td>' +
+            '<td class="text-nowrap">' + escInspection(record.ScheduledTime || "—") + '</td>' +
+            '<td class="text-nowrap">' + escInspection(start || "—") + '</td>' +
+            '<td class="text-nowrap">' + escInspection(end || "—") + '</td>' +
+            '<td>' + escInspection(record.InspectionTypeName || "—") + '</td>' +
+            '<td>' + escInspection(record.InspectionTypeDetailName || "—") + '</td>' +
+            '<td>' + escInspection(record.TechnicianName || record.OwnerEmployeeID || "—") + '</td>' +
+            '</tr>';
     }).join("");
+    host.innerHTML = '<div class="table-responsive"><table class="table table-sm table-hover align-middle mb-0">' +
+        header + '<tbody>' + rows + '</tbody></table></div>';
+}
+
+function parseInspectionDate(value) {
+    if (!value) return "";
+    const asp = String(value).match(/\/Date\((\d+)/);
+    if (asp) return localDateString(new Date(Number(asp[1])));
+    const text = String(value);
+    if (/^\d{4}-\d{2}-\d{2}/.test(text)) return text.substring(0, 10);
+    const date = new Date(text);
+    return Number.isNaN(date.getTime()) ? "" : localDateString(date);
+}
+
+function formatInspectionDateTime(value) {
+    if (!value) return "";
+    const asp = String(value).match(/\/Date\((\d+)/);
+    const date = asp ? new Date(Number(asp[1])) : new Date(value);
+    if (Number.isNaN(date.getTime())) return "";
+    return localDateString(date) + " " +
+        String(date.getHours()).padStart(2, "0") + ":" +
+        String(date.getMinutes()).padStart(2, "0");
 }
 
 async function openSavedInspection(localId) {
