@@ -440,9 +440,9 @@ ORDER BY I.StartDateTime DESC, I.InspectionID DESC",
             {
                 DataTable rows = br.EQueryP(@"
 SELECT I.InspectionID, I.ClientInspectionID, I.InspectionNo, I.CompanyID, I.LocationID, I.SectionID,
-       I.InspectionTypeName, I.InspectionTypeDetailName, I.ScheduledTime,
-       I.TemplateNo, I.TemplateVersion, I.InspectionDate, I.StartDateTime,
-       I.EndDateTime, I.Summary, I.OwnerEmployeeID, I.Status
+       I.InspectionTypeCode, I.InspectionTypeName, I.InspectionTypeDetailCode, I.InspectionTypeDetailName,
+       I.IDTemplate, I.IDVersion, I.ScheduledTime, I.TemplateNo, I.TemplateName, I.TemplateVersion,
+       I.InspectionDate, I.StartDateTime, I.EndDateTime, I.Summary, I.OwnerEmployeeID, I.Status
 FROM dbo.PIP_T_Inspection I
 WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID
   AND I.Status='DONE' AND I.IsApprove IS NULL AND I.ApprovedBy IS NULL AND I.ApprovedDate IS NULL
