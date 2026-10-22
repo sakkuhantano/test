@@ -961,6 +961,7 @@ function escInspection(value) {
 
 
 let selectedInspectionApproval = null;
+let inspectionApprovalRows = [];
 
 function wireInspectionApprovalEvents() {
     document.getElementById("btnRefreshInspectionApproval").addEventListener("click", loadInspectionApprovalQueue);
@@ -968,6 +969,13 @@ function wireInspectionApprovalEvents() {
         const button = event.target.closest("[data-approval-id]");
         if (button) loadInspectionApprovalDetail(Number(button.dataset.approvalId));
     });
+    ["selApprovalType", "selApprovalDetail", "selApprovalTemplate"].forEach(id =>
+        document.getElementById(id).addEventListener("change", renderInspectionApprovalQueue));
+    document.getElementById("btnApprovalSelectAll").addEventListener("click", function () {
+        document.querySelectorAll("#inspectionApprovalQueue [data-approval-select]").forEach(box => { box.checked = true; });
+    });
+    document.getElementById("btnBatchApproveInspection").addEventListener("click", () => processBatchInspectionApproval("APPROVE"));
+    document.getElementById("btnBatchVoidInspection").addEventListener("click", () => processBatchInspectionApproval("VOID"));
     document.getElementById("btnApproveInspection").addEventListener("click", function () {
         processInspectionApproval("APPROVE");
     });
@@ -1007,25 +1015,125 @@ async function loadInspectionApprovalQueue() {
             companyId: inspectionCompanyID,
             locationId: inspectionLocationID
         });
-        const rows = result.data || [];
-        if (!rows.length) {
-            host.innerHTML = '<div class="text-muted py-3">Tidak ada inspeksi yang menunggu approval.</div>';
-        } else {
-            host.innerHTML = rows.map(row =>
-                '<button type="button" class="btn btn-outline-secondary text-start w-100 mb-2" data-approval-id="' + Number(row.InspectionID) + '">' +
-                '<span class="d-block fw-semibold">' + escInspection(row.InspectionTypeName || "") + ' • ' + escInspection(row.InspectionTypeDetailName || "") + '</span>' +
-                '<span class="d-block inspection-muted">' + escInspection(row.SectionID || "") + ' • ' + escInspection(row.OwnerEmployeeID || "") + '</span>' +
-                '<span class="d-block inspection-muted">' + escInspection(row.TemplateNo || "") + ' v' + escInspection(row.TemplateVersion || "") + ' • ' + escInspection(row.InspectionDate || "") + '</span>' +
-                '</button>'
-            ).join("");
-        }
+        inspectionApprovalRows = result.data || [];
+        populateInspectionApprovalFilters();
+        renderInspectionApprovalQueue();
         notice.className = "alert alert-success py-2 small";
-        notice.textContent = rows.length + " inspeksi menunggu approval.";
+        notice.textContent = inspectionApprovalRows.length + " inspeksi menunggu approval.";
     } catch (err) {
         host.innerHTML = "";
         notice.className = "alert alert-danger py-2 small";
         notice.textContent = err.message || "Gagal memuat antrean approval.";
     }
+}
+
+function populateInspectionApprovalFilters() {
+    const specs = [
+        { id: "selApprovalType", key: "InspectionTypeCode", label: "InspectionTypeName", all: "All types" },
+        { id: "selApprovalDetail", key: "InspectionTypeDetailCode", label: "InspectionTypeDetailName", all: "All details" },
+        { id: "selApprovalTemplate", key: "IDTemplate", label: "TemplateNo", all: "All templates" }
+    ];
+    specs.forEach(spec => {
+        const select = document.getElementById(spec.id);
+        const previous = select.value;
+        const values = new Map();
+        inspectionApprovalRows.forEach(row => {
+            const key = String(row[spec.key] == null ? "" : row[spec.key]);
+            if (key && !values.has(key)) values.set(key, String(row[spec.label] || key));
+        });
+        select.innerHTML = '<option value="">' + spec.all + '</option>' +
+            Array.from(values.entries()).sort((a, b) => a[1].localeCompare(b[1])).map(pair =>
+                '<option value="' + escInspection(pair[0]) + '">' + escInspection(pair[1]) + '</option>'
+            ).join("");
+        if (values.has(previous)) select.value = previous;
+    });
+}
+
+function renderInspectionApprovalQueue() {
+    const host = document.getElementById("inspectionApprovalQueue");
+    if (!host) return;
+    const typeCode = document.getElementById("selApprovalType").value;
+    const detailCode = document.getElementById("selApprovalDetail").value;
+    const templateId = document.getElementById("selApprovalTemplate").value;
+    const rows = inspectionApprovalRows.filter(row =>
+        (!typeCode || String(row.InspectionTypeCode) === typeCode) &&
+        (!detailCode || String(row.InspectionTypeDetailCode) === detailCode) &&
+        (!templateId || String(row.IDTemplate) === templateId)
+    );
+    if (!rows.length) {
+        host.innerHTML = '<div class="text-muted py-3">Tidak ada inspeksi untuk filter ini.</div>';
+        return;
+    }
+    const groups = new Map();
+    rows.forEach(row => {
+        const key = [row.InspectionTypeCode, row.InspectionTypeDetailCode, row.IDTemplate].join("|");
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key).push(row);
+    });
+    host.innerHTML = Array.from(groups.values()).map(group => {
+        const first = group[0];
+        const items = group.map(row =>
+            '<div class="border rounded p-2 mb-2">' +
+            '<div class="d-flex align-items-start gap-2">' +
+            '<input type="checkbox" class="form-check-input mt-1" data-approval-select value="' + Number(row.InspectionID) + '" aria-label="Select inspection">' +
+            '<div class="flex-grow-1"><button type="button" class="btn btn-link text-start p-0 fw-semibold" data-approval-id="' + Number(row.InspectionID) + '">' +
+            escInspection(row.InspectionNo || ("Inspection #" + row.InspectionID)) + '</button>' +
+            '<div class="inspection-muted">' + escInspection(parseInspectionDate(row.InspectionDate) || "") +
+            ' • ' + escInspection(row.ScheduledTime || "No schedule") + ' • ' +
+            escInspection(row.OwnerEmployeeID || "") + '</div></div></div></div>'
+        ).join("");
+        return '<section class="mb-3"><div class="fw-semibold mb-2">' +
+            escInspection(first.InspectionTypeName || "") + ' • ' +
+            escInspection(first.InspectionTypeDetailName || "") + '</div>' +
+            '<div class="inspection-muted mb-2">' + escInspection(first.TemplateNo || "") +
+            ' v' + escInspection(first.TemplateVersion || "") + ' (' + group.length + ')</div>' +
+            items + '</section>';
+    }).join("");
+}
+
+async function processBatchInspectionApproval(action) {
+    const ids = Array.from(document.querySelectorAll("#inspectionApprovalQueue [data-approval-select]:checked"))
+        .map(box => Number(box.value)).filter(id => id > 0);
+    if (!ids.length) {
+        window.alert("Pilih minimal satu inspeksi terlebih dahulu.");
+        return;
+    }
+    let remark = "";
+    if (action === "VOID") {
+        remark = window.prompt("Alasan Void untuk semua inspeksi terpilih (wajib):");
+        if (remark == null) return;
+        remark = remark.trim();
+        if (!remark) {
+            window.alert("Alasan Void wajib diisi.");
+            return;
+        }
+    } else {
+        remark = window.prompt("Catatan approval untuk semua inspeksi terpilih (opsional):") || "";
+    }
+    if (!window.confirm((action === "APPROVE" ? "Approve " : "Void ") + ids.length + " inspeksi terpilih?")) return;
+
+    let succeeded = 0;
+    const failures = [];
+    for (const inspectionId of ids) {
+        try {
+            await inspectionApprovalPost("ProcessInspectionApproval", {
+                inspectionId: inspectionId,
+                action: action,
+                employeeId: inspectionLogin.employeeid,
+                companyId: inspectionCompanyID,
+                locationId: inspectionLocationID,
+                remark: remark
+            });
+            succeeded++;
+        } catch (err) {
+            failures.push("Inspection #" + inspectionId + ": " + (err.message || "gagal"));
+        }
+    }
+    await loadInspectionApprovalQueue();
+    const notice = document.getElementById("inspectionApprovalNotice");
+    notice.className = "alert alert-" + (failures.length ? "warning" : "success") + " py-2 small";
+    notice.textContent = succeeded + " berhasil diproses; " + failures.length + " gagal." +
+        (failures.length ? " " + failures.slice(0, 3).join(" | ") : "");
 }
 
 async function loadInspectionApprovalDetail(inspectionId) {
