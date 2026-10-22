@@ -347,7 +347,7 @@ END",
                         new SqlParameter("@InspectionDate", ParseDate(TokenString(record, "InspectionDate"), DateTime.Today)),
                         new SqlParameter("@ScheduledTime", DbString(Limit(TokenString(record, "ScheduledTime"), 5))),
                         new SqlParameter("@OriginalStatus", DbString(Limit(TokenString(record, "Status"), 10))),
-                        new SqlParameter("@OriginalSyncStatus", DbString(Limit(TokenString(record, "SyncStatus"), 20))),
+                        new SqlParameter("@OriginalSyncStatus", DbString(Limit(TokenString(record, "DeleteOriginalSyncStatus") == "" ? TokenString(record, "SyncStatus") : TokenString(record, "DeleteOriginalSyncStatus"), 20))),
                         new SqlParameter("@ConflictReason", DbString(Limit(conflictReason, 1000))),
                         new SqlParameter("@DeletedBy", Limit(employeeId, 50)),
                         new SqlParameter("@OriginalTransactionJson", SqlDbType.NVarChar, -1) { Value = originalTransactionJson }
