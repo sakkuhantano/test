@@ -397,3 +397,28 @@ body {
     display: block;
     width: 100%;
 }
+
+/* Nested Work Order / Inspection navigation */
+#sidebarMenu .nav-menu-group { width: 100%; }
+#sidebarMenu .nav-parent { gap: .25rem; }
+#sidebarMenu .nav-chevron { font-size: .75rem; transition: transform .2s ease; }
+#sidebarMenu .nav-parent[aria-expanded="true"] .nav-chevron { transform: rotate(180deg); }
+#sidebarMenu .nav-submenu { padding: 0 0 .35rem; }
+#sidebarMenu .nav-link-custom.nav-child {
+    padding: .6rem 1rem .6rem 3.75rem;
+    font-size: 13px;
+}
+#sidebarMenu .nav-link-custom.nav-child .bi { font-size: .95rem; }
+#sidebarMenu .nav-link-custom.nav-child.active {
+    color: var(--primary-container);
+    background-color: var(--surface-container-low);
+    border-radius: 50px 0 0 50px;
+    margin-left: 1rem;
+    padding-left: 2.75rem;
+    font-weight: 700;
+}
+[data-bs-theme="dark"] #sidebarMenu .nav-link-custom.nav-child.active {
+    background: linear-gradient(90deg, #0d6efd22, transparent);
+    color: #0d6efd;
+    border-left: 3px solid #0d6efd;
+}
