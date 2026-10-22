@@ -46,6 +46,7 @@
             <button type="button" id="btnRefreshInspectionApproval" class="btn btn-sm btn-outline-primary">Refresh</button>
         </div>
         <div id="inspectionApprovalNotice" class="alert alert-info py-2 small">Memuat antrean approval...</div>
+        <div class="row g-2 mb-3"><div class="col-12 col-md-4"><label for="selApprovalType" class="form-label small mb-1">Inspection Type</label><select id="selApprovalType" class="form-select form-select-sm"><option value="">All types</option></select></div><div class="col-12 col-md-4"><label for="selApprovalDetail" class="form-label small mb-1">Inspection Detail</label><select id="selApprovalDetail" class="form-select form-select-sm"><option value="">All details</option></select></div><div class="col-12 col-md-4"><label for="selApprovalTemplate" class="form-label small mb-1">Template</label><select id="selApprovalTemplate" class="form-select form-select-sm"><option value="">All templates</option></select></div></div><div class="d-flex flex-wrap align-items-center gap-2 mb-3"><button type="button" id="btnApprovalSelectAll" class="btn btn-sm btn-outline-secondary">Select all filtered</button><button type="button" id="btnBatchApproveInspection" class="btn btn-sm btn-success">Approve selected</button><button type="button" id="btnBatchVoidInspection" class="btn btn-sm btn-outline-danger">Void selected</button></div>
         <div class="row g-3">
             <div class="col-12 col-lg-5"><div id="inspectionApprovalQueue" class="small">Memuat antrean...</div></div>
             <div class="col-12 col-lg-7">
