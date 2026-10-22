@@ -24,9 +24,12 @@
             <div class="fw-bold">Inspection Entry</div>
             <div class="inspection-muted" id="inspectionConnectionLabel">Offline-ready</div>
         </div>
-        <button type="button" class="btn btn-sm btn-outline-primary" id="btnInspectionSync">
-            <i class="bi bi-cloud-arrow-up"></i> Sync
-        </button>
+        <div class="d-flex align-items-center gap-1">
+            <span id="inspectionConflictBadge" class="badge rounded-pill text-bg-danger d-none" title="Inspection conflict">!</span>
+            <button type="button" class="btn btn-sm btn-outline-primary" id="btnInspectionSync">
+                <i class="bi bi-cloud-arrow-up"></i> Sync
+            </button>
+        </div>
     </div>
 </div>
 </asp:Content>
