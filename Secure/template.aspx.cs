@@ -1007,7 +1007,9 @@ COMMIT TRANSACTION;",
                     "@InspectionTypeCode=" + inspectionTypeCode + GF.Str2 +
                     "@CompanyScope=" + companyScope + GF.Str2 +
                     "@UpdateUser=" + updateUser + GF.Str2 +
-                    "@IDTemplate=" + id);
+                    "@IDTemplate=" + id + GF.Str2 +
+                    "@CompanyID=" + companyId + GF.Str2 +
+                    "@LocationID=" + locationId);
                 return new { success = true, message = "" };
             }
         }
