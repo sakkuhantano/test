@@ -232,6 +232,7 @@ async function startNewInspection() {
         LocationID: inspectionLocationID,
         SectionID: type.SectionID,
         OwnerEmployeeID: inspectionLogin.employeeid,
+        TechnicianName: inspectionLogin.name || inspectionLogin.Name || inspectionLogin.employeename || inspectionLogin.employeeName || inspectionLogin.employeeid,
         InspectionTypeCode: type.InspectionTypeCode,
         InspectionTypeName: type.InspectionTypeName,
         InspectionTypeDetailCode: detail.InspectionTypeDetailCode,
@@ -561,9 +562,9 @@ async function refreshSavedInspectionList() {
         }) : record);
     });
     renderInspectionRecordTable(drafts, document.getElementById("inspectionDraftList"), false);
-    renderInspectionRecordTable(Array.from(submittedById.values()).filter(record =>
-        parseInspectionDate(record.InspectionDate) === today
-    ), document.getElementById("inspectionSubmittedList"), true);
+    // The server already filters its submitted rows using the server's system date.
+    // Local-only submitted records are filtered using the device's current date above.
+    renderInspectionRecordTable(Array.from(submittedById.values()), document.getElementById("inspectionSubmittedList"), true);
 }
 
 function renderInspectionRecordTable(records, host, submitted) {
