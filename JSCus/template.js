@@ -5237,7 +5237,7 @@ async function renderTemplateEmployeeAssignments(template)
 
         const table = document.createElement('table');
         table.className = 'table table-sm align-middle';
-        table.innerHTML = '<thead><tr><th>Assign</th><th>Employee / NIK</th><th>Company</th><th>Gedung</th></tr></thead><tbody></tbody>';
+        table.innerHTML = '<thead><tr><th>Assign</th><th>NIK</th></tr></thead><tbody></tbody>';
         const tbody = table.querySelector('tbody');
         const employeeRows = [];
         rows.forEach(function(row) {
@@ -5273,14 +5273,14 @@ async function renderTemplateEmployeeAssignments(template)
             tdCheck.appendChild(check);
             const tdEmployee = document.createElement('td');
             tdEmployee.textContent = row.EmployeeID + ' - ' + row.Name;
-            const tdCompany = document.createElement('td');
-            tdCompany.textContent = row.CompanyID;
-            const tdLocation = document.createElement('td');
-            tdLocation.textContent = row.LocationID;
+            // const tdCompany = document.createElement('td');
+            // tdCompany.textContent = row.CompanyID;
+            // const tdLocation = document.createElement('td');
+            // tdLocation.textContent = row.LocationID;
             tr.appendChild(tdCheck);
             tr.appendChild(tdEmployee);
-            tr.appendChild(tdCompany);
-            tr.appendChild(tdLocation);
+            // tr.appendChild(tdCompany);
+            // tr.appendChild(tdLocation);
             tbody.appendChild(tr);
             employeeRows.push({ row: row, element: tr, checkbox: check });
         });
