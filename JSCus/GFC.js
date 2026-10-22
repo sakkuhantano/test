@@ -720,6 +720,7 @@ async function getInspectionData() {
         await replaceStore("inspection_type_details", details);
         await replaceStore("inspection_templates", templates);
         await downloadReturnedInspections();
+        await downloadTodayInspectionSlots();
         console.log("Inspection offline data sync success", {
             types: (masters.types || []).length,
             details: details.length,
@@ -730,6 +731,79 @@ async function getInspectionData() {
         console.error("Inspection offline data sync failed:", err);
         throw err;
     }
+}
+
+async function downloadTodayInspectionSlots() {
+    if (!navigator.onLine || !db || !db.objectStoreNames.contains("inspection_records")) return [];
+    const login = getLoginData();
+    if (!login || !login.employeeid) return [];
+    const scope = (login.curcompany || "").split(";");
+    const response = await fetch("inspection.aspx/GetTodayInspectionSlots", {
+        method: "POST",
+        headers: { "Content-Type": "application/json; charset=utf-8" },
+        body: JSON.stringify({
+            employeeId: login.employeeid,
+            companyId: scope[0] || "",
+            locationId: scope[1] || ""
+        })
+    });
+    const payload = await response.json();
+    if (!response.ok) throw new Error((payload && payload.Message) || "Download jadwal Inspection hari ini gagal.");
+    const result = payload && Object.prototype.hasOwnProperty.call(payload, "d") ? payload.d : payload;
+    const serverRows = result.data || [];
+    const existing = await new Promise((resolve, reject) => {
+        const tx = db.transaction("inspection_records", "readonly");
+        const req = tx.objectStore("inspection_records").getAll();
+        req.onsuccess = () => resolve(req.result || []);
+        req.onerror = () => reject(req.error);
+    });
+    const localIds = new Set(existing.filter(x => !x.ServerOnly).map(x => x.LocalInspectionID));
+    const slots = serverRows.filter(x => x.ClientInspectionID && !localIds.has(x.ClientInspectionID)).map(x => ({
+        LocalInspectionID: x.ClientInspectionID,
+        ServerInspectionID: Number(x.InspectionID || 0),
+        InspectionNo: x.InspectionNo || "",
+        CompanyID: x.CompanyID,
+        LocationID: x.LocationID,
+        SectionID: x.SectionID,
+        OwnerEmployeeID: x.OwnerEmployeeID,
+        TechnicianName: x.TechnicianName || x.OwnerEmployeeID || "",
+        InspectionTypeCode: x.InspectionTypeCode,
+        InspectionTypeName: x.InspectionTypeName,
+        InspectionTypeDetailCode: x.InspectionTypeDetailCode,
+        InspectionTypeDetailName: x.InspectionTypeDetailName,
+        ScheduledTime: x.ScheduledTime || "",
+        IDTemplate: Number(x.IDTemplate),
+        IDVersion: Number(x.IDVersion),
+        TemplateNo: x.TemplateNo || "",
+        TemplateName: x.TemplateName || "",
+        TemplateVersion: String(x.TemplateVersion || ""),
+        InspectionDate: x.InspectionDate,
+        StartDateTime: x.StartDateTime || "",
+        EndDateTime: x.EndDateTime || "",
+        Status: x.Status || "",
+        SyncStatus: "SYNCED",
+        IsApprove: x.IsApprove,
+        ReasonVoid: x.ReasonVoid || "",
+        ServerOnly: true
+    }));
+    await new Promise((resolve, reject) => {
+        const tx = db.transaction("inspection_records", "readwrite");
+        const store = tx.objectStore("inspection_records");
+        const req = store.openCursor();
+        req.onsuccess = function () {
+            const cursor = req.result;
+            if (!cursor) return;
+            if (cursor.value && cursor.value.ServerOnly) cursor.delete();
+            cursor.continue();
+        };
+        slots.forEach(slot => store.put(slot));
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+        tx.onabort = () => reject(tx.error || new Error("Today schedule cache update aborted"));
+    });
+    login.lastInspectionScheduleSyncAt = new Date().toISOString();
+    setLoginData(login);
+    return serverRows;
 }
 
 async function downloadReturnedInspections() {
