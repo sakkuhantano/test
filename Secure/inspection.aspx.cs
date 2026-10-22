@@ -217,6 +217,69 @@ ORDER BY InspectionID DESC",
         }
 
         [WebMethod]
+        public static object GetTodayInspectionSlots(string employeeId, string companyId, string locationId)
+        {
+            if (String.IsNullOrWhiteSpace(employeeId) || String.IsNullOrWhiteSpace(companyId) || String.IsNullOrWhiteSpace(locationId))
+                throw new HttpException(400, "Employee, company, and location are required.");
+
+            using (var br = new WAL.BR.CF())
+            {
+                DataTable auth = br.EQueryP(@"
+SELECT ISNULL(U.Section,'') Section, ISNULL(U.IsWO,0) IsWO
+FROM dbo.UTL_User U
+WHERE U.EmployeeID=@EmployeeID
+  AND (EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
+               WHERE C.UserID=U.UserID AND C.AppID='pip'
+                 AND C.CompanyID=@CompanyID AND C.LocationID=@LocationID)
+       OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', U.EmployeeID, '') L
+                  WHERE L.CompanyID=@CompanyID AND L.LocationID=@LocationID))",
+                    new SqlParameter[] {
+                        new SqlParameter("@EmployeeID", employeeId),
+                        new SqlParameter("@CompanyID", companyId),
+                        new SqlParameter("@LocationID", locationId)
+                    });
+                if (auth.Rows.Count == 0 || !Convert.ToBoolean(auth.Rows[0]["IsWO"]))
+                    throw new HttpException(403, "This account is not authorized to view Inspection schedules.");
+
+                var sections = auth.Rows[0]["Section"].ToString()
+                    .Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries)
+                    .Select(s => s.Trim()).Where(s => s.Length > 0).ToList();
+                if (sections.Count == 0)
+                    return new { success = true, data = new List<Dictionary<string, object>>() };
+
+                DataTable rows = br.EQueryP(@"
+SELECT I.InspectionID, I.ClientInspectionID, I.InspectionNo,
+       I.CompanyID, I.LocationID, I.SectionID, I.InspectionTypeCode,
+       I.InspectionTypeName, I.InspectionTypeDetailCode, I.InspectionTypeDetailName,
+       I.ScheduledTime, I.IDTemplate, I.IDVersion, I.TemplateNo, I.TemplateName,
+       I.TemplateVersion, I.InspectionDate, I.StartDateTime, I.EndDateTime,
+       I.OwnerEmployeeID, ISNULL(E.Name, I.OwnerEmployeeID) TechnicianName,
+       I.Status, I.IsApprove, I.ReasonVoid
+FROM dbo.PIP_T_Inspection I
+LEFT JOIN dbo.M_HRD_Employee E ON E.EmployeeID=I.OwnerEmployeeID
+WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID
+  AND I.InspectionDate >= CONVERT(DATETIME, CONVERT(VARCHAR(10), GETDATE(), 120), 120)
+  AND I.InspectionDate < DATEADD(DAY, 1, CONVERT(DATETIME, CONVERT(VARCHAR(10), GETDATE(), 120), 120))
+  AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@SectionList,';') S WHERE S.val=I.SectionID)
+ORDER BY I.InspectionDate, I.ScheduledTime, I.InspectionID",
+                    new SqlParameter[] {
+                        new SqlParameter("@CompanyID", companyId),
+                        new SqlParameter("@LocationID", locationId),
+                        new SqlParameter("@SectionList", String.Join(";", sections))
+                    });
+                var result = new List<Dictionary<string, object>>();
+                foreach (DataRow row in rows.Rows)
+                {
+                    var item = new Dictionary<string, object>();
+                    foreach (DataColumn col in rows.Columns)
+                        item[col.ColumnName] = row[col] == DBNull.Value ? null : row[col];
+                    result.Add(item);
+                }
+                return new { success = true, data = result };
+            }
+        }
+
+        [WebMethod]
         public static object GetInspectionEntryList(string employeeId, string companyId, string locationId)
         {
             if (String.IsNullOrWhiteSpace(employeeId) || String.IsNullOrWhiteSpace(companyId) || String.IsNullOrWhiteSpace(locationId))
