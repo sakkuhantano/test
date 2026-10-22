@@ -890,7 +890,8 @@ async function flushInspectionAutosave() {
 function updateInspectionConflictBadge() {
     const badge = document.getElementById("inspectionConflictBadge");
     if (!badge) return;
-    const count = inspectionRecords.filter(record => record.SyncStatus === "CONFLICT").length;
+    const count = inspectionRecords.filter(record =>
+        record.SyncStatus === "CONFLICT" || record.SyncStatus === "DELETE_PENDING").length;
     badge.textContent = count ? String(count) : "!";
     badge.classList.toggle("d-none", count === 0);
 }
