@@ -297,6 +297,10 @@ ORDER BY I.InspectionDate, I.ScheduledTime, I.InspectionID",
                 !String.Equals(TokenString(record, "LocationID"), locationId, StringComparison.OrdinalIgnoreCase))
                 throw new HttpException(403, "The transaction snapshot does not match the logged-in employee and company/location.");
 
+            if (!String.Equals(TokenString(record, "SyncStatus"), "DELETE_PENDING", StringComparison.OrdinalIgnoreCase) ||
+                !String.Equals(TokenString(record, "DeleteOriginalSyncStatus"), "CONFLICT", StringComparison.OrdinalIgnoreCase))
+                throw new HttpException(400, "Only a queued local conflict can be archived for deletion.");
+
             string sectionId = TokenString(record, "SectionID");
             using (var br = new WAL.BR.CF())
             {
