@@ -225,6 +225,37 @@ async function startNewInspection() {
         return;
     }
 
+    if (navigator.onLine) {
+        try {
+            const response = await fetch("inspection.aspx/CheckInspectionDuplicate", {
+                method: "POST",
+                headers: { "Content-Type": "application/json; charset=utf-8" },
+                body: JSON.stringify({
+                    employeeId: inspectionLogin.employeeid,
+                    companyId: inspectionCompanyID,
+                    locationId: inspectionLocationID,
+                    sectionId: type.SectionID,
+                    inspectionTypeCode: type.InspectionTypeCode,
+                    inspectionTypeDetailCode: detail.InspectionTypeDetailCode,
+                    scheduledTime: scheduledTime,
+                    templateId: Number(template.IDTemplate),
+                    inspectionDate: inspectionDate
+                })
+            });
+            const payload = await response.json();
+            if (!response.ok) throw new Error((payload && payload.Message) || "Gagal memvalidasi jadwal inspeksi.");
+            const check = payload && Object.prototype.hasOwnProperty.call(payload, "d") ? payload.d : payload;
+            if (check && check.duplicate) {
+                showInspectionNotice("Jadwal ini sudah memiliki inspeksi " +
+                    (check.InspectionNo || "di server") + " untuk tanggal dan template tersebut. Duplikat tidak dibuat.", "warning");
+                return;
+            }
+        } catch (err) {
+            // Keep offline entry possible; the sync procedure performs the same duplicate check server-side.
+            console.warn("Unable to pre-check duplicate inspection:", err);
+        }
+    }
+
     currentInspectionRecord = {
         LocalInspectionID: newInspectionId(),
         ServerInspectionID: 0,
