@@ -1054,12 +1054,17 @@ async function uploadPendingInspections() {
     }
 
     const failed = outcomes.filter(x => !x.success);
-    if (failed.length) {
+    const isValidationConflict = message => {
+        const text = String(message || "").toLowerCase();
+        return /already exists|duplicate|invalid|required|not authorized|unauthorized|inactive|missing|not configured|belongs to another|locked|unavailable|another inspection/.test(text);
+    };
+    const conflicts = failed.filter(x => isValidationConflict(x.message));
+    if (conflicts.length) {
         await new Promise((resolve, reject) => {
             const tx = db.transaction("inspection_records", "readwrite");
             const store = tx.objectStore("inspection_records");
-            ownedRecords.filter(record => failed.some(x => x.ClientInspectionID === record.LocalInspectionID)).forEach(record => {
-                const outcome = outcomes.find(x => x.ClientInspectionID === record.LocalInspectionID);
+            ownedRecords.filter(record => conflicts.some(x => x.ClientInspectionID === record.LocalInspectionID)).forEach(record => {
+                const outcome = conflicts.find(x => x.ClientInspectionID === record.LocalInspectionID);
                 record.SyncStatus = "CONFLICT";
                 record.ConflictReason = outcome ? (outcome.message || "Server menolak transaksi ini.") : "Server menolak transaksi ini.";
                 record.LastSyncAt = new Date().toISOString();
@@ -1069,10 +1074,15 @@ async function uploadPendingInspections() {
             tx.onerror = () => reject(tx.error);
             tx.onabort = () => reject(tx.error || new Error("Conflict status update aborted"));
         });
-        showToast(failed.length + " inspeksi konflik. Buka daftar inspeksi untuk melihat alasan dan menangani data lokal.", "warning");
+        showToast(conflicts.length + " inspeksi konflik. Buka daftar inspeksi untuk melihat alasan dan menangani data lokal.", "warning");
+        window.dispatchEvent(new CustomEvent("inspectionConflict", { detail: { count: conflicts.length } }));
+    }
+    const retryableFailures = failed.length - conflicts.length;
+    if (retryableFailures > 0) {
+        showToast(retryableFailures + " inspeksi belum berhasil sync karena error yang belum dikenali sebagai konflik. Data tetap PENDING dan akan dicoba lagi.", "warning");
     }
     if (typeof updateTotalPendingSync === "function") await updateTotalPendingSync();
-    return { synced: successfulIds.size, failed: failed.length };
+    return { synced: successfulIds.size, failed: failed.length, conflicts: conflicts.length };
 }
 
 async function countPendingSyncInspections() {
