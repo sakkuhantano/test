@@ -1059,7 +1059,23 @@ function getQueryString(name) {
 
 function promisifyPageMethod(method, ...args) {
     return new Promise((resolve, reject) => {
-        method(...args, resolve, reject);
+        method(...args, resolve, function (error) {
+            // ASP.NET PageMethods error callbacks provide get_message(), not always .message.
+            let message = "";
+            try {
+                if (error && typeof error.get_message === "function")
+                    message = error.get_message();
+                else if (error && error.message)
+                    message = error.message;
+                else if (typeof error === "string")
+                    message = error;
+                else if (error)
+                    message = JSON.stringify(error);
+            } catch (_) { }
+            const normalized = new Error(message || "The server request failed without an error message.");
+            normalized.serverError = error || null;
+            reject(normalized);
+        });
     });
 }
 
