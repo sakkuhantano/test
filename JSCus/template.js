@@ -4966,10 +4966,8 @@ async function showTemplateRootProperties(template, version)
                     //     true;
                     markCurrentVersionDirty();
                     // refreshCurrentTemplateExplorer();
-                    refreshCurrentTemplateExplorer(
-                        currentTemplate.RuntimeTemplateID,
-                        currentVersion?.RuntimeVersionID
-                    );                    
+                    // Refresh the explorer only; keep Template Properties selected.
+                    refreshCurrentTemplateExplorer();
                 }
             );
         document
