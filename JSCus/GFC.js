@@ -796,6 +796,13 @@ async function downloadTodayInspectionSlots() {
             if (cursor.value && cursor.value.ServerOnly) cursor.delete();
             cursor.continue();
         };
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+        tx.onabort = () => reject(tx.error || new Error("Old schedule cache cleanup aborted"));
+    });
+    await new Promise((resolve, reject) => {
+        const tx = db.transaction("inspection_records", "readwrite");
+        const store = tx.objectStore("inspection_records");
         slots.forEach(slot => store.put(slot));
         tx.oncomplete = () => resolve();
         tx.onerror = () => reject(tx.error);
