@@ -291,6 +291,7 @@ async function startNewInspection() {
 
 function renderInspectionForm(record, readOnly) {
     currentInspectionRecord = record;
+    showInspectionInputScreen();
     currentInspectionReadOnly = !!readOnly || record.Status === "DONE";
     document.getElementById("inspectionStartPanel").classList.add("d-none");
     document.getElementById("inspectionFormPanel").classList.remove("d-none");
@@ -518,7 +519,7 @@ async function saveInspection(status) {
         ? "Inspeksi selesai dan tersimpan offline. Tekan Sync untuk mengirimnya."
         : "Draft tersimpan offline.", "success");
     await refreshSavedInspectionList();
-    if (status === "DONE") renderInspectionForm(currentInspectionRecord, true);
+    closeInspectionForm();
 }
 
 function scheduleInspectionAutosave() {
@@ -677,6 +678,7 @@ async function openSavedInspection(localId) {
 }
 
 function resetInspectionSelection() {
+    showInspectionInputScreen();
     currentInspectionRecord = null;
     currentInspectionReadOnly = false;
     document.getElementById("inspectionFormPanel").classList.add("d-none");
@@ -691,6 +693,17 @@ function closeInspectionForm() {
     currentInspectionRecord = null;
     document.getElementById("inspectionFormPanel").classList.add("d-none");
     document.getElementById("inspectionStartPanel").classList.remove("d-none");
+    showInspectionRecordsScreen();
+}
+
+function showInspectionInputScreen() {
+    document.getElementById("inspectionRecordsPanel").classList.add("d-none");
+    document.getElementById("inspectionInputPanel").classList.remove("d-none");
+}
+
+function showInspectionRecordsScreen() {
+    document.getElementById("inspectionInputPanel").classList.add("d-none");
+    document.getElementById("inspectionRecordsPanel").classList.remove("d-none");
 }
 
 async function syncInspectionNow() {
