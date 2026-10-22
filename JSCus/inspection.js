@@ -904,6 +904,8 @@ async function queueConflictInspectionDelete(localId) {
     }
     const ok = window.confirm("Hapus transaksi konflik ini dari daftar lokal? Snapshot transaksi dan checklist akan diarsipkan ke server terlebih dahulu. Record server yang menyebabkan konflik tidak akan dihapus.");
     if (!ok) return;
+    record.DeleteOriginalSyncStatus = record.SyncStatus;
+    record.DeleteOriginalConflictReason = record.ConflictReason || "";
     record.SyncStatus = "DELETE_PENDING";
     record.DeleteQueuedAt = new Date().toISOString();
     record.UpdatedAt = record.DeleteQueuedAt;
