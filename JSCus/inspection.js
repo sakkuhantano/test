@@ -700,9 +700,14 @@ async function refreshSavedInspectionList() {
     }
 
     const today = localDateString(new Date());
-    const drafts = inspectionRecords.filter(record => record.Status === "DRAFT");
+    // Conflicts must remain visible even when the rejected transaction was completed
+    // for a prior date; otherwise technicians would have no way to resolve it.
+    const drafts = inspectionRecords.filter(record =>
+        record.Status === "DRAFT" || record.SyncStatus === "CONFLICT" || record.SyncStatus === "DELETE_PENDING");
     const submittedById = new Map();
-    inspectionRecords.filter(record => record.Status === "DONE" && parseInspectionDate(record.InspectionDate) === today)
+    inspectionRecords.filter(record => record.Status === "DONE" &&
+        parseInspectionDate(record.InspectionDate) === today &&
+        record.SyncStatus !== "CONFLICT" && record.SyncStatus !== "DELETE_PENDING")
         .forEach(record => submittedById.set(record.LocalInspectionID, record));
     serverSubmittedInspectionRecords.forEach(record => {
         const key = record.ClientInspectionID || String(record.InspectionID);
