@@ -5250,10 +5250,13 @@ async function renderTemplateEmployeeAssignments(template)
         clearSearch.type = 'button';
         clearSearch.className = 'btn btn-sm btn-outline-secondary text-nowrap';
         clearSearch.textContent = 'Clear Search';
+        const actionButtons = document.createElement('div');
+        actionButtons.className = 'd-flex flex-nowrap gap-2 ms-auto';
+        actionButtons.appendChild(assignAll);
+        actionButtons.appendChild(clearSearch);
         toolbar.appendChild(search);
         toolbar.appendChild(sortLabel);
-        toolbar.appendChild(assignAll);
-        toolbar.appendChild(clearSearch);
+        toolbar.appendChild(actionButtons);
         host.appendChild(toolbar);
 
         const table = document.createElement('table');
