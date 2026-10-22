@@ -841,7 +841,62 @@ async function uploadPendingInspections() {
     const locationId = companyLocation[1] || "";
     const allowedSections = (login.section || "").split(";").filter(Boolean);
 
-    const allRecords = await new Promise((resolve, reject) => {
+    let allRecords = await new Promise((resolve, reject) => {
+        const tx = db.transaction("inspection_records", "readonly");
+        const req = tx.objectStore("inspection_records").getAll();
+        req.onsuccess = () => resolve(req.result || []);
+        req.onerror = () => reject(req.error);
+    });
+
+    // Archive queued local deletions before considering any inspection uploads.
+    // A local record is removed only after the server confirms its archive exists.
+    const deleteQueue = allRecords.filter(record =>
+        record.SyncStatus === "DELETE_PENDING" &&
+        record.CompanyID === companyId &&
+        record.LocationID === locationId &&
+        allowedSections.includes(record.SectionID) &&
+        record.OwnerEmployeeID === login.employeeid
+    );
+    for (const record of deleteQueue) {
+        try {
+            const archiveResponse = await fetch("inspection.aspx/ArchiveInspectionDelete", {
+                method: "POST",
+                headers: { "Content-Type": "application/json; charset=utf-8" },
+                body: JSON.stringify({
+                    employeeId: login.employeeid,
+                    companyId: companyId,
+                    locationId: locationId,
+                    clientInspectionId: record.LocalInspectionID,
+                    conflictReason: record.ConflictReason || "",
+                    originalTransactionJson: JSON.stringify(record)
+                })
+            });
+            const archivePayload = await archiveResponse.json();
+            const archiveResult = archivePayload && Object.prototype.hasOwnProperty.call(archivePayload, "d")
+                ? archivePayload.d : archivePayload;
+            if (!archiveResponse.ok || !archiveResult || archiveResult.success !== true)
+                throw new Error((archivePayload && archivePayload.Message) || "Server belum mengonfirmasi arsip transaksi.");
+
+            await new Promise((resolve, reject) => {
+                const tx = db.transaction("inspection_records", "readwrite");
+                tx.objectStore("inspection_records").delete(record.LocalInspectionID);
+                tx.oncomplete = () => resolve();
+                tx.onerror = () => reject(tx.error);
+                tx.onabort = () => reject(tx.error || new Error("Local delete aborted"));
+            });
+        } catch (archiveError) {
+            console.warn("Inspection delete archive will be retried:", record.LocalInspectionID, archiveError);
+            record.DeleteArchiveError = archiveError.message || String(archiveError);
+            await new Promise((resolve, reject) => {
+                const tx = db.transaction("inspection_records", "readwrite");
+                tx.objectStore("inspection_records").put(record);
+                tx.oncomplete = () => resolve();
+                tx.onerror = () => reject(tx.error);
+            });
+        }
+    }
+
+    allRecords = await new Promise((resolve, reject) => {
         const tx = db.transaction("inspection_records", "readonly");
         const req = tx.objectStore("inspection_records").getAll();
         req.onsuccess = () => resolve(req.result || []);
@@ -849,7 +904,7 @@ async function uploadPendingInspections() {
     });
 
     const pendingInCompany = allRecords.filter(record =>
-        record.SyncStatus !== "SYNCED" &&
+        (record.SyncStatus === "PENDING" || !record.SyncStatus) &&
         record.CompanyID === companyId &&
         record.LocationID === locationId
     );
@@ -919,7 +974,21 @@ async function uploadPendingInspections() {
 
     const failed = outcomes.filter(x => !x.success);
     if (failed.length) {
-        showToast(failed.length + " inspeksi gagal sync. Data tetap disimpan offline.", "warning");
+        await new Promise((resolve, reject) => {
+            const tx = db.transaction("inspection_records", "readwrite");
+            const store = tx.objectStore("inspection_records");
+            ownedRecords.filter(record => failed.some(x => x.ClientInspectionID === record.LocalInspectionID)).forEach(record => {
+                const outcome = outcomes.find(x => x.ClientInspectionID === record.LocalInspectionID);
+                record.SyncStatus = "CONFLICT";
+                record.ConflictReason = outcome ? (outcome.message || "Server menolak transaksi ini.") : "Server menolak transaksi ini.";
+                record.LastSyncAt = new Date().toISOString();
+                store.put(record);
+            });
+            tx.oncomplete = () => resolve();
+            tx.onerror = () => reject(tx.error);
+            tx.onabort = () => reject(tx.error || new Error("Conflict status update aborted"));
+        });
+        showToast(failed.length + " inspeksi konflik. Buka daftar inspeksi untuk melihat alasan dan menangani data lokal.", "warning");
     }
     if (typeof updateTotalPendingSync === "function") await updateTotalPendingSync();
     return { synced: successfulIds.size, failed: failed.length };
