@@ -58,7 +58,7 @@
         Pilih Inspection Type, detail inspeksi, lalu template. Data tersimpan di perangkat dan hanya disinkronkan oleh teknisi pemiliknya.
     </div>
 
-    <div class="inspection-card p-3 mb-3">
+    <div id="inspectionRecordsPanel" class="inspection-card p-3 mb-3">
         <div class="d-flex justify-content-between align-items-center mb-2">
             <div>
                 <div class="text-uppercase text-primary fw-bold inspection-muted">Inspection Records</div>
@@ -90,6 +90,7 @@
         </div>
     </div>
 
+    <div id="inspectionInputPanel" class="d-none">
     <div id="inspectionStartPanel" class="inspection-card p-3 mb-3">
         <div class="inspection-step mb-3">
             <div class="fw-bold">1. Inspection Type</div>
@@ -156,6 +157,7 @@
             </button>
         </div>
         <div id="inspectionFormMessage" class="inspection-muted mt-2"></div>
+    </div>
     </div>
 </div>
 <script type="text/javascript" src="../JSCus/inspection.js"></script>
