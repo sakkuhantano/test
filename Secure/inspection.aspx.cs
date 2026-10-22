@@ -323,7 +323,7 @@ WHERE U.EmployeeID=@EmployeeID
                     throw new HttpException(403, "This inspection section is not assigned to the current employee.");
 
                 br.EQueryP(@"
-IF NOT EXISTS (SELECT 1 FROM dbo.PIP_T_Inspection_Delete WHERE ClientInspectionID=@ClientInspectionID)
+IF NOT EXISTS (SELECT 1 FROM dbo.PIP_T_Inspection_Delete WITH (UPDLOCK, HOLDLOCK) WHERE ClientInspectionID=@ClientInspectionID)
 BEGIN
     INSERT dbo.PIP_T_Inspection_Delete
     (ClientInspectionID, ServerInspectionID, InspectionNo, CompanyID, LocationID, SectionID,
