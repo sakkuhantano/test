@@ -357,7 +357,11 @@ async function startNewInspection() {
                 })
             });
             const payload = await response.json();
-            if (!response.ok) throw new Error((payload && payload.Message) || "Gagal memvalidasi jadwal inspeksi.");
+            if (!response.ok) {
+                const requestError = new Error((payload && payload.Message) || "Gagal memvalidasi jadwal inspeksi.");
+                requestError.status = response.status;
+                throw requestError;
+            }
             const check = payload && Object.prototype.hasOwnProperty.call(payload, "d") ? payload.d : payload;
             if (check && check.duplicate) {
                 showInspectionNotice("Jadwal ini sudah memiliki inspeksi " +
@@ -365,8 +369,14 @@ async function startNewInspection() {
                 return;
             }
         } catch (err) {
-            // Keep offline entry possible; the sync procedure performs the same duplicate check server-side.
+            const message = String(err.message || err).toLowerCase();
+            if (err.status === 403 || /not authorized|not assigned|unauthorized|employee is required/.test(message)) {
+                showInspectionNotice("Validasi server menolak akses inspeksi: " + (err.message || err), "danger");
+                return;
+            }
+            // If the server is unreachable, offline entry remains possible; upload performs final validation.
             console.warn("Unable to pre-check duplicate inspection:", err);
+            showInspectionNotice("Pemeriksaan jadwal server gagal. Jika koneksi bermasalah, inspeksi tetap bisa dibuat offline dan akan divalidasi lagi saat upload.", "warning");
         }
     }
 
