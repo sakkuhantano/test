@@ -918,10 +918,15 @@ FROM dbo.PIP_M_CheckListWOPM T
 LEFT JOIN dbo.PIP_M_InspectionType I
   ON I.InspectionTypeCode=@InspectionTypeCode AND I.IsActive=1
 WHERE T.IDTemplate=@IDTemplate
-  AND EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation CurrentPermission
-              WHERE CurrentPermission.AppID='PIP' AND CurrentPermission.UserID=@UpdateUser
-                AND CurrentPermission.CompanyID=@CompanyID
-                AND CurrentPermission.LocationID=@LocationID)
+  AND (
+       EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation CurrentPermission
+               WHERE CurrentPermission.AppID='PIP' AND CurrentPermission.UserID=@UpdateUser
+                 AND CurrentPermission.CompanyID=@CompanyID
+                 AND CurrentPermission.LocationID=@LocationID)
+       OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', @UpdateUser, '') LoginCompany
+                  WHERE LoginCompany.CompanyID=@CompanyID
+                    AND LoginCompany.LocationID=@LocationID)
+  )
   AND
   (
        ISNULL(T.CompanyScope,'S')='A'
@@ -1025,20 +1030,26 @@ FROM
 (
     SELECT swc.CompanyID, swl.LocationID, swc.CompanyName, swl.LocationName
     FROM dbo.SysWebLocation swl
-    JOIN dbo.SysWebCompany swc ON swc.CompanyID=swl.CompanyID
-    JOIN dbo.SysWebUserCompanyLocation perm
-      ON perm.CompanyID=swl.CompanyID AND perm.LocationID=swl.LocationID
-     AND perm.UserID=@UserID AND perm.AppID='PIP'
-    WHERE swc.IsActive=1 AND swl.IsActive=1
+     JOIN dbo.SysWebCompany swc ON swc.CompanyID=swl.CompanyID
+     WHERE swc.IsActive=1 AND swl.IsActive=1
+       AND (
+           EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation perm
+                   WHERE perm.CompanyID=swl.CompanyID AND perm.LocationID=swl.LocationID
+                     AND perm.UserID=@UserID AND perm.AppID='PIP')
+           OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', @UserID, '') LoginCompany
+                      WHERE LoginCompany.CompanyID=swl.CompanyID
+                        AND LoginCompany.LocationID=swl.LocationID)
+       )
 ) L
 LEFT JOIN dbo.PIP_M_CheckListWOPM_CompanyLocation S
   ON S.IDTemplate=@IDTemplate AND S.CompanyID=L.CompanyID AND S.LocationID=L.LocationID
-WHERE EXISTS
-(
-    SELECT 1 FROM dbo.SysWebUserCompanyLocation CurrentPermission
-    WHERE CurrentPermission.AppID='PIP' AND CurrentPermission.UserID=@UserID
-      AND CurrentPermission.CompanyID=@CompanyID AND CurrentPermission.LocationID=@LocationID
-)
+WHERE (
+     EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation CurrentPermission
+             WHERE CurrentPermission.AppID='PIP' AND CurrentPermission.UserID=@UserID
+               AND CurrentPermission.CompanyID=@CompanyID AND CurrentPermission.LocationID=@LocationID)
+     OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', @UserID, '') LoginCompany
+                WHERE LoginCompany.CompanyID=@CompanyID AND LoginCompany.LocationID=@LocationID)
+ )
 AND
 (
     @IDTemplate<=0
@@ -1085,10 +1096,15 @@ ORDER BY L.CompanyID, L.LocationID",
 SELECT T.CompanyScope
 FROM dbo.PIP_M_CheckListWOPM T
 WHERE T.IDTemplate=@IDTemplate
-  AND EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation CurrentPermission
-              WHERE CurrentPermission.AppID='PIP' AND CurrentPermission.UserID=@UpdateUser
-                AND CurrentPermission.CompanyID=@CurrentCompanyID
-                AND CurrentPermission.LocationID=@CurrentLocationID)
+  AND (
+       EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation CurrentPermission
+               WHERE CurrentPermission.AppID='PIP' AND CurrentPermission.UserID=@UpdateUser
+                 AND CurrentPermission.CompanyID=@CurrentCompanyID
+                 AND CurrentPermission.LocationID=@CurrentLocationID)
+       OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', @UpdateUser, '') LoginCompany
+                  WHERE LoginCompany.CompanyID=@CurrentCompanyID
+                    AND LoginCompany.LocationID=@CurrentLocationID)
+  )
   AND (ISNULL(T.CompanyScope,'S')='A' OR EXISTS
        (SELECT 1 FROM dbo.PIP_M_CheckListWOPM_CompanyLocation AccessScope
         WHERE AccessScope.IDTemplate=T.IDTemplate
@@ -1110,12 +1126,17 @@ IF NOT EXISTS
 (
     SELECT 1
     FROM dbo.SysWebLocation swl
-    JOIN dbo.SysWebCompany swc ON swc.CompanyID=swl.CompanyID
-    JOIN dbo.SysWebUserCompanyLocation perm
-      ON perm.CompanyID=swl.CompanyID AND perm.LocationID=swl.LocationID
-     AND perm.UserID=@UpdateUser AND perm.AppID='PIP'
-    WHERE swc.IsActive=1 AND swl.IsActive=1
-      AND swl.CompanyID=@CompanyID AND swl.LocationID=@LocationID
+     JOIN dbo.SysWebCompany swc ON swc.CompanyID=swl.CompanyID
+     WHERE swc.IsActive=1 AND swl.IsActive=1
+       AND swl.CompanyID=@CompanyID AND swl.LocationID=@LocationID
+       AND (
+           EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation perm
+                   WHERE perm.CompanyID=swl.CompanyID AND perm.LocationID=swl.LocationID
+                     AND perm.UserID=@UpdateUser AND perm.AppID='PIP')
+           OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', @UpdateUser, '') LoginCompany
+                      WHERE LoginCompany.CompanyID=swl.CompanyID
+                        AND LoginCompany.LocationID=swl.LocationID)
+       )
 )
     RAISERROR('The company/location is inactive or you do not have PIP permission for it.',16,1);
 IF NOT EXISTS
@@ -1181,13 +1202,23 @@ WHERE E.SectionID=T.SectionID
   AND T.SectionID=@SectionID
   AND ISNULL(E.TerminationDate,'')=''
   AND EXISTS (SELECT 1 FROM dbo.UTL_User U WHERE U.EmployeeID=E.EmployeeID)
-  AND EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation CurrentPermission
-              WHERE CurrentPermission.AppID='PIP' AND CurrentPermission.UserID=@UserID
-                AND CurrentPermission.CompanyID=@CurrentCompanyID
-                AND CurrentPermission.LocationID=@CurrentLocationID)
-  AND EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation perm
-              WHERE perm.AppID='PIP' AND perm.UserID=@UserID
-                AND perm.CompanyID=E.CompanyID AND perm.LocationID=E.LocationID)
+  AND (
+       EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation CurrentPermission
+               WHERE CurrentPermission.AppID='PIP' AND CurrentPermission.UserID=@UserID
+                 AND CurrentPermission.CompanyID=@CurrentCompanyID
+                 AND CurrentPermission.LocationID=@CurrentLocationID)
+       OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', @UserID, '') LoginCompany
+                  WHERE LoginCompany.CompanyID=@CurrentCompanyID
+                    AND LoginCompany.LocationID=@CurrentLocationID)
+  )
+  AND (
+       EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation perm
+               WHERE perm.AppID='PIP' AND perm.UserID=@UserID
+                 AND perm.CompanyID=E.CompanyID AND perm.LocationID=E.LocationID)
+       OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', @UserID, '') LoginCompany
+                  WHERE LoginCompany.CompanyID=E.CompanyID
+                    AND LoginCompany.LocationID=E.LocationID)
+  )
   AND (ISNULL(T.CompanyScope,'S')='A' OR EXISTS
        (SELECT 1 FROM dbo.PIP_M_CheckListWOPM_CompanyLocation AccessScope
         WHERE AccessScope.IDTemplate=T.IDTemplate
@@ -1242,13 +1273,23 @@ JOIN dbo.M_HRD_Employee E ON E.EmployeeID=@EmployeeID
 WHERE T.IDTemplate=@IDTemplate
   AND ISNULL(E.TerminationDate,'')=''
   AND EXISTS (SELECT 1 FROM dbo.UTL_User U WHERE U.EmployeeID=E.EmployeeID)
-  AND EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation CurrentPermission
-              WHERE CurrentPermission.AppID='PIP' AND CurrentPermission.UserID=@UpdateUser
-                AND CurrentPermission.CompanyID=@CurrentCompanyID
-                AND CurrentPermission.LocationID=@CurrentLocationID)
-  AND EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation perm
-              WHERE perm.AppID='PIP' AND perm.UserID=@UpdateUser
-                AND perm.CompanyID=E.CompanyID AND perm.LocationID=E.LocationID)
+  AND (
+       EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation CurrentPermission
+               WHERE CurrentPermission.AppID='PIP' AND CurrentPermission.UserID=@UpdateUser
+                 AND CurrentPermission.CompanyID=@CurrentCompanyID
+                 AND CurrentPermission.LocationID=@CurrentLocationID)
+       OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', @UpdateUser, '') LoginCompany
+                  WHERE LoginCompany.CompanyID=@CurrentCompanyID
+                    AND LoginCompany.LocationID=@CurrentLocationID)
+  )
+  AND (
+       EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation perm
+               WHERE perm.AppID='PIP' AND perm.UserID=@UpdateUser
+                 AND perm.CompanyID=E.CompanyID AND perm.LocationID=E.LocationID)
+       OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', @UpdateUser, '') LoginCompany
+                  WHERE LoginCompany.CompanyID=E.CompanyID
+                    AND LoginCompany.LocationID=E.LocationID)
+  )
   AND (ISNULL(T.CompanyScope,'S')='A' OR EXISTS
        (SELECT 1 FROM dbo.PIP_M_CheckListWOPM_CompanyLocation AccessScope
         WHERE AccessScope.IDTemplate=T.IDTemplate
