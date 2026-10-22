@@ -61,15 +61,32 @@
     <div class="inspection-card p-3 mb-3">
         <div class="d-flex justify-content-between align-items-center mb-2">
             <div>
-                <div class="text-uppercase text-primary fw-bold inspection-muted">Offline records</div>
-                <h6 class="mb-0">Inspeksi tersimpan di perangkat</h6>
+                <div class="text-uppercase text-primary fw-bold inspection-muted">Inspection Records</div>
+                <h6 class="mb-0">Daftar inspeksi</h6>
             </div>
             <button type="button" class="btn btn-sm btn-primary" id="btnNewInspection">
                 <i class="bi bi-plus-circle"></i> New
             </button>
         </div>
-        <div id="inspectionSavedList" class="small">
-            <div class="text-muted py-2">Memuat data lokal...</div>
+        <ul class="nav nav-tabs mb-3" id="inspectionRecordTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="inspectionDraftTab" data-bs-toggle="tab" data-bs-target="#inspectionDraftPane" type="button" role="tab">DRAFT</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="inspectionSubmittedTab" data-bs-toggle="tab" data-bs-target="#inspectionSubmittedPane" type="button" role="tab">SUBMITTED</button>
+            </li>
+        </ul>
+        <div class="tab-content">
+            <div class="tab-pane fade show active" id="inspectionDraftPane" role="tabpanel">
+                <div id="inspectionDraftList" class="small">
+                    <div class="text-muted py-2">Memuat draft...</div>
+                </div>
+            </div>
+            <div class="tab-pane fade" id="inspectionSubmittedPane" role="tabpanel">
+                <div id="inspectionSubmittedList" class="small">
+                    <div class="text-muted py-2">Memuat inspeksi submitted hari ini...</div>
+                </div>
+            </div>
         </div>
     </div>
 
