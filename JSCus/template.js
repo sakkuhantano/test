@@ -3248,7 +3248,8 @@ function showItemProperties(itemData)
                     </label>
 
                 </div>
-                <div class="form-check form-switch mb-2" id="divUseDefaultOption">
+                <div class="form-check form-switch mb-2" id="divUseDefaultOption"
+                     style="${Array.isArray(currentVersion?.StatusOption) && currentVersion.StatusOption.some(option => String(option || "").trim() !== "") ? "" : "display:none;"}">
                     <input id="chkUseDefaultOption"
                            type="checkbox"
                            class="form-check-input"
@@ -5368,7 +5369,8 @@ async function saveDirtyTemplateMetadata()
             companyId,
             locationId
         );
-        if (!result.success) throw new Error(result.message || 'Failed to save template settings.');
+        if (!result || !result.success)
+            throw new Error((result && result.message) || 'SaveTemplateMetadata returned no success response. Check the server-side WebMethod error details.');
         template.MetadataDirty = false;
         if (currentTemplate && Number(currentTemplate.IDTemplate) === Number(template.IDTemplate)) {
             await appendTemplateMetadataRefresh(template);
@@ -6314,6 +6316,18 @@ function refreshItemRemarkRequiredOptions(itemData) {
 // ======================================================
 // VERSION TAG MANAGER
 // ======================================================
+function refreshUseVersionDefaultOptionVisibility(version) {
+    const hasOptions = Array.isArray(version?.StatusOption) &&
+        version.StatusOption.some(option => String(option || "").trim() !== "");
+    document.querySelectorAll("#divUseDefaultOption").forEach(function(div) {
+        const checkbox = div.querySelector("#chkUseDefaultOption");
+        div.style.display = hasOptions ? "" : "none";
+        if (!hasOptions && checkbox) {
+            // Keep the existing checked state so Save validation catches stale configuration.
+        }
+    });
+}
+
 function initVersionTagManager(optionList, version) {
     versionTagManager = new TagManager(
         'versionOptionTags',
@@ -6327,6 +6341,7 @@ function initVersionTagManager(optionList, version) {
                 version.RemarkRequiredOptions = (Array.isArray(version.RemarkRequiredOptions) ? version.RemarkRequiredOptions : [])
                     .map(String).filter(option => allowed.has(option));
                 renderVersionRemarkRequiredOptions(version);
+                refreshUseVersionDefaultOptionVisibility(version);
                 markCurrentVersionDirty();
             }
         }
@@ -7256,9 +7271,17 @@ async function validateCurrentTemplate() {
         );
     }
 
-    if (!ver.StatusOption ||
-        ver.StatusOption.length == 0) {
+    const versionHasDefaultOptions =
+        Array.isArray(ver.StatusOption) &&
+        ver.StatusOption.some(option => String(option || "").trim() !== "");
+    const hasItemUsingVersionDefaults =
+        (draft.Structure.Sections || []).some(section =>
+            (section.Items || []).some(item =>
+                item.ItemType === "OPTION" && item.UseDefaultOption
+            )
+        );
 
+    if (hasItemUsingVersionDefaults && !versionHasDefaultOptions) {
         addValidationError(
             result,
             "VERSION",
@@ -7266,7 +7289,7 @@ async function validateCurrentTemplate() {
             null,
             null,
             "StatusOption",
-            "Default Option List is required."
+            "Default Option List is required because at least one OPTION item uses Version Default Option."
         );
     }
 
@@ -8589,9 +8612,11 @@ async function saveAllTemplate()
     {
         hideLoading();
 
-        alert(
-            ex.message
-        );
+        const detail = (ex && (ex.message || (typeof ex.get_message === "function" && ex.get_message()))) ||
+            (ex && ex.get_message) ||
+            (typeof ex === "string" ? ex : "");
+        console.error("Save All Template failed:", ex);
+        alert(detail || "Save All Template failed. See the browser console for the server error details.");
     }
 }
 async function publishVersion()
