@@ -149,6 +149,74 @@ namespace UTL1.Secure
         }
 
         [WebMethod]
+        public static object CheckInspectionDuplicate(string employeeId, string companyId, string locationId,
+            string sectionId, string inspectionTypeCode, string inspectionTypeDetailCode,
+            string scheduledTime, int templateId, string inspectionDate)
+        {
+            if (String.IsNullOrWhiteSpace(employeeId) || String.IsNullOrWhiteSpace(companyId) || String.IsNullOrWhiteSpace(locationId))
+                throw new HttpException(400, "Employee, company, and location are required.");
+
+            using (var br = new WAL.BR.CF())
+            {
+                DataTable auth = br.EQueryP(@"
+SELECT ISNULL(U.Section,'') Section, ISNULL(U.IsWO,0) IsWO
+FROM dbo.UTL_User U
+WHERE U.EmployeeID=@EmployeeID
+  AND (
+      EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
+              WHERE C.UserID=U.UserID AND C.AppID='pip'
+                AND C.CompanyID=@CompanyID AND C.LocationID=@LocationID)
+      OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', U.EmployeeID, '') L
+                 WHERE L.CompanyID=@CompanyID AND L.LocationID=@LocationID)
+  )",
+                    new SqlParameter[] {
+                        new SqlParameter("@EmployeeID", employeeId),
+                        new SqlParameter("@CompanyID", companyId),
+                        new SqlParameter("@LocationID", locationId)
+                    });
+
+                if (auth.Rows.Count == 0 || !Convert.ToBoolean(auth.Rows[0]["IsWO"]))
+                    throw new HttpException(403, "This account is not authorized for Inspection entry.");
+
+                var sections = auth.Rows[0]["Section"].ToString()
+                    .Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries)
+                    .Select(s => s.Trim()).Where(s => s.Length > 0).ToList();
+                if (!sections.Contains(sectionId, StringComparer.OrdinalIgnoreCase))
+                    throw new HttpException(403, "This inspection section is not assigned to the current employee.");
+
+                DataTable duplicate = br.EQueryP(@"
+SELECT TOP 1 InspectionNo, OwnerEmployeeID, Status
+FROM dbo.PIP_T_Inspection
+WHERE CompanyID=@CompanyID AND LocationID=@LocationID AND SectionID=@SectionID
+  AND InspectionTypeCode=@InspectionTypeCode
+  AND InspectionTypeDetailCode=@InspectionTypeDetailCode
+  AND ISNULL(ScheduledTime,'')=ISNULL(@ScheduledTime,'')
+  AND IDTemplate=@IDTemplate
+  AND InspectionDate >= CONVERT(DATETIME, CONVERT(VARCHAR(10), @InspectionDate, 120), 120)
+  AND InspectionDate < DATEADD(DAY, 1, CONVERT(DATETIME, CONVERT(VARCHAR(10), @InspectionDate, 120), 120))
+ORDER BY InspectionID DESC",
+                    new SqlParameter[] {
+                        new SqlParameter("@CompanyID", companyId),
+                        new SqlParameter("@LocationID", locationId),
+                        new SqlParameter("@SectionID", sectionId),
+                        new SqlParameter("@InspectionTypeCode", inspectionTypeCode),
+                        new SqlParameter("@InspectionTypeDetailCode", inspectionTypeDetailCode),
+                        new SqlParameter("@ScheduledTime", scheduledTime ?? ""),
+                        new SqlParameter("@IDTemplate", templateId),
+                        new SqlParameter("@InspectionDate", ParseDate(inspectionDate, DateTime.Today))
+                    });
+
+                return new {
+                    success = true,
+                    duplicate = duplicate.Rows.Count > 0,
+                    InspectionNo = duplicate.Rows.Count > 0 ? Convert.ToString(duplicate.Rows[0]["InspectionNo"]) : "",
+                    OwnerEmployeeID = duplicate.Rows.Count > 0 ? Convert.ToString(duplicate.Rows[0]["OwnerEmployeeID"]) : "",
+                    Status = duplicate.Rows.Count > 0 ? Convert.ToString(duplicate.Rows[0]["Status"]) : ""
+                };
+            }
+        }
+
+        [WebMethod]
         public static object GetInspectionEntryList(string employeeId, string companyId, string locationId)
         {
             if (String.IsNullOrWhiteSpace(employeeId) || String.IsNullOrWhiteSpace(companyId) || String.IsNullOrWhiteSpace(locationId))
