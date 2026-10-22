@@ -353,6 +353,27 @@ BEGIN
     BEGIN TRY
         BEGIN TRANSACTION;
 
+        /* One scheduled inspection per company/location, section, date, type, detail, time, and template.
+           ClientInspectionID is excluded so syncing an existing offline record remains an update. */
+        IF EXISTS
+        (
+            SELECT 1
+            FROM dbo.PIP_T_Inspection WITH (UPDLOCK, HOLDLOCK)
+            WHERE ClientInspectionID <> @p_ClientInspectionID
+              AND CompanyID = @p_CompanyID
+              AND LocationID = @p_LocationID
+              AND SectionID = @p_SectionID
+              AND InspectionTypeCode = @p_InspectionTypeCode
+              AND InspectionTypeDetailCode = @p_InspectionTypeDetailCode
+              AND ISNULL(ScheduledTime, '') = ISNULL(@p_ScheduledTime, '')
+              AND IDTemplate = @p_IDTemplate
+              AND InspectionDate >= CONVERT(DATETIME, CONVERT(VARCHAR(10), @p_InspectionDate, 120), 120)
+              AND InspectionDate < DATEADD(DAY, 1, CONVERT(DATETIME, CONVERT(VARCHAR(10), @p_InspectionDate, 120), 120))
+        )
+        BEGIN
+            RAISERROR('An inspection already exists for this date, company/location, section, type, detail, schedule, and template.', 16, 1);
+        END;
+
         DECLARE @V_InspectionID BIGINT;
         DECLARE @V_InspectionTypeName VARCHAR(100);
         DECLARE @V_InspectionTypeDetailName VARCHAR(100);
