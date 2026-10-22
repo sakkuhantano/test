@@ -164,6 +164,36 @@ IF TYPE_ID('dbo.Type_PIP_T_InspectionResultValue') IS NOT NULL
     DROP TYPE dbo.Type_PIP_T_InspectionResultValue;
 GO
 
+/* Durable archive for locally deleted conflicting inspections. The full JSON snapshot
+   preserves the original transaction and checklist values without deleting server data. */
+IF OBJECT_ID('dbo.PIP_T_Inspection_Delete', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.PIP_T_Inspection_Delete
+    (
+        DeleteArchiveID BIGINT IDENTITY(1,1) NOT NULL,
+        ClientInspectionID VARCHAR(36) NOT NULL,
+        ServerInspectionID BIGINT NULL,
+        InspectionNo VARCHAR(10) NULL,
+        CompanyID VARCHAR(10) NOT NULL,
+        LocationID VARCHAR(3) NOT NULL,
+        SectionID VARCHAR(10) NOT NULL,
+        InspectionTypeCode VARCHAR(2) NOT NULL,
+        InspectionTypeDetailCode VARCHAR(20) NOT NULL,
+        IDTemplate INT NOT NULL,
+        InspectionDate DATETIME NOT NULL,
+        ScheduledTime VARCHAR(5) NULL,
+        OriginalStatus VARCHAR(10) NULL,
+        OriginalSyncStatus VARCHAR(20) NULL,
+        ConflictReason VARCHAR(1000) NULL,
+        DeletedBy VARCHAR(50) NOT NULL,
+        DeletedAt DATETIME NOT NULL CONSTRAINT DF_PIP_T_Inspection_Delete_DeletedAt DEFAULT (GETDATE()),
+        OriginalTransactionJson NVARCHAR(MAX) NOT NULL,
+        CONSTRAINT PK_PIP_T_Inspection_Delete PRIMARY KEY CLUSTERED (DeleteArchiveID),
+        CONSTRAINT UQ_PIP_T_Inspection_Delete_ClientInspectionID UNIQUE (ClientInspectionID)
+    );
+END;
+GO
+
 CREATE PROCEDURE dbo.spUTL_PIP_T_Inspection_Sync
 (
     @p_ClientInspectionID VARCHAR(36),
