@@ -8522,33 +8522,30 @@ async function saveAllTemplate()
 
     try
     {
-        const result = await promisifyPageMethod(
-            PageMethods
-            .SaveAllTemplate, 
-            JSON.stringify(payload)
-        );  
-        hideLoading();
-
-        if(
-            !result.success
-        )
+        // Metadata-only changes (e.g. Template Type / Inspection Type) do not
+        // need an empty SaveAllTemplate call; that path can return an empty response.
+        if (payload.Templates.length > 0 || hasDelete)
         {
-            alert(result.message);
-            return;
-        }
-
-        //--------------------------------
-        // Patch Identity
-        //--------------------------------
-        if(
-            result.IdentityMap &&
-            result.IdentityMap.length > 0
-        )
-        {
-            patchSavedIdentity(
-                result
+            const result = await promisifyPageMethod(
+                PageMethods.SaveAllTemplate,
+                JSON.stringify(payload)
             );
+
+            if (!result || !result.success)
+            {
+                hideLoading();
+                alert((result && result.message) || "Save All Template returned no success response.");
+                return;
+            }
+
+            //--------------------------------
+            // Patch Identity
+            //--------------------------------
+            if (result.IdentityMap && result.IdentityMap.length > 0)
+                patchSavedIdentity(result);
         }
+
+        hideLoading();
         templateCache.deleted.templates=[];
         templateCache.deleted.versions=[];
 
