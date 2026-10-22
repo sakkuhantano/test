@@ -70,7 +70,11 @@ document.addEventListener("DOMContentLoaded", async function () {
 function wireInspectionEvents() {
     document.getElementById("selInspectionType").addEventListener("change", onInspectionTypeChanged);
     document.getElementById("selInspectionDetail").addEventListener("change", onInspectionDetailChanged);
-    document.getElementById("selInspectionTemplate").addEventListener("change", updateStartButton);
+    document.getElementById("selInspectionTemplate").addEventListener("change", function () {
+        updateStartButton();
+        refreshInspectionScheduleOptions();
+    });
+    document.getElementById("txtInspectionDate").addEventListener("change", refreshInspectionScheduleOptions);
     document.getElementById("btnStartInspection").addEventListener("click", startNewInspection);
     document.getElementById("btnNewInspection").addEventListener("click", resetInspectionSelection);
     document.getElementById("btnCloseInspection").addEventListener("click", closeInspectionForm);
@@ -158,10 +162,11 @@ function onInspectionTypeChanged() {
         ).join("");
     detailSelect.disabled = !typeCode || details.length === 0;
     document.getElementById("inspectionScheduleHint").textContent = type
-        ? "Section: " + type.SectionID
+        ? "Section: " + type.SectionID + ". Pilih template untuk melihat slot hari ini yang sudah terisi/kosong."
         : "";
     resetTemplateOptions();
     updateStartButton();
+    refreshInspectionScheduleOptions();
 }
 
 function onInspectionDetailChanged() {
@@ -181,6 +186,58 @@ function onInspectionDetailChanged() {
         ).join("");
     templateSelect.disabled = !detailCode || templates.length === 0;
     updateStartButton();
+    refreshInspectionScheduleOptions();
+}
+
+function refreshInspectionScheduleOptions() {
+    const select = document.getElementById("selInspectionDetail");
+    const typeCode = document.getElementById("selInspectionType").value;
+    const templateId = Number(document.getElementById("selInspectionTemplate").value);
+    const selectedDate = document.getElementById("txtInspectionDate").value || localDateString(new Date());
+    const today = localDateString(new Date());
+    let emptyCount = 0;
+    let slotCount = 0;
+    Array.from(select.options).forEach(option => {
+        if (!option.value) return;
+        const parts = option.value.split("|");
+        const detailCode = parts[0] || "";
+        const time = parts[1] || "";
+        const detail = inspectionDetails.find(x => x.InspectionTypeCode === typeCode &&
+            x.InspectionTypeDetailCode === detailCode);
+        const baseLabel = detail ? detail.InspectionTypeDetailName + " • " + time : option.textContent.split(" • ")[0] + " • " + time;
+        if (!templateId || selectedDate !== today) {
+            option.textContent = baseLabel + (selectedDate !== today
+                ? " • server status tersedia untuk hari ini"
+                : " • pilih template untuk cek slot");
+            return;
+        }
+        const matchesKey = record =>
+            parseInspectionDate(record.InspectionDate) === selectedDate &&
+            record.CompanyID === inspectionCompanyID &&
+            record.LocationID === inspectionLocationID &&
+            record.SectionID === (inspectionTypes.find(x => x.InspectionTypeCode === typeCode) || {}).SectionID &&
+            record.InspectionTypeCode === typeCode &&
+            record.InspectionTypeDetailCode === detailCode &&
+            String(record.ScheduledTime || "") === time &&
+            Number(record.IDTemplate) === templateId;
+        const local = inspectionRecords.find(matchesKey);
+        const server = serverSlotRecords.find(matchesKey);
+        slotCount++;
+        if (local && (local.SyncStatus === "CONFLICT" || local.SyncStatus === "DELETE_PENDING")) {
+            option.textContent = baseLabel + " • KONFLIK";
+        } else if (local || server) {
+            option.textContent = baseLabel + " • TERISI";
+        } else {
+            option.textContent = baseLabel + " • KOSONG";
+            emptyCount++;
+        }
+    });
+    const hint = document.getElementById("inspectionScheduleHint");
+    if (hint && templateId && selectedDate === today) {
+        hint.textContent = slotCount
+            ? emptyCount + " slot kosong dari " + slotCount + " jadwal hari ini untuk template yang dipilih."
+            : "Tidak ada jadwal waktu terkonfigurasi untuk detail ini.";
+    }
 }
 
 function resetDetailAndTemplateOptions() {
@@ -619,6 +676,7 @@ async function refreshSavedInspectionList() {
         record.LocationID === inspectionLocationID
     ).sort((a, b) => String(b.UpdatedAt || b.StartDateTime || "").localeCompare(String(a.UpdatedAt || a.StartDateTime || "")));
     updateInspectionConflictBadge();
+    refreshInspectionScheduleOptions();
 
     serverSubmittedInspectionRecords = [];
     if (navigator.onLine) {
