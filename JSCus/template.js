@@ -5141,7 +5141,7 @@ async function renderTemplateCompanyAssignments(template)
         }
         const table = document.createElement('table');
         table.className = 'table table-sm align-middle';
-        table.innerHTML = '<thead><tr><th>Use</th><th>Company</th><th>Gedung</th></tr></thead><tbody></tbody>';
+        table.innerHTML = '<thead><tr><th>Use</th><th>Company</th><th>Location</th></tr></thead><tbody></tbody>';
         const tbody = table.querySelector('tbody');
         rows.forEach(function(row) {
             const tr = document.createElement('tr');
