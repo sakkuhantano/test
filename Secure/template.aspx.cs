@@ -1195,48 +1195,30 @@ COMMIT TRANSACTION;",
             {
                 DataTable dt = br.EQuery(@"
 SELECT E.EmployeeID, E.Name, E.CompanyID, E.LocationID,
-       IsAssigned=CAST(CASE WHEN A.EmployeeID IS NULL THEN 0 ELSE 1 END AS BIT)
-FROM dbo.M_HRD_Employee E
+       IsAssigned=CAST(CASE WHEN A.EmployeeID IS NULL THEN 0 ELSE 1 END AS BIT), swc.BuildingName
+FROM dbo.M_HRD_Employee E JOIN SysWebCompany swc ON swc.CompanyID=E.CompanyID
 JOIN dbo.PIP_M_CheckListWOPM T ON T.IDTemplate=@IDTemplate
 LEFT JOIN dbo.PIP_M_CheckListWOPM_Employee A
   ON A.IDTemplate=T.IDTemplate AND A.EmployeeID=E.EmployeeID
 WHERE E.SectionID=T.SectionID
-  AND T.SectionID=@SectionID
+  AND E.SectionID=@SectionID
   AND ISNULL(E.TerminationDate,'')=''
   AND EXISTS (SELECT 1 FROM dbo.UTL_User U WHERE U.EmployeeID=E.EmployeeID)
   AND (
        EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation CurrentPermission
-               WHERE CurrentPermission.AppID='PIP' AND CurrentPermission.UserID=@UserID
+               WHERE CurrentPermission.AppID='PIP' AND CurrentPermission.UserID=e.EmployeeID
                  AND CurrentPermission.CompanyID=@CurrentCompanyID
                  AND CurrentPermission.LocationID=@CurrentLocationID)
-       OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', @UserID, '') LoginCompany
+       OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', e.EmployeeID, '') LoginCompany
                   WHERE LoginCompany.CompanyID=@CurrentCompanyID
                     AND LoginCompany.LocationID=@CurrentLocationID)
   )
-  AND (
-       EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation perm
-               WHERE perm.AppID='PIP' AND perm.UserID=@UserID
-                 AND perm.CompanyID=E.CompanyID AND perm.LocationID=E.LocationID)
-       OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', @UserID, '') LoginCompany
-                  WHERE LoginCompany.CompanyID=E.CompanyID
-                    AND LoginCompany.LocationID=E.LocationID)
-  )
+
   AND (ISNULL(T.CompanyScope,'S')='A' OR EXISTS
        (SELECT 1 FROM dbo.PIP_M_CheckListWOPM_CompanyLocation AccessScope
         WHERE AccessScope.IDTemplate=T.IDTemplate
           AND AccessScope.CompanyID=@CurrentCompanyID
           AND AccessScope.LocationID=@CurrentLocationID))
-  AND
-  (
-      ISNULL(T.CompanyScope,'S')='A'
-      OR EXISTS
-      (
-          SELECT 1 FROM dbo.PIP_M_CheckListWOPM_CompanyLocation S
-          WHERE S.IDTemplate=T.IDTemplate
-            AND S.CompanyID=E.CompanyID
-            AND S.LocationID=E.LocationID
-      )
-  )
 ORDER BY E.CompanyID, E.LocationID, E.EmployeeID",
                     "@IDTemplate=" + id + GF.Str2 +
                     "@SectionID=" + sectionId + GF.Str2 +
@@ -1269,28 +1251,21 @@ ORDER BY E.CompanyID, E.LocationID, E.EmployeeID",
             {
                 DataTable dt = br.EQuery(@"
 SELECT T.TemplateType, T.CompanyScope, T.SectionID,
-       E.EmployeeID, E.SectionID EmployeeSectionID, E.CompanyID, E.LocationID
+       E.EmployeeID, E.SectionID EmployeeSectionID, E.CompanyID, EE.LocationID
 FROM dbo.PIP_M_CheckListWOPM T
 JOIN dbo.M_HRD_Employee E ON E.EmployeeID=@EmployeeID
+CROSS APPLY dbo.F_SelectOneLogin('pip', E.EmployeeID, '') EE
 WHERE T.IDTemplate=@IDTemplate
   AND ISNULL(E.TerminationDate,'')=''
   AND EXISTS (SELECT 1 FROM dbo.UTL_User U WHERE U.EmployeeID=E.EmployeeID)
   AND (
        EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation CurrentPermission
-               WHERE CurrentPermission.AppID='PIP' AND CurrentPermission.UserID=@UpdateUser
+               WHERE CurrentPermission.AppID='PIP' AND CurrentPermission.UserID=E.EmployeeID
                  AND CurrentPermission.CompanyID=@CurrentCompanyID
                  AND CurrentPermission.LocationID=@CurrentLocationID)
-       OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', @UpdateUser, '') LoginCompany
+       OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', E.EmployeeID, '') LoginCompany
                   WHERE LoginCompany.CompanyID=@CurrentCompanyID
                     AND LoginCompany.LocationID=@CurrentLocationID)
-  )
-  AND (
-       EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation perm
-               WHERE perm.AppID='PIP' AND perm.UserID=@UpdateUser
-                 AND perm.CompanyID=E.CompanyID AND perm.LocationID=E.LocationID)
-       OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', @UpdateUser, '') LoginCompany
-                  WHERE LoginCompany.CompanyID=E.CompanyID
-                    AND LoginCompany.LocationID=E.LocationID)
   )
   AND (ISNULL(T.CompanyScope,'S')='A' OR EXISTS
        (SELECT 1 FROM dbo.PIP_M_CheckListWOPM_CompanyLocation AccessScope
