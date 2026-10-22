@@ -233,7 +233,7 @@ async function startNewInspection() {
         }
     }
     const duplicate = inspectionRecords.find(record =>
-        record.InspectionDate === inspectionDate &&
+        parseInspectionDate(record.InspectionDate) === inspectionDate &&
         record.CompanyID === inspectionCompanyID &&
         record.LocationID === inspectionLocationID &&
         record.SectionID === type.SectionID &&
@@ -243,11 +243,26 @@ async function startNewInspection() {
         Number(record.IDTemplate) === Number(template.IDTemplate)
     );
     if (duplicate) {
+        if (duplicate.SyncStatus === "CONFLICT" || duplicate.SyncStatus === "DELETE_PENDING") {
+            showInspectionNotice("Jadwal ini punya record lokal berstatus " + duplicate.SyncStatus +
+                ". Alasan: " + (duplicate.ConflictReason || "arsip/pemeriksaan konflik belum selesai.") +
+                " Selesaikan konflik tersebut sebelum membuat transaksi baru.", "warning");
+            return;
+        }
         showInspectionNotice("Jadwal ini sudah memiliki inspeksi di perangkat (" +
             (duplicate.InspectionNo || "TEMP-" + String(duplicate.LocalInspectionID || "").substring(0, 8)) +
             "). Buka record yang sudah ada, jangan membuat duplikat.", "warning");
         await openSavedInspection(duplicate.LocalInspectionID);
         return;
+    }
+
+    const loginData = getLoginData();
+    const lastScheduleSync = loginData && loginData.lastInspectionScheduleSyncAt
+        ? new Date(loginData.lastInspectionScheduleSyncAt) : null;
+    const today = localDateString(new Date());
+    if (!navigator.onLine && (!lastScheduleSync || localDateString(lastScheduleSync) !== today)) {
+        const proceedOffline = window.confirm("Jadwal server hari ini belum pernah berhasil disinkronkan di perangkat ini. Pemeriksaan lokal saja tidak dapat memastikan slot belum dipakai teknisi lain. Tetap mulai inspeksi secara offline?");
+        if (!proceedOffline) return;
     }
 
     const serverDuplicate = serverSlotRecords.find(record =>
