@@ -193,85 +193,105 @@ window.addEventListener('resize', function() {
 /* Connection Status */
 
 function loadSidebarMenu() {
-    // var data = getLoginData();
-    // if (!data) return;
     try {
-        //var role = data.role;
-		var role = appFeatures;
+        var role = appFeatures;
         var nav = document.getElementById("sidebarMenu");
+        if (!nav) return;
 
-        nav.innerHTML = "";
-        // Dashboard (selalu ada)
-        nav.innerHTML += `
-            <a class="nav-link-custom active" href="dashboard.aspx"> 
+        nav.innerHTML = `
+            <a class="nav-link-custom" href="dashboard.aspx">
                 <i class="bi bi-speedometer2 me-3 fs-5"></i>
                 <span>Dashboard</span>
             </a>`;
 
-        // Meter Reading (ELC / WTR / GAS)
-        // if (
-        //     role.ELC ||
-        //     role.WTR ||
-        //     role.GAS
-        // ) {
+        // Parent menus are visible when at least one child is available to this role.
+        var canUseWorkOrder = !!(role.technician || role.supervisor);
+        var canUseInspection = !!(role.technician || role.supervisor);
 
-        //     nav.innerHTML += `
-        //         <a class="nav-link-custom"
-        //     href="meterreading.aspx">
-        //      <i class="bi bi-droplet me-3 fs-5"></i>
-        //      <span>Meter Reading</span>
-        //  </a>
-        //     `;
-        // }
-
-        // Work Orders
-        if (role.technician) {
+        if (canUseWorkOrder) {
             nav.innerHTML += `
-                <a class="nav-link-custom"
-            href="workorder.aspx?mode=entry">
-             <i class="bi bi-journal-check me-3 fs-5"></i>
-             <span>My Work Orders</span>
-         </a>
-                <a class="nav-link-custom"
-            href="inspection.aspx">
-             <i class="bi bi-clipboard-check me-3 fs-5"></i>
-             <span>Inspection Entry</span>
-         </a>
-            `;
+                <div class="nav-menu-group">
+                    <a class="nav-link-custom nav-parent" href="#menuWorkOrder" data-bs-toggle="collapse" role="button" aria-expanded="false" aria-controls="menuWorkOrder">
+                        <i class="bi bi-journal-check me-3 fs-5"></i>
+                        <span class="flex-grow-1">Work Order</span>
+                        <i class="bi bi-chevron-down nav-chevron"></i>
+                    </a>
+                    <div class="collapse nav-submenu" id="menuWorkOrder">
+                        ${role.technician ? `
+                        <a class="nav-link-custom nav-child" href="workorder.aspx?mode=entry">
+                            <i class="bi bi-clipboard2-check me-2"></i><span>My Work Order</span>
+                        </a>` : ""}
+                        ${role.supervisor ? `
+                        <a class="nav-link-custom nav-child" href="workorder.aspx?mode=approval">
+                            <i class="bi bi-check2-square me-2"></i><span>Approve Work Order</span>
+                        </a>` : ""}
+                    </div>
+                </div>`;
         }
+
+        if (canUseInspection) {
+            nav.innerHTML += `
+                <div class="nav-menu-group">
+                    <a class="nav-link-custom nav-parent" href="#menuInspection" data-bs-toggle="collapse" role="button" aria-expanded="false" aria-controls="menuInspection">
+                        <i class="bi bi-clipboard-check me-3 fs-5"></i>
+                        <span class="flex-grow-1">Inspection</span>
+                        <i class="bi bi-chevron-down nav-chevron"></i>
+                    </a>
+                    <div class="collapse nav-submenu" id="menuInspection">
+                        ${role.technician ? `
+                        <a class="nav-link-custom nav-child" href="inspection.aspx">
+                            <i class="bi bi-pencil-square me-2"></i><span>Input Inspection</span>
+                        </a>` : ""}
+                        ${role.supervisor ? `
+                        <a class="nav-link-custom nav-child" href="inspection.aspx?mode=approval">
+                            <i class="bi bi-check2-square me-2"></i><span>Approve Inspection</span>
+                        </a>` : ""}
+                    </div>
+                </div>`;
+        }
+
         if (role.supervisor) {
             nav.innerHTML += `
-                <a class="nav-link-custom"
-            href="template.aspx">
-             <i class="bi bi-journal-check me-3 fs-5"></i>
-             <span>Template Check List</span>
-         </a>
-                <a class="nav-link-custom"
-            href="assignwoemployee.aspx">
-             <i class="bi bi-journal-check me-3 fs-5"></i>
-             <span>Assign Employee</span>
-         </a>
-                <a class="nav-link-custom"
-            href="workorder.aspx?mode=approval">
-             <i class="bi bi-journal-check me-3 fs-5"></i>
-             <span>Approval Work Orders</span>
-         </a>
-            `;
+                <a class="nav-link-custom" href="template.aspx">
+                    <i class="bi bi-journal-check me-3 fs-5"></i><span>Template Check List</span>
+                </a>
+                <a class="nav-link-custom" href="assignwoemployee.aspx">
+                    <i class="bi bi-people me-3 fs-5"></i><span>Assign Employee</span>
+                </a>`;
         }
-
-        // Logout (selalu ada)
 
         nav.innerHTML += `
             <a class="nav-link-custom" id="menuLogout" href="#">
-         <i class="bi bi-box-arrow-right me-3 fs-5"></i>
-         <span>Logout</span>
-     </a>
-        `;
-         attachLogoutEvent();
+                <i class="bi bi-box-arrow-right me-3 fs-5"></i><span>Logout</span>
+            </a>`;
 
-    } catch (ex) { }
+        // Expand the relevant parent and highlight the active child for the current URL.
+        var currentUrl = window.location.pathname.toLowerCase() + window.location.search.toLowerCase();
+        nav.querySelectorAll("a.nav-child").forEach(function (link) {
+            var href = (link.getAttribute("href") || "").toLowerCase();
+            var path = href.split("?")[0];
+            var query = href.indexOf("?") >= 0 ? href.substring(href.indexOf("?")) : "";
+            var isMatch = currentUrl.indexOf(path) >= 0 &&
+                (!query || currentUrl.indexOf(query) >= 0);
+            if (isMatch) {
+                link.classList.add("active");
+                var parent = link.closest(".nav-submenu");
+                if (parent) {
+                    parent.classList.add("show");
+                    var toggle = nav.querySelector('[href="#' + parent.id + '"]');
+                    if (toggle) {
+                        toggle.classList.add("active");
+                        toggle.setAttribute("aria-expanded", "true");
+                    }
+                }
+            }
+        });
+
+        attachLogoutEvent();
+    } catch (ex) {
+        console.error("Failed to load sidebar menu:", ex);
+    }
 }
-
 function attachLogoutEvent() {
     var btn = document.getElementById("menuLogout");
     if (!btn) return;
