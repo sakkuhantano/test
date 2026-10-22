@@ -5041,7 +5041,7 @@ async function appendTemplateMetadataControls(template)
                 '<div id="templateCompanyAssignments" class="small text-muted">Loading...</div>' +
             '</div>' +
             '<div class="tab-pane fade" id="tplEmployeePane" role="tabpanel">' +
-                '<div class="small text-muted mb-2">Employees must match the template SectionID and company/location scope. Assign each employee explicitly.</div>' +
+                '<div class="small text-muted mb-2">Employees must match the template SectionID and company/location scope. Assign each employee explicitly. <strong>Changes are saved immediately when you change a checkbox; Save All Template is not required.</strong></div>' +
                 '<div id="templateEmployeeAssignments" class="small text-muted">Loading...</div>' +
             '</div>' +
         '</div>';
@@ -5081,6 +5081,16 @@ async function appendTemplateMetadataControls(template)
         template.InspectionTypeCode = this.value;
         markMetadataDirty();
     });
+
+    // Reload the eligible employee list whenever the Employees tab is opened,
+    // so newly added UTL_User / HRD employee records can appear without reopening the template.
+    const employeeTab = document.getElementById('tplEmployeeTab');
+    if (employeeTab) {
+        employeeTab.addEventListener('shown.bs.tab', async function() {
+            if (template.TemplateType === 'I')
+                await renderTemplateEmployeeAssignments(template);
+        });
+    }
 
     await appendTemplateMetadataRefresh(template);
 }
