@@ -1002,7 +1002,10 @@ async function uploadPendingInspections() {
     if (pendingInScope.length > ownedRecords.length) {
         showToast("Ada inspeksi offline milik teknisi lain. Data tersebut tidak dikirim oleh login ini.", "warning");
     }
-    if (!ownedRecords.length) return;
+    if (!ownedRecords.length) {
+        if (typeof updateTotalPendingSync === "function") await updateTotalPendingSync();
+        return { synced: 0, failed: 0, conflicts: 0 };
+    }
 
     const payload = ownedRecords.map(record => ({
         ClientInspectionID: record.LocalInspectionID,
