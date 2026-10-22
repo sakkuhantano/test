@@ -712,6 +712,7 @@ async function refreshSavedInspectionList() {
     serverSubmittedInspectionRecords.forEach(record => {
         const key = record.ClientInspectionID || String(record.InspectionID);
         const local = inspectionRecords.find(item => item.LocalInspectionID === key);
+        if (local && (local.SyncStatus === "CONFLICT" || local.SyncStatus === "DELETE_PENDING")) return;
         submittedById.set(key, local ? Object.assign({}, record, local, {
             InspectionNo: record.InspectionNo || local.InspectionNo || "",
             TechnicianName: record.TechnicianName || local.TechnicianName || ""
