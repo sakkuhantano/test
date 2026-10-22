@@ -543,3 +543,109 @@ BEGIN
     END CATCH;
 END;
 GO
+
+IF OBJECT_ID('dbo.spUTL_PIP_T_Inspection_Approval', 'P') IS NOT NULL
+    DROP PROCEDURE dbo.spUTL_PIP_T_Inspection_Approval;
+GO
+
+CREATE PROCEDURE dbo.spUTL_PIP_T_Inspection_Approval
+(
+    @p_InspectionID BIGINT,
+    @p_Action VARCHAR(10),
+    @p_EmployeeID VARCHAR(50),
+    @p_CompanyID VARCHAR(10),
+    @p_LocationID VARCHAR(3),
+    @p_Remark VARCHAR(500) = NULL
+)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    SET @p_Action = UPPER(LTRIM(RTRIM(ISNULL(@p_Action, ''))));
+    IF @p_Action NOT IN ('APPROVE', 'VOID')
+    BEGIN
+        RAISERROR('Invalid inspection approval action.', 16, 1);
+        RETURN;
+    END;
+    IF @p_Action = 'VOID' AND LEN(LTRIM(RTRIM(ISNULL(@p_Remark, '')))) = 0
+    BEGIN
+        RAISERROR('Reason for void is required.', 16, 1);
+        RETURN;
+    END;
+    IF ISNULL(@p_EmployeeID, '') = ''
+    BEGIN
+        RAISERROR('Supervisor identity is required.', 16, 1);
+        RETURN;
+    END;
+
+    BEGIN TRY
+        BEGIN TRANSACTION;
+
+        DECLARE @V_SectionID VARCHAR(10);
+        DECLARE @V_Status VARCHAR(10);
+        DECLARE @V_IsApprove BIT;
+        SELECT @V_SectionID=SectionID, @V_Status=Status, @V_IsApprove=IsApprove
+        FROM dbo.PIP_T_Inspection WITH (UPDLOCK, HOLDLOCK)
+        WHERE InspectionID=@p_InspectionID
+          AND CompanyID=@p_CompanyID AND LocationID=@p_LocationID;
+
+        IF @V_SectionID IS NULL
+            RAISERROR('Inspection was not found for this company/location.', 16, 1);
+
+        IF NOT EXISTS
+        (
+            SELECT 1
+            FROM dbo.UTL_User U
+            WHERE U.EmployeeID=@p_EmployeeID
+              AND ISNULL(U.IsSPV,0)=1
+              AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(U.Section,';') S WHERE S.val=@V_SectionID)
+              AND
+              (
+                  EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
+                          WHERE C.UserID=U.UserID AND C.AppID='pip'
+                            AND C.CompanyID=@p_CompanyID AND C.LocationID=@p_LocationID)
+                  OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', U.EmployeeID, '') L
+                             WHERE L.CompanyID=@p_CompanyID AND L.LocationID=@p_LocationID)
+              )
+        )
+            RAISERROR('Supervisor is not authorized for this inspection section or company/location.', 16, 1);
+
+        IF @V_Status <> 'DONE' OR @V_IsApprove IS NOT NULL
+            RAISERROR('Only inspections awaiting approval can be processed.', 16, 1);
+
+        IF @p_Action = 'APPROVE'
+        BEGIN
+            UPDATE dbo.PIP_T_Inspection
+            SET IsApprove=1, ApprovedBy=@p_EmployeeID, ApprovedDate=GETDATE(),
+                ApprovalRemark=NULLIF(LTRIM(RTRIM(@p_Remark)), ''),
+                ReasonVoid=NULL, UpdateUser=@p_EmployeeID, UpdateDate=GETDATE()
+            WHERE InspectionID=@p_InspectionID AND CompanyID=@p_CompanyID AND LocationID=@p_LocationID
+              AND Status='DONE' AND IsApprove IS NULL AND ApprovedBy IS NULL AND ApprovedDate IS NULL;
+        END
+        ELSE
+        BEGIN
+            UPDATE dbo.PIP_T_Inspection
+            SET Status='DRAFT', IsApprove=0, ApprovedBy=@p_EmployeeID, ApprovedDate=GETDATE(),
+                ApprovalRemark=NULL, ReasonVoid=LTRIM(RTRIM(@p_Remark)),
+                UpdateUser=@p_EmployeeID, UpdateDate=GETDATE()
+            WHERE InspectionID=@p_InspectionID AND CompanyID=@p_CompanyID AND LocationID=@p_LocationID
+              AND Status='DONE' AND IsApprove IS NULL AND ApprovedBy IS NULL AND ApprovedDate IS NULL;
+        END;
+
+        IF @@ROWCOUNT <> 1
+            RAISERROR('Inspection approval state changed before this action completed. Refresh the queue.', 16, 1);
+
+        COMMIT TRANSACTION;
+        SELECT @p_InspectionID AS InspectionID, @p_Action AS Action;
+    END TRY
+    BEGIN CATCH
+        IF XACT_STATE() <> 0 ROLLBACK TRANSACTION;
+        DECLARE @V_ErrorMessage NVARCHAR(4000);
+        DECLARE @V_ErrorSeverity INT;
+        DECLARE @V_ErrorState INT;
+        SELECT @V_ErrorMessage=ERROR_MESSAGE(), @V_ErrorSeverity=ERROR_SEVERITY(), @V_ErrorState=ERROR_STATE();
+        RAISERROR(@V_ErrorMessage, @V_ErrorSeverity, @V_ErrorState);
+    END CATCH;
+END;
+GO
