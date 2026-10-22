@@ -5230,17 +5230,28 @@ async function renderTemplateEmployeeAssignments(template)
         search.className = 'form-control form-control-sm';
         search.placeholder = 'Search employee name or NIK...';
         search.setAttribute('aria-label', 'Search employee name or NIK');
-        search.style.maxWidth = '360px';
+        search.style.flex = '1 1 220px';
+        search.style.minWidth = '180px';
+        const sortLabel = document.createElement('label');
+        sortLabel.className = 'd-flex align-items-center gap-1 small text-nowrap mb-0';
+        sortLabel.textContent = 'Sort by';
+        const sortBy = document.createElement('select');
+        sortBy.className = 'form-select form-select-sm';
+        sortBy.style.width = 'auto';
+        sortBy.setAttribute('aria-label', 'Sort employees by');
+        sortBy.innerHTML = '<option value="nik">NIK</option><option value="name">Name</option>';
+        sortLabel.appendChild(sortBy);
         const assignAll = document.createElement('button');
         assignAll.type = 'button';
-        assignAll.className = 'btn btn-sm btn-outline-primary';
-        assignAll.textContent = 'Assign All Eligible';
+        assignAll.className = 'btn btn-sm btn-outline-primary text-nowrap';
+        assignAll.textContent = 'Assign All';
         assignAll.disabled = isReadonlyMode;
         const clearSearch = document.createElement('button');
         clearSearch.type = 'button';
-        clearSearch.className = 'btn btn-sm btn-outline-secondary';
+        clearSearch.className = 'btn btn-sm btn-outline-secondary text-nowrap';
         clearSearch.textContent = 'Clear Search';
         toolbar.appendChild(search);
+        toolbar.appendChild(sortLabel);
         toolbar.appendChild(assignAll);
         toolbar.appendChild(clearSearch);
         host.appendChild(toolbar);
@@ -5294,18 +5305,32 @@ async function renderTemplateEmployeeAssignments(template)
             tbody.appendChild(tr);
             employeeRows.push({ row: row, element: tr, checkbox: check });
         });
-        search.addEventListener('input', function() {
-            const term = this.value.trim().toLowerCase();
-            employeeRows.forEach(function(item) {
+        function applyEmployeeFilterAndSort() {
+            const term = search.value.trim().toLowerCase();
+            const sortedRows = employeeRows.slice().sort(function(a, b) {
+                let compare;
+                if (sortBy.value === 'name') {
+                    compare = String(a.row.Name || '').localeCompare(String(b.row.Name || ''), undefined, { sensitivity: 'base' });
+                } else {
+                    compare = String(a.row.EmployeeID || '').localeCompare(String(b.row.EmployeeID || ''), undefined, { numeric: true, sensitivity: 'base' });
+                }
+                if (compare === 0) compare = String(a.row.EmployeeID || '').localeCompare(String(b.row.EmployeeID || ''), undefined, { numeric: true });
+                return compare;
+            });
+            sortedRows.forEach(function(item) {
                 const matches = (String(item.row.EmployeeID) + ' ' + String(item.row.Name)).toLowerCase().indexOf(term) >= 0;
                 item.element.style.display = matches ? '' : 'none';
+                tbody.appendChild(item.element);
             });
-        });
+        }
+        search.addEventListener('input', applyEmployeeFilterAndSort);
+        sortBy.addEventListener('change', applyEmployeeFilterAndSort);
         clearSearch.addEventListener('click', function() {
             search.value = '';
-            search.dispatchEvent(new Event('input'));
+            applyEmployeeFilterAndSort();
             search.focus();
         });
+        applyEmployeeFilterAndSort();
         assignAll.addEventListener('click', async function() {
             const pending = employeeRows.filter(function(item) { return !item.row.IsAssigned; });
             if (!pending.length) {
