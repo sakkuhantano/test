@@ -2645,6 +2645,12 @@ function normalizeVersionStructure(data)
             item.Groups =
                 item.Groups || [];
 
+            // A remark title only has meaning when its corresponding field is enabled.
+            item.IsRemark1Required = !!item.IsRemark1Required;
+            item.IsRemark2Required = !!item.IsRemark2Required;
+            item.Remark1Text = item.IsRemark1Required ? (item.Remark1Text || "Remark") : "";
+            item.Remark2Text = item.IsRemark2Required ? (item.Remark2Text || "Remark") : "";
+
         });
 
     });
@@ -3256,7 +3262,7 @@ function showItemProperties(itemData)
                         ${itemData.IsRemark1Required ? 'checked' : ''} ${isReadonlyMode ? 'disabled' : ''}>
                     <label class="form-check-label text-xs">Remark 1 Required</label>
                 </div>
-                <div class="mb-2">
+                <div class="mb-2" id="rowRemark1Title" style="${itemData.IsRemark1Required ? '' : 'display:none;'}">
                     <label class="form-label text-xs">Remark 1 Title</label>
                     <input id="propRemark1Text" class="form-control form-control-sm" maxlength="100"
                         value="${itemData.Remark1Text || 'Remark'}" ${isReadonlyMode ? 'disabled' : ''}>
@@ -3266,7 +3272,7 @@ function showItemProperties(itemData)
                         ${itemData.IsRemark2Required ? 'checked' : ''} ${isReadonlyMode ? 'disabled' : ''}>
                     <label class="form-check-label text-xs">Remark 2 Required</label>
                 </div>
-                <div class="mb-2">
+                <div class="mb-2" id="rowRemark2Title" style="${itemData.IsRemark2Required ? '' : 'display:none;'}">
                     <label class="form-label text-xs">Remark 2 Title</label>
                     <input id="propRemark2Text" class="form-control form-control-sm" maxlength="100"
                         value="${itemData.Remark2Text || 'Remark'}" ${isReadonlyMode ? 'disabled' : ''}>
@@ -3915,6 +3921,15 @@ function showItemProperties(itemData)
             function()
             {
                 itemData.IsRemark1Required = this.checked;
+                const row = document.getElementById("rowRemark1Title");
+                const input = document.getElementById("propRemark1Text");
+                if (row) row.style.display = this.checked ? "" : "none";
+                if (input) {
+                    itemData.Remark1Text = this.checked ? (itemData.Remark1Text || "Remark") : "";
+                    input.value = itemData.Remark1Text;
+                } else if (!this.checked) {
+                    itemData.Remark1Text = "";
+                }
                 markCurrentVersionDirty();
             }
         );
@@ -3923,6 +3938,15 @@ function showItemProperties(itemData)
         const el = document.getElementById(id);
         if (el) el.addEventListener("change", function () {
             itemData.IsRemark2Required = this.checked;
+            const row = document.getElementById("rowRemark2Title");
+            const input = document.getElementById("propRemark2Text");
+            if (row) row.style.display = this.checked ? "" : "none";
+            if (input) {
+                itemData.Remark2Text = this.checked ? (itemData.Remark2Text || "Remark") : "";
+                input.value = itemData.Remark2Text;
+            } else if (!this.checked) {
+                itemData.Remark2Text = "";
+            }
             markCurrentVersionDirty();
         });
     });
