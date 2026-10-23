@@ -8,6 +8,12 @@
     .inspection-item.anomaly { border-color: var(--bs-danger); }
     .inspection-item-label { font-weight: 600; margin-bottom: .65rem; display: block; }
     .inspection-muted { font-size: .8rem; color: var(--bs-secondary-color); }
+    .inspection-photo-panel { border: 1px solid var(--bs-border-color); border-radius: .65rem; padding: .85rem; }
+    .inspection-photo-item { width: 112px; height: 112px; position: relative; border: 1px solid var(--bs-border-color); border-radius: .5rem; overflow: hidden; }
+    .inspection-photo-item img { width: 100%; height: 100%; object-fit: cover; }
+    .inspection-photo-delete { position: absolute; top: .25rem; right: .25rem; line-height: 1; padding: .1rem .35rem; }
+    .inspection-option-choice { min-width: 4.5rem; border-radius: .4rem !important; }
+    #inspectionEditorTabs .nav-link.active { font-weight: 700; }
     .inspection-saved-row { border-bottom: 1px solid var(--bs-border-color); padding: .7rem 0; }
     .inspection-saved-row:last-child { border-bottom: 0; }
     #inspectionChecklistHost input, #inspectionChecklistHost select, #inspectionChecklistHost textarea { min-height: 38px; }
@@ -17,7 +23,7 @@
 <asp:Content ID="Content3" ContentPlaceHolderID="stickybar" runat="server">
 <div class="sticky-bar-wrapper w-100">
     <div class="d-flex align-items-center justify-content-between gap-2 p-2">
-        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="window.location.href='dashboard.aspx'">
+        <button type="button" id="btnInspectionPageBack" class="btn btn-sm btn-outline-secondary" onclick="returnFromInspectionPage()">
             <i class="bi bi-arrow-left"></i> Back
         </button>
         <div class="flex-grow-1 text-center">
@@ -95,6 +101,8 @@
     </div>
 
     <div id="inspectionInputPanel" class="d-none">
+    <ul id="inspectionEditorTabs" class="nav nav-tabs mb-3 d-none" role="tablist"><li class="nav-item"><button type="button" id="btnInspectionParamTab" class="nav-link" role="tab">PARAM</button></li><li class="nav-item"><button type="button" id="btnInspectionChecklistTab" class="nav-link active" role="tab">CHECKLIST</button></li></ul>
+    <div id="inspectionParamsPane">
     <div id="inspectionStartPanel" class="inspection-card p-3 mb-3">
         <div class="inspection-step mb-3">
             <div class="fw-bold">1. Inspection Type</div>
@@ -133,11 +141,11 @@
             <label for="txtInspectionDate" class="form-label small fw-semibold">Tanggal inspeksi</label>
             <input id="txtInspectionDate" type="date" class="form-control form-control-sm" />
         </div>
-        <button type="button" id="btnStartInspection" class="btn btn-primary w-100" disabled>
-            <i class="bi bi-clipboard-check"></i> Start Checklist
-        </button>
+        <div id="inspectionStartButtonRow"><button type="button" id="btnStartInspection" class="btn btn-primary w-100" disabled><i class="bi bi-clipboard-check"></i> Start Checklist</button></div>
+        <button type="button" id="btnSaveInspectionParams" class="btn btn-outline-primary w-100 mt-2 d-none"><i class="bi bi-save"></i> Save Parameters</button>
     </div>
-
+    </div>
+    <div id="inspectionChecklistPane" class="d-none">
     <div id="inspectionFormPanel" class="inspection-card p-3 mb-3 d-none">
         <div class="d-flex justify-content-between align-items-start gap-2 mb-3">
             <div>
@@ -145,9 +153,11 @@
                 <h6 id="inspectionFormTitle" class="mb-1">Checklist</h6>
                 <div id="inspectionFormSubtitle" class="inspection-muted"></div>
             </div>
-            <button type="button" id="btnCloseInspection" class="btn btn-sm btn-outline-secondary">Close</button>
+            <button type="button" id="btnInspectionBackToList" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left"></i> Back to list</button>
         </div>
-        <div id="inspectionChecklistHost"></div>
+        <div class="inspection-photo-panel mb-3"><div class="fw-bold mb-2"><i class="bi bi-camera-fill me-2"></i>FIELD DOCUMENTATION BEFORE</div><div id="inspectionPhotoBeforeList" class="d-flex flex-wrap gap-2 mb-2"></div><div class="d-flex align-items-center justify-content-between gap-2"><label class="inspection-muted mb-0">Ambil foto sebelum inspeksi</label><button type="button" id="btnAddInspectionBeforePhoto" class="btn btn-sm btn-outline-primary" onclick="document.getElementById('inspectionPhotoBeforeInput').click()"><i class="bi bi-camera"></i> Take Picture</button><input id="inspectionPhotoBeforeInput" type="file" accept="image/*" capture="environment" hidden /></div><div id="inspectionBeforePhotoCount" class="inspection-muted mt-1">0 / 2 foto</div></div>
+        <div id="inspectionChecklistGateMessage" class="alert alert-warning py-2 small"></div><div id="inspectionChecklistHost"></div>
+        <div class="inspection-photo-panel mt-3"><div class="fw-bold mb-2"><i class="bi bi-camera-fill me-2"></i>FIELD DOCUMENTATION AFTER</div><div id="inspectionPhotoAfterList" class="d-flex flex-wrap gap-2 mb-2"></div><div class="d-flex align-items-center justify-content-between gap-2"><label class="inspection-muted mb-0">Ambil foto setelah inspeksi</label><button type="button" id="btnAddInspectionAfterPhoto" class="btn btn-sm btn-outline-primary" onclick="document.getElementById('inspectionPhotoAfterInput').click()" disabled><i class="bi bi-camera"></i> Take Picture</button><input id="inspectionPhotoAfterInput" type="file" accept="image/*" capture="environment" hidden /></div><div id="inspectionAfterPhotoCount" class="inspection-muted mt-1">0 / 2 foto</div></div>
         <div class="mt-3">
             <label for="txtInspectionSummary" class="form-label small fw-semibold">Summary / Remark</label>
             <textarea id="txtInspectionSummary" class="form-control form-control-sm" rows="3" maxlength="500" placeholder="Catatan inspeksi..."></textarea>
@@ -161,6 +171,7 @@
             </button>
         </div>
         <div id="inspectionFormMessage" class="inspection-muted mt-2"></div>
+    </div>
     </div>
     </div>
 </div>
