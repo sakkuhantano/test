@@ -404,12 +404,20 @@ WHERE h.CompanyID+';'+h.LocationID=@CompanyLocation AND h.WONo=@WONo",
         <div class=""accordion-body p-3"">
             <div class=""row g-3"">", (i == 0 ? "collapsed" : ""), item["IDSection"] + "", item["SectionName"] + "", (i == 0 ? "show" : ""));
                         
-                        foreach (DataRow item1 in br.EQuery("SELECT A.*, ISNULL(B.Value,'') Value, ISNULL(B.Remark,'') Remark, ISNULL(B.IDResult,0) IDResult " +
+                        int currentSubSection = 0;
+                        foreach (DataRow item1 in br.EQuery("SELECT A.*, ISNULL(B.Value,'') Value, ISNULL(B.Remark1,'') Remark1, ISNULL(B.Remark2,'') Remark2, ISNULL(B.IDResult,0) IDResult, ISNULL(SS.SubSectionName,'') SubSectionName, ISNULL(SS.DisplayOrder,0) SubSectionOrder " +
                                                             "FROM PIP_M_CheckListWOPM_Item A LEFT JOIN PIP_T_WO_CheckList B ON A.IDItem=B.IDItem AND B.KeyHD=@KeyHD " +
-                                                            "WHERE A.IDSection=@IDSection ORDER BY A.DisplayOrder",
+                                                            "LEFT JOIN PIP_M_CheckListWOPM_SubSection SS ON SS.IDSubSection=A.IDSubSection " +
+                                                            "WHERE A.IDSection=@IDSection ORDER BY CASE WHEN ISNULL(A.IDSubSection,0)=0 THEN A.DisplayOrder ELSE SS.DisplayOrder END, CASE WHEN ISNULL(A.IDSubSection,0)=0 THEN 0 ELSE 1 END, A.DisplayOrder",
                                                             "@IDSection=" + item["IDSection"] + GF.Str2 +
                                                             "@KeyHD=" + row["KeyHD"].ToString()).Rows) 
                         {
+                            int itemSubSection = item1["IDSubSection"] == DBNull.Value ? 0 : Convert.ToInt32(item1["IDSubSection"]);
+                            if (itemSubSection > 0 && itemSubSection != currentSubSection)
+                            {
+                                sCheckList += "<div class=\"col-12 mt-2 mb-1\"><div class=\"border-bottom pb-2 fw-semibold text-secondary\"><i class=\"bi bi-folder2-open me-2\"></i>" + System.Web.HttpUtility.HtmlEncode(item1["SubSectionName"].ToString()) + "</div></div>";
+                            }
+                            currentSubSection = itemSubSection;
                             switch (item1["ItemType"].ToString())
                             {
                                 case "OPTION":
