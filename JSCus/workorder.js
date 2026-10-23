@@ -2890,7 +2890,6 @@ function validateItem(item, container) {
             : [];
     const selectedOptionRequiresRemark = item.type === "OPTION" && !!checked &&
         requiredOptionRemarks.map(String).includes(String(checked.value));
-    const remark2El = container.querySelector("[data-role='remark2]");
 
     if (!error && (item.isRemark1Required || item.isRemarkRequired || selectedOptionRequiresRemark)) {
 
