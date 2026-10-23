@@ -597,6 +597,6 @@
 </div>
 
     <%--<script type="text/javascript" src="../JSCus/GFC.js"></script>--%>
-    <script type="text/javascript" src="../JSCus/template.js"></script>
+    <script type="text/javascript" src="../JSCus/template.js?v=20261022-subsection1"></script>
     <script type="text/javascript" src="../JSCus/sortable.js"></script>
 </asp:Content>
