@@ -808,7 +808,45 @@ async function renderChecklist(template, isEntryMode) {
         let V_Remark2 = "";
         let V_GroupValues = null;
 
-        section.items.forEach(item => {
+        // Merge direct Section items and Sub-sections by their shared parent display order.
+        const sectionItems = section.items || [];
+        const subsectionGroups = new Map();
+        sectionItems.forEach(item => {
+            const subId = Number(item.idSubSection || 0);
+            if (subId > 0) {
+                if (!subsectionGroups.has(subId)) subsectionGroups.set(subId, []);
+                subsectionGroups.get(subId).push(item);
+            }
+        });
+        const sectionElements = [];
+        sectionItems.filter(item => !Number(item.idSubSection || 0)).forEach(item => {
+            sectionElements.push({ order:Number(item.itemOrder || 0), type:"item", item });
+        });
+        subsectionGroups.forEach((items, subId) => {
+            const first = items[0];
+            sectionElements.push({
+                order:Number(first.subSectionOrder || 0),
+                type:"subsection",
+                subId,
+                name:first.subSectionName || "Sub-section",
+                items:items.sort((a,b) => Number(a.itemOrder || 0)-Number(b.itemOrder || 0))
+            });
+        });
+        sectionElements.sort((a,b) => a.order-b.order);
+        const renderItems = [];
+        sectionElements.forEach(element => {
+            if (element.type === "item") renderItems.push(element.item);
+            else {
+                renderItems.push({ __isSubSectionHeader:true, label:element.name, idSubSection:element.subId });
+                renderItems.push(...element.items);
+            }
+        });
+
+        renderItems.forEach(item => {
+            if (item.__isSubSectionHeader) {
+                html += `<div class="col-12 mt-2 mb-1"><div class="border-bottom pb-2 fw-semibold text-secondary"><i class="bi bi-folder2-open me-2"></i>${item.label}</div></div>`;
+                return;
+            }
             V_Value = "";
             V_Remark1 = "";
             V_Remark2 = "";
