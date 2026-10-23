@@ -4577,7 +4577,7 @@ function buildSectionHtml(section)
             itemsHtml += buildItemHtml(entry.item, section);
         } else {
             const sub = entry.sub;
-            const subItems = section.Items.filter(item => Number(item.RuntimeSubSectionID || 0) === Number(sub.RuntimeSubSectionID));
+            const subItems = section.Items.filter(item => Number(item.RuntimeSubSectionID || 0) === Number(sub.RuntimeSubSectionID)).sort((a,b) => Number(a.DisplayOrder || 0) - Number(b.DisplayOrder || 0));
             itemsHtml += buildSubSectionHtml(sub, section, subItems);
         }
     });
