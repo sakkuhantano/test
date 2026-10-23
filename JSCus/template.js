@@ -8,6 +8,7 @@ let currentVersion = null;
 let currentVersionData = null;
 let currentSelectedSection = null;
 let currentSelectedItem = null;
+let currentSelectedSubSection = null;
 let groupEquipmentCache = [];
 let modelCache = [];
 let explorerKeyword = "";
@@ -4703,7 +4704,7 @@ function buildSubSectionHtml(sub, section, items)
     const itemHtml = (items || []).map(item => buildItemHtml(item, section)).join('');
     return `
         <div class="subsection-box border rounded mb-2" data-subsection-id="${subId}" data-section-id="${section.RuntimeSectionID}">
-            <div class="subsection-header d-flex align-items-center gap-2 px-2 py-2 bg-light">
+            <div class="subsection-header d-flex align-items-center gap-2 px-2 py-2 bg-light cursor-pointer" role="button" tabindex="0" aria-label="Select Sub-section properties">
                 <i class="bi bi-grip-vertical text-muted cursor-move subsection-drag-handle ${isReadonlyMode ? 'd-none' : ''}" title="Drag Sub-section and its Items"></i>
                 <i class="bi bi-folder2-open text-secondary"></i>
                 <span class="fw-semibold flex-grow-1 subsection-title">${escapeHtml(sub.SubSectionName || 'Sub-section')}</span>
@@ -4712,7 +4713,7 @@ function buildSubSectionHtml(sub, section, items)
             </div>
             <div class="items-container subsection-items" data-subsection-id="${subId}">${itemHtml}</div>
             <div class="p-1 text-center bg-light border-top ${isReadonlyMode ? 'd-none' : ''}">
-                <button class="btn btn-link btn-sm text-decoration-none py-0 text-xs" onclick="addItemToSubSection(${section.RuntimeSectionID},${subId});"><i class="bi bi-plus"></i> Add Item</button>
+                <button class="btn btn-link btn-sm text-decoration-none py-0 text-xs" onclick="event.stopPropagation();addItemToSubSection(${section.RuntimeSectionID},${subId});"><i class="bi bi-plus"></i> Add Item</button>
             </div>
         </div>`;
 }
@@ -4724,7 +4725,6 @@ function showSubSectionMenu(event, sectionId, subSectionId)
     menu.className = 'custom-context-menu';
     menu.innerHTML = `
         <div class="context-item" onclick="addItemToSubSection(${sectionId},${subSectionId})"><i class="bi bi-plus-circle"></i> Add Item</div>
-        <div class="context-item" onclick="renameSubSection(${sectionId},${subSectionId})"><i class="bi bi-pencil"></i> Rename Sub-section</div>
         <div class="context-item" onclick="moveChecklistElement(${sectionId},'subsection',${subSectionId},-1)"><i class="bi bi-arrow-up"></i> Move Up</div>
         <div class="context-item" onclick="moveChecklistElement(${sectionId},'subsection',${subSectionId},1)"><i class="bi bi-arrow-down"></i> Move Down</div>
         <div class="context-item text-danger" onclick="deleteSubSection(${sectionId},${subSectionId})"><i class="bi bi-trash"></i> Delete Sub-section</div>`;
@@ -4739,17 +4739,29 @@ function addSubSection(sectionId)
     if (isReadonlyMode || !currentVersionData) return;
     const section = currentVersionData.Sections.find(x => Number(x.RuntimeSectionID) === Number(sectionId));
     if (!section) return;
-    const name = window.prompt('Sub-section name:', 'New Sub-section');
-    if (name === null) return;
-    if (!name.trim()) { showToast('Sub-section name is required.'); return; }
     section.SubSections = section.SubSections || [];
-    const allOrders = [...(section.Items || []).map(x => Number(x.DisplayOrder || 0)), ...section.SubSections.map(x => Number(x.DisplayOrder || 0))];
-    const nextOrder = Math.max(0, ...allOrders) + 1;
-    const sub = { IDSubSection:0, RuntimeSubSectionID:generateRuntimeID(), IDSection:section.IDSection || 0, RuntimeSectionID:section.RuntimeSectionID, SubSectionName:name.trim(), DisplayOrder:nextOrder };
+    section.Items = section.Items || [];
+    const topLevelOrders = [
+        ...section.Items.filter(item => !Number(item.RuntimeSubSectionID || item.IDSubSection || 0)).map(item => Number(item.DisplayOrder || 0)),
+        ...section.SubSections.map(sub => Number(sub.DisplayOrder || 0))
+    ];
+    const sub = {
+        IDSubSection:0,
+        RuntimeSubSectionID:generateRuntimeID(),
+        IDSection:section.IDSection || 0,
+        RuntimeSectionID:section.RuntimeSectionID,
+        SubSectionName:'New Sub-section',
+        DisplayOrder:Math.max(0, ...topLevelOrders) + 1
+    };
     section.SubSections.push(sub);
     markCurrentVersionDirty();
     renderVersionStructure(currentVersionData);
+    setTimeout(() => {
+        const box = document.querySelector(`.subsection-box[data-subsection-id="${sub.RuntimeSubSectionID}"]`);
+        if (box) selectSubSection(box);
+    }, 50);
 }
+
 function addItemToSubSection(sectionId, subSectionId)
 {
     removeExistingContextMenu();
@@ -4844,17 +4856,13 @@ function moveChecklistElement(sectionId, kind, elementId, direction)
 }
 function renameSubSection(sectionId, subSectionId)
 {
-    removeExistingContextMenu();
     const section = currentVersionData?.Sections?.find(x => Number(x.RuntimeSectionID) === Number(sectionId));
-    const sub = section?.SubSections?.find(x => Number(x.RuntimeSubSectionID) === Number(subSectionId));
+    const sub = section?.SubSections?.find(x => Number(x.RuntimeSubSectionID || x.IDSubSection) === Number(subSectionId));
     if (!sub || isReadonlyMode) return;
-    const name = window.prompt('Sub-section name:', sub.SubSectionName || '');
-    if (name === null) return;
-    if (!name.trim()) { showToast('Sub-section name is required.'); return; }
-    sub.SubSectionName = name.trim();
-    markCurrentVersionDirty();
-    renderVersionStructure(currentVersionData);
+    const box = document.querySelector(`.subsection-box[data-subsection-id="${sub.RuntimeSubSectionID || sub.IDSubSection}"]`);
+    if (box) selectSubSection(box);
 }
+
 async function deleteSubSection(sectionId, subSectionId)
 {
     removeExistingContextMenu();
@@ -4991,6 +4999,7 @@ function selectItem(row)
 
     currentSelectedItem =
         row;
+    currentSelectedSubSection = null;
 
     // const idItem =
     //     parseInt(
@@ -5082,6 +5091,7 @@ function selectSection(sectionBox)
 
     currentSelectedItem =
         null;
+    currentSelectedSubSection = null;
 
     const idSection =
         parseInt(
@@ -5763,6 +5773,54 @@ async function bindGroupEquipmentDropdown(selectedValue)
 
     ddl.value = selectedValue || "";
 }
+function selectSubSection(subSectionBox)
+{
+    if (!subSectionBox) return;
+    const sectionId = Number(subSectionBox.dataset.sectionId);
+    const subId = Number(subSectionBox.dataset.subsectionId);
+    const section = currentVersionData?.Sections?.find(x => Number(x.RuntimeSectionID) === sectionId);
+    const sub = section?.SubSections?.find(x => Number(x.RuntimeSubSectionID || x.IDSubSection) === subId);
+    if (!section || !sub) return;
+
+    document.querySelectorAll('.section-box').forEach(x => x.classList.remove('section-box-active'));
+    document.querySelectorAll('.item-row').forEach(x => x.classList.remove('active-item'));
+    document.querySelectorAll('.subsection-box').forEach(x => x.classList.remove('subsection-box-active'));
+    subSectionBox.classList.add('subsection-box-active');
+
+    currentSelectedSubSection = subSectionBox;
+    currentSelectedSection = subSectionBox.closest('.section-box');
+    currentSelectedItem = null;
+    currentSection = section;
+    currentItem = null;
+    renderSubSectionProperties(section, sub);
+    switchMobileTab('properties');
+}
+function renderSubSectionProperties(section, sub)
+{
+    const panel = document.querySelector('#panel-properties .panel-content');
+    if (!panel) return;
+    panel.innerHTML = `
+        <div class="prop-group">
+            <div class="prop-group-header">Sub-section Properties</div>
+            <div class="prop-group-body">
+                <div class="mb-3">
+                    <label class="form-label" for="propSubSectionName">Sub-section Name</label>
+                    <input id="propSubSectionName" type="text" class="form-control form-control-compact"
+                        value="${escapeHtml(sub.SubSectionName || '')}" maxlength="200" ${isReadonlyMode ? 'disabled' : ''}>
+                </div>
+                <div class="form-text">Items inside this Sub-section move with it.</div>
+            </div>
+        </div>`;
+    const input = document.getElementById('propSubSectionName');
+    if (!input) return;
+    input.addEventListener('input', function() {
+        if (isReadonlyMode) return;
+        sub.SubSectionName = this.value;
+        const label = currentSelectedSubSection?.querySelector('.subsection-title');
+        if (label) label.textContent = this.value;
+        markCurrentVersionDirty();
+    });
+}
 function renderSectionProperties(data)
 {
     const panel =
@@ -6164,9 +6222,27 @@ function bindGlobalEvents()
         }
     );    
     // =========================
+    // Select Sub-section
+    // =========================
+    document.body.addEventListener('click', function (e) {
+        const header = e.target.closest('.subsection-header');
+        if (!header || e.target.closest('.subsection-drag-handle') || e.target.closest('.bi-three-dots-vertical')) return;
+        const box = header.closest('.subsection-box');
+        if (box) selectSubSection(box);
+    });
+    document.body.addEventListener('keydown', function (e) {
+        if (e.key !== 'Enter' && e.key !== ' ') return;
+        const header = e.target.closest('.subsection-header');
+        if (!header || e.target.closest('.subsection-drag-handle') || e.target.closest('.bi-three-dots-vertical')) return;
+        e.preventDefault();
+        const box = header.closest('.subsection-box');
+        if (box) selectSubSection(box);
+    });
+    // =========================
     // Select Section
     // =========================
     document.body.addEventListener('click', function (e) {
+        if (e.target.closest('.subsection-box')) return;
         const sectionHeader = e.target.closest('.section-box-header');
         if (!sectionHeader)
             return;
@@ -8619,6 +8695,23 @@ function patchSavedIdentity(saveResult)
 }
 async function saveAllTemplate()
 {
+    // Flush the currently visible builder DOM into the canonical draft object before
+    // constructing the Save All payload. This prevents recently moved/added Sub-sections
+    // and their child Item parent IDs from being omitted by a stale cached structure.
+    if (currentVersionData && currentTemplate && currentVersionData.VersionInfo) {
+        const currentVersionRuntimeId = Number(currentVersionData.VersionInfo.RuntimeVersionID || currentVersionData.VersionInfo.IDVersion || 0);
+        const cache = getTemplateCache(currentTemplate.SectionID, currentTemplate.RuntimeTemplateID);
+        const draftNode = cache && Object.values(cache.Versions || {}).find(node =>
+            String(node?.VersionInfo?.Status) === 'Draft' &&
+            Number(node?.VersionInfo?.RuntimeVersionID || node?.VersionInfo?.IDVersion || 0) === currentVersionRuntimeId
+        );
+        if (draftNode && draftNode.Structure === currentVersionData) {
+            syncItemOrder();
+            draftNode.VersionInfo = currentVersionData.VersionInfo;
+            draftNode.Structure = currentVersionData;
+        }
+    }
+
     //-----------------------------------
     // Nothing dirty
     //-----------------------------------
