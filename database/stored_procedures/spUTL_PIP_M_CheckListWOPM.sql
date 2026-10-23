@@ -349,15 +349,18 @@ OUTPUT
     inserted.IDSection
 INTO @tbl_Identity (Entity, RuntimeID, ID);    
 
--- Capture the resolved Section IDs only after newly inserted Sections have identity-map rows.
-SELECT v.IDSubSection, v.RuntimeSubSectionID, v.RuntimeSectionID, v.SubSectionName, v.DisplayOrder, sec.IDSection AS ResolvedIDSection
-INTO tmpDebug_PIP_M_CheckListWOPM_SubSectionSource
-FROM @tbl_SubSection v
-LEFT JOIN (
-    SELECT RuntimeID AS RuntimeSectionID, ID AS IDSection FROM @tbl_Identity WHERE Entity='Section'
-    UNION ALL
-    SELECT RuntimeSectionID, IDSection FROM @tbl_Section WHERE IDSection <> 0
-) sec ON sec.RuntimeSectionID = v.RuntimeSectionID;
+-- Capture resolved IDs only in debug mode, after new Sections have been mapped.
+IF @p_IsDebug=1
+BEGIN
+    SELECT v.IDSubSection, v.RuntimeSubSectionID, v.RuntimeSectionID, v.SubSectionName, v.DisplayOrder, sec.IDSection AS ResolvedIDSection
+    INTO tmpDebug_PIP_M_CheckListWOPM_SubSectionSource
+    FROM @tbl_SubSection v
+    LEFT JOIN (
+        SELECT RuntimeID AS RuntimeSectionID, ID AS IDSection FROM @tbl_Identity WHERE Entity='Section'
+        UNION ALL
+        SELECT RuntimeSectionID, IDSection FROM @tbl_Section WHERE IDSection <> 0
+    ) sec ON sec.RuntimeSectionID = v.RuntimeSectionID;
+END;
 
 IF EXISTS (SELECT 1 FROM @tbl_SubSection v
     WHERE NOT EXISTS (
