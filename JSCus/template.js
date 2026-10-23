@@ -4192,6 +4192,7 @@ function renderSections(sections)
 }
 function showSectionMenu(event, sectionId)
 {
+    event?.stopPropagation();
     removeExistingContextMenu();
     const menu = document.createElement('div');
     menu.className = 'custom-context-menu';
@@ -4199,7 +4200,12 @@ function showSectionMenu(event, sectionId)
         <div class="context-item"
              onclick="addItem('${sectionId}')">
             <i class="bi bi-plus-circle"></i>
-            Add Item
+            Add Item to Section
+        </div>
+        <div class="context-item"
+             onclick="addSubSection('${sectionId}')">
+            <i class="bi bi-folder-plus"></i>
+            Add Sub-section
         </div>
         <div class="context-item"
              onclick="duplicateSection('${sectionId}')">
@@ -4541,14 +4547,22 @@ function buildSectionHtml(section)
         section.RuntimeSectionID;
     const collapseId =
     `section${uiId}Collapse`;
+    section.SubSections = section.SubSections || [];
+    section.Items = section.Items || [];
+    const sectionElements = [];
+    section.Items.filter(item => !item.RuntimeSubSectionID || Number(item.RuntimeSubSectionID) === 0).forEach(item => sectionElements.push({ type:'item', order:Number(item.DisplayOrder || 0), item }));
+    section.SubSections.forEach(sub => sectionElements.push({ type:'subsection', order:Number(sub.DisplayOrder || 0), sub }));
+    sectionElements.sort((a,b) => a.order-b.order);
     let itemsHtml = '';
-    if (section.Items)
-    {
-        section.Items.forEach(item =>
-        {
-            itemsHtml += buildItemHtml(item, section);
-        });
-    }
+    sectionElements.forEach(entry => {
+        if (entry.type === 'item') {
+            itemsHtml += buildItemHtml(entry.item, section);
+        } else {
+            const sub = entry.sub;
+            const subItems = section.Items.filter(item => Number(item.RuntimeSubSectionID || 0) === Number(sub.RuntimeSubSectionID));
+            itemsHtml += buildSubSectionHtml(sub, section, subItems);
+        }
+    });
     return `
         <div class="section-box" 
              data-section-id="${section.IDSection}"
@@ -4653,6 +4667,103 @@ function buildSectionHtml(section)
             </div>
         </div>
     `;
+}
+function buildSubSectionHtml(sub, section, items)
+{
+    const subId = Number(sub.RuntimeSubSectionID || sub.IDSubSection || 0);
+    const itemHtml = (items || []).map(item => buildItemHtml(item, section)).join('');
+    return `
+        <div class="subsection-box border rounded mb-2" data-subsection-id="${subId}" data-section-id="${section.RuntimeSectionID}">
+            <div class="subsection-header d-flex align-items-center gap-2 px-2 py-2 bg-light">
+                <i class="bi bi-folder2-open text-secondary"></i>
+                <span class="fw-semibold flex-grow-1 subsection-title">${escapeHtml(sub.SubSectionName || 'Sub-section')}</span>
+                <span class="badge bg-secondary text-xs">${(items || []).length} items</span>
+                <i class="bi bi-three-dots-vertical text-muted cursor-pointer ${isReadonlyMode ? 'd-none' : ''}" onclick="event.stopPropagation();showSubSectionMenu(event,${section.RuntimeSectionID},${subId});"></i>
+            </div>
+            <div class="items-container subsection-items" data-subsection-id="${subId}">${itemHtml}</div>
+            <div class="p-1 text-center bg-light border-top ${isReadonlyMode ? 'd-none' : ''}">
+                <button class="btn btn-link btn-sm text-decoration-none py-0 text-xs" onclick="addItemToSubSection(${section.RuntimeSectionID},${subId});"><i class="bi bi-plus"></i> Add Item</button>
+            </div>
+        </div>`;
+}
+function showSubSectionMenu(event, sectionId, subSectionId)
+{
+    event?.stopPropagation();
+    removeExistingContextMenu();
+    const menu = document.createElement('div');
+    menu.className = 'custom-context-menu';
+    menu.innerHTML = `
+        <div class="context-item" onclick="addItemToSubSection(${sectionId},${subSectionId})"><i class="bi bi-plus-circle"></i> Add Item</div>
+        <div class="context-item" onclick="renameSubSection(${sectionId},${subSectionId})"><i class="bi bi-pencil"></i> Rename Sub-section</div>
+        <div class="context-item text-danger" onclick="deleteSubSection(${sectionId},${subSectionId})"><i class="bi bi-trash"></i> Delete Sub-section</div>`;
+    document.body.appendChild(menu);
+    menu.style.left = event.pageX + 'px';
+    menu.style.top = event.pageY + 'px';
+    setTimeout(() => document.addEventListener('click', removeExistingContextMenu, { once:true }));
+}
+function addSubSection(sectionId)
+{
+    removeExistingContextMenu();
+    if (isReadonlyMode || !currentVersionData) return;
+    const section = currentVersionData.Sections.find(x => Number(x.RuntimeSectionID) === Number(sectionId));
+    if (!section) return;
+    const name = window.prompt('Sub-section name:', 'New Sub-section');
+    if (name === null) return;
+    if (!name.trim()) { showToast('Sub-section name is required.'); return; }
+    section.SubSections = section.SubSections || [];
+    const allOrders = [...(section.Items || []).map(x => Number(x.DisplayOrder || 0)), ...section.SubSections.map(x => Number(x.DisplayOrder || 0))];
+    const nextOrder = Math.max(0, ...allOrders) + 1;
+    const sub = { IDSubSection:0, RuntimeSubSectionID:generateRuntimeID(), IDSection:section.IDSection || 0, RuntimeSectionID:section.RuntimeSectionID, SubSectionName:name.trim(), DisplayOrder:nextOrder };
+    section.SubSections.push(sub);
+    markCurrentVersionDirty();
+    renderVersionStructure(currentVersionData);
+}
+function addItemToSubSection(sectionId, subSectionId)
+{
+    removeExistingContextMenu();
+    if (isReadonlyMode || !currentVersionData) return;
+    const section = currentVersionData.Sections.find(x => Number(x.RuntimeSectionID) === Number(sectionId));
+    if (!section) return;
+    const sub = (section.SubSections || []).find(x => Number(x.RuntimeSubSectionID) === Number(subSectionId));
+    if (!sub) return;
+    currentSection = section;
+    const item = createNewItem();
+    item.RuntimeSubSectionID = Number(sub.RuntimeSubSectionID);
+    item.IDSubSection = Number(sub.IDSubSection || 0);
+    item.DisplayOrder = (section.Items || []).filter(x => Number(x.RuntimeSubSectionID || 0) === Number(subSectionId)).length + 1;
+    section.Items.push(item);
+    markCurrentVersionDirty();
+    renderVersionStructure(currentVersionData);
+    setTimeout(() => { const row=document.querySelector(`.item-row[data-id="${item.RuntimeItemID}"]`); if(row) selectItem(row); },50);
+}
+function renameSubSection(sectionId, subSectionId)
+{
+    removeExistingContextMenu();
+    const section = currentVersionData?.Sections?.find(x => Number(x.RuntimeSectionID) === Number(sectionId));
+    const sub = section?.SubSections?.find(x => Number(x.RuntimeSubSectionID) === Number(subSectionId));
+    if (!sub || isReadonlyMode) return;
+    const name = window.prompt('Sub-section name:', sub.SubSectionName || '');
+    if (name === null) return;
+    if (!name.trim()) { showToast('Sub-section name is required.'); return; }
+    sub.SubSectionName = name.trim();
+    markCurrentVersionDirty();
+    renderVersionStructure(currentVersionData);
+}
+async function deleteSubSection(sectionId, subSectionId)
+{
+    removeExistingContextMenu();
+    if (isReadonlyMode) return;
+    const ok = await showConfirmation({ title:'Delete Sub-section', message:'Delete this Sub-section? Its items will remain directly under the Section.' });
+    if (!ok) return;
+    const section = currentVersionData?.Sections?.find(x => Number(x.RuntimeSectionID) === Number(sectionId));
+    if (!section) return;
+    section.Items = (section.Items || []).map(item => {
+        if (Number(item.RuntimeSubSectionID || 0) === Number(subSectionId)) { item.RuntimeSubSectionID = 0; item.IDSubSection = 0; }
+        return item;
+    });
+    section.SubSections = (section.SubSections || []).filter(x => Number(x.RuntimeSubSectionID) !== Number(subSectionId));
+    markCurrentVersionDirty();
+    renderVersionStructure(currentVersionData);
 }
 function buildItemHtml(item, section)
 {
