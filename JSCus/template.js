@@ -569,6 +569,8 @@ function clearTemplateDirty(templateNode)
     .forEach(ver =>
     {
         ver.VersionInfo.Dirty = false;
+        if (ver.Structure && ver.Structure.VersionInfo)
+            ver.Structure.VersionInfo.Dirty = false;
     });
 
     evaluateDirtyState();
@@ -9456,6 +9458,8 @@ function clearAllDirty()
             .forEach(ver =>
             {
                 ver.VersionInfo.Dirty = false;
+                if (ver.Structure && ver.Structure.VersionInfo)
+                    ver.Structure.VersionInfo.Dirty = false;
             });
         });
     });
