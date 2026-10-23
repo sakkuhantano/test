@@ -491,7 +491,10 @@ function createNewItem()
         MaxTolerance:"",
         // ===============        
         DisplayOrder:0,
-        IsRemarkRequired:false,
+        IsRemark1Required:false,
+        IsRemark2Required:false,
+        Remark1Text:"Remark",
+        Remark2Text:"Remark",
         IsValueRequired:false,
         ShowUnitInRange:false,
         UseDefaultOption:false,
@@ -3234,19 +3237,24 @@ function showItemProperties(itemData)
                 </div>
 
                 <div class="form-check form-switch mb-2">
-
-                    <input
-                        id="propMandatoryRemark"
-                        class="form-check-input"
-                        type="checkbox"
-                        ${itemData.IsRemarkRequired ? 'checked' : ''}
-                        ${isReadonlyMode ? 'disabled' : ''}
-                    >
-
-                    <label class="form-check-label text-xs">
-                        Remark Required
-                    </label>
-
+                    <input id="propMandatoryRemark1" class="form-check-input" type="checkbox"
+                        ${itemData.IsRemark1Required ? 'checked' : ''} ${isReadonlyMode ? 'disabled' : ''}>
+                    <label class="form-check-label text-xs">Remark 1 Required</label>
+                </div>
+                <div class="mb-2">
+                    <label class="form-label text-xs">Remark 1 Title</label>
+                    <input id="propRemark1Text" class="form-control form-control-sm" maxlength="100"
+                        value="${itemData.Remark1Text || 'Remark'}" ${isReadonlyMode ? 'disabled' : ''}>
+                </div>
+                <div class="form-check form-switch mb-2">
+                    <input id="propMandatoryRemark2" class="form-check-input" type="checkbox"
+                        ${itemData.IsRemark2Required ? 'checked' : ''} ${isReadonlyMode ? 'disabled' : ''}>
+                    <label class="form-check-label text-xs">Remark 2 Required</label>
+                </div>
+                <div class="mb-2">
+                    <label class="form-label text-xs">Remark 2 Title</label>
+                    <input id="propRemark2Text" class="form-control form-control-sm" maxlength="100"
+                        value="${itemData.Remark2Text || 'Remark'}" ${isReadonlyMode ? 'disabled' : ''}>
                 </div>
                 <div class="form-check form-switch mb-2" id="divUseDefaultOption"
                      style="${Array.isArray(currentVersion?.StatusOption) && currentVersion.StatusOption.some(option => String(option || "").trim() !== "") ? "" : "display:none;"}">
@@ -3882,7 +3890,7 @@ function showItemProperties(itemData)
 
     const chkRemark =
         document.getElementById(
-            "propMandatoryRemark"
+            "propMandatoryRemark1"
         );
 
     if(chkRemark)
@@ -3891,13 +3899,25 @@ function showItemProperties(itemData)
             "change",
             function()
             {
-                itemData.IsRemarkRequired =
-                    this.checked;
-
+                itemData.IsRemark1Required = this.checked;
                 markCurrentVersionDirty();
             }
         );
     }
+    ["propMandatoryRemark2"].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener("change", function () {
+            itemData.IsRemark2Required = this.checked;
+            markCurrentVersionDirty();
+        });
+    });
+    [["propRemark1Text", "Remark1Text"], ["propRemark2Text", "Remark2Text"]].forEach(pair => {
+        const el = document.getElementById(pair[0]);
+        if (el) el.addEventListener("input", function () {
+            itemData[pair[1]] = this.value.trim() || "Remark";
+            markCurrentVersionDirty();
+        });
+    });
     const chkTolerance =
     document.getElementById(
         "chkUseTolerance"
