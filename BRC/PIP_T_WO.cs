@@ -223,7 +223,7 @@ FROM PIP_T_WO A WHERE A.KeyHD = @KeyHD AND A.IsDelete = 0
             try
             {
                 DataTable V_tblTmp_1 = new DataTable();
-                for (int i = 1; i <= 5; i++)
+                for (int i = 1; i <= 13; i++)
                 {
                     V_tblTmp_1.Columns.Add("C" + i + "", typeof(System.String));
                 }
