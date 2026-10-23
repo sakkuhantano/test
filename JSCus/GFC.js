@@ -842,6 +842,7 @@ async function downloadReturnedInspections() {
             req.onerror = () => reject(req.error);
         });
         const updates = [];
+        const photoUpdates = [];
         const parseDateOnly = value => {
             if (!value) return "";
             const match = String(value).match(/\/Date\((\d+)/);
@@ -898,6 +899,25 @@ async function downloadReturnedInspections() {
             local.ReasonVoid = serverRecord.ReasonVoid || "";
             local.UpdatedAt = new Date().toISOString();
             updates.push(local);
+            try {
+                const photoResponse = await fetch("inspection.aspx/GetReturnedInspectionPhotos", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json; charset=utf-8" },
+                    body: JSON.stringify({
+                        clientInspectionId: serverRecord.ClientInspectionID,
+                        employeeId: login.employeeid,
+                        companyId: scope[0] || "",
+                        locationId: scope[1] || ""
+                    })
+                });
+                const photoPayload = await photoResponse.json();
+                if (!photoResponse.ok) throw new Error((photoPayload && photoPayload.Message) || "Inspection photo download failed");
+                const photoResult = photoPayload && Object.prototype.hasOwnProperty.call(photoPayload, "d") ? photoPayload.d : photoPayload;
+                if (photoResult && photoResult.success === false) throw new Error(photoResult.message || "Inspection photo download failed");
+                photoUpdates.push({ LocalInspectionID: local.LocalInspectionID, Photos: Array.isArray(photoResult.data) ? photoResult.data : [] });
+            } catch (photoError) {
+                console.warn("Unable to download returned Inspection photos:", serverRecord.ClientInspectionID, photoError);
+            }
         }
         if (updates.length) {
             await new Promise((resolve, reject) => {
@@ -907,6 +927,43 @@ async function downloadReturnedInspections() {
                 tx.oncomplete = () => resolve();
                 tx.onerror = () => reject(tx.error);
                 tx.onabort = () => reject(tx.error || new Error("Returned Inspection update aborted"));
+            });
+        }
+        for (const photoUpdate of photoUpdates) {
+            await new Promise((resolve, reject) => {
+                const tx = db.transaction("inspection_photos", "readwrite");
+                const store = tx.objectStore("inspection_photos");
+                const index = store.index("LocalInspectionID");
+                const req = index.getAll(IDBKeyRange.only(photoUpdate.LocalInspectionID));
+                req.onsuccess = () => {
+                    (req.result || []).forEach(photo => store.delete(photo.ID));
+                    (photoUpdate.Photos || []).forEach(photo => {
+                        const parts = String(photo.Data || "").split(",");
+                        if (parts.length < 2) return;
+                        try {
+                            const mimeMatch = parts[0].match(/^data:([^;]+);base64$/i);
+                            const mimeType = mimeMatch ? mimeMatch[1] : "image/jpeg";
+                            const binary = atob(parts[1]);
+                            const bytes = new Uint8Array(binary.length);
+                            for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+                            const blob = new Blob([bytes], { type: mimeType });
+                            store.add({
+                                LocalInspectionID: photoUpdate.LocalInspectionID,
+                                Type: String(photo.Type || "").toUpperCase(),
+                                FileName: photo.FileName || "",
+                                OrderNo: Number(photo.OrderNo || 0),
+                                Blob: blob,
+                                DownloadedAt: new Date().toISOString()
+                            });
+                        } catch (decodeError) {
+                            console.warn("Invalid downloaded Inspection photo was skipped:", decodeError);
+                        }
+                    });
+                };
+                req.onerror = () => reject(req.error);
+                tx.oncomplete = () => resolve();
+                tx.onerror = () => reject(tx.error);
+                tx.onabort = () => reject(tx.error || new Error("Inspection photo IndexedDB update aborted"));
             });
         }
     } catch (err) {
