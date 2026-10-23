@@ -372,7 +372,10 @@ IF EXISTS (SELECT 1 FROM @tbl_SubSection v
         ) sec
         WHERE sec.RuntimeSectionID = v.RuntimeSectionID
     ))
-    THROW 51001, 'SaveAllTemplate: a Sub-section RuntimeSectionID could not be mapped to a database Section ID.', 1;
+BEGIN
+    RAISERROR('SaveAllTemplate: a Sub-section RuntimeSectionID could not be mapped to a database Section ID.', 16, 1);
+    RETURN;
+END;
 
 -- Resolve/create sub-sections before linking items to them.
 MERGE INTO PIP_M_CheckListWOPM_SubSection AS target
