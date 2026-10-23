@@ -794,6 +794,7 @@ WHERE a.SectionID = @SectionID
                                             iRow["C16"] = (itemType == "INPUT" || itemType == "RANGE") && Convert.ToBoolean(item["UseTolerance"]);
                                             iRow["C17"] = itemRemarkRequiredOptionsStr;
                                             iRow["C21"] = item.ContainsKey("RuntimeSubSectionID") ? item["RuntimeSubSectionID"] : 0;
+                                            iRow["C22"] = item.ContainsKey("DisplayOrder") ? item["DisplayOrder"] : 0;
                                             dtItem.Rows.Add(iRow);
 
                                             if (item.ContainsKey("Groups") && item["Groups"] is ArrayList)
