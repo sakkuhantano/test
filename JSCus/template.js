@@ -1348,6 +1348,19 @@ async function loadTemplatesBySection(sectionId, btn)
         `;
     }
 }
+async function refreshSavedTemplateSection(sectionId)
+{
+    if (sectionId == null || sectionId === "")
+        return;
+    const container = document.querySelector(
+        '.template-list-container[data-section-id="' + String(sectionId).replace(/"/g, '\\"') + '"]'
+    );
+    if (!container)
+        return;
+    // Fetch persisted template metadata instead of trusting the pre-save client cache.
+    container.dataset.loaded = "0";
+    await loadTemplatesBySection(sectionId);
+}
 function renderTemplates(data, container, sectionId)
 {
     // console.log("[DEBUG renderTemplates]", {
@@ -8663,6 +8676,11 @@ async function saveTemplate(runtimeTemplateID, isPublish)
         draft.Structure.VersionInfo.Status = 'Active';
     }
     onTemplateClick(null, templateNode.Template.RuntimeTemplateID, sectionID);
+    try {
+        await refreshSavedTemplateSection(sectionID);
+    } catch (refreshError) {
+        console.warn("Template saved, but explorer status refresh failed:", refreshError);
+    }
 
     showToast(
         "Template saved."
@@ -9041,6 +9059,15 @@ async function saveAllTemplate()
         // Clear Dirty
         //--------------------------------
         clearAllDirty();
+        // Refresh the active section so a newly saved template's status badge reflects
+        // the persisted server value instead of a stale pre-save IsActive value.
+        if (currentTemplate && currentTemplate.SectionID != null) {
+            try {
+                await refreshSavedTemplateSection(currentTemplate.SectionID);
+            } catch (refreshError) {
+                console.warn("Template saved, but explorer status refresh failed:", refreshError);
+            }
+        }
         // Object.entries(
         //     templateCache.sections
         // )
