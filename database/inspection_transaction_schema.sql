@@ -61,7 +61,8 @@ BEGIN
         ItemLabel VARCHAR(500) NOT NULL,
         ItemType VARCHAR(20) NOT NULL,
         Value VARCHAR(50) NULL,
-        Remark VARCHAR(500) NULL,
+        Remark1 VARCHAR(500) NULL,
+        Remark2 VARCHAR(500) NULL,
         IsAnomali BIT NOT NULL CONSTRAINT DF_PIP_T_InspectionResult_IsAnomali DEFAULT (0),
         DisplayOrder INT NOT NULL CONSTRAINT DF_PIP_T_InspectionResult_DisplayOrder DEFAULT (0),
         EntryUser VARCHAR(50) NOT NULL,
@@ -213,7 +214,7 @@ CREATE PROCEDURE dbo.spUTL_PIP_T_Inspection_Sync
     @p_Status VARCHAR(10),
     @p_Summary VARCHAR(500),
     @p_UpdateUser VARCHAR(50),
-    @p_Items dbo.Type_N_Tbl_C10 READONLY,
+    @p_Items dbo.Type_N_Tbl_C13 READONLY,
     @p_ItemValues dbo.Type_N_Tbl_C5 READONLY
 )
 AS
@@ -228,14 +229,15 @@ BEGIN
         ItemLabel VARCHAR(500) NOT NULL,
         ItemType VARCHAR(20) NOT NULL,
         Value VARCHAR(50) NULL,
-        Remark VARCHAR(500) NULL,
+        Remark1 VARCHAR(500) NULL,
+        Remark2 VARCHAR(500) NULL,
         IsAnomali BIT NOT NULL,
         DisplayOrder INT NOT NULL
     );
-    INSERT INTO @tbl_Items (IDItem, ItemLabel, ItemType, Value, Remark, IsAnomali, DisplayOrder)
+    INSERT INTO @tbl_Items (IDItem, ItemLabel, ItemType, Value, Remark1, IsAnomali, DisplayOrder, Remark2)
     SELECT CAST(C1 AS INT), C2, C3, C4, C5,
            CAST(ISNULL(NULLIF(C6, ''), '0') AS BIT),
-           CAST(ISNULL(NULLIF(C7, ''), '0') AS INT)
+           CAST(ISNULL(NULLIF(C7, ''), '0') AS INT), C8
     FROM @p_Items;
 
     DECLARE @tbl_ItemValues TABLE
@@ -508,12 +510,12 @@ BEGIN
         DECLARE @V_ResultMap TABLE (IDItem INT NOT NULL, InspectionResultID BIGINT NOT NULL);
         INSERT dbo.PIP_T_InspectionResult
         (
-            InspectionID, IDItem, ItemLabel, ItemType, Value, Remark, IsAnomali,
+            InspectionID, IDItem, ItemLabel, ItemType, Value, Remark1, Remark2, IsAnomali,
             DisplayOrder, EntryUser, EntryDate, UpdateUser, UpdateDate
         )
         OUTPUT inserted.IDItem, inserted.InspectionResultID
             INTO @V_ResultMap (IDItem, InspectionResultID)
-        SELECT @V_InspectionID, I.IDItem, I.ItemLabel, I.ItemType, I.Value, I.Remark,
+        SELECT @V_InspectionID, I.IDItem, I.ItemLabel, I.ItemType, I.Value, I.Remark1, I.Remark2,
                I.IsAnomali, I.DisplayOrder, @p_UpdateUser, GETDATE(), @p_UpdateUser, GETDATE()
         FROM @tbl_Items I;
 
