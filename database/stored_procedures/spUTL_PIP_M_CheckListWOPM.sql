@@ -33,7 +33,7 @@ INSERT @tbl_SubSection SELECT C1, C2, C3, C4, C5 FROM @p_dt_SubSection
 
 DECLARE @tbl_Item TABLE 
 (IDItem INT, RuntimeItemID INT, RuntimeSectionID INT, ItemLabel VARCHAR(500), ItemType VARCHAR(20), Unit VARCHAR(20), IsRemark1Required BIT, IsRemark2Required BIT, IsValueRequired BIT, ShowUnitInRange BIT, OptionList VARCHAR(200), MinValue DECIMAL, MaxValue DECIMAL, DisplayOrder INT, MinTolerance MONEY, MaxTolerance MONEY, ModelCode VARCHAR(50), IsToleranceRequired BIT, RemarkRequiredOptions VARCHAR(8000), Remark1Text VARCHAR(100), Remark2Text VARCHAR(100), RuntimeSubSectionID INT)
-INSERT @tbl_Item SELECT C1, C2, C3, C4, C5, C6, C7, C18, C8, C9, C10, C11, C12, ISNULL(NULLIF(C22, 0), ROW_NUMBER() OVER ( PARTITION BY C3 ORDER BY (SELECT NULL))), C13, C14, C15, CAST(C16 AS BIT), C17, ISNULL(NULLIF(C19, ''), 'Remark'), ISNULL(NULLIF(C20, ''), 'Remark'), ISNULL(C21, 0) FROM @p_dt_Item
+INSERT @tbl_Item SELECT C1, C2, C3, C4, C5, C6, C7, C18, C8, C9, C10, C11, C12, ISNULL(NULLIF(C22, 0), ROW_NUMBER() OVER ( PARTITION BY C3 ORDER BY (SELECT NULL))), C13, C14, C15, CAST(C16 AS BIT), C17, CASE WHEN CAST(ISNULL(NULLIF(C7, ''), '0') AS BIT)=1 THEN ISNULL(NULLIF(C19, ''), 'Remark') ELSE '' END, CASE WHEN CAST(ISNULL(NULLIF(C18, ''), '0') AS BIT)=1 THEN ISNULL(NULLIF(C20, ''), 'Remark') ELSE '' END, ISNULL(C21, 0) FROM @p_dt_Item
 
 DECLARE @tbl_Group TABLE
 (IDGroup INT, RuntimeGroupID INT, RuntimeItemID INT, GroupName VARCHAR(100), FieldList VARCHAR(100), Unit VARCHAR(20), DisplayOrder INT)
