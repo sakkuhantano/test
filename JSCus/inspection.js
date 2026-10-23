@@ -1295,6 +1295,17 @@ async function loadInspectionApprovalDetail(inspectionId) {
         selectedInspectionApproval = result.header;
         const h = result.header || {};
         const items = result.items || [];
+        const photos = result.photos || [];
+        const photoHtml = ["BEFORE", "AFTER"].map(type => {
+            const stagePhotos = photos.filter(photo => String(photo.Type || "").toUpperCase() === type);
+            if (!stagePhotos.length) return "";
+            return '<div class="border rounded p-2 mb-3"><div class="fw-semibold mb-2">FIELD DOCUMENTATION ' + type +
+                '</div><div class="d-flex flex-wrap gap-2">' + stagePhotos.map(photo =>
+                    '<a href="' + escInspection(photo.Data || "#") + '" target="_blank" rel="noopener"><img src="' +
+                    escInspection(photo.Data || "") + '" alt="Inspection ' + type +
+                    '" style="max-width:180px;max-height:180px;object-fit:contain" class="border rounded"></a>'
+                ).join("") + '</div></div>';
+        }).join("");
         host.innerHTML =
             '<div class="border rounded p-3 mb-3">' +
             '<h6>' + escInspection(h.InspectionTypeName || "") + ' — ' + escInspection(h.InspectionTypeDetailName || "") + '</h6>' +
@@ -1302,6 +1313,8 @@ async function loadInspectionApprovalDetail(inspectionId) {
             '<div class="inspection-muted mb-2">' + escInspection(h.TemplateNo || "") + ' v' + escInspection(h.TemplateVersion || "") + ' • Jadwal ' + escInspection(h.ScheduledTime || "-") + '</div>' +
             '<div class="small mb-1"><strong>Summary:</strong> ' + escInspection(h.Summary || "-") + '</div>' +
             '</div>' +
+            photoHtml +
+            (!photos.length ? '<div class="inspection-muted mb-3">Foto BEFORE/AFTER belum tersedia di server.</div>' : '') +
             (items.length ? items.map(item =>
                 '<div class="border-bottom py-2">' +
                 '<div class="fw-semibold">' + escInspection(item.ItemLabel || ("Item " + item.IDItem)) +
