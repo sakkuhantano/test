@@ -68,7 +68,7 @@ namespace UTL1.Secure
                         row["C2"] = Limit(TokenString(item, "ItemLabel"), 500);
                         row["C3"] = Limit(TokenString(item, "Type"), 20);
                         row["C4"] = DbString(Limit(TokenString(item, "Value"), 50));
-                        row["C5"] = DbString(Limit(TokenString(item, "Remark1", TokenString(item, "Remark")), 500));
+                        row["C5"] = DbString(Limit((TokenString(item, "Remark1") == "" ? TokenString(item, "Remark") : TokenString(item, "Remark1")), 500));
                         row["C8"] = DbString(Limit(TokenString(item, "Remark2"), 500));
                         row["C6"] = TokenBool(item, "IsAnomali") ? "1" : "0";
                         row["C7"] = (item["DisplayOrder"] == null ? displayOrder : TokenInt(item, "DisplayOrder")).ToString(CultureInfo.InvariantCulture);
@@ -637,7 +637,7 @@ ORDER BY I.UpdateDate DESC",
                 {
                     long id = Convert.ToInt64(header["InspectionID"]);
                     DataTable rows = br.EQueryP(@"
-SELECT R.IDItem, R.ItemLabel, R.ItemType, R.Value, R.Remark, R.IsAnomali, R.DisplayOrder,
+SELECT R.IDItem, R.ItemLabel, R.ItemType, R.Value, R.Remark1, R.Remark2, R.IsAnomali, R.DisplayOrder,
        V.FieldName, V.Value AS FieldValue
 FROM dbo.PIP_T_InspectionResult R
 LEFT JOIN dbo.PIP_T_InspectionResultValue V ON V.InspectionResultID=R.InspectionResultID
@@ -656,7 +656,8 @@ ORDER BY R.DisplayOrder, V.FieldName",
                                 { "ItemLabel", row["ItemLabel"] == DBNull.Value ? "" : row["ItemLabel"].ToString() },
                                 { "Type", row["ItemType"] == DBNull.Value ? "" : row["ItemType"].ToString() },
                                 { "Value", row["Value"] == DBNull.Value ? "" : row["Value"].ToString() },
-                                { "Remark", row["Remark"] == DBNull.Value ? "" : row["Remark"].ToString() },
+                                { "Remark1", row["Remark1"] == DBNull.Value ? "" : row["Remark1"].ToString() },
+                                { "Remark2", row["Remark2"] == DBNull.Value ? "" : row["Remark2"].ToString() },
                                 { "IsAnomali", row["IsAnomali"] != DBNull.Value && Convert.ToBoolean(row["IsAnomali"]) },
                                 { "DisplayOrder", row["DisplayOrder"] == DBNull.Value ? 0 : Convert.ToInt32(row["DisplayOrder"]) },
                                 { "Values", new Dictionary<string, object>() }
