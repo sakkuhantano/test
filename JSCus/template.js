@@ -8500,17 +8500,8 @@ function patchSavedIdentity(saveResult)
                     {
                         if (m.Entity === "SubSection" && sub.RuntimeSubSectionID == m.RuntimeID)
                         {
-                            const oldRuntimeSubSectionID = sub.RuntimeSubSectionID;
+                            // Keep the runtime key stable so the existing DOM handlers remain valid.
                             sub.IDSubSection = m.ID;
-                            sub.RuntimeSubSectionID = m.ID;
-                            (sec.Items || []).forEach(function(item)
-                            {
-                                if (Number(item.RuntimeSubSectionID || 0) === Number(oldRuntimeSubSectionID))
-                                {
-                                    item.IDSubSection = m.ID;
-                                    item.RuntimeSubSectionID = m.ID;
-                                }
-                            });
                         }
                     });
 
