@@ -60,11 +60,24 @@ BEGIN
 		DROP TABLE tmpDebug_PIP_M_CheckListWOPM_Item
 	IF EXISTS (SELECT * FROM INFORMATION_SCHEMA.TABLES AS t WHERE t.TABLE_NAME='tmpDebug_PIP_M_CheckListWOPM_ItemGroup')
 		DROP TABLE tmpDebug_PIP_M_CheckListWOPM_ItemGroup
+	IF EXISTS (SELECT * FROM INFORMATION_SCHEMA.TABLES AS t WHERE t.TABLE_NAME='tmpDebug_PIP_M_CheckListWOPM_SubSection')
+		DROP TABLE tmpDebug_PIP_M_CheckListWOPM_SubSection
+	IF EXISTS (SELECT * FROM INFORMATION_SCHEMA.TABLES AS t WHERE t.TABLE_NAME='tmpDebug_PIP_M_CheckListWOPM_SubSectionSource')
+		DROP TABLE tmpDebug_PIP_M_CheckListWOPM_SubSectionSource
 	SELECT * INTO tmpDebug_PIP_M_CheckListWOPM FROM @tbl_Template
 	SELECT * INTO tmpDebug_PIP_M_CheckListWOPM_Version FROM @tbl_Version
 	SELECT * INTO tmpDebug_PIP_M_CheckListWOPM_Section FROM @tbl_Section
 	SELECT * INTO tmpDebug_PIP_M_CheckListWOPM_Item FROM @tbl_Item
 	SELECT * INTO tmpDebug_PIP_M_CheckListWOPM_ItemGroup FROM @tbl_Group
+	SELECT * INTO tmpDebug_PIP_M_CheckListWOPM_SubSection FROM @tbl_SubSection
+	SELECT v.IDSubSection, v.RuntimeSubSectionID, v.RuntimeSectionID, v.SubSectionName, v.DisplayOrder, sec.IDSection AS ResolvedIDSection
+	INTO tmpDebug_PIP_M_CheckListWOPM_SubSectionSource
+	FROM @tbl_SubSection v
+	LEFT JOIN (
+		SELECT RuntimeID AS RuntimeSectionID, ID AS IDSection FROM @tbl_Identity WHERE Entity='Section'
+		UNION ALL
+		SELECT RuntimeSectionID, IDSection FROM @tbl_Section WHERE IDSection <> 0
+	) sec ON sec.RuntimeSectionID = v.RuntimeSectionID
 END
 
 
