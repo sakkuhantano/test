@@ -4810,8 +4810,14 @@ async function deleteSubSection(sectionId, subSectionId)
     if (!ok) return;
     const section = currentVersionData?.Sections?.find(x => Number(x.RuntimeSectionID) === Number(sectionId));
     if (!section) return;
+    const allOrders = [...(section.Items || []).filter(item => !Number(item.RuntimeSubSectionID || 0)).map(item => Number(item.DisplayOrder || 0)), ...(section.SubSections || []).filter(x => Number(x.RuntimeSubSectionID) !== Number(subSectionId)).map(x => Number(x.DisplayOrder || 0))];
+    let nextOrder = Math.max(0, ...allOrders) + 1;
     section.Items = (section.Items || []).map(item => {
-        if (Number(item.RuntimeSubSectionID || 0) === Number(subSectionId)) { item.RuntimeSubSectionID = 0; item.IDSubSection = 0; }
+        if (Number(item.RuntimeSubSectionID || 0) === Number(subSectionId)) {
+            item.RuntimeSubSectionID = 0;
+            item.IDSubSection = 0;
+            item.DisplayOrder = nextOrder++;
+        }
         return item;
     });
     section.SubSections = (section.SubSections || []).filter(x => Number(x.RuntimeSubSectionID) !== Number(subSectionId));
