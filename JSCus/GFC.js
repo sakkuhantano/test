@@ -609,7 +609,8 @@ async function getCheckList() {
                     modelcode: "",
                     companyId: companyLocation[0] || "",
                     locationId: companyLocation[1] || "",
-                    templateType: "W"
+                    templateType: "W",
+                    employeeId: data.employeeid || ""
                 })
             }
         );
