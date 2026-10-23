@@ -4418,12 +4418,25 @@ function duplicateSection(sectionId)
     copy.SectionName +=
         " Copy";
 
+    const subsectionIdMap = new Map();
+    (copy.SubSections || []).forEach(sub =>
+    {
+        const oldSubID = Number(sub.RuntimeSubSectionID || sub.IDSubSection || 0);
+        sub.IDSubSection = 0;
+        sub.RuntimeSubSectionID = generateRuntimeID();
+        sub.IDSection = 0;
+        sub.RuntimeSectionID = copy.RuntimeSectionID;
+        subsectionIdMap.set(oldSubID, sub.RuntimeSubSectionID);
+    });
+
     copy.Items.forEach(
         (x,index)=>
         {
+            const oldSubID = Number(x.RuntimeSubSectionID || x.IDSubSection || 0);
             x.IDItem = 0;
-            x.RuntimeItemID =
-                generateRuntimeID();
+            x.RuntimeItemID = generateRuntimeID();
+            x.IDSubSection = 0;
+            x.RuntimeSubSectionID = subsectionIdMap.get(oldSubID) || 0;
 
             x.DisplayOrder =
                 index + 1;
@@ -5780,55 +5793,47 @@ function addItem(sectionId)
 }
 function syncItemOrder()
 {
-    // Snapshot semua item lama
-    const allItems = [];
-
     currentVersionData.Sections.forEach(sec =>
     {
-        sec.Items.forEach(item =>
-        {
-            allItems.push(item);
-        });
-    });
-
-    // Rebuild item tiap section
-    currentVersionData.Sections.forEach(sec =>
-    {
+        const sectionBox = document.querySelector(`.section-box[data-id="${sec.RuntimeSectionID}"]`);
+        if (!sectionBox) return;
+        const oldItems = sec.Items || [];
         const newItems = [];
-
-        const sectionBox =
-            document.querySelector(
-                `.section-box[data-id="${sec.RuntimeSectionID}"]`
-            );
-
-        if (!sectionBox)
+        const topContainer = sectionBox.querySelector('.collapse > .items-container');
+        if (!topContainer) return;
+        let parentOrder = 0;
+        Array.from(topContainer.children).forEach(child =>
         {
-            sec.Items = [];
-            return;
-        }
-
-        sectionBox
-            .querySelectorAll('.item-row')
-            .forEach(row =>
+            if (child.classList.contains('item-row'))
             {
-                const runtimeID =
-                    parseInt(
-                        row.dataset.id
-                    );
-
-                const item =
-                    allItems.find(
-                        x =>
-                        x.RuntimeItemID ==
-                        runtimeID
-                    );
-
-                if (item)
+                const item = oldItems.find(x => Number(x.RuntimeItemID) === Number(child.dataset.id));
+                if (!item) return;
+                item.RuntimeSubSectionID = 0;
+                item.IDSubSection = 0;
+                item.DisplayOrder = ++parentOrder;
+                newItems.push(item);
+                return;
+            }
+            if (child.classList.contains('subsection-box'))
+            {
+                const subId = Number(child.dataset.subsectionId);
+                const sub = (sec.SubSections || []).find(x => Number(x.RuntimeSubSectionID) === subId);
+                if (sub) sub.DisplayOrder = ++parentOrder;
+                let innerOrder = 0;
+                child.querySelectorAll('.subsection-items > .item-row').forEach(row =>
                 {
+                    const item = oldItems.find(x => Number(x.RuntimeItemID) === Number(row.dataset.id));
+                    if (!item) return;
+                    if (sub)
+                    {
+                        item.RuntimeSubSectionID = Number(sub.RuntimeSubSectionID);
+                        item.IDSubSection = Number(sub.IDSubSection || 0);
+                    }
+                    item.DisplayOrder = ++innerOrder;
                     newItems.push(item);
-                }
-            });
-
+                });
+            }
+        });
         sec.Items = newItems;
     });
 }
@@ -9112,8 +9117,18 @@ function normalizeVersionStructure(structure)
 {
     (structure.Sections || []).forEach(sec =>
     {
+        sec.SubSections = sec.SubSections || [];
+        sec.SubSections.forEach((sub, index) =>
+        {
+            sub.SubSectionName = (sub.SubSectionName || '').trim();
+            sub.DisplayOrder = Number(sub.DisplayOrder || index + 1);
+            sub.RuntimeSubSectionID = Number(sub.RuntimeSubSectionID || sub.IDSubSection || 0);
+            sub.IDSubSection = Number(sub.IDSubSection || 0);
+        });
         (sec.Items || []).forEach(item =>
         {
+            item.RuntimeSubSectionID = Number(item.RuntimeSubSectionID || item.IDSubSection || 0);
+            item.IDSubSection = Number(item.IDSubSection || 0);
             //--------------------------
             // String
             //--------------------------
