@@ -128,7 +128,7 @@ WHERE IDVersion = @IDVersion;
 SELECT IDSection, SectionName, DisplayOrder 
 FROM PIP_M_CheckListWOPM_Section WHERE IDVersion = @IDVersion ORDER BY DisplayOrder;
 
-SELECT A.IDItem, A.IDSection, A.ItemLabel, A.ItemType, A.DisplayOrder, A.Unit, 
+SELECT A.IDItem, A.IDSection, A.IDSubSection, A.ItemLabel, A.ItemType, A.DisplayOrder, A.Unit, 
         a.IsRemark1Required, a.IsRemark2Required, a.Remark1Text, a.Remark2Text, A.IsValueRequired, a.ShowUnitInRange, 
         UseDefaultOption=CAST((CASE WHEN a.ItemType='OPTION' AND ISNULL(a.OptionList,'')='' THEN 1 ELSE 0 END) AS BIT), 
         a.OptionList OptionListRaw, a.RemarkRequiredOptions RemarkRequiredOptionsRaw, a.MinValue, a.MaxValue, a.MinTolerance, a.MaxTolerance, a.ModelCode, a.IsToleranceRequired
@@ -138,7 +138,12 @@ WHERE B.IDVersion = @IDVersion ORDER BY A.DisplayOrder;
 SELECT A.IDGroup, A.IDItem, A.GroupName, FieldListRaw=A.FieldList, A.Unit, A.DisplayOrder
 FROM PIP_M_CheckListWOPM_ItemGroup A JOIN PIP_M_CheckListWOPM_Item B ON B.IDItem = A.IDItem
 JOIN PIP_M_CheckListWOPM_Section C ON C.IDSection = B.IDSection 
-WHERE C.IDVersion = @IDVersion ORDER BY A.DisplayOrder;",
+WHERE C.IDVersion = @IDVersion ORDER BY A.DisplayOrder;
+
+SELECT IDSubSection, IDSection, SubSectionName, DisplayOrder
+FROM PIP_M_CheckListWOPM_SubSection SS
+JOIN PIP_M_CheckListWOPM_Section SEC ON SEC.IDSection=SS.IDSection
+WHERE SEC.IDVersion=@IDVersion ORDER BY SS.DisplayOrder;",
 "@IDVersion=" + idVersion);
                 if (ds.Tables[0].Rows.Count == 0) return "{}";
 
@@ -146,6 +151,7 @@ WHERE C.IDVersion = @IDVersion ORDER BY A.DisplayOrder;",
                 DataTable dtSections = ds.Tables[1];
                 DataTable dtItems = ds.Tables[2];
                 DataTable dtGroups = ds.Tables[3];
+                DataTable dtSubSections = ds.Tables[4];
                 var result = new
                 {
                     VersionInfo = new
@@ -175,6 +181,17 @@ WHERE C.IDVersion = @IDVersion ORDER BY A.DisplayOrder;",
                             RuntimeSectionID = idSection,
                             SectionName = secRow["SectionName"].ToString(),
                             DisplayOrder = Convert.ToInt32(secRow["DisplayOrder"]),
+                            SubSections = dtSubSections.AsEnumerable()
+                                .Where(subRow => Convert.ToInt32(subRow["IDSection"]) == idSection)
+                                .Select(subRow => new
+                                {
+                                    IDSubSection = Convert.ToInt32(subRow["IDSubSection"]),
+                                    RuntimeSubSectionID = Convert.ToInt32(subRow["IDSubSection"]),
+                                    IDSection = idSection,
+                                    RuntimeSectionID = idSection,
+                                    SubSectionName = subRow["SubSectionName"].ToString(),
+                                    DisplayOrder = Convert.ToInt32(subRow["DisplayOrder"])
+                                }).ToList(),
 
                             Items = dtItems.AsEnumerable()
                                 .Where(itemRow => Convert.ToInt32(itemRow["IDSection"]) == idSection)
@@ -187,6 +204,8 @@ WHERE C.IDVersion = @IDVersion ORDER BY A.DisplayOrder;",
                                     {
                                         IDItem = idItem,
                                         RuntimeItemID = idItem,
+                                        IDSubSection = itemRow["IDSubSection"] == DBNull.Value ? 0 : Convert.ToInt32(itemRow["IDSubSection"]),
+                                        RuntimeSubSectionID = itemRow["IDSubSection"] == DBNull.Value ? 0 : Convert.ToInt32(itemRow["IDSubSection"]),
                                         ItemName = itemRow["ItemLabel"].ToString(),
                                         ItemType = itemType,
                                         DisplayOrder = Convert.ToInt32(itemRow["DisplayOrder"]),
