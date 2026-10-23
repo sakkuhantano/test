@@ -198,6 +198,18 @@ DELETE S
 FROM dbo.PIP_M_CheckListWOPM_CompanyLocation S
 JOIN @tbl_AllowedDelTemplate D ON D.IDTemplate=S.IDTemplate;
 
+UPDATE I SET I.IDSubSection=NULL
+FROM PIP_M_CheckListWOPM_Item I
+JOIN PIP_M_CheckListWOPM_Section S ON S.IDSection=I.IDSection
+JOIN PIP_M_CheckListWOPM_Version V ON V.IDVersion=S.IDVersion
+JOIN @tbl_AllowedDelTemplate D ON D.IDTemplate=V.IDTemplate;
+
+DELETE SS
+FROM PIP_M_CheckListWOPM_SubSection SS
+JOIN PIP_M_CheckListWOPM_Section S ON S.IDSection=SS.IDSection
+JOIN PIP_M_CheckListWOPM_Version V ON V.IDVersion=S.IDVersion
+JOIN @tbl_AllowedDelTemplate D ON D.IDTemplate=V.IDTemplate;
+
 DELETE T FROM PIP_M_CheckListWOPM T
 JOIN @tbl_AllowedDelTemplate D ON T.IDTemplate = D.IDTemplate
 
