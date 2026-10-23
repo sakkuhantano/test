@@ -117,9 +117,20 @@ namespace UTL1.Secure
                             new SqlParameter("@p_ItemValues", itemValues)
                         }, true, true);
 
-                        long inspectionId = saved.Rows.Count > 0
-                            ? Convert.ToInt64(saved.Rows[0]["InspectionID"])
-                            : 0;
+                        long inspectionId = saved.Rows.Count > 0 ? Convert.ToInt64(saved.Rows[0]["InspectionID"]) : 0;
+                        JArray photoArray = record["Photos"] as JArray ?? new JArray();
+                        if (inspectionId > 0 && photoArray.Count > 0)
+                        {
+                            var photoRows = new List<Tuple<string,string,int,byte[]>>();
+                            foreach (JObject photo in photoArray.OfType<JObject>()) {
+                                string type=TokenString(photo,"Type").ToUpperInvariant(); if(type!="BEFORE"&&type!="AFTER")throw new Exception("Invalid inspection photo type.");
+                                string dataUrl=TokenString(photo,"Data");int comma=dataUrl.IndexOf(',');if(comma>=0)dataUrl=dataUrl.Substring(comma+1);
+                                byte[] bytes=Convert.FromBase64String(dataUrl);if(bytes.Length==0||bytes.Length>1024*1024)throw new Exception("Inspection photo must be between 1 byte and 1 MB.");
+                                photoRows.Add(Tuple.Create(type,Limit(TokenString(photo,"FileName"),255),TokenInt(photo,"OrderNo"),bytes));
+                            }
+                            br.EQueryP("DELETE FROM dbo.PIP_T_InspectionPhoto WHERE InspectionID=@InspectionID",new SqlParameter[]{new SqlParameter("@InspectionID",inspectionId)});
+                            foreach(var photo in photoRows) br.EQueryP(@"INSERT dbo.PIP_T_InspectionPhoto (InspectionID,PhotoType,FileName,OrderNo,PhotoData,EntryUser,EntryDate) VALUES (@InspectionID,@PhotoType,@FileName,@OrderNo,@PhotoData,@EntryUser,GETDATE())",new SqlParameter[]{new SqlParameter("@InspectionID",inspectionId),new SqlParameter("@PhotoType",photo.Item1),new SqlParameter("@FileName",photo.Item2),new SqlParameter("@OrderNo",photo.Item3),new SqlParameter("@PhotoData",SqlDbType.VarBinary,-1){Value=photo.Item4},new SqlParameter("@EntryUser",Limit(userId,50))});
+                        }
                         outcomes.Add(new
                         {
                             ClientInspectionID = clientId,
