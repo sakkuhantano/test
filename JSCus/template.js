@@ -5972,6 +5972,11 @@ function initItemSortable(container)
         animation: 150,
         handle: isSubSectionItems ? '.item-drag-handle' : '.item-drag-handle, .subsection-drag-handle',
         ghostClass: 'sortable-ghost',
+        onMove: function (evt) {
+            // Sub-sections are valid only as direct children of a Section, never nested in another Sub-section.
+            if (evt.dragged.classList.contains('subsection-box') && evt.to.classList.contains('subsection-items')) return false;
+            return true;
+        },
         onEnd: function () {
             syncItemOrder();
             updateNumbers();
