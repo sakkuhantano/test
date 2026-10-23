@@ -7763,9 +7763,13 @@ async function validateCurrentTemplate() {
                         //     );
                         // }
 
-                        if (!group.FieldList ||
-                            group.FieldList.length != 3) {
+                        // GROUP supports 2 required field labels and 1 optional third label.
+                        // The UI keeps three slots, but a blank third slot means this group uses 2 columns.
+                        const fields = Array.isArray(group.FieldList)
+                            ? group.FieldList
+                            : [];
 
+                        if (fields.length < 2 || fields.length > 3) {
                             addValidationError(
                                 result,
                                 "GROUP",
@@ -7773,30 +7777,47 @@ async function validateCurrentTemplate() {
                                 item.RuntimeItemID,
                                 group.RuntimeGroupID,
                                 "FieldList",
-                                "3 Field Labels required."
+                                "GROUP must have 2 or 3 field labels."
                             );
                         }
-                        else {
 
-                            group.FieldList.forEach(
-                                field => {
+                        if (!fields[0] || !String(fields[0]).trim()) {
+                            addValidationError(
+                                result,
+                                "GROUP",
+                                section.RuntimeSectionID,
+                                item.RuntimeItemID,
+                                group.RuntimeGroupID,
+                                "FieldList",
+                                "First Group Field Label is required."
+                            );
+                        }
 
-                                if (!field ||
-                                    !field.trim()) {
+                        if (!fields[1] || !String(fields[1]).trim()) {
+                            addValidationError(
+                                result,
+                                "GROUP",
+                                section.RuntimeSectionID,
+                                item.RuntimeItemID,
+                                group.RuntimeGroupID,
+                                "FieldList",
+                                "Second Group Field Label is required."
+                            );
+                        }
 
-                                    addValidationError(
-                                        result,
-                                        "GROUP",
-                                        section.RuntimeSectionID,
-                                        item.RuntimeItemID,
-                                        group.RuntimeGroupID,
-                                        "FieldList",
-                                        "Group Field Label cannot be empty."
-                                    );
-                                }
-
-                            });
-
+                        // Third label is optional; if provided, it is the third configured column.
+                        if (fields.length > 2 && fields[2] != null && String(fields[2]).trim()) {
+                            checkMaxLength(
+                                result,
+                                fields[2],
+                                dbLength.FieldList,
+                                "GROUP",
+                                section.RuntimeSectionID,
+                                item.RuntimeItemID,
+                                group.RuntimeGroupID,
+                                "FieldList",
+                                "Group Field Label exceeds the maximum length."
+                            );
                         }
 
                     });
