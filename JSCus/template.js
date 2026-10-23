@@ -3142,6 +3142,18 @@ function showItemProperties(itemData)
     if (!panel)
         return;
 
+    // Clean legacy titles on editable drafts even when the user does not toggle the checkbox.
+    let clearedUnusedRemarkTitle = false;
+    if (!isReadonlyMode && !itemData.IsRemark1Required && String(itemData.Remark1Text || "").trim() !== "") {
+        itemData.Remark1Text = "";
+        clearedUnusedRemarkTitle = true;
+    }
+    if (!isReadonlyMode && !itemData.IsRemark2Required && String(itemData.Remark2Text || "").trim() !== "") {
+        itemData.Remark2Text = "";
+        clearedUnusedRemarkTitle = true;
+    }
+    if (clearedUnusedRemarkTitle) markCurrentVersionDirty();
+
     const itemType =
         itemData.ItemType || 'INPUT';
 
