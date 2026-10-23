@@ -8728,7 +8728,9 @@ async function saveAllTemplate()
             String(node?.VersionInfo?.Status) === 'Draft' &&
             Number(node?.VersionInfo?.RuntimeVersionID || node?.VersionInfo?.IDVersion || 0) === currentVersionRuntimeId
         );
-        if (draftNode && draftNode.Structure === currentVersionData) {
+        if (draftNode) {
+            // The active editor is authoritative for the draft currently on screen,
+            // even if an older cache path left Structure pointing at a different object.
             syncItemOrder();
             draftNode.VersionInfo = currentVersionData.VersionInfo;
             draftNode.Structure = currentVersionData;
