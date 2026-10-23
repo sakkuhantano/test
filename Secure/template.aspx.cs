@@ -140,7 +140,7 @@ FROM PIP_M_CheckListWOPM_ItemGroup A JOIN PIP_M_CheckListWOPM_Item B ON B.IDItem
 JOIN PIP_M_CheckListWOPM_Section C ON C.IDSection = B.IDSection 
 WHERE C.IDVersion = @IDVersion ORDER BY A.DisplayOrder;
 
-SELECT IDSubSection, IDSection, SubSectionName, DisplayOrder
+SELECT SS.IDSubSection, SS.IDSection, SS.SubSectionName, SS.DisplayOrder
 FROM PIP_M_CheckListWOPM_SubSection SS
 JOIN PIP_M_CheckListWOPM_Section SEC ON SEC.IDSection=SS.IDSection
 WHERE SEC.IDVersion=@IDVersion ORDER BY SS.DisplayOrder;",
