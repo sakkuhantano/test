@@ -316,7 +316,13 @@ OUTPUT
     inserted.IDSection
 INTO @tbl_Identity (Entity, RuntimeID, ID);    
 
---- item
+-- Resolve/create sub-sections before linking items to them.
+MERGE INTO PIP_M_CheckListWOPM_SubSection AS target
+USING (SELECT v.RuntimeSubSectionID, v.RuntimeSectionID, v.SubSectionName, v.DisplayOrder, sec.IDSection, (SELECT ISNULL(MAX(IDSubSection),0) FROM PIP_M_CheckListWOPM_SubSection) + ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) AS NewIDSubSection FROM @tbl_SubSection v INNER JOIN (SELECT RuntimeID RuntimeSectionID, ID IDSection FROM @tbl_Identity WHERE Entity='Section' UNION ALL SELECT RuntimeSectionID, IDSection FROM @tbl_Section WHERE IDSection <> 0) sec ON sec.RuntimeSectionID=v.RuntimeSectionID WHERE v.IDSubSection=0) AS source
+ON 1=0
+WHEN NOT MATCHED THEN INSERT (IDSubSection,IDSection,SubSectionName,DisplayOrder) VALUES (source.NewIDSubSection,source.IDSection,source.SubSectionName,source.DisplayOrder)
+OUTPUT 'SubSection',source.RuntimeSubSectionID,inserted.IDSubSection INTO @tbl_Identity (Entity,RuntimeID,ID);
+
 UPDATE I
 SET 
     I.ItemLabel = S.ItemLabel,
@@ -332,9 +338,11 @@ SET
     I.MinTolerance = S.MinTolerance, I.MaxTolerance = S.MaxTolerance, I.ModelCode = S.ModelCode,
     I.MinValue = S.MinValue,
     I.MaxValue = S.MaxValue, I.DisplayOrder=S.DisplayOrder, I.IDSection=SS.IDSection, I.IsToleranceRequired=S.IsToleranceRequired,
-    I.RemarkRequiredOptions=S.RemarkRequiredOptions
+    I.RemarkRequiredOptions=S.RemarkRequiredOptions,
+    I.IDSubSection = CASE WHEN ISNULL(S.RuntimeSubSectionID,0)=0 THEN NULL ELSE SubS.IDSubSection END
 FROM PIP_M_CheckListWOPM_item I
 JOIN @tbl_Item S JOIN @tbl_Section SS ON SS.RuntimeSectionID=S.RuntimeSectionID ON I.IDItem = S.IDItem
+LEFT JOIN (SELECT RuntimeID RuntimeSubSectionID, ID IDSubSection FROM @tbl_Identity WHERE Entity='SubSection' UNION ALL SELECT RuntimeSubSectionID, IDSubSection FROM @tbl_SubSection WHERE IDSubSection<>0) SubS ON SubS.RuntimeSubSectionID=S.RuntimeSubSectionID
 WHERE S.IDItem > 0
 MERGE INTO PIP_M_CheckListWOPM_item AS target
 USING (
