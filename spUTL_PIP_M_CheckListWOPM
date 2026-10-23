@@ -147,6 +147,13 @@ BEGIN
                     AND ScopeRow.CompanyID=@p_CompanyID
                     AND ScopeRow.LocationID=@p_LocationID))
 	
+	DELETE SS FROM PIP_M_CheckListWOPM_SubSection SS
+	JOIN PIP_M_CheckListWOPM_section AAA ON AAA.IDSection=SS.IDSection
+	JOIN @tbl_DelVersion B ON B.IDVersion=AAA.IDVersion
+	JOIN PIP_M_CheckListWOPM_Version VER ON VER.IDVersion=B.IDVersion
+	JOIN PIP_M_CheckListWOPM T ON T.IDTemplate=VER.IDTemplate
+	WHERE (ISNULL(T.CompanyScope,'S')='A' OR EXISTS (SELECT 1 FROM dbo.PIP_M_CheckListWOPM_CompanyLocation ScopeRow WHERE ScopeRow.IDTemplate=T.IDTemplate AND ScopeRow.CompanyID=@p_CompanyID AND ScopeRow.LocationID=@p_LocationID));
+
 	DELETE A FROM PIP_M_CheckListWOPM_section A JOIN @tbl_DelVersion B ON B.IDVersion=A.IDVersion
 	JOIN PIP_M_CheckListWOPM_Version AS pmclwv ON pmclwv.IDVersion = B.IDVersion
 	JOIN PIP_M_CheckListWOPM AS pmclw ON pmclw.IDTemplate=pmclwv.IDTemplate
