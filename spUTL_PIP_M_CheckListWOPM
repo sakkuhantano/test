@@ -351,7 +351,7 @@ USING (
         v.RuntimeSectionID,
         v.ItemLabel, v.ItemType, V.Unit, V.IsRemark1Required, V.IsRemark2Required, V.IsValueRequired, V.ShowUnitInRange,
         v.OptionList, v.MinValue, v.MaxValue, v.DisplayOrder,
-        tmpl.IDSection, v.MinTolerance, v.MaxTolerance, v.ModelCode, v.IsToleranceRequired, v.RemarkRequiredOptions, v.Remark1Text, v.Remark2Text,
+        tmpl.IDSection, subMap.IDSubSection, v.MinTolerance, v.MaxTolerance, v.ModelCode, v.IsToleranceRequired, v.RemarkRequiredOptions, v.Remark1Text, v.Remark2Text,
         (SELECT ISNULL(MAX(IDItem), 0) FROM PIP_M_CheckListWOPM_item) 
         + ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) AS NewIDItem
     FROM @tbl_Item v
@@ -360,13 +360,14 @@ USING (
         UNION ALL
         SELECT RuntimeSectionID, IDSection FROM @tbl_Section WHERE IDSection <> 0 
     ) tmpl ON v.RuntimeSectionID = tmpl.RuntimeSectionID
+    LEFT JOIN (SELECT RuntimeID RuntimeSubSectionID, ID IDSubSection FROM @tbl_Identity WHERE Entity='SubSection' UNION ALL SELECT RuntimeSubSectionID, IDSubSection FROM @tbl_SubSection WHERE IDSubSection<>0) subMap ON subMap.RuntimeSubSectionID=v.RuntimeSubSectionID
     WHERE v.IDItem = 0 
 ) AS source
 ON 1 = 0 -- Trik agar selalu memicu aksi INSERT
 WHEN NOT MATCHED THEN
-    INSERT (IDSection,IDItem,ItemLabel,ItemType,OptionList,MinValue,MaxValue,Unit,
+    INSERT (IDSection,IDSubSection,IDItem,ItemLabel,ItemType,OptionList,MinValue,MaxValue,Unit,
             ShowUnitInRange,IsValueRequired,IsRemark1Required,IsRemark2Required,Remark1Text,Remark2Text,DisplayOrder,MinTolerance,MaxTolerance,ModelCode,IsToleranceRequired,RemarkRequiredOptions)
-    VALUES (source.IDSection, source.NewIDItem, source.ItemLabel, source.ItemType, source.OptionList, source.MinValue, source.MaxValue, source.Unit,
+    VALUES (source.IDSection, source.IDSubSection, source.NewIDItem, source.ItemLabel, source.ItemType, source.OptionList, source.MinValue, source.MaxValue, source.Unit,
             source.ShowUnitInRange, source.IsValueRequired, source.IsRemark1Required, source.IsRemark2Required, source.Remark1Text, source.Remark2Text, source.DisplayOrder,
             source.MinTolerance, source.MaxTolerance, source.ModelCode,source.IsToleranceRequired,source.RemarkRequiredOptions)
 OUTPUT
