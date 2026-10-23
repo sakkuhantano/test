@@ -536,6 +536,55 @@ WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID
         }
 
         [WebMethod]
+        public static object GetReturnedInspectionPhotos(string clientInspectionId, string employeeId, string companyId, string locationId)
+        {
+            if (String.IsNullOrWhiteSpace(clientInspectionId) || String.IsNullOrWhiteSpace(employeeId))
+                throw new HttpException(400, "Inspection and technician identity are required.");
+            using (var br = new WAL.BR.CF())
+            {
+                DataTable rows = br.EQueryP(@"
+SELECT P.PhotoType, P.FileName, P.OrderNo, P.PhotoData
+FROM dbo.PIP_T_InspectionPhoto P
+JOIN dbo.PIP_T_Inspection I ON I.InspectionID=P.InspectionID
+WHERE I.ClientInspectionID=@ClientInspectionID
+  AND I.OwnerEmployeeID=@EmployeeID AND I.CompanyID=@CompanyID AND I.LocationID=@LocationID
+  AND I.Status='DRAFT' AND I.IsApprove=0
+  AND EXISTS (
+      SELECT 1 FROM dbo.UTL_User U
+      WHERE U.EmployeeID=@EmployeeID AND ISNULL(U.IsWO,0)=1
+        AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(U.Section,';') S WHERE S.val=I.SectionID)
+        AND (
+            EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
+                    WHERE C.UserID=U.UserID AND C.AppID='pip'
+                      AND C.CompanyID=I.CompanyID AND C.LocationID=I.LocationID)
+            OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', U.EmployeeID, '') L
+                       WHERE L.CompanyID=I.CompanyID AND L.LocationID=I.LocationID)
+        )
+  )
+ORDER BY P.PhotoType, P.OrderNo",
+                    new SqlParameter[] {
+                        new SqlParameter("@ClientInspectionID", clientInspectionId),
+                        new SqlParameter("@EmployeeID", employeeId),
+                        new SqlParameter("@CompanyID", companyId),
+                        new SqlParameter("@LocationID", locationId)
+                    });
+                var photos = new List<Dictionary<string, object>>();
+                foreach (DataRow row in rows.Rows)
+                {
+                    byte[] bytes = row["PhotoData"] == DBNull.Value ? new byte[0] : (byte[])row["PhotoData"];
+                    if (bytes.Length == 0) continue;
+                    photos.Add(new Dictionary<string, object> {
+                        { "Type", row["PhotoType"] == DBNull.Value ? "" : row["PhotoType"].ToString() },
+                        { "FileName", row["FileName"] == DBNull.Value ? "" : row["FileName"].ToString() },
+                        { "OrderNo", row["OrderNo"] == DBNull.Value ? 0 : Convert.ToInt32(row["OrderNo"]) },
+                        { "Data", "data:image/jpeg;base64," + Convert.ToBase64String(bytes) }
+                    });
+                }
+                return new { success = true, data = photos };
+            }
+        }
+
+        [WebMethod]
         public static object GetInspectionApprovalDetail(long inspectionId, string employeeId)
         {
             if (String.IsNullOrWhiteSpace(employeeId))
@@ -803,28 +852,6 @@ ORDER BY G.DisplayOrder",
                             sections = sections
                         };
                     }
-                    DataTable photoRows = br.EQueryP(@"
-SELECT PhotoType, FileName, OrderNo, PhotoData
-FROM dbo.PIP_T_InspectionPhoto
-WHERE InspectionID=@InspectionID
-ORDER BY PhotoType, OrderNo",
-                        new SqlParameter[] { new SqlParameter("@InspectionID", id) });
-                    var photos = new List<Dictionary<string, object>>();
-                    foreach (DataRow photo in photoRows.Rows)
-                    {
-                        byte[] photoBytes = photo["PhotoData"] == DBNull.Value ? new byte[0] : (byte[])photo["PhotoData"];
-                        if (photoBytes.Length == 0) continue;
-                        string photoType = photo["PhotoType"] == DBNull.Value ? "" : photo["PhotoType"].ToString();
-                        string mimeType = "image/jpeg";
-                        string dataUrl = "data:" + mimeType + ";base64," + Convert.ToBase64String(photoBytes);
-                        photos.Add(new Dictionary<string, object> {
-                            { "Type", photoType },
-                            { "FileName", photo["FileName"] == DBNull.Value ? "" : photo["FileName"].ToString() },
-                            { "OrderNo", photo["OrderNo"] == DBNull.Value ? 0 : Convert.ToInt32(photo["OrderNo"]) },
-                            { "Data", dataUrl }
-                        });
-                    }
-                    record["Photos"] = photos;
                     result.Add(record);
                 }
                 return new { success = true, data = result };
