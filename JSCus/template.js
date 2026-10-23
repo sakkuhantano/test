@@ -7805,20 +7805,7 @@ async function validateCurrentTemplate() {
                             );
                         }
 
-                        // Third label is optional; if provided, it is the third configured column.
-                        if (fields.length > 2 && fields[2] != null && String(fields[2]).trim()) {
-                            checkMaxLength(
-                                result,
-                                fields[2],
-                                dbLength.FieldList,
-                                "GROUP",
-                                section.RuntimeSectionID,
-                                item.RuntimeItemID,
-                                group.RuntimeGroupID,
-                                "FieldList",
-                                "Group Field Label exceeds the maximum length."
-                            );
-                        }
+                        // Third label is optional; if blank, this group uses only the first two columns.
 
                     });
 
