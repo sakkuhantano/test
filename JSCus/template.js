@@ -1915,7 +1915,16 @@ function markCurrentVersionDirty()
     )
         return;
     templateCache.sections[currentTemplate.SectionID].Dirty = true;
-    currentVersion.Dirty=true;
+
+    // Save All checks Structure.VersionInfo.Dirty, while the selected version
+    // metadata is also tracked through currentVersion. Keep both references in
+    // sync so structural-only edits (e.g. adding/renaming a Sub-section) are
+    // included in the save payload even when these objects are not the same ref.
+    if (currentVersion)
+        currentVersion.Dirty = true;
+    if (currentVersionData && currentVersionData.VersionInfo)
+        currentVersionData.VersionInfo.Dirty = true;
+
     currentTemplate.Dirty=true;
     templateCache.Dirty=true;
     refreshDirtyUI();
