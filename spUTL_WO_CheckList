@@ -2,7 +2,7 @@
 CREATE PROCEDURE spUTL_WO_CheckList 
 (
 --DECLARE
-	@p_Dt1 [dbo].[Type_Tbl_C5] READONLY,	-- item checklist
+	@p_Dt1 [dbo].[Type_N_Tbl_C13] READONLY,	-- item checklist
 	@p_Dt2 [dbo].[Type_Tbl_C4] READONLY,	-- item checklist group
 	@p_Dt3 [dbo].[Type_Tbl_C4] READONLY,	-- photos
 	@p_Dt4 [dbo].[Type_N_Tbl_C10] READONLY,	-- summary
@@ -53,11 +53,11 @@ CREATE TABLE #tblEmail
 DECLARE @V_CompanyID VARCHAR(10), @V_LocationID VARCHAR(3), @V_WONo VARCHAR(10), @V_KeyHD INT, @v_counter INT=0
 
 --INSERT INTO PIP_T_WO_CheckList
---(KeyHD,IDItem,Value,Remark,EntryUser,EntryDate,UpdateUser,UpdateDate,IDResult, IsAnomali)
---SELECT A.C1, A.C2, A.C3, LEFT(A.C4,500), @p_UpdateUser, GETDATE(), @p_UpdateUser, GETDATE(),
---ISNULL((SELECT MAX(IDResult) FROM PIP_T_WO_CheckList),0)+ROW_NUMBER() OVER (ORDER BY (SELECT NULL)), CAST(C5 AS BIT)  
+--(KeyHD,IDItem,Value,Remark1,Remark2,EntryUser,EntryDate,UpdateUser,UpdateDate,IDResult,IsAnomali)
+--SELECT A.C1, A.C2, A.C3, LEFT(A.C4,500), LEFT(A.C6,500), @p_UpdateUser, GETDATE(), @p_UpdateUser, GETDATE(),
+--ISNULL((SELECT MAX(IDResult) FROM PIP_T_WO_CheckList),0)+ROW_NUMBER() OVER (ORDER BY (SELECT NULL)), CAST(C5 AS BIT)
 --FROM @p_Dt1 A WHERE NOT EXISTS (SELECT * FROM PIP_T_WO_CheckList AA WHERE AA.KeyHD=A.C1 AND AA.IDItem=A.C2)
---UPDATE AA SET AA.Value=A.C3, AA.Remark=LEFT(A.C4,500), AA.UpdateUser=@p_UpdateUser, AA.UpdateDate=GETDATE(), AA.IsAnomali=CAST(C5 AS BIT)
+--UPDATE AA SET AA.Value=A.C3, AA.Remark1=LEFT(A.C4,500), AA.Remark2=LEFT(A.C6,500), AA.UpdateUser=@p_UpdateUser, AA.UpdateDate=GETDATE(), AA.IsAnomali=CAST(C5 AS BIT)
 --FROM PIP_T_WO_CheckList AA JOIN @p_Dt1 A ON AA.KeyHD=A.C1 AND AA.IDItem=A.C2
 --JOIN PIP_T_WO wo ON wo.KeyHD=A.C1 AND ((wo.RemarkTechnician='' AND wo.ReasonRespondDC='') OR (wo.RemarkTechnician<>'' AND wo.ReasonRespondDC<>'')) AND wo.isCompleteDC=0 
 
@@ -297,9 +297,13 @@ BEGIN
 				  <td>'+ CONVERT(VARCHAR,a.[Value],1) + ' ' + pmclwi.Unit + '</td>
 				</tr>
 				<tr>
-				  <td valign="top">Remark</td>
+				  <td valign="top">'+ISNULL(pmclwi.Remark1Text,'Remark')+'</td>
 				  <td valign="top" align="center">:</td>
-				  <td>'+ a.Remark + '</td>
+				  <td>'+ISNULL(a.Remark1,'')+'</td>
+				</tr>' +
+                '<tr><td valign="top">'+ISNULL(pmclwi.Remark2Text,'Remark')+'</td>
+				  <td valign="top" align="center">:</td>
+				  <td>'+ISNULL(a.Remark2,'')+'</td>
 				</tr>
 			  </table>
 			</td>
