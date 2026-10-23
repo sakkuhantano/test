@@ -464,6 +464,7 @@ function createNewSection()
             nextSeq,
         SectionName:
             "New Section",
+        SubSections:[],
         Items:[]
     };
 }
@@ -491,6 +492,8 @@ function createNewItem()
         MaxTolerance:"",
         // ===============        
         DisplayOrder:0,
+        IDSubSection:0,
+        RuntimeSubSectionID:0,
         IsRemark1Required:false,
         IsRemark2Required:false,
         Remark1Text:"Remark",
@@ -5723,10 +5726,12 @@ function renderSectionProperties(data)
 // ========================================================
 // ADD ITEM
 // ========================================================
-function addItem()
+function addItem(sectionId)
 {
-    const section =
-        currentSection;
+    const section = sectionId != null && currentVersionData
+        ? currentVersionData.Sections.find(x => Number(x.RuntimeSectionID) === Number(String(sectionId).replace('section-', '')))
+        : currentSection;
+    if (section) currentSection = section;
     if (!section)
     {
         showToast(
@@ -5734,11 +5739,12 @@ function addItem()
         );
         return;
     }
-    const item =
-        createNewItem();
-    section.Items.push(
-        item
-    );
+    const item = createNewItem();
+    const allOrders = [...(section.Items || []).map(x => Number(x.DisplayOrder || 0)), ...(section.SubSections || []).map(x => Number(x.DisplayOrder || 0))];
+    item.DisplayOrder = Math.max(0, ...allOrders) + 1;
+    item.RuntimeSubSectionID = 0;
+    item.IDSubSection = 0;
+    section.Items.push(item);
     // templateCache.Dirty = true;
     markCurrentVersionDirty();
     renderVersionStructure(currentVersionData);
@@ -8484,6 +8490,15 @@ function patchSavedIdentity(saveResult)
                         const sectionElement = document.querySelector('[data-id="' + m.RuntimeID + '"]');
                         if (sectionElement) sectionElement.dataset.sectionId = m.ID;
                     }
+
+                    (sec.SubSections || []).forEach(function(sub)
+                    {
+                        if (m.Entity === "SubSection" && sub.RuntimeSubSectionID == m.RuntimeID)
+                        {
+                            sub.IDSubSection = m.ID;
+                            sub.RuntimeSubSectionID = m.ID;
+                        }
+                    });
 
                     (sec.Items || []).forEach(function(item)
                     {
