@@ -630,6 +630,9 @@ WHERE a.SectionID = @SectionID
                 DataTable dtSection = new DataTable();
                 for (int i = 1; i <= 5; i++)
                     dtSection.Columns.Add("C" + i + "", typeof(System.String));
+                DataTable dtSubSection = new DataTable();
+                for (int i = 1; i <= 5; i++)
+                    dtSubSection.Columns.Add("C" + i + "", typeof(System.String));
                 DataTable dtItem = new DataTable();
                 for (int i = 1; i <= 25; i++)
                     dtItem.Columns.Add("C" + i + "", typeof(System.String));
@@ -722,6 +725,20 @@ WHERE a.SectionID = @SectionID
                                     sRow["C4"] = section["SectionName"];
                                     dtSection.Rows.Add(sRow);
 
+                                    if (section.ContainsKey("SubSections") && section["SubSections"] is ArrayList)
+                                    {
+                                        foreach (Dictionary<string, object> subSection in (ArrayList)section["SubSections"])
+                                        {
+                                            DataRow subRow = dtSubSection.NewRow();
+                                            subRow["C1"] = subSection.ContainsKey("IDSubSection") ? subSection["IDSubSection"] : 0;
+                                            subRow["C2"] = subSection["RuntimeSubSectionID"];
+                                            subRow["C3"] = section["RuntimeSectionID"];
+                                            subRow["C4"] = subSection["SubSectionName"];
+                                            subRow["C5"] = subSection.ContainsKey("DisplayOrder") ? subSection["DisplayOrder"] : dtSubSection.Rows.Count + 1;
+                                            dtSubSection.Rows.Add(subRow);
+                                        }
+                                    }
+
                                     if (section.ContainsKey("Items") && section["Items"] is ArrayList)
                                     {
                                         var itemsList = (ArrayList)section["Items"];
@@ -776,6 +793,7 @@ WHERE a.SectionID = @SectionID
                                             iRow["C15"] = item["ModelCode"];
                                             iRow["C16"] = (itemType == "INPUT" || itemType == "RANGE") && Convert.ToBoolean(item["UseTolerance"]);
                                             iRow["C17"] = itemRemarkRequiredOptionsStr;
+                                            iRow["C21"] = item.ContainsKey("RuntimeSubSectionID") ? item["RuntimeSubSectionID"] : 0;
                                             dtItem.Rows.Add(iRow);
 
                                             if (item.ContainsKey("Groups") && item["Groups"] is ArrayList)
@@ -851,6 +869,7 @@ WHERE a.SectionID = @SectionID
                         new SqlParameter("@p_dt_Template", dtTemplate),
                         new SqlParameter("@p_dt_Version", dtVersion),
                         new SqlParameter("@p_dt_Section", dtSection),
+                        new SqlParameter("@p_dt_SubSection", dtSubSection),
                         new SqlParameter("@p_dt_Item", dtItem),
                         new SqlParameter("@p_dt_Group", dtGroup),
                         new SqlParameter("@p_dt_DelTemplate", dtDeletedTemplate),
