@@ -852,11 +852,11 @@ async function renderChecklist(template, isEntryMode) {
                     <div class="row mt-1 g-1">
                         <div class="col-md-12">
                             <input class="form-control form-control-sm" data-role="remark1"
-                                   placeholder="\${item.remark1Text || item.Remark1Text || "Remark"}" type="text" maxlength="500"
-                                   value="\${V_Remark1}" \${!isEntryMode ? "disabled" : ""}/>
+                                   placeholder="${item.remark1Text || item.Remark1Text || "Remark"}" type="text" maxlength="500"
+                                   value="${V_Remark1}" ${!isEntryMode ? "disabled" : ""}/>
                             <input class="form-control form-control-sm mt-1" data-role="remark2"
-                                   placeholder="\${item.remark2Text || item.Remark2Text || "Remark"}" type="text" maxlength="500"
-                                   value="\${V_Remark2}" \${!isEntryMode ? "disabled" : ""}/>
+                                   placeholder="${item.remark2Text || item.Remark2Text || "Remark"}" type="text" maxlength="500"
+                                   value="${V_Remark2}" ${!isEntryMode ? "disabled" : ""}/>
                         </div>
                     </div>
 
@@ -923,11 +923,11 @@ async function renderChecklist(template, isEntryMode) {
                     <div class="row mt-1 g-2">
                         <div class="col-md-12">
                             <input class="form-control form-control-sm" data-role="remark1"
-                                   placeholder="\${item.remark1Text || item.Remark1Text || "Remark"}" type="text" maxlength="500"
-                                   value="\${V_Remark1}" \${!isEntryMode ? "disabled" : ""}/>
+                                   placeholder="${item.remark1Text || item.Remark1Text || "Remark"}" type="text" maxlength="500"
+                                   value="${V_Remark1}" ${!isEntryMode ? "disabled" : ""}/>
                             <input class="form-control form-control-sm mt-1" data-role="remark2"
-                                   placeholder="\${item.remark2Text || item.Remark2Text || "Remark"}" type="text" maxlength="500"
-                                   value="\${V_Remark2}" \${!isEntryMode ? "disabled" : ""}/>
+                                   placeholder="${item.remark2Text || item.Remark2Text || "Remark"}" type="text" maxlength="500"
+                                   value="${V_Remark2}" ${!isEntryMode ? "disabled" : ""}/>
                         </div>
                     </div>
                 </div>`;
@@ -947,11 +947,11 @@ async function renderChecklist(template, isEntryMode) {
                         </div>
                         <div class="col-md-6">
                             <input class="form-control form-control-sm" data-role="remark1"
-                                   placeholder="\${item.remark1Text || item.Remark1Text || "Remark"}" type="text" maxlength="500"
-                                   value="\${V_Remark1}" \${!isEntryMode ? "disabled" : ""}/>
+                                   placeholder="${item.remark1Text || item.Remark1Text || "Remark"}" type="text" maxlength="500"
+                                   value="${V_Remark1}" ${!isEntryMode ? "disabled" : ""}/>
                             <input class="form-control form-control-sm mt-1" data-role="remark2"
-                                   placeholder="\${item.remark2Text || item.Remark2Text || "Remark"}" type="text" maxlength="500"
-                                   value="\${V_Remark2}" \${!isEntryMode ? "disabled" : ""}/>
+                                   placeholder="${item.remark2Text || item.Remark2Text || "Remark"}" type="text" maxlength="500"
+                                   value="${V_Remark2}" ${!isEntryMode ? "disabled" : ""}/>
                         </div>
                     </div>
                 </div>`;
@@ -979,11 +979,11 @@ async function renderChecklist(template, isEntryMode) {
                     <div class="row mt-1 g-2">
                         <div class="col-md-12">
                             <input class="form-control form-control-sm" data-role="remark1"
-                                   placeholder="\${item.remark1Text || item.Remark1Text || "Remark"}" type="text" maxlength="500"
-                                   value="\${V_Remark1}" \${!isEntryMode ? "disabled" : ""}/>
+                                   placeholder="${item.remark1Text || item.Remark1Text || "Remark"}" type="text" maxlength="500"
+                                   value="${V_Remark1}" ${!isEntryMode ? "disabled" : ""}/>
                             <input class="form-control form-control-sm mt-1" data-role="remark2"
-                                   placeholder="\${item.remark2Text || item.Remark2Text || "Remark"}" type="text" maxlength="500"
-                                   value="\${V_Remark2}" \${!isEntryMode ? "disabled" : ""}/>
+                                   placeholder="${item.remark2Text || item.Remark2Text || "Remark"}" type="text" maxlength="500"
+                                   value="${V_Remark2}" ${!isEntryMode ? "disabled" : ""}/>
                         </div>
                     </div>
                 </div>`;
@@ -2714,10 +2714,10 @@ function validateChecklist() {
             if (!firstErrorElement)
                 firstErrorElement = container;
 
-            if (error === "Remark required" ||
-                error === "Remark maximum 500 characters") {
-
+            if (error === "Remark required" || error === "Remark maximum 500 characters") {
                 remarkEl?.classList.add("is-invalid");
+            } else if (error === "Remark 2 required" || error === "Remark 2 maximum 500 characters") {
+                container.querySelector("[data-role='remark2']")?.classList.add("is-invalid");
             }
             else if (item.type !== "OPTION") {
 
@@ -2890,6 +2890,7 @@ function validateItem(item, container) {
             : [];
     const selectedOptionRequiresRemark = item.type === "OPTION" && !!checked &&
         requiredOptionRemarks.map(String).includes(String(checked.value));
+    const remark2El = container.querySelector("[data-role='remark2]");
 
     if (!error && (item.isRemark1Required || item.isRemarkRequired || selectedOptionRequiresRemark)) {
 
@@ -2928,6 +2929,25 @@ function validateItem(item, container) {
         if((remark || '').length > 500) {
             error = "Remark maximum 500 characters";
         }        
+    }
+
+    if (!error && item.isRemark2Required) {
+        const remark2 = container.querySelector("[data-role='remark2']")?.value?.trim() || "";
+        let hasValue2 = false;
+        switch (item.type) {
+            case "OPTION":
+                hasValue2 = !!container.querySelector("input[type=radio]:checked");
+                break;
+            case "GROUP":
+                hasValue2 = Array.from(container.querySelectorAll("input[data-role='value']"))
+                    .some(i => i.value.trim() !== "");
+                break;
+            default:
+                hasValue2 = valueEl?.value?.trim() !== "";
+                break;
+        }
+        if (hasValue2 && remark2 === "" && isSaveDone) error = "Remark 2 required";
+        if (remark2.length > 500) error = "Remark 2 maximum 500 characters";
     }
 
     return error;
