@@ -5949,47 +5949,66 @@ function syncItemOrder()
 {
     if (!currentVersionData || !Array.isArray(currentVersionData.Sections)) return;
     const sections = currentVersionData.Sections;
-    const itemByRuntimeId = new Map();
-    const subByRuntimeId = new Map();
+    const itemByAnyId = new Map();
+    const subByAnyId = new Map();
+
+    // After Save All, Runtime IDs and database IDs can differ. DOM data-id may
+    // use IDItem while the in-memory object still retains RuntimeItemID.
     sections.forEach(sec => {
-        (sec.Items || []).forEach(item => itemByRuntimeId.set(Number(item.RuntimeItemID || item.IDItem), item));
-        (sec.SubSections || []).forEach(sub => subByRuntimeId.set(Number(sub.RuntimeSubSectionID || sub.IDSubSection), sub));
-        sec.Items = [];
-        sec.SubSections = [];
+        (sec.Items || []).forEach(item => {
+            [item.RuntimeItemID, item.IDItem].forEach(id => {
+                const key = Number(id || 0);
+                if (key > 0) itemByAnyId.set(key, item);
+            });
+        });
+        (sec.SubSections || []).forEach(sub => {
+            [sub.RuntimeSubSectionID, sub.IDSubSection].forEach(id => {
+                const key = Number(id || 0);
+                if (key > 0) subByAnyId.set(key, sub);
+            });
+        });
     });
+
     sections.forEach(sec => {
         const sectionBox = document.querySelector(`.section-box[data-id="${sec.RuntimeSectionID}"]`);
         const topContainer = sectionBox && sectionBox.querySelector('.collapse > .items-container');
+        // Never erase a section's model data when its DOM is not currently present.
         if (!topContainer) return;
+
+        const nextItems = [];
+        const nextSubSections = [];
         let parentOrder = 0;
         Array.from(topContainer.children).forEach(child => {
             if (child.classList.contains('item-row')) {
-                const item = itemByRuntimeId.get(Number(child.dataset.id));
+                const item = itemByAnyId.get(Number(child.dataset.id));
                 if (!item) return;
                 item.RuntimeSubSectionID = 0;
                 item.IDSubSection = 0;
                 item.DisplayOrder = ++parentOrder;
-                sec.Items.push(item);
+                nextItems.push(item);
                 return;
             }
             if (child.classList.contains('subsection-box')) {
-                const sub = subByRuntimeId.get(Number(child.dataset.subsectionId));
+                const sub = subByAnyId.get(Number(child.dataset.subsectionId));
                 if (!sub) return;
                 sub.RuntimeSectionID = Number(sec.RuntimeSectionID);
                 sub.IDSection = Number(sec.IDSection || 0);
                 sub.DisplayOrder = ++parentOrder;
-                sec.SubSections.push(sub);
+                nextSubSections.push(sub);
+
                 let innerOrder = 0;
                 child.querySelectorAll(':scope > .subsection-items > .item-row').forEach(row => {
-                    const item = itemByRuntimeId.get(Number(row.dataset.id));
+                    const item = itemByAnyId.get(Number(row.dataset.id));
                     if (!item) return;
                     item.RuntimeSubSectionID = Number(sub.RuntimeSubSectionID || sub.IDSubSection || 0);
                     item.IDSubSection = Number(sub.IDSubSection || 0);
                     item.DisplayOrder = ++innerOrder;
-                    sec.Items.push(item);
+                    nextItems.push(item);
                 });
             }
         });
+        sec.Items = nextItems;
+        sec.SubSections = nextSubSections;
     });
 }
 function syncSectionOrder()
@@ -8668,8 +8687,12 @@ function patchSavedIdentity(saveResult)
                     {
                         if (m.Entity === "SubSection" && sub.RuntimeSubSectionID == m.RuntimeID)
                         {
-                            // Keep the runtime key stable so the existing DOM handlers remain valid.
+                            // Keep the runtime key stable for DOM handlers and update child DB foreign keys.
                             sub.IDSubSection = m.ID;
+                            (sec.Items || []).forEach(function(item) {
+                                if (Number(item.RuntimeSubSectionID || 0) === Number(m.RuntimeID))
+                                    item.IDSubSection = m.ID;
+                            });
                         }
                     });
 
