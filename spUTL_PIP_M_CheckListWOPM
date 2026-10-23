@@ -323,6 +323,14 @@ ON 1=0
 WHEN NOT MATCHED THEN INSERT (IDSubSection,IDSection,SubSectionName,DisplayOrder) VALUES (source.NewIDSubSection,source.IDSection,source.SubSectionName,source.DisplayOrder)
 OUTPUT 'SubSection',source.RuntimeSubSectionID,inserted.IDSubSection INTO @tbl_Identity (Entity,RuntimeID,ID);
 
+UPDATE ExistingSub
+SET ExistingSub.SubSectionName = Incoming.SubSectionName,
+    ExistingSub.DisplayOrder = Incoming.DisplayOrder,
+    ExistingSub.IDSection = SectionMap.IDSection
+FROM PIP_M_CheckListWOPM_SubSection ExistingSub
+JOIN @tbl_SubSection Incoming ON Incoming.IDSubSection = ExistingSub.IDSubSection
+JOIN (SELECT RuntimeID RuntimeSectionID, ID IDSection FROM @tbl_Identity WHERE Entity='Section' UNION ALL SELECT RuntimeSectionID, IDSection FROM @tbl_Section WHERE IDSection<>0) SectionMap ON SectionMap.RuntimeSectionID = Incoming.RuntimeSectionID;
+
 UPDATE I
 SET 
     I.ItemLabel = S.ItemLabel,
