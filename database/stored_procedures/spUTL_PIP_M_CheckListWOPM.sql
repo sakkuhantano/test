@@ -388,6 +388,9 @@ JOIN @tbl_Version V ON V.IDVersion=SEC.IDVersion
 JOIN PIP_M_CheckListWOPM_Version VER ON VER.IDVersion=V.IDVersion
 JOIN PIP_M_CheckListWOPM T ON T.IDTemplate=VER.IDTemplate
 WHERE NOT EXISTS (SELECT 1 FROM @tbl_SubSection S WHERE S.IDSubSection=SS.IDSubSection)
+-- Newly inserted rows have generated database IDs that are not present in the TVP's IDSubSection=0 rows.
+-- Preserve them during this cleanup; otherwise every new Sub-section is deleted in the same Save All call.
+AND NOT EXISTS (SELECT 1 FROM @tbl_Identity NewSub WHERE NewSub.Entity='SubSection' AND NewSub.ID=SS.IDSubSection)
 AND (ISNULL(T.CompanyScope,'S')='A' OR EXISTS (SELECT 1 FROM dbo.PIP_M_CheckListWOPM_CompanyLocation ScopeRow WHERE ScopeRow.IDTemplate=T.IDTemplate AND ScopeRow.CompanyID=@p_CompanyID AND ScopeRow.LocationID=@p_LocationID));
 
 MERGE INTO PIP_M_CheckListWOPM_item AS target
