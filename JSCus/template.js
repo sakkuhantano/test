@@ -4405,76 +4405,60 @@ async function deleteItem(sender)
 function duplicateSection(sectionId)
 {
     removeExistingContextMenu();
+    if (isReadonlyMode || !currentVersionData) return;
 
-    const id =
-        parseInt(
-            sectionId.replace(
-                "section-",
-                ""
-            )
-        );
+    const id = parseInt(String(sectionId).replace("section-", ""), 10);
+    const src = currentVersionData.Sections.find(x => Number(x.RuntimeSectionID) === id);
+    if (!src) return;
 
-    const src =
-        findSectionById(id);
-
-    if(!src)
-        return;
-
-    const copy =
-        JSON.parse(
-            JSON.stringify(src)
-        );
-
+    const copy = JSON.parse(JSON.stringify(src));
     copy.IDSection = 0;
-    copy.RuntimeSectionID =
-        generateRuntimeID();
+    copy.RuntimeSectionID = generateRuntimeID();
+    copy.SectionName = (copy.SectionName || "Section") + " Copy";
+    copy.SubSections = copy.SubSections || [];
+    copy.Items = copy.Items || [];
 
-    copy.SectionName +=
-        " Copy";
-
+    // Give every cloned Sub-section a fresh identity and map both persisted and runtime IDs.
     const subsectionIdMap = new Map();
-    (copy.SubSections || []).forEach(sub =>
-    {
-        const oldSubID = Number(sub.RuntimeSubSectionID || sub.IDSubSection || 0);
+    copy.SubSections.forEach(sub => {
+        const newRuntimeSubID = generateRuntimeID();
+        [sub.RuntimeSubSectionID, sub.IDSubSection].forEach(oldID => {
+            const key = Number(oldID || 0);
+            if (key > 0) subsectionIdMap.set(key, newRuntimeSubID);
+        });
         sub.IDSubSection = 0;
-        sub.RuntimeSubSectionID = generateRuntimeID();
+        sub.RuntimeSubSectionID = newRuntimeSubID;
         sub.IDSection = 0;
         sub.RuntimeSectionID = copy.RuntimeSectionID;
-        subsectionIdMap.set(oldSubID, sub.RuntimeSubSectionID);
     });
 
-    copy.Items.forEach(
-        (x,index)=>
-        {
-            const oldSubID = Number(x.RuntimeSubSectionID || x.IDSubSection || 0);
-            x.IDItem = 0;
-            x.RuntimeItemID = generateRuntimeID();
-            x.IDSubSection = 0;
-            x.RuntimeSubSectionID = subsectionIdMap.get(oldSubID) || 0;
+    copy.Items.forEach(item => {
+        const oldSubIDs = [item.RuntimeSubSectionID, item.IDSubSection]
+            .map(value => Number(value || 0)).filter(value => value > 0);
+        const newSubID = oldSubIDs.map(value => subsectionIdMap.get(value)).find(Boolean) || 0;
 
-            x.DisplayOrder =
-                index + 1;
+        item.IDItem = 0;
+        item.RuntimeItemID = generateRuntimeID();
+        item.IDSubSection = 0;
+        item.RuntimeSubSectionID = newSubID;
 
-            if(x.Groups)
-            {
-                x.Groups.forEach(
-                    g =>
-                    {
-                        g.IDGroup = 0;
-                        g.RuntimeGroupID =
-                            generateRuntimeID();
-                    }
-                );
-            }                
+        if (Array.isArray(item.Groups)) {
+            item.Groups.forEach(group => {
+                group.IDGroup = 0;
+                group.RuntimeGroupID = generateRuntimeID();
+            });
         }
-    );
+    });
 
-    currentVersionData
-        .Sections
-        .push(copy);
+    // Preserve the mixed top-level order of direct Items and Sub-sections.
+    const topLevel = [];
+    copy.Items.filter(item => !Number(item.RuntimeSubSectionID || 0))
+        .forEach(item => topLevel.push({ ref:item, order:Number(item.DisplayOrder || 0) }));
+    copy.SubSections.forEach(sub => topLevel.push({ ref:sub, order:Number(sub.DisplayOrder || 0) }));
+    topLevel.sort((a,b) => a.order - b.order);
+    topLevel.forEach((entry,index) => { entry.ref.DisplayOrder = index + 1; });
 
-    // templateCache.Dirty =
-    //     true;
+    currentVersionData.Sections.push(copy);
     markCurrentVersionDirty();
     renderVersionStructure(currentVersionData);
 }
@@ -4727,12 +4711,68 @@ function showSubSectionMenu(event, sectionId, subSectionId)
         <div class="context-item" onclick="addItemToSubSection(${sectionId},${subSectionId})"><i class="bi bi-plus-circle"></i> Add Item</div>
         <div class="context-item" onclick="moveChecklistElement(${sectionId},'subsection',${subSectionId},-1)"><i class="bi bi-arrow-up"></i> Move Up</div>
         <div class="context-item" onclick="moveChecklistElement(${sectionId},'subsection',${subSectionId},1)"><i class="bi bi-arrow-down"></i> Move Down</div>
+        <div class="context-item" onclick="duplicateSubSection(${sectionId},${subSectionId})"><i class="bi bi-files"></i> Duplicate Sub-section</div>
         <div class="context-item text-danger" onclick="deleteSubSection(${sectionId},${subSectionId})"><i class="bi bi-trash"></i> Delete Sub-section</div>`;
     document.body.appendChild(menu);
     menu.style.left = event.pageX + 'px';
     menu.style.top = event.pageY + 'px';
     setTimeout(() => document.addEventListener('click', removeExistingContextMenu, { once:true }));
 }
+function duplicateSubSection(sectionId, subSectionId)
+{
+    removeExistingContextMenu();
+    if (isReadonlyMode || !currentVersionData) return;
+
+    const section = currentVersionData.Sections.find(x => Number(x.RuntimeSectionID) === Number(sectionId));
+    const source = section?.SubSections?.find(x => Number(x.RuntimeSubSectionID || x.IDSubSection) === Number(subSectionId));
+    if (!section || !source) return;
+
+    const copy = JSON.parse(JSON.stringify(source));
+    const sourceIDs = [source.RuntimeSubSectionID, source.IDSubSection]
+        .map(value => Number(value || 0)).filter(value => value > 0);
+    copy.IDSubSection = 0;
+    copy.RuntimeSubSectionID = generateRuntimeID();
+    copy.IDSection = Number(section.IDSection || 0);
+    copy.RuntimeSectionID = Number(section.RuntimeSectionID);
+    copy.SubSectionName = (copy.SubSectionName || "Sub-section") + " Copy";
+
+    const topLevelOrders = [
+        ...(section.Items || []).filter(item => !Number(item.RuntimeSubSectionID || item.IDSubSection || 0)).map(item => Number(item.DisplayOrder || 0)),
+        ...(section.SubSections || []).map(sub => Number(sub.DisplayOrder || 0))
+    ];
+    copy.DisplayOrder = Math.max(0, ...topLevelOrders) + 1;
+
+    const children = (section.Items || []).filter(item =>
+        sourceIDs.includes(Number(item.RuntimeSubSectionID || 0)) ||
+        sourceIDs.includes(Number(item.IDSubSection || 0))
+    ).sort((a,b) => Number(a.DisplayOrder || 0) - Number(b.DisplayOrder || 0));
+
+    children.forEach((sourceItem, index) => {
+        const item = JSON.parse(JSON.stringify(sourceItem));
+        item.IDItem = 0;
+        item.RuntimeItemID = generateRuntimeID();
+        item.IDSubSection = 0;
+        item.RuntimeSubSectionID = copy.RuntimeSubSectionID;
+        item.DisplayOrder = index + 1;
+        if (Array.isArray(item.Groups)) {
+            item.Groups.forEach(group => {
+                group.IDGroup = 0;
+                group.RuntimeGroupID = generateRuntimeID();
+            });
+        }
+        section.Items.push(item);
+    });
+
+    section.SubSections.push(copy);
+    markCurrentVersionDirty();
+    renderVersionStructure(currentVersionData);
+
+    setTimeout(() => {
+        const box = document.querySelector(`.subsection-box[data-subsection-id="${copy.RuntimeSubSectionID}"]`);
+        if (box) selectSubSection(box);
+    }, 50);
+}
+
 function addSubSection(sectionId)
 {
     removeExistingContextMenu();
