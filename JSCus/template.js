@@ -4704,6 +4704,7 @@ function buildSubSectionHtml(sub, section, items)
     return `
         <div class="subsection-box border rounded mb-2" data-subsection-id="${subId}" data-section-id="${section.RuntimeSectionID}">
             <div class="subsection-header d-flex align-items-center gap-2 px-2 py-2 bg-light">
+                <i class="bi bi-grip-vertical text-muted cursor-move subsection-drag-handle ${isReadonlyMode ? 'd-none' : ''}" title="Drag Sub-section and its Items"></i>
                 <i class="bi bi-folder2-open text-secondary"></i>
                 <span class="fw-semibold flex-grow-1 subsection-title">${escapeHtml(sub.SubSectionName || 'Sub-section')}</span>
                 <span class="badge bg-secondary text-xs">${(items || []).length} items</span>
@@ -4771,32 +4772,73 @@ function moveChecklistElement(sectionId, kind, elementId, direction)
 {
     removeExistingContextMenu();
     if (isReadonlyMode || !currentVersionData) return;
-    const section = currentVersionData.Sections.find(x => Number(x.RuntimeSectionID) === Number(sectionId));
-    if (!section) return;
+    const sections = currentVersionData.Sections || [];
+    const sectionIndex = sections.findIndex(x => Number(x.RuntimeSectionID) === Number(sectionId));
+    if (sectionIndex < 0) return;
+    const section = sections[sectionIndex];
     section.Items = section.Items || [];
     section.SubSections = section.SubSections || [];
     let item = null;
     let sub = null;
-    if (kind === 'subsection') sub = section.SubSections.find(x => Number(x.RuntimeSubSectionID) === Number(elementId));
-    else item = section.Items.find(x => Number(x.RuntimeItemID) === Number(elementId));
+    if (kind === 'subsection') sub = section.SubSections.find(x => Number(x.RuntimeSubSectionID || x.IDSubSection) === Number(elementId));
+    else item = section.Items.find(x => Number(x.RuntimeItemID || x.IDItem) === Number(elementId));
     if (!sub && !item) return;
-    let siblings;
-    if (sub || !Number(item.RuntimeSubSectionID || 0)) {
-        siblings = [];
-        section.Items.filter(x => !Number(x.RuntimeSubSectionID || 0)).forEach(x => siblings.push({ type:'item', order:Number(x.DisplayOrder || 0), ref:x }));
+
+    // A Sub-section is a group: boundary moves carry all child Items with it.
+    if (sub) {
+        const siblings = [];
+        section.Items.filter(x => !Number(x.RuntimeSubSectionID || x.IDSubSection || 0))
+            .forEach(x => siblings.push({ type:'item', order:Number(x.DisplayOrder || 0), ref:x }));
         section.SubSections.forEach(x => siblings.push({ type:'subsection', order:Number(x.DisplayOrder || 0), ref:x }));
         siblings.sort((a,b) => a.order-b.order);
+        const index = siblings.findIndex(x => x.ref === sub);
+        const nextIndex = index + Number(direction);
+        if (index < 0) return;
+        if (nextIndex >= 0 && nextIndex < siblings.length) {
+            const temp = siblings[index]; siblings[index] = siblings[nextIndex]; siblings[nextIndex] = temp;
+            siblings.forEach((entry, i) => { entry.ref.DisplayOrder = i + 1; });
+        } else {
+            const destinationIndex = sectionIndex + (Number(direction) < 0 ? -1 : 1);
+            if (destinationIndex < 0 || destinationIndex >= sections.length) return;
+            const destination = sections[destinationIndex];
+            destination.Items = destination.Items || [];
+            destination.SubSections = destination.SubSections || [];
+            const subId = Number(sub.RuntimeSubSectionID || sub.IDSubSection);
+            const childItems = section.Items.filter(x => Number(x.RuntimeSubSectionID || x.IDSubSection || 0) === subId);
+            section.SubSections = section.SubSections.filter(x => x !== sub);
+            section.Items = section.Items.filter(x => !childItems.includes(x));
+            sub.RuntimeSectionID = Number(destination.RuntimeSectionID);
+            sub.IDSection = Number(destination.IDSection || 0);
+            const targetOrders = [...destination.Items.filter(x => !Number(x.RuntimeSubSectionID || x.IDSubSection || 0)).map(x => Number(x.DisplayOrder || 0)), ...destination.SubSections.map(x => Number(x.DisplayOrder || 0))];
+            sub.DisplayOrder = Number(direction) < 0 ? -1 : Math.max(0, ...targetOrders) + 1;
+            destination.SubSections.push(sub);
+            childItems.forEach((child, i) => {
+                child.RuntimeSubSectionID = Number(sub.RuntimeSubSectionID || sub.IDSubSection);
+                child.DisplayOrder = i + 1;
+                destination.Items.push(child);
+            });
+            [section, destination].forEach(sec => {
+                const mixed = [];
+                (sec.Items || []).filter(x => !Number(x.RuntimeSubSectionID || x.IDSubSection || 0))
+                    .forEach(x => mixed.push({ order:Number(x.DisplayOrder || 0), ref:x }));
+                (sec.SubSections || []).forEach(x => mixed.push({ order:Number(x.DisplayOrder || 0), ref:x }));
+                mixed.sort((a,b) => a.order-b.order);
+                mixed.forEach((entry, i) => { entry.ref.DisplayOrder = i + 1; });
+            });
+        }
     } else {
-        siblings = section.Items.filter(x => Number(x.RuntimeSubSectionID || 0) === Number(item.RuntimeSubSectionID))
-            .sort((a,b) => Number(a.DisplayOrder || 0)-Number(b.DisplayOrder || 0))
-            .map(x => ({ type:'item', order:Number(x.DisplayOrder || 0), ref:x }));
+        const subId = Number(item.RuntimeSubSectionID || item.IDSubSection || 0);
+        const siblings = subId
+            ? section.Items.filter(x => Number(x.RuntimeSubSectionID || x.IDSubSection || 0) === subId)
+                .sort((a,b) => Number(a.DisplayOrder || 0)-Number(b.DisplayOrder || 0))
+            : section.Items.filter(x => !Number(x.RuntimeSubSectionID || x.IDSubSection || 0))
+                .sort((a,b) => Number(a.DisplayOrder || 0)-Number(b.DisplayOrder || 0));
+        const index = siblings.findIndex(x => x === item);
+        const nextIndex = index + Number(direction);
+        if (index < 0 || nextIndex < 0 || nextIndex >= siblings.length) return;
+        const temp = siblings[index]; siblings[index] = siblings[nextIndex]; siblings[nextIndex] = temp;
+        siblings.forEach((entry, i) => { entry.DisplayOrder = i + 1; });
     }
-    const target = sub || item;
-    const index = siblings.findIndex(x => x.ref === target);
-    const nextIndex = index + Number(direction);
-    if (index < 0 || nextIndex < 0 || nextIndex >= siblings.length) return;
-    const temp = siblings[index]; siblings[index] = siblings[nextIndex]; siblings[nextIndex] = temp;
-    siblings.forEach((entry, i) => { entry.ref.DisplayOrder = i + 1; });
     markCurrentVersionDirty();
     renderVersionStructure(currentVersionData);
 }
@@ -5847,48 +5889,49 @@ function addItem(sectionId)
 }
 function syncItemOrder()
 {
-    currentVersionData.Sections.forEach(sec =>
-    {
+    if (!currentVersionData || !Array.isArray(currentVersionData.Sections)) return;
+    const sections = currentVersionData.Sections;
+    const itemByRuntimeId = new Map();
+    const subByRuntimeId = new Map();
+    sections.forEach(sec => {
+        (sec.Items || []).forEach(item => itemByRuntimeId.set(Number(item.RuntimeItemID || item.IDItem), item));
+        (sec.SubSections || []).forEach(sub => subByRuntimeId.set(Number(sub.RuntimeSubSectionID || sub.IDSubSection), sub));
+        sec.Items = [];
+        sec.SubSections = [];
+    });
+    sections.forEach(sec => {
         const sectionBox = document.querySelector(`.section-box[data-id="${sec.RuntimeSectionID}"]`);
-        if (!sectionBox) return;
-        const oldItems = sec.Items || [];
-        const newItems = [];
-        const topContainer = sectionBox.querySelector('.collapse > .items-container');
+        const topContainer = sectionBox && sectionBox.querySelector('.collapse > .items-container');
         if (!topContainer) return;
         let parentOrder = 0;
-        Array.from(topContainer.children).forEach(child =>
-        {
-            if (child.classList.contains('item-row'))
-            {
-                const item = oldItems.find(x => Number(x.RuntimeItemID) === Number(child.dataset.id));
+        Array.from(topContainer.children).forEach(child => {
+            if (child.classList.contains('item-row')) {
+                const item = itemByRuntimeId.get(Number(child.dataset.id));
                 if (!item) return;
                 item.RuntimeSubSectionID = 0;
                 item.IDSubSection = 0;
                 item.DisplayOrder = ++parentOrder;
-                newItems.push(item);
+                sec.Items.push(item);
                 return;
             }
-            if (child.classList.contains('subsection-box'))
-            {
-                const subId = Number(child.dataset.subsectionId);
-                const sub = (sec.SubSections || []).find(x => Number(x.RuntimeSubSectionID) === subId);
-                if (sub) sub.DisplayOrder = ++parentOrder;
+            if (child.classList.contains('subsection-box')) {
+                const sub = subByRuntimeId.get(Number(child.dataset.subsectionId));
+                if (!sub) return;
+                sub.RuntimeSectionID = Number(sec.RuntimeSectionID);
+                sub.IDSection = Number(sec.IDSection || 0);
+                sub.DisplayOrder = ++parentOrder;
+                sec.SubSections.push(sub);
                 let innerOrder = 0;
-                child.querySelectorAll('.subsection-items > .item-row').forEach(row =>
-                {
-                    const item = oldItems.find(x => Number(x.RuntimeItemID) === Number(row.dataset.id));
+                child.querySelectorAll(':scope > .subsection-items > .item-row').forEach(row => {
+                    const item = itemByRuntimeId.get(Number(row.dataset.id));
                     if (!item) return;
-                    if (sub)
-                    {
-                        item.RuntimeSubSectionID = Number(sub.RuntimeSubSectionID);
-                        item.IDSubSection = Number(sub.IDSubSection || 0);
-                    }
+                    item.RuntimeSubSectionID = Number(sub.RuntimeSubSectionID || sub.IDSubSection || 0);
+                    item.IDSubSection = Number(sub.IDSubSection || 0);
                     item.DisplayOrder = ++innerOrder;
-                    newItems.push(item);
+                    sec.Items.push(item);
                 });
             }
         });
-        sec.Items = newItems;
     });
 }
 function syncSectionOrder()
@@ -5919,33 +5962,23 @@ function syncSectionOrder()
 }
 function initItemSortable(container)
 {
-    if (container._sortable)
-    {
-        container._sortable.destroy();
-    }
-    if (isReadonlyMode)
-        return;
-    container._sortable =
-        new Sortable(
-            container,
-            {
-                group: 'shared-items',
-                disabled: isReadonlyMode,
-                animation: 150,
-                handle:
-                    '.item-drag-handle',
-                ghostClass:
-                    'sortable-ghost',
-                onEnd: function ()
-                {
-                    syncItemOrder();
-                    updateNumbers();
-                    updateItemCounts();
-                    //evaluateDirtyState();
-                    markCurrentVersionDirty();
-                }
-            }
-        );
+    if (container._sortable) container._sortable.destroy();
+    if (isReadonlyMode) return;
+    const isSubSectionItems = container.classList.contains('subsection-items');
+    container._sortable = new Sortable(container, {
+        group: { name:'shared-checklist', pull:true, put:true },
+        draggable: isSubSectionItems ? '.item-row' : '.item-row, .subsection-box',
+        disabled: isReadonlyMode,
+        animation: 150,
+        handle: isSubSectionItems ? '.item-drag-handle' : '.item-drag-handle, .subsection-drag-handle',
+        ghostClass: 'sortable-ghost',
+        onEnd: function () {
+            syncItemOrder();
+            updateNumbers();
+            updateItemCounts();
+            markCurrentVersionDirty();
+        }
+    });
 }
 function initSortable() {
     const sectionsContainer = document.getElementById('sectionsContainer');
