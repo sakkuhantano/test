@@ -405,7 +405,7 @@ WHERE h.CompanyID+';'+h.LocationID=@CompanyLocation AND h.WONo=@WONo",
             <div class=""row g-3"">", (i == 0 ? "collapsed" : ""), item["IDSection"] + "", item["SectionName"] + "", (i == 0 ? "show" : ""));
                         
                         int currentSubSection = 0;
-                        foreach (DataRow item1 in br.EQuery("SELECT A.*, ISNULL(B.Value,'') Value, ISNULL(B.Remark1,'') Remark1, ISNULL(B.Remark2,'') Remark2, ISNULL(B.IDResult,0) IDResult, ISNULL(SS.SubSectionName,'') SubSectionName, ISNULL(SS.DisplayOrder,0) SubSectionOrder " +
+                        foreach (DataRow item1 in br.EQuery("SELECT A.*, ISNULL(B.Value,'') Value, ISNULL(B.Remark1,'') Remark, ISNULL(B.Remark2,'') Remark2, ISNULL(B.IDResult,0) IDResult, ISNULL(SS.SubSectionName,'') SubSectionName, ISNULL(SS.DisplayOrder,0) SubSectionOrder " +
                                                             "FROM PIP_M_CheckListWOPM_Item A LEFT JOIN PIP_T_WO_CheckList B ON A.IDItem=B.IDItem AND B.KeyHD=@KeyHD " +
                                                             "LEFT JOIN PIP_M_CheckListWOPM_SubSection SS ON SS.IDSubSection=A.IDSubSection " +
                                                             "WHERE A.IDSection=@IDSection ORDER BY CASE WHEN ISNULL(A.IDSubSection,0)=0 THEN A.DisplayOrder ELSE SS.DisplayOrder END, CASE WHEN ISNULL(A.IDSubSection,0)=0 THEN 0 ELSE 1 END, A.DisplayOrder",
