@@ -1154,6 +1154,13 @@ async function loadInspectionApprovalQueue() {
     notice.textContent = "Memuat antrean approval...";
     host.innerHTML = '<div class="text-muted py-2">Memuat...</div>';
     selectedInspectionApproval = null;
+    if (!navigator.onLine) {
+        notice.className = "alert alert-warning py-2 small";
+        notice.textContent = "Approval Supervisor memerlukan koneksi ke server. Mode approval offline belum didukung.";
+        host.innerHTML = '<div class="text-muted py-2">Hubungkan internet lalu tekan Refresh.</div>';
+        document.getElementById("inspectionApprovalDetail").innerHTML = '<div class="text-muted">Detail approval hanya dapat dibuka saat online.</div>';
+        return;
+    }
     document.getElementById("inspectionApprovalDetail").innerHTML = '<div class="text-muted">Pilih inspeksi untuk melihat detail checklist.</div>';
     document.getElementById("inspectionApprovalActions").classList.add("d-none");
     try {
@@ -1333,6 +1340,11 @@ async function loadInspectionApprovalDetail(inspectionId) {
 
 async function processInspectionApproval(action) {
     if (!selectedInspectionApproval) return;
+    if (!navigator.onLine) {
+        document.getElementById("inspectionApprovalNotice").className = "alert alert-warning py-2 small";
+        document.getElementById("inspectionApprovalNotice").textContent = "Approval tidak dapat diproses offline. Hubungkan internet lalu coba lagi.";
+        return;
+    }
     let remark = "";
     if (action === "VOID") {
         remark = window.prompt("Masukkan alasan Void / pengembalian ke teknisi:");
