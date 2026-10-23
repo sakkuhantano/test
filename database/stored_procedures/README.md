@@ -1,0 +1,7 @@
+# Stored procedures
+
+Source scripts for SQL Server stored procedures live in this folder.
+
+- Keep each script named after its stored procedure, with a `.sql` extension.
+- When investigating a procedure called `ProcedureName`, check `database/stored_procedures/ProcedureName.sql` first.
+- Keep database procedure scripts out of the repository root so they are easy to locate and maintain.
