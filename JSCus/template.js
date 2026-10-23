@@ -4241,6 +4241,8 @@ function showItemMenu(event, element)
     const menu = document.createElement('div');
     menu.className = 'custom-context-menu';
     menu.innerHTML = `
+        <div class="context-item" onclick="moveChecklistElement(${itemRow.dataset.sectionId},'item',${itemRow.dataset.id},-1)"><i class="bi bi-arrow-up"></i> Move Up</div>
+        <div class="context-item" onclick="moveChecklistElement(${itemRow.dataset.sectionId},'item',${itemRow.dataset.id},1)"><i class="bi bi-arrow-down"></i> Move Down</div>
         <div class="context-item"
              onclick="duplicateItem(this)">
             <i class="bi bi-files"></i>
@@ -4711,6 +4713,8 @@ function showSubSectionMenu(event, sectionId, subSectionId)
     menu.innerHTML = `
         <div class="context-item" onclick="addItemToSubSection(${sectionId},${subSectionId})"><i class="bi bi-plus-circle"></i> Add Item</div>
         <div class="context-item" onclick="renameSubSection(${sectionId},${subSectionId})"><i class="bi bi-pencil"></i> Rename Sub-section</div>
+        <div class="context-item" onclick="moveChecklistElement(${sectionId},'subsection',${subSectionId},-1)"><i class="bi bi-arrow-up"></i> Move Up</div>
+        <div class="context-item" onclick="moveChecklistElement(${sectionId},'subsection',${subSectionId},1)"><i class="bi bi-arrow-down"></i> Move Down</div>
         <div class="context-item text-danger" onclick="deleteSubSection(${sectionId},${subSectionId})"><i class="bi bi-trash"></i> Delete Sub-section</div>`;
     document.body.appendChild(menu);
     menu.style.left = event.pageX + 'px';
@@ -4751,6 +4755,39 @@ function addItemToSubSection(sectionId, subSectionId)
     markCurrentVersionDirty();
     renderVersionStructure(currentVersionData);
     setTimeout(() => { const row=document.querySelector(`.item-row[data-id="${item.RuntimeItemID}"]`); if(row) selectItem(row); },50);
+}
+function moveChecklistElement(sectionId, kind, elementId, direction)
+{
+    removeExistingContextMenu();
+    if (isReadonlyMode || !currentVersionData) return;
+    const section = currentVersionData.Sections.find(x => Number(x.RuntimeSectionID) === Number(sectionId));
+    if (!section) return;
+    section.Items = section.Items || [];
+    section.SubSections = section.SubSections || [];
+    let item = null;
+    let sub = null;
+    if (kind === 'subsection') sub = section.SubSections.find(x => Number(x.RuntimeSubSectionID) === Number(elementId));
+    else item = section.Items.find(x => Number(x.RuntimeItemID) === Number(elementId));
+    if (!sub && !item) return;
+    let siblings;
+    if (sub || !Number(item.RuntimeSubSectionID || 0)) {
+        siblings = [];
+        section.Items.filter(x => !Number(x.RuntimeSubSectionID || 0)).forEach(x => siblings.push({ type:'item', order:Number(x.DisplayOrder || 0), ref:x }));
+        section.SubSections.forEach(x => siblings.push({ type:'subsection', order:Number(x.DisplayOrder || 0), ref:x }));
+        siblings.sort((a,b) => a.order-b.order);
+    } else {
+        siblings = section.Items.filter(x => Number(x.RuntimeSubSectionID || 0) === Number(item.RuntimeSubSectionID))
+            .sort((a,b) => Number(a.DisplayOrder || 0)-Number(b.DisplayOrder || 0))
+            .map(x => ({ type:'item', order:Number(x.DisplayOrder || 0), ref:x }));
+    }
+    const target = sub || item;
+    const index = siblings.findIndex(x => x.ref === target);
+    const nextIndex = index + Number(direction);
+    if (index < 0 || nextIndex < 0 || nextIndex >= siblings.length) return;
+    const temp = siblings[index]; siblings[index] = siblings[nextIndex]; siblings[nextIndex] = temp;
+    siblings.forEach((entry, i) => { entry.ref.DisplayOrder = i + 1; });
+    markCurrentVersionDirty();
+    renderVersionStructure(currentVersionData);
 }
 function renameSubSection(sectionId, subSectionId)
 {
