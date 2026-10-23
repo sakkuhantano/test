@@ -993,9 +993,16 @@ async function uploadPendingInspections() {
     const pendingInScope = pendingInCompany.filter(record =>
         allowedSections.includes(record.SectionID)
     );
-    const ownedRecords = pendingInScope.filter(record =>
-        record.OwnerEmployeeID === login.employeeid
-    );
+    let ownedRecords = pendingInScope.filter(record => record.OwnerEmployeeID === login.employeeid);
+    if (ownedRecords.length && db.objectStoreNames.contains("inspection_photos")) {
+        const ready = []; let waiting = 0;
+        for (const record of ownedRecords) {
+            const photos = await new Promise((resolve,reject)=>{const tx=db.transaction("inspection_photos","readonly");const req=tx.objectStore("inspection_photos").index("LocalInspectionID").getAll(IDBKeyRange.only(record.LocalInspectionID));req.onsuccess=()=>resolve(req.result||[]);req.onerror=()=>reject(req.error);});
+            if (photos.some(p=>p.Type==="BEFORE")) ready.push(record); else waiting++;
+        }
+        ownedRecords=ready;
+        if(waiting) showToast(waiting+" draft Inspection belum sync karena foto BEFORE wajib diambil terlebih dahulu.","warning");
+    }
 
     if (pendingInCompany.length > pendingInScope.length) {
         showToast("Ada inspeksi offline dari section lain di perangkat ini. Data tersebut tetap disimpan dan tidak dikirim oleh login ini.", "warning");
@@ -1008,7 +1015,11 @@ async function uploadPendingInspections() {
         return { synced: 0, failed: 0, conflicts: 0 };
     }
 
-    const payload = ownedRecords.map(record => ({
+    const payload = await Promise.all(ownedRecords.map(async record => {
+        let photos=[];
+        if(db.objectStoreNames.contains("inspection_photos")) photos=await new Promise((resolve,reject)=>{const tx=db.transaction("inspection_photos","readonly");const req=tx.objectStore("inspection_photos").index("LocalInspectionID").getAll(IDBKeyRange.only(record.LocalInspectionID));req.onsuccess=()=>resolve(req.result||[]);req.onerror=()=>reject(req.error);});
+        const serializedPhotos=await Promise.all(photos.map(async p=>({Type:p.Type,FileName:p.FileName||"",OrderNo:Number(p.OrderNo||0),Data:await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result||""));reader.onerror=()=>reject(reader.error);reader.readAsDataURL(p.Blob);})})));
+        return {
         ClientInspectionID: record.LocalInspectionID,
         OwnerEmployeeID: record.OwnerEmployeeID,
         CompanyID: record.CompanyID,
@@ -1026,7 +1037,8 @@ async function uploadPendingInspections() {
         EndDateTime: record.EndDateTime || "",
         Status: record.Status,
         Summary: record.Summary || "",
-        Items: record.Items || []
+        Items: record.Items || [], Photos: serializedPhotos
+        };
     }));
 
     const response = await fetch("inspection.aspx/SyncInspections", {
