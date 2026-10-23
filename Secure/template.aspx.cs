@@ -129,7 +129,7 @@ SELECT IDSection, SectionName, DisplayOrder
 FROM PIP_M_CheckListWOPM_Section WHERE IDVersion = @IDVersion ORDER BY DisplayOrder;
 
 SELECT A.IDItem, A.IDSection, A.ItemLabel, A.ItemType, A.DisplayOrder, A.Unit, 
-        a.IsRemarkRequired, A.IsValueRequired, a.ShowUnitInRange, 
+        a.IsRemark1Required, a.IsRemark2Required, a.Remark1Text, a.Remark2Text, A.IsValueRequired, a.ShowUnitInRange, 
         UseDefaultOption=CAST((CASE WHEN a.ItemType='OPTION' AND ISNULL(a.OptionList,'')='' THEN 1 ELSE 0 END) AS BIT), 
         a.OptionList OptionListRaw, a.RemarkRequiredOptions RemarkRequiredOptionsRaw, a.MinValue, a.MaxValue, a.MinTolerance, a.MaxTolerance, a.ModelCode, a.IsToleranceRequired
 FROM PIP_M_CheckListWOPM_Item A JOIN PIP_M_CheckListWOPM_Section B ON B.IDSection = A.IDSection 
@@ -192,7 +192,10 @@ WHERE C.IDVersion = @IDVersion ORDER BY A.DisplayOrder;",
                                         DisplayOrder = Convert.ToInt32(itemRow["DisplayOrder"]),
                                         Unit = itemRow["Unit"].ToString(),
                                         ModelCode = itemRow["ModelCode"].ToString(),
-                                        IsRemarkRequired = Convert.ToBoolean(itemRow["IsRemarkRequired"]),
+                                        IsRemark1Required = Convert.ToBoolean(itemRow["IsRemark1Required"]),
+                                        IsRemark2Required = Convert.ToBoolean(itemRow["IsRemark2Required"]),
+                                        Remark1Text = itemRow["Remark1Text"] == DBNull.Value ? "Remark" : itemRow["Remark1Text"].ToString(),
+                                        Remark2Text = itemRow["Remark2Text"] == DBNull.Value ? "Remark" : itemRow["Remark2Text"].ToString(),
                                         IsValueRequired = Convert.ToBoolean(itemRow["IsValueRequired"]),
                                         ShowUnitInRange = Convert.ToBoolean(itemRow["ShowUnitInRange"]),
                                         UseDefaultOption = Convert.ToBoolean(itemRow["UseDefaultOption"]),
@@ -609,7 +612,7 @@ WHERE a.SectionID = @SectionID
                 for (int i = 1; i <= 5; i++)
                     dtSection.Columns.Add("C" + i + "", typeof(System.String));
                 DataTable dtItem = new DataTable();
-                for (int i = 1; i <= 20; i++)
+                for (int i = 1; i <= 25; i++)
                     dtItem.Columns.Add("C" + i + "", typeof(System.String));
                 DataTable dtGroup = new DataTable();
                 for (int i = 1; i <= 7; i++)
@@ -728,7 +731,10 @@ WHERE a.SectionID = @SectionID
                                             iRow["C4"] = item["ItemName"];
                                             iRow["C5"] = item["ItemType"];
                                             iRow["C6"] = itemType == "TEXT" ? "" : item["Unit"];
-                                            iRow["C7"] = item["IsRemarkRequired"];
+                                            iRow["C7"] = item.ContainsKey("IsRemark1Required") ? item["IsRemark1Required"] : item["IsRemarkRequired"];
+                                            iRow["C18"] = item.ContainsKey("IsRemark2Required") ? item["IsRemark2Required"] : false;
+                                            iRow["C19"] = item.ContainsKey("Remark1Text") ? item["Remark1Text"] : "Remark";
+                                            iRow["C20"] = item.ContainsKey("Remark2Text") ? item["Remark2Text"] : "Remark";
                                             iRow["C8"] = item["IsValueRequired"];
                                             iRow["C9"] = item["ShowUnitInRange"];
                                             iRow["C10"] = optionListStr;
