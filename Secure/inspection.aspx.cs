@@ -607,7 +607,25 @@ ORDER BY R.DisplayOrder, V.FieldName",
                 var h = new Dictionary<string, object>();
                 foreach (DataColumn col in header.Columns)
                     h[col.ColumnName] = header.Rows[0][col] == DBNull.Value ? null : header.Rows[0][col];
-                return new { success = true, header = h, items = itemRows };
+                DataTable photoTable = br.EQueryP(@"
+SELECT P.PhotoType, P.FileName, P.OrderNo, P.PhotoData
+FROM dbo.PIP_T_InspectionPhoto P
+WHERE P.InspectionID=@InspectionID
+ORDER BY P.PhotoType, P.OrderNo",
+                    new SqlParameter[] { new SqlParameter("@InspectionID", inspectionId) });
+                var photos = new List<Dictionary<string, object>>();
+                foreach (DataRow photo in photoTable.Rows)
+                {
+                    byte[] photoBytes = photo["PhotoData"] == DBNull.Value ? new byte[0] : (byte[])photo["PhotoData"];
+                    if (photoBytes.Length == 0) continue;
+                    photos.Add(new Dictionary<string, object> {
+                        { "Type", photo["PhotoType"] == DBNull.Value ? "" : photo["PhotoType"].ToString() },
+                        { "FileName", photo["FileName"] == DBNull.Value ? "" : photo["FileName"].ToString() },
+                        { "OrderNo", photo["OrderNo"] == DBNull.Value ? 0 : Convert.ToInt32(photo["OrderNo"]) },
+                        { "Data", "data:image/jpeg;base64," + Convert.ToBase64String(photoBytes) }
+                    });
+                }
+                return new { success = true, header = h, items = itemRows, photos = photos };
             }
         }
 
@@ -785,6 +803,28 @@ ORDER BY G.DisplayOrder",
                             sections = sections
                         };
                     }
+                    DataTable photoRows = br.EQueryP(@"
+SELECT PhotoType, FileName, OrderNo, PhotoData
+FROM dbo.PIP_T_InspectionPhoto
+WHERE InspectionID=@InspectionID
+ORDER BY PhotoType, OrderNo",
+                        new SqlParameter[] { new SqlParameter("@InspectionID", id) });
+                    var photos = new List<Dictionary<string, object>>();
+                    foreach (DataRow photo in photoRows.Rows)
+                    {
+                        byte[] photoBytes = photo["PhotoData"] == DBNull.Value ? new byte[0] : (byte[])photo["PhotoData"];
+                        if (photoBytes.Length == 0) continue;
+                        string photoType = photo["PhotoType"] == DBNull.Value ? "" : photo["PhotoType"].ToString();
+                        string mimeType = "image/jpeg";
+                        string dataUrl = "data:" + mimeType + ";base64," + Convert.ToBase64String(photoBytes);
+                        photos.Add(new Dictionary<string, object> {
+                            { "Type", photoType },
+                            { "FileName", photo["FileName"] == DBNull.Value ? "" : photo["FileName"].ToString() },
+                            { "OrderNo", photo["OrderNo"] == DBNull.Value ? 0 : Convert.ToInt32(photo["OrderNo"]) },
+                            { "Data", dataUrl }
+                        });
+                    }
+                    record["Photos"] = photos;
                     result.Add(record);
                 }
                 return new { success = true, data = result };
