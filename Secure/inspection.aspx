@@ -139,7 +139,7 @@
         </div>
         <div class="mb-3">
             <label for="txtInspectionDate" class="form-label small fw-semibold">Tanggal inspeksi</label>
-            <input id="txtInspectionDate" type="date" class="form-control form-control-sm" />
+            <input id="txtInspectionDate" type="date" class="form-control form-control-sm" disabled readonly aria-readonly="true" />
         </div>
         <div id="inspectionStartButtonRow"><button type="button" id="btnStartInspection" class="btn btn-primary w-100" disabled><i class="bi bi-clipboard-check"></i> Start Checklist</button></div>
         <button type="button" id="btnSaveInspectionParams" class="btn btn-outline-primary w-100 mt-2 d-none"><i class="bi bi-save"></i> Save Parameters</button>
