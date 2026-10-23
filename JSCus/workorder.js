@@ -804,7 +804,8 @@ async function renderChecklist(template, isEntryMode) {
         `;
 
 		let V_Value = "";
-		let V_Remark = "";
+		let V_Remark1 = "";
+        let V_Remark2 = "";
         let V_GroupValues = null;
 
         section.items.forEach(item => {
@@ -812,7 +813,8 @@ async function renderChecklist(template, isEntryMode) {
                 let idItem = currentWO.DataCheckListJSON.Items?.find(x => x.IDItem === item.idItem);
                 if (idItem) {
                     V_Value = idItem.Value ?? "";
-                    V_Remark = idItem.Remark;
+                    V_Remark1 = idItem.Remark1 ?? idItem.Remark ?? "";
+                    V_Remark2 = idItem.Remark2 ?? "";
                     V_GroupValues = idItem.Values;
                 }
             }
@@ -849,10 +851,12 @@ async function renderChecklist(template, isEntryMode) {
                     </div>
                     <div class="row mt-1 g-1">
                         <div class="col-md-12">
-                            <input class="form-control form-control-sm" data-role="remark"
-                                   placeholder="Remark..." type="text" maxlength="500"
-                                   value="${V_Remark}"
-                                   ${!isEntryMode ? "disabled" : ""}/>
+                            <input class="form-control form-control-sm" data-role="remark1"
+                                   placeholder="\${item.remark1Text || item.Remark1Text || "Remark"}" type="text" maxlength="500"
+                                   value="\${V_Remark1}" \${!isEntryMode ? "disabled" : ""}/>
+                            <input class="form-control form-control-sm mt-1" data-role="remark2"
+                                   placeholder="\${item.remark2Text || item.Remark2Text || "Remark"}" type="text" maxlength="500"
+                                   value="\${V_Remark2}" \${!isEntryMode ? "disabled" : ""}/>
                         </div>
                     </div>
 
@@ -918,9 +922,12 @@ async function renderChecklist(template, isEntryMode) {
                     </div>
                     <div class="row mt-1 g-2">
                         <div class="col-md-12">
-                            <input class="form-control form-control-sm" data-role="remark"
-                                   placeholder="Remark..." type="text" value="${V_Remark}"
-                                   ${!isEntryMode ? "disabled" : ""}/>
+                            <input class="form-control form-control-sm" data-role="remark1"
+                                   placeholder="\${item.remark1Text || item.Remark1Text || "Remark"}" type="text" maxlength="500"
+                                   value="\${V_Remark1}" \${!isEntryMode ? "disabled" : ""}/>
+                            <input class="form-control form-control-sm mt-1" data-role="remark2"
+                                   placeholder="\${item.remark2Text || item.Remark2Text || "Remark"}" type="text" maxlength="500"
+                                   value="\${V_Remark2}" \${!isEntryMode ? "disabled" : ""}/>
                         </div>
                     </div>
                 </div>`;
@@ -939,9 +946,12 @@ async function renderChecklist(template, isEntryMode) {
                             ${!isEntryMode ? "disabled" : ""} value="${V_Value}"/>
                         </div>
                         <div class="col-md-6">
-                            <input class="form-control form-control-sm" data-role="remark"
-                                   placeholder="Remark..." type="text" value="${V_Remark}"
-                                   ${!isEntryMode ? "disabled" : ""}/>
+                            <input class="form-control form-control-sm" data-role="remark1"
+                                   placeholder="\${item.remark1Text || item.Remark1Text || "Remark"}" type="text" maxlength="500"
+                                   value="\${V_Remark1}" \${!isEntryMode ? "disabled" : ""}/>
+                            <input class="form-control form-control-sm mt-1" data-role="remark2"
+                                   placeholder="\${item.remark2Text || item.Remark2Text || "Remark"}" type="text" maxlength="500"
+                                   value="\${V_Remark2}" \${!isEntryMode ? "disabled" : ""}/>
                         </div>
                     </div>
                 </div>`;
@@ -968,9 +978,12 @@ async function renderChecklist(template, isEntryMode) {
                     </div>
                     <div class="row mt-1 g-2">
                         <div class="col-md-12">
-                            <input class="form-control form-control-sm" data-role="remark"
-                                   placeholder="Remark..." type="text" value="${V_Remark}"
-                                   ${!isEntryMode ? "disabled" : ""}/>
+                            <input class="form-control form-control-sm" data-role="remark1"
+                                   placeholder="\${item.remark1Text || item.Remark1Text || "Remark"}" type="text" maxlength="500"
+                                   value="\${V_Remark1}" \${!isEntryMode ? "disabled" : ""}/>
+                            <input class="form-control form-control-sm mt-1" data-role="remark2"
+                                   placeholder="\${item.remark2Text || item.Remark2Text || "Remark"}" type="text" maxlength="500"
+                                   value="\${V_Remark2}" \${!isEntryMode ? "disabled" : ""}/>
                         </div>
                     </div>
                 </div>`;
@@ -1874,7 +1887,7 @@ function findItemById(idItem) {
 document.addEventListener("input", function (e) {
 
     // 🔥 hanya proses input checklist
-    if (!e.target.matches("[data-role='value'], [data-role='remark']")) return;
+    if (!e.target.matches("[data-role='value'], [data-role='remark1'], [data-role='remark2']")) return;
 
     let container = e.target.closest("[data-item-id]");
     if (!container) return;
@@ -2250,7 +2263,7 @@ async function getChecklistByWO(keyHD) {
 //         // =====================
 
 //         let remarkEl =
-//             container.querySelector("[data-role='remark']");
+//             container.querySelector("[data-role='remark1']");
 
 //         if (remarkEl) {
 //             remarkEl.value = saved.Remark || "";
@@ -2388,10 +2401,8 @@ function collectData(template, wo) {
                 Type: item.type,
                 Value: null,
                 Values: null,
-                Remark:
-                    container.querySelector(
-                        "[data-role='remark']"
-                    )?.value || "",
+                Remark1: container.querySelector("[data-role='remark1']")?.value || "",
+                Remark2: container.querySelector("[data-role='remark2']")?.value || "",
                 // =====================================
                 // ANOMALI
                 // =====================================
@@ -2689,7 +2700,7 @@ function validateChecklist() {
         let error = validateItem(item, container);
 
         let valueEl = container.querySelector("[data-role='value']");
-        let remarkEl = container.querySelector("[data-role='remark']");
+        let remarkEl = container.querySelector("[data-role='remark1']");
 
         // reset dulu
         valueEl?.classList.remove("is-invalid");
@@ -2728,7 +2739,7 @@ function validateItem(item, container) {
         container.querySelector("[data-role='value']");
 
     let remarkEl =
-        container.querySelector("[data-role='remark']");
+        container.querySelector("[data-role='remark1']");
 
     let error = null;
     let checked = null;
@@ -2880,7 +2891,7 @@ function validateItem(item, container) {
     const selectedOptionRequiresRemark = item.type === "OPTION" && !!checked &&
         requiredOptionRemarks.map(String).includes(String(checked.value));
 
-    if (!error && (item.isRemarkRequired || selectedOptionRequiresRemark)) {
+    if (!error && (item.isRemark1Required || item.isRemarkRequired || selectedOptionRequiresRemark)) {
 
         let remark = remarkEl?.value?.trim();
 
