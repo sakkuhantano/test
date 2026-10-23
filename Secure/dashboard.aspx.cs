@@ -108,6 +108,9 @@ s.IDSection,
 s.SectionName,
 s.DisplayOrder AS SectionOrder,
 i.IDItem,
+i.IDSubSection,
+ISNULL(ss.SubSectionName,'') AS SubSectionName,
+ISNULL(ss.DisplayOrder,0) AS SubSectionOrder,
 i.ItemLabel,
 i.ItemType,
 ISNULL(i.OptionList,'') OptionList,
@@ -121,6 +124,7 @@ v.StatusOption, i.ModelCode, i.MinTolerance, i.MaxTolerance, i.IsToleranceRequir
 FROM PIP_M_CheckListWOPM_Section s
 JOIN PIP_M_CheckListWOPM_Version v ON v.IDVersion=s.IDVersion
 JOIN PIP_M_CheckListWOPM_Item i ON s.IDSection = i.IDSection
+LEFT JOIN PIP_M_CheckListWOPM_SubSection ss ON ss.IDSubSection = i.IDSubSection
 JOIN PIP_M_CheckListWOPM m ON m.IDTemplate = v.IDTemplate
 WHERE m.IDTemplate=@IDTemplate
   AND v.IDVersion=@IDVersion
@@ -129,7 +133,7 @@ WHERE m.IDTemplate=@IDTemplate
   AND ISNULL(m.TemplateType,'W')=@TemplateType
   AND v.Status='Active'
   AND (ISNULL(i.ModelCode,'')='' OR i.ModelCode=@ModelCode OR @ModelCode='')
-ORDER BY s.DisplayOrder, i.DisplayOrder",
+ORDER BY s.DisplayOrder, CASE WHEN ISNULL(i.IDSubSection,0)=0 THEN i.DisplayOrder ELSE ss.DisplayOrder END, CASE WHEN ISNULL(i.IDSubSection,0)=0 THEN 0 ELSE 1 END, i.DisplayOrder",
                                         "@TemplateNo=" + row["TemplateNo"].ToString() + GF.Str2 +
                                         "@ModelCode=" + modelcode + GF.Str2 +
                                         "@TemplateType=" + templateType + GF.Str2 +
@@ -179,6 +183,10 @@ ORDER BY s.DisplayOrder, i.DisplayOrder",
                                 return new
                                 {
                                     idItem = item["IDItem"],
+                                    idSubSection = item["IDSubSection"] == DBNull.Value ? 0 : Convert.ToInt32(item["IDSubSection"]),
+                                    subSectionName = item["SubSectionName"].ToString(),
+                                    subSectionOrder = Convert.ToInt32(item["SubSectionOrder"]),
+                                    itemOrder = Convert.ToInt32(item["ItemOrder"]),
                                     label = item["ItemLabel"].ToString(),
                                     type = itemType,
                                     optionList = optionList,
