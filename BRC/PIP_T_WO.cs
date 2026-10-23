@@ -155,7 +155,7 @@ FROM PIP_T_WO A WHERE A.KeyHD = @KeyHD AND A.IsDelete = 0
                 SelectOneByKeyHD(_mainConnection, _transaction);
 
                 DataTable V_tblTmp_1 = new DataTable();
-                for (int i = 1; i <= 5; i++)
+                for (int i = 1; i <= 13; i++)
                 {
                     V_tblTmp_1.Columns.Add("C" + i + "", typeof(System.String));
                 }
@@ -233,8 +233,9 @@ FROM PIP_T_WO A WHERE A.KeyHD = @KeyHD AND A.IsDelete = 0
                     row["C1"] = r["KeyHD"].ToString();
                     row["C2"] = r["IDItem"].ToString();
                     row["C3"] = r["Value"].ToString();
-                    row["C4"] = r["Remark"].ToString();
+                    row["C4"] = (r.Table.Columns.Contains("Remark1") ? r["Remark1"] : r["Remark"]).ToString();
                     row["C5"] = r["IsAnomali"].ToString();
+                    row["C6"] = r.Table.Columns.Contains("Remark2") ? r["Remark2"].ToString() : "";
                     V_tblTmp_1.Rows.Add(row);
                 }
                 DataTable V_tblTmp_2 = new DataTable();
