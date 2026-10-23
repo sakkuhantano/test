@@ -996,7 +996,7 @@ async function renderChecklist(template, isEntryMode) {
                     `).join("");
 
                     groupHtml += `
-                    <div class="mb-2">
+                    <div class="mb-2 group-value-set" data-group-name="${g.groupName || ""}">
                         <label class="compact-label">${g.groupName} (${g.unit})</label>
                         <div class="row g-2 text-center">
                             ${inputs}
@@ -2844,28 +2844,29 @@ function validateItem(item, container) {
         // =========================
         // GROUP
         // =========================
-        case "GROUP":
+        case "GROUP": {
 
-            let inputs =
-                container.querySelectorAll(
-                    "input[data-role='value']"
-                );
-
-            let allFilled = true;
-
-            inputs.forEach(i => {
-
-                if (i.value.trim() === "") {
-                    allFilled = false;
+            const groupSets = Array.from(container.querySelectorAll(".group-value-set"));
+            if (item.isValueRequired && isSaveDone) {
+                for (const groupSet of groupSets) {
+                    const inputs = Array.from(groupSet.querySelectorAll("input[data-role='value']"));
+                    const filledCount = inputs.filter(input => input.value.trim() !== "").length;
+                    if (inputs.length > 3) {
+                        error = "Maximum 3 kolom untuk setiap GROUP (" + (groupSet.dataset.groupName || "group") + ")";
+                        break;
+                    }
+                    if (inputs.length < 2 || filledCount < 2) {
+                        error = "Minimal 2 kolom harus diisi untuk setiap GROUP (" + (groupSet.dataset.groupName || "group") + ")";
+                        break;
+                    }
                 }
-
-            });
-
-            if (item.isValueRequired && !allFilled && isSaveDone) {
-                error = "Incomplete";
+                if (!error && groupSets.length === 0) {
+                    error = "GROUP tidak memiliki kolom input yang valid";
+                }
             }
 
             break;
+        }
     }
 
     // =====================================
