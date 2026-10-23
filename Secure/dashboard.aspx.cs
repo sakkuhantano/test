@@ -45,7 +45,11 @@ namespace UTL1.Secure
                                     WHERE L.CompanyID=@CompanyID AND L.LocationID=@LocationID
                                 )
                             )",
-                        new SqlParameter[] { new SqlParameter("@EmployeeID", employeeId) });
+                        new SqlParameter[] {
+                            new SqlParameter("@EmployeeID", employeeId),
+                            new SqlParameter("@CompanyID", companyId),
+                            new SqlParameter("@LocationID", locationId)
+                        });
 
                     if (auth.Rows.Count == 0 || !Convert.ToBoolean(auth.Rows[0]["IsWO"]))
                         throw new HttpException(403, "This account is not authorized for inspection entry.");
