@@ -844,7 +844,7 @@ async function renderChecklist(template, isEntryMode) {
 
         renderItems.forEach(item => {
             if (item.__isSubSectionHeader) {
-                html += `<div class="col-12 mt-2 mb-1"><div class="border-bottom pb-2 fw-semibold text-secondary"><i class="bi bi-folder2-open me-2"></i>${item.label}</div></div>`;
+                html += `<div class="col-12 mt-2 mb-1"><div class="border-bottom pb-2 fw-semibold text-secondary"><i class="bi bi-folder2-open me-2"></i>${escapeHtmlAttribute(item.label)}</div></div>`;
                 return;
             }
             V_Value = "";
