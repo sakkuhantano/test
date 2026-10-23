@@ -434,11 +434,49 @@ function renderInspectionForm(record, readOnly) {
         host.innerHTML = '<div class="alert alert-warning small">Struktur checklist template tidak tersedia pada record ini.</div>';
     } else {
         host.innerHTML = template.sections.map((section, sectionIndex) => {
-            const itemHtml = (section.items || []).map(item => renderInspectionItem(item, savedItems, currentInspectionReadOnly)).join("");
+            const items = section.items || [];
+            const subsectionGroups = new Map();
+            items.forEach(item => {
+                const subId = Number(item.idSubSection || item.IDSubSection || 0);
+                if (subId > 0) {
+                    if (!subsectionGroups.has(subId)) subsectionGroups.set(subId, []);
+                    subsectionGroups.get(subId).push(item);
+                }
+            });
+
+            // Keep direct Section items and Sub-sections in their configured order.
+            const elements = [];
+            items.filter(item => !Number(item.idSubSection || item.IDSubSection || 0))
+                .forEach(item => elements.push({
+                    type: "item",
+                    order: Number(item.itemOrder || item.DisplayOrder || 0),
+                    item
+                }));
+            subsectionGroups.forEach((groupItems, subId) => {
+                const first = groupItems[0];
+                elements.push({
+                    type: "subsection",
+                    order: Number(first.subSectionOrder || first.SubSectionOrder || 0),
+                    name: first.subSectionName || first.SubSectionName || "Sub-section",
+                    items: groupItems.sort((a, b) =>
+                        Number(a.itemOrder || a.DisplayOrder || 0) - Number(b.itemOrder || b.DisplayOrder || 0))
+                });
+            });
+            elements.sort((a, b) => a.order - b.order);
+
+            const contentHtml = elements.map(element => {
+                if (element.type === "subsection") {
+                    return '<div class="inspection-subsection-heading mt-3 mb-2 pb-2 border-bottom fw-semibold text-secondary">' +
+                        '<i class="bi bi-folder2-open me-2"></i>' + escInspection(element.name) + '</div>' +
+                        element.items.map(item => renderInspectionItem(item, savedItems, currentInspectionReadOnly)).join("");
+                }
+                return renderInspectionItem(element.item, savedItems, currentInspectionReadOnly);
+            }).join("");
+
             return '<section class="mb-4">' +
                 '<div class="fw-bold border-bottom pb-2 mb-3">' +
                 (sectionIndex + 1) + '. ' + escInspection(section.sectionName || "Checklist") +
-                '</div>' + itemHtml + '</section>';
+                '</div>' + contentHtml + '</section>';
         }).join("");
     }
 
