@@ -688,15 +688,20 @@ WHERE T.IDTemplate=@IDTemplate AND V.IDVersion=@IDVersion AND ISNULL(T.TemplateT
                         DataRow m = meta.Rows[0];
                         DataTable templateItems = br.EQueryP(@"
 SELECT S.IDSection, S.SectionName, S.DisplayOrder AS SectionOrder,
-       I.IDItem, I.ItemLabel, I.ItemType, ISNULL(I.OptionList,'') OptionList,
+       I.IDItem, I.IDSubSection, ISNULL(SS.SubSectionName,'') AS SubSectionName,
+       ISNULL(SS.DisplayOrder,0) AS SubSectionOrder,
+       I.ItemLabel, I.ItemType, ISNULL(I.OptionList,'') OptionList,
        I.MinValue, I.MaxValue, ISNULL(I.Unit,'') Unit, I.IsValueRequired,
        I.IsRemark1Required, I.IsRemark2Required, I.Remark1Text, I.Remark2Text, I.DisplayOrder AS ItemOrder, V.StatusOption,
        I.ModelCode, I.MinTolerance, I.MaxTolerance, I.IsToleranceRequired
 FROM dbo.PIP_M_CheckListWOPM_Section S
 JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDSection=S.IDSection
+LEFT JOIN dbo.PIP_M_CheckListWOPM_SubSection SS ON SS.IDSubSection=I.IDSubSection
 JOIN dbo.PIP_M_CheckListWOPM_Version V ON V.IDVersion=S.IDVersion
 WHERE V.IDVersion=@IDVersion
-ORDER BY S.DisplayOrder, I.DisplayOrder",
+ORDER BY S.DisplayOrder,
+         CASE WHEN ISNULL(I.IDSubSection,0)=0 THEN I.DisplayOrder ELSE SS.DisplayOrder END,
+         I.DisplayOrder",
                             new SqlParameter[] { new SqlParameter("@IDVersion", Convert.ToInt32(header["IDVersion"])) });
                         DataTable templateGroups = br.EQueryP(@"
 SELECT G.IDItem, G.GroupName, G.FieldList, G.Unit, G.DisplayOrder
@@ -733,6 +738,10 @@ ORDER BY G.DisplayOrder",
                                         }).ToList();
                                     return new {
                                         idItem = Convert.ToInt32(itemRow["IDItem"]),
+                                        idSubSection = itemRow["IDSubSection"] == DBNull.Value ? 0 : Convert.ToInt32(itemRow["IDSubSection"]),
+                                        subSectionName = itemRow["SubSectionName"] == DBNull.Value ? "" : itemRow["SubSectionName"].ToString(),
+                                        subSectionOrder = itemRow["SubSectionOrder"] == DBNull.Value ? 0 : Convert.ToInt32(itemRow["SubSectionOrder"]),
+                                        itemOrder = itemRow["ItemOrder"] == DBNull.Value ? 0 : Convert.ToInt32(itemRow["ItemOrder"]),
                                         label = itemRow["ItemLabel"].ToString(),
                                         type = itemType,
                                         optionList = optionList,
