@@ -70,14 +70,6 @@ BEGIN
 	SELECT * INTO tmpDebug_PIP_M_CheckListWOPM_Item FROM @tbl_Item
 	SELECT * INTO tmpDebug_PIP_M_CheckListWOPM_ItemGroup FROM @tbl_Group
 	SELECT * INTO tmpDebug_PIP_M_CheckListWOPM_SubSection FROM @tbl_SubSection
-	SELECT v.IDSubSection, v.RuntimeSubSectionID, v.RuntimeSectionID, v.SubSectionName, v.DisplayOrder, sec.IDSection AS ResolvedIDSection
-	INTO tmpDebug_PIP_M_CheckListWOPM_SubSectionSource
-	FROM @tbl_SubSection v
-	LEFT JOIN (
-		SELECT RuntimeID AS RuntimeSectionID, ID AS IDSection FROM @tbl_Identity WHERE Entity='Section'
-		UNION ALL
-		SELECT RuntimeSectionID, IDSection FROM @tbl_Section WHERE IDSection <> 0
-	) sec ON sec.RuntimeSectionID = v.RuntimeSectionID
 END
 
 
@@ -356,6 +348,28 @@ OUTPUT
     source.RuntimeSectionID,  
     inserted.IDSection
 INTO @tbl_Identity (Entity, RuntimeID, ID);    
+
+-- Capture the resolved Section IDs only after newly inserted Sections have identity-map rows.
+SELECT v.IDSubSection, v.RuntimeSubSectionID, v.RuntimeSectionID, v.SubSectionName, v.DisplayOrder, sec.IDSection AS ResolvedIDSection
+INTO tmpDebug_PIP_M_CheckListWOPM_SubSectionSource
+FROM @tbl_SubSection v
+LEFT JOIN (
+    SELECT RuntimeID AS RuntimeSectionID, ID AS IDSection FROM @tbl_Identity WHERE Entity='Section'
+    UNION ALL
+    SELECT RuntimeSectionID, IDSection FROM @tbl_Section WHERE IDSection <> 0
+) sec ON sec.RuntimeSectionID = v.RuntimeSectionID;
+
+IF EXISTS (SELECT 1 FROM @tbl_SubSection v
+    WHERE NOT EXISTS (
+        SELECT 1
+        FROM (
+            SELECT RuntimeID AS RuntimeSectionID, ID AS IDSection FROM @tbl_Identity WHERE Entity='Section'
+            UNION ALL
+            SELECT RuntimeSectionID, IDSection FROM @tbl_Section WHERE IDSection <> 0
+        ) sec
+        WHERE sec.RuntimeSectionID = v.RuntimeSectionID
+    ))
+    THROW 51001, 'SaveAllTemplate: a Sub-section RuntimeSectionID could not be mapped to a database Section ID.', 1;
 
 -- Resolve/create sub-sections before linking items to them.
 MERGE INTO PIP_M_CheckListWOPM_SubSection AS target
