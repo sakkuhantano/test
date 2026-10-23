@@ -1048,7 +1048,7 @@ async function uploadPendingInspections() {
     for (const item of payload) {
         const candidate = batch.concat([item]);
         const candidateSize = JSON.stringify({ inspections: candidate, userId: login.employeeid }).length;
-        if (batch.length && candidateSize > 3000000) {
+        if (batch.length && candidateSize > 1800000) {
             payloadBatches.push(batch);
             batch = [item];
         } else {
