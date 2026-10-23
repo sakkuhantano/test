@@ -47,10 +47,10 @@ namespace UTL1.Secure
                         !String.Equals(recordOwner, userId, StringComparison.OrdinalIgnoreCase))
                         throw new Exception("This offline inspection belongs to another employee. No data was uploaded.");
 
-                    // dbo.Type_N_Tbl_C10: C1=IDItem, C2=ItemLabel, C3=ItemType,
-                    // C4=Value, C5=Remark, C6=IsAnomali, C7=DisplayOrder; C8-C10 unused.
+                    // dbo.Type_N_Tbl_C13: C1=IDItem, C2=ItemLabel, C3=ItemType,
+                    // C4=Value, C5=Remark1, C6=IsAnomali, C7=DisplayOrder, C8=Remark2; C9-C13 unused.
                     DataTable items = new DataTable();
-                    for (int i = 1; i <= 10; i++)
+                    for (int i = 1; i <= 13; i++)
                         items.Columns.Add("C" + i, typeof(string));
 
                     // dbo.Type_N_Tbl_C5: C1=IDItem, C2=FieldName, C3=Value; C4-C5 unused.
@@ -68,7 +68,8 @@ namespace UTL1.Secure
                         row["C2"] = Limit(TokenString(item, "ItemLabel"), 500);
                         row["C3"] = Limit(TokenString(item, "Type"), 20);
                         row["C4"] = DbString(Limit(TokenString(item, "Value"), 50));
-                        row["C5"] = DbString(Limit(TokenString(item, "Remark"), 500));
+                        row["C5"] = DbString(Limit(TokenString(item, "Remark1", TokenString(item, "Remark")), 500));
+                        row["C8"] = DbString(Limit(TokenString(item, "Remark2"), 500));
                         row["C6"] = TokenBool(item, "IsAnomali") ? "1" : "0";
                         row["C7"] = (item["DisplayOrder"] == null ? displayOrder : TokenInt(item, "DisplayOrder")).ToString(CultureInfo.InvariantCulture);
                         items.Rows.Add(row);
@@ -558,7 +559,7 @@ WHERE I.InspectionID=@InspectionID AND I.Status='DONE'
                     throw new HttpException(404, "Inspection not found or not authorized for approval.");
 
                 DataTable results = br.EQueryP(@"
-SELECT R.IDItem, R.ItemLabel, R.ItemType, R.Value, R.Remark, R.IsAnomali,
+SELECT R.IDItem, R.ItemLabel, R.ItemType, R.Value, R.Remark1, R.Remark2, R.IsAnomali,
        V.FieldName, V.Value AS FieldValue, R.DisplayOrder
 FROM dbo.PIP_T_InspectionResult R
 JOIN dbo.PIP_T_Inspection I ON I.InspectionID=R.InspectionID
@@ -579,7 +580,8 @@ ORDER BY R.DisplayOrder, V.FieldName",
                             { "ItemLabel", row["ItemLabel"] == DBNull.Value ? "" : row["ItemLabel"].ToString() },
                             { "ItemType", row["ItemType"] == DBNull.Value ? "" : row["ItemType"].ToString() },
                             { "Value", row["Value"] == DBNull.Value ? "" : row["Value"].ToString() },
-                            { "Remark", row["Remark"] == DBNull.Value ? "" : row["Remark"].ToString() },
+                            { "Remark1", row["Remark1"] == DBNull.Value ? "" : row["Remark1"].ToString() },
+                            { "Remark2", row["Remark2"] == DBNull.Value ? "" : row["Remark2"].ToString() },
                             { "IsAnomali", row["IsAnomali"] != DBNull.Value && Convert.ToBoolean(row["IsAnomali"]) },
                             { "DisplayOrder", row["DisplayOrder"] == DBNull.Value ? 0 : Convert.ToInt32(row["DisplayOrder"]) },
                             { "Values", new Dictionary<string, object>() }
@@ -687,7 +689,7 @@ WHERE T.IDTemplate=@IDTemplate AND V.IDVersion=@IDVersion AND ISNULL(T.TemplateT
 SELECT S.IDSection, S.SectionName, S.DisplayOrder AS SectionOrder,
        I.IDItem, I.ItemLabel, I.ItemType, ISNULL(I.OptionList,'') OptionList,
        I.MinValue, I.MaxValue, ISNULL(I.Unit,'') Unit, I.IsValueRequired,
-       I.IsRemarkRequired, I.DisplayOrder AS ItemOrder, V.StatusOption,
+       I.IsRemark1Required, I.IsRemark2Required, I.Remark1Text, I.Remark2Text, I.DisplayOrder AS ItemOrder, V.StatusOption,
        I.ModelCode, I.MinTolerance, I.MaxTolerance, I.IsToleranceRequired
 FROM dbo.PIP_M_CheckListWOPM_Section S
 JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDSection=S.IDSection
@@ -737,7 +739,10 @@ ORDER BY G.DisplayOrder",
                                         max = itemRow["MaxValue"] == DBNull.Value ? (decimal?)null : Convert.ToDecimal(itemRow["MaxValue"]),
                                         unit = itemRow["Unit"].ToString(),
                                         isValueRequired = Convert.ToBoolean(itemRow["IsValueRequired"]),
-                                        isRemarkRequired = Convert.ToBoolean(itemRow["IsRemarkRequired"]),
+                                        isRemark1Required = Convert.ToBoolean(itemRow["IsRemark1Required"]),
+                                        isRemark2Required = Convert.ToBoolean(itemRow["IsRemark2Required"]),
+                                        remark1Text = itemRow["Remark1Text"] == DBNull.Value ? "Remark" : itemRow["Remark1Text"].ToString(),
+                                        remark2Text = itemRow["Remark2Text"] == DBNull.Value ? "Remark" : itemRow["Remark2Text"].ToString(),
                                         isToleranceRequired = itemRow["IsToleranceRequired"] != DBNull.Value && Convert.ToBoolean(itemRow["IsToleranceRequired"]),
                                         mintol = itemRow["MinTolerance"] == DBNull.Value ? (decimal?)null : Convert.ToDecimal(itemRow["MinTolerance"]),
                                         maxtol = itemRow["MaxTolerance"] == DBNull.Value ? (decimal?)null : Convert.ToDecimal(itemRow["MaxTolerance"]),
