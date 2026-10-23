@@ -4,6 +4,7 @@ CREATE PROCEDURE spUTL_PIP_M_CheckListWOPM
 	@p_dt_Template AS [Type_N_Tbl_C5] READONLY,
 	@p_dt_Version AS [Type_N_Tbl_C13] READONLY,
 	@p_dt_Section AS [Type_N_Tbl_C5] READONLY,
+	@p_dt_SubSection AS [Type_N_Tbl_C5] READONLY,
 	@p_dt_Item AS [Type_N_Tbl_C25] READONLY,
 	@p_dt_Group AS [Type_Tbl_C7] READONLY,
 	@p_dt_DelTemplate AS [Type_Tbl_C2] READONLY, 
@@ -26,9 +27,13 @@ DECLARE @tbl_Section TABLE
 (IDSection INT, RuntimeSectionID INT, RuntimeVersionID INT, SectionName VARCHAR(200), DisplayOrder INT)
 INSERT @tbl_Section SELECT C1, C2, C3, C4, ROW_NUMBER() OVER ( PARTITION BY C3 ORDER BY (SELECT NULL)) FROM @p_dt_Section
 
+DECLARE @tbl_SubSection TABLE
+(IDSubSection INT, RuntimeSubSectionID INT, RuntimeSectionID INT, SubSectionName VARCHAR(200), DisplayOrder INT)
+INSERT @tbl_SubSection SELECT C1, C2, C3, C4, C5 FROM @p_dt_SubSection
+
 DECLARE @tbl_Item TABLE 
-(IDItem INT, RuntimeItemID INT, RuntimeSectionID INT, ItemLabel VARCHAR(500), ItemType VARCHAR(20), Unit VARCHAR(20), IsRemark1Required BIT, IsRemark2Required BIT, IsValueRequired BIT, ShowUnitInRange BIT, OptionList VARCHAR(200), MinValue DECIMAL, MaxValue DECIMAL, DisplayOrder INT, MinTolerance MONEY, MaxTolerance MONEY, ModelCode VARCHAR(50), IsToleranceRequired BIT, RemarkRequiredOptions VARCHAR(8000), Remark1Text VARCHAR(100), Remark2Text VARCHAR(100))
-INSERT @tbl_Item SELECT C1, C2, C3, C4, C5, C6, C7, C18, C8, C9, C10, C11, C12, ROW_NUMBER() OVER ( PARTITION BY C3 ORDER BY (SELECT NULL)), C13, C14, C15, CAST(C16 AS BIT), C17, ISNULL(NULLIF(C19, ''), 'Remark'), ISNULL(NULLIF(C20, ''), 'Remark') FROM @p_dt_Item
+(IDItem INT, RuntimeItemID INT, RuntimeSectionID INT, ItemLabel VARCHAR(500), ItemType VARCHAR(20), Unit VARCHAR(20), IsRemark1Required BIT, IsRemark2Required BIT, IsValueRequired BIT, ShowUnitInRange BIT, OptionList VARCHAR(200), MinValue DECIMAL, MaxValue DECIMAL, DisplayOrder INT, MinTolerance MONEY, MaxTolerance MONEY, ModelCode VARCHAR(50), IsToleranceRequired BIT, RemarkRequiredOptions VARCHAR(8000), Remark1Text VARCHAR(100), Remark2Text VARCHAR(100), RuntimeSubSectionID INT)
+INSERT @tbl_Item SELECT C1, C2, C3, C4, C5, C6, C7, C18, C8, C9, C10, C11, C12, ROW_NUMBER() OVER ( PARTITION BY C3 ORDER BY (SELECT NULL)), C13, C14, C15, CAST(C16 AS BIT), C17, ISNULL(NULLIF(C19, ''), 'Remark'), ISNULL(NULLIF(C20, ''), 'Remark'), ISNULL(C21, 0) FROM @p_dt_Item
 
 DECLARE @tbl_Group TABLE
 (IDGroup INT, RuntimeGroupID INT, RuntimeItemID INT, GroupName VARCHAR(100), FieldList VARCHAR(100), Unit VARCHAR(20), DisplayOrder INT)
