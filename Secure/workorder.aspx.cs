@@ -773,7 +773,7 @@ string.Format(@"
                         dict["TemplateJSON"] = null;
 
                     // data saved checklist
-                    dt1 = br.EQuery("SELECT A.IDItem, A.Value, A.Remark, B.ItemType, A.IDResult, A.IsAnomali " +
+                    dt1 = br.EQuery("SELECT A.IDItem, A.Value, A.Remark1, A.Remark2, B.ItemType, A.IDResult, A.IsAnomali " +
                                     "FROM PIP_T_WO_CheckList A JOIN PIP_M_CheckListWOPM_Item B ON A.IDItem=B.IDItem " +
                                     "WHERE A.KeyHD=@KeyHD",
                                     "@KeyHD=" + row["KeyHD"].ToString());
@@ -795,7 +795,8 @@ string.Format(@"
                             string itemType = r["ItemType"].ToString(); // Ambil tipe data item (RANGE, OPTION, GROUP)
                             itemRow["IDItem"] = Convert.ToInt32(r["IDItem"]);
                             itemRow["Value"] = r["Value"] == DBNull.Value || string.IsNullOrEmpty(r["Value"].ToString()) ? null : r["Value"];
-                            itemRow["Remark"] = r["Remark"].ToString();
+                            itemRow["Remark1"] = r["Remark1"] == DBNull.Value ? "" : r["Remark1"].ToString();
+                            itemRow["Remark2"] = r["Remark2"] == DBNull.Value ? "" : r["Remark2"].ToString();
                             itemRow["Type"] = itemType;
                             itemRow["IsAnomali"] = GF.GetBoolean(r["IsAnomali"]);
                             if (itemType == "GROUP")
