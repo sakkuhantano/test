@@ -809,6 +809,10 @@ async function renderChecklist(template, isEntryMode) {
         let V_GroupValues = null;
 
         section.items.forEach(item => {
+            V_Value = "";
+            V_Remark1 = "";
+            V_Remark2 = "";
+            V_GroupValues = null;
             if (currentWO.DataCheckListJSON) {
                 let idItem = currentWO.DataCheckListJSON.Items?.find(x => x.IDItem === item.idItem);
                 if (idItem) {
