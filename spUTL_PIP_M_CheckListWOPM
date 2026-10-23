@@ -4,7 +4,7 @@ CREATE PROCEDURE spUTL_PIP_M_CheckListWOPM
 	@p_dt_Template AS [Type_N_Tbl_C5] READONLY,
 	@p_dt_Version AS [Type_N_Tbl_C13] READONLY,
 	@p_dt_Section AS [Type_N_Tbl_C5] READONLY,
-	@p_dt_Item AS [Type_N_Tbl_C20] READONLY,
+	@p_dt_Item AS [Type_N_Tbl_C25] READONLY,
 	@p_dt_Group AS [Type_Tbl_C7] READONLY,
 	@p_dt_DelTemplate AS [Type_Tbl_C2] READONLY, 
 	@p_dt_DelVersion AS [Type_Tbl_C2] READONLY,
@@ -27,9 +27,8 @@ DECLARE @tbl_Section TABLE
 INSERT @tbl_Section SELECT C1, C2, C3, C4, ROW_NUMBER() OVER ( PARTITION BY C3 ORDER BY (SELECT NULL)) FROM @p_dt_Section
 
 DECLARE @tbl_Item TABLE 
-(IDItem INT, RuntimeItemID INT, RuntimeSectionID INT, ItemLabel VARCHAR(500), ItemType VARCHAR(20), Unit VARCHAR(20), IsRemarkRequired BIT,
-IsValueRequired BIT, ShowUnitInRange BIT, OptionList VARCHAR(200), MinValue DECIMAL, MaxValue DECIMAL, DisplayOrder INT, MinTolerance MONEY, MaxTolerance MONEY, ModelCode VARCHAR(50), IsToleranceRequired BIT, RemarkRequiredOptions VARCHAR(8000))
-INSERT @tbl_Item SELECT C1, C2, C3, C4, C5, C6, C7, C8, C9, C10, C11, C12, ROW_NUMBER() OVER ( PARTITION BY C3 ORDER BY (SELECT NULL)), C13, C14, C15, CAST(C16 AS BIT), C17 FROM @p_dt_Item
+(IDItem INT, RuntimeItemID INT, RuntimeSectionID INT, ItemLabel VARCHAR(500), ItemType VARCHAR(20), Unit VARCHAR(20), IsRemark1Required BIT, IsRemark2Required BIT, IsValueRequired BIT, ShowUnitInRange BIT, OptionList VARCHAR(200), MinValue DECIMAL, MaxValue DECIMAL, DisplayOrder INT, MinTolerance MONEY, MaxTolerance MONEY, ModelCode VARCHAR(50), IsToleranceRequired BIT, RemarkRequiredOptions VARCHAR(8000), Remark1Text VARCHAR(100), Remark2Text VARCHAR(100))
+INSERT @tbl_Item SELECT C1, C2, C3, C4, C5, C6, C18, C7, C8, C9, C10, C11, C12, ROW_NUMBER() OVER ( PARTITION BY C3 ORDER BY (SELECT NULL)), C13, C14, C15, CAST(C16 AS BIT), C17, ISNULL(NULLIF(C19, ''), 'Remark'), ISNULL(NULLIF(C20, ''), 'Remark') FROM @p_dt_Item
 
 DECLARE @tbl_Group TABLE
 (IDGroup INT, RuntimeGroupID INT, RuntimeItemID INT, GroupName VARCHAR(100), FieldList VARCHAR(100), Unit VARCHAR(20), DisplayOrder INT)
@@ -318,7 +317,10 @@ SET
     I.ItemLabel = S.ItemLabel,
     I.ItemType = S.ItemType,
     I.Unit = S.Unit,
-    I.IsRemarkRequired = S.IsRemarkRequired,
+    I.IsRemark1Required = S.IsRemark1Required,
+    I.IsRemark2Required = S.IsRemark2Required,
+    I.Remark1Text = S.Remark1Text,
+    I.Remark2Text = S.Remark2Text,
     I.IsValueRequired = S.IsValueRequired,
     I.ShowUnitInRange = S.ShowUnitInRange,
     I.OptionList = S.OptionList,
@@ -334,9 +336,9 @@ USING (
     SELECT 
         v.RuntimeItemID,
         v.RuntimeSectionID,
-        v.ItemLabel, v.ItemType, V.Unit, V.IsRemarkRequired, V.IsValueRequired, V.ShowUnitInRange,
+        v.ItemLabel, v.ItemType, V.Unit, V.IsRemark1Required, V.IsRemark2Required, V.IsValueRequired, V.ShowUnitInRange,
         v.OptionList, v.MinValue, v.MaxValue, v.DisplayOrder,
-        tmpl.IDSection, v.MinTolerance, v.MaxTolerance, v.ModelCode, v.IsToleranceRequired, v.RemarkRequiredOptions,
+        tmpl.IDSection, v.MinTolerance, v.MaxTolerance, v.ModelCode, v.IsToleranceRequired, v.RemarkRequiredOptions, v.Remark1Text, v.Remark2Text,
         (SELECT ISNULL(MAX(IDItem), 0) FROM PIP_M_CheckListWOPM_item) 
         + ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) AS NewIDItem
     FROM @tbl_Item v
@@ -350,10 +352,10 @@ USING (
 ON 1 = 0 -- Trik agar selalu memicu aksi INSERT
 WHEN NOT MATCHED THEN
     INSERT (IDSection,IDItem,ItemLabel,ItemType,OptionList,MinValue,MaxValue,Unit,
-			ShowUnitInRange,IsValueRequired,IsRemarkRequired,DisplayOrder,MinTolerance,MaxTolerance,ModelCode,IsToleranceRequired,RemarkRequiredOptions)
+            ShowUnitInRange,IsValueRequired,IsRemark1Required,IsRemark2Required,Remark1Text,Remark2Text,DisplayOrder,MinTolerance,MaxTolerance,ModelCode,IsToleranceRequired,RemarkRequiredOptions)
     VALUES (source.IDSection, source.NewIDItem, source.ItemLabel, source.ItemType, source.OptionList, source.MinValue, source.MaxValue, source.Unit,
-			source.ShowUnitInRange, source.IsValueRequired, source.IsRemarkRequired, source.DisplayOrder, 
-			source.MinTolerance, source.MaxTolerance, source.ModelCode,source.IsToleranceRequired,source.RemarkRequiredOptions)
+            source.ShowUnitInRange, source.IsValueRequired, source.IsRemark1Required, source.IsRemark2Required, source.Remark1Text, source.Remark2Text, source.DisplayOrder,
+            source.MinTolerance, source.MaxTolerance, source.ModelCode,source.IsToleranceRequired,source.RemarkRequiredOptions)
 OUTPUT
 	'Item' Entity, 
     source.RuntimeItemID,  
