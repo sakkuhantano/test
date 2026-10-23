@@ -163,14 +163,18 @@ function onInspectionTypeChanged() {
     const detailSelect = document.getElementById("selInspectionDetail");
 
     detailSelect.innerHTML = '<option value="">Pilih detail...</option>' +
-        details.map(detail =>
-            String(detail.ScheduleTime || "").split(";").map(function (time) { return time.trim(); })
-                .filter(function (time) { return /^([01]\d|2[0-3]):[0-5]\d$/.test(time); })
-                .map(function (time) {
-                    return '<option value="' + escInspection(detail.InspectionTypeDetailCode + "|" + time) + '">' +
-                        escInspection(detail.InspectionTypeDetailName + " • " + time) + '</option>';
-                }).join("")
-        ).join("");
+        details.map(detail => {
+            const times = String(detail.ScheduleTime || "").split(";").map(time => time.trim())
+                .filter(time => /^([01]\d|2[0-3]):[0-5]\d$/.test(time));
+            if (!times.length) {
+                return '<option value="' + escInspection(detail.InspectionTypeDetailCode + "|") + '">' +
+                    escInspection(detail.InspectionTypeDetailName) + '</option>';
+            }
+            return times.map(time =>
+                '<option value="' + escInspection(detail.InspectionTypeDetailCode + "|" + time) + '">' +
+                escInspection(detail.InspectionTypeDetailName + " • " + time) + '</option>'
+            ).join("");
+        }).join("");
     detailSelect.disabled = !typeCode || details.length === 0;
     document.getElementById("inspectionScheduleHint").textContent = type
         ? "Section: " + type.SectionID + ". Pilih template untuk melihat slot hari ini yang sudah terisi/kosong."
@@ -215,7 +219,28 @@ function refreshInspectionScheduleOptions() {
         const time = parts[1] || "";
         const detail = inspectionDetails.find(x => x.InspectionTypeCode === typeCode &&
             x.InspectionTypeDetailCode === detailCode);
-        const baseLabel = detail ? detail.InspectionTypeDetailName + " • " + time : option.textContent.split(" • ")[0] + " • " + time;
+        const baseLabel = detail
+            ? (time ? detail.InspectionTypeDetailName + " • " + time : detail.InspectionTypeDetailName)
+            : (time ? option.textContent.split(" • ")[0] + " • " + time : option.textContent);
+        if (!time) {
+            if (!templateId || selectedDate !== today) {
+                option.textContent = baseLabel;
+                return;
+            }
+            const noTimeMatches = record =>
+                parseInspectionDate(record.InspectionDate) === selectedDate &&
+                record.CompanyID === inspectionCompanyID &&
+                record.LocationID === inspectionLocationID &&
+                record.SectionID === (inspectionTypes.find(x => x.InspectionTypeCode === typeCode) || {}).SectionID &&
+                record.InspectionTypeCode === typeCode &&
+                record.InspectionTypeDetailCode === detailCode &&
+                !String(record.ScheduledTime || "") &&
+                Number(record.IDTemplate) === templateId;
+            const noTimeLocal = inspectionRecords.find(noTimeMatches);
+            const noTimeServer = serverSlotRecords.find(noTimeMatches);
+            option.textContent = baseLabel + ((noTimeLocal || noTimeServer) ? " • TERISI" : " • TANPA JADWAL");
+            return;
+        }
         if (!templateId || selectedDate !== today) {
             option.textContent = baseLabel + (selectedDate !== today
                 ? " • server status tersedia untuk hari ini"
@@ -559,12 +584,16 @@ function renderInspectionItem(item, savedItems, readOnly) {
 
     const remark1Text = item.remark1Text || "Remark";
     const remark2Text = item.remark2Text || "Remark";
-    const remark1 = '<div class="mt-2"><label class="inspection-muted">' + escInspection(remark1Text) +
-        (item.isRemark1Required ? " (wajib)" : "") + '</label><input type="text" maxlength="500" data-role="remark1" class="form-control form-control-sm" value="' +
-        escInspection(saved.Remark1 || saved.Remark || "") + '"' + disabled + (item.isRemark1Required ? " required" : "") + '></div>';
-    const remark2 = '<div class="mt-2"><label class="inspection-muted">' + escInspection(remark2Text) +
-        (item.isRemark2Required ? " (wajib)" : "") + '</label><input type="text" maxlength="500" data-role="remark2" class="form-control form-control-sm" value="' +
-        escInspection(saved.Remark2 || "") + '"' + disabled + (item.isRemark2Required ? " required" : "") + '></div>';
+    const remark1 = item.isRemark1Required
+        ? '<div class="mt-2"><label class="inspection-muted">' + escInspection(remark1Text) +
+          ' (wajib)</label><input type="text" maxlength="500" data-role="remark1" class="form-control form-control-sm" value="' +
+          escInspection(saved.Remark1 || saved.Remark || "") + '"' + disabled + ' required></div>'
+        : "";
+    const remark2 = item.isRemark2Required
+        ? '<div class="mt-2"><label class="inspection-muted">' + escInspection(remark2Text) +
+          ' (wajib)</label><input type="text" maxlength="500" data-role="remark2" class="form-control form-control-sm" value="' +
+          escInspection(saved.Remark2 || "") + '"' + disabled + ' required></div>'
+        : "";
 
     return '<div class="inspection-item" data-item-id="' + id + '" data-item-type="' + escInspection(type) +
         '" data-min="' + escInspection(item.min == null ? "" : item.min) +
@@ -698,8 +727,6 @@ async function saveInspection(status) {
     const items = collectInspectionItems();
     const photos = await getInspectionPhotos(currentInspectionRecord.LocalInspectionID);
     if (!photos.some(p => p.Type === "BEFORE")) { showInspectionNotice("Foto BEFORE wajib diambil sebelum checklist dapat disimpan.", "warning"); showInspectionEditorTab("checklist"); return; }
-    if (status === "DONE" && !photos.some(p => p.Type === "AFTER")) { showInspectionNotice("Foto AFTER wajib diambil sebelum inspeksi diselesaikan.", "warning"); showInspectionEditorTab("checklist"); return; }
-    if (status === "DONE" && !document.getElementById("txtInspectionSummary").value.trim()) { showInspectionNotice("Summary / Remark wajib diisi sebelum inspeksi diselesaikan.", "warning"); document.getElementById("txtInspectionSummary").focus(); return; }
     if (status === "DONE") {
         const error = validateInspectionItems(items);
         if (error) {
@@ -929,7 +956,21 @@ async function getInspectionPhotos(localId){return new Promise((resolve,reject)=
 async function renderInspectionPhotos(){if(!currentInspectionRecord)return;const photos=await getInspectionPhotos(currentInspectionRecord.LocalInspectionID);for(const type of ["BEFORE","AFTER"]){const host=document.getElementById(type==="BEFORE"?"inspectionPhotoBeforeList":"inspectionPhotoAfterList");host.innerHTML="";photos.filter(p=>p.Type===type).forEach(p=>{const w=document.createElement("div");w.className="inspection-photo-item";w.dataset.photoId=p.ID;const img=document.createElement("img");img.src=URL.createObjectURL(p.Blob);img.alt="Inspection "+type;img.loading="lazy";w.appendChild(img);if(!currentInspectionReadOnly){const b=document.createElement("button");b.type="button";b.className="btn btn-sm btn-danger inspection-photo-delete";b.dataset.deleteInspectionPhoto=p.ID;b.textContent="×";w.appendChild(b);}host.appendChild(w);});const count=photos.filter(p=>p.Type===type).length,input=document.getElementById(type==="BEFORE"?"inspectionPhotoBeforeInput":"inspectionPhotoAfterInput");input.disabled=currentInspectionReadOnly||count>=2||(type==="AFTER"&&!photos.some(p=>p.Type==="BEFORE"));document.getElementById(type==="BEFORE"?"btnAddInspectionBeforePhoto":"btnAddInspectionAfterPhoto").disabled=input.disabled;document.getElementById(type==="BEFORE"?"inspectionBeforePhotoCount":"inspectionAfterPhotoCount").textContent=count+" / 2 foto";}}
 async function handleInspectionPhotoInput(event,type){const input=event.target,files=Array.from(input.files||[]);input.value="";if(!currentInspectionRecord||currentInspectionReadOnly||!files.length)return;const existing=await getInspectionPhotos(currentInspectionRecord.LocalInspectionID);let count=existing.filter(p=>p.Type===type).length;for(const file of files){if(count>=2){showInspectionNotice("Maksimal 2 foto "+type+".","warning");break;}if(!file.type.startsWith("image/")){showInspectionNotice("File harus berupa gambar.","warning");continue;}try{const blob=typeof compressImage==="function"?await compressImage(file,{maxWidth:1280,maxHeight:1280,maxSize:300*1024,quality:.75,minQuality:.30}):file;await new Promise((resolve,reject)=>{const tx=db.transaction("inspection_photos","readwrite");tx.objectStore("inspection_photos").add({LocalInspectionID:currentInspectionRecord.LocalInspectionID,Type:type,FileName:file.name||("inspection-"+type.toLowerCase()+".jpg"),Blob:blob,OrderNo:count+1,CreatedAt:new Date().toISOString()});tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error||new Error("Gagal menyimpan foto."));});count++;}catch(err){console.error(err);showInspectionNotice("Foto gagal disimpan: "+(err.message||err),"danger");}}await renderInspectionPhotos();await updateInspectionChecklistGate();scheduleInspectionAutosave();}
 async function handleInspectionPhotoDelete(event){const b=event.target.closest("[data-delete-inspection-photo]");if(!b||!currentInspectionRecord||currentInspectionReadOnly||!confirm("Hapus foto ini?"))return;await new Promise((resolve,reject)=>{const tx=db.transaction("inspection_photos","readwrite");tx.objectStore("inspection_photos").delete(Number(b.dataset.deleteInspectionPhoto));tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error);});await renderInspectionPhotos();await updateInspectionChecklistGate();scheduleInspectionAutosave();}
-async function updateInspectionChecklistGate(){if(!currentInspectionRecord)return;const photos=await getInspectionPhotos(currentInspectionRecord.LocalInspectionID),before=photos.some(p=>p.Type==="BEFORE"),after=photos.some(p=>p.Type==="AFTER");document.querySelectorAll("#inspectionChecklistHost input, #inspectionChecklistHost select, #inspectionChecklistHost textarea").forEach(el=>el.disabled=currentInspectionReadOnly||!before);const checklistComplete=before&&validateInspectionItems(collectInspectionItems())==="";document.getElementById("txtInspectionSummary").disabled=currentInspectionReadOnly||!checklistComplete||!after;const afterCount=photos.filter(p=>p.Type==="AFTER").length;document.getElementById("inspectionPhotoAfterInput").disabled=currentInspectionReadOnly||!checklistComplete||afterCount>=2;document.getElementById("btnAddInspectionAfterPhoto").disabled=document.getElementById("inspectionPhotoAfterInput").disabled;document.getElementById("inspectionChecklistGateMessage").textContent=!before?"Ambil minimal satu foto BEFORE untuk membuka seluruh item checklist.":!checklistComplete?"Lengkapi seluruh item checklist wajib sebelum mengambil foto AFTER.":!after?"Checklist siap. Ambil foto AFTER, lalu isi Summary / Remark.":"Foto BEFORE/AFTER tersedia. Isi Summary / Remark untuk menyelesaikan inspeksi.";}
+async function updateInspectionChecklistGate() {
+    if (!currentInspectionRecord) return;
+    const photos = await getInspectionPhotos(currentInspectionRecord.LocalInspectionID);
+    const before = photos.some(photo => photo.Type === "BEFORE");
+    const afterCount = photos.filter(photo => photo.Type === "AFTER").length;
+    document.querySelectorAll("#inspectionChecklistHost input, #inspectionChecklistHost select, #inspectionChecklistHost textarea")
+        .forEach(el => { el.disabled = currentInspectionReadOnly || !before; });
+    document.getElementById("txtInspectionSummary").disabled = currentInspectionReadOnly;
+    const afterInput = document.getElementById("inspectionPhotoAfterInput");
+    afterInput.disabled = currentInspectionReadOnly || !before || afterCount >= 2;
+    document.getElementById("btnAddInspectionAfterPhoto").disabled = afterInput.disabled;
+    document.getElementById("inspectionChecklistGateMessage").textContent = !before
+        ? "Ambil minimal satu foto BEFORE untuk membuka checklist dan foto AFTER."
+        : "Foto AFTER dan Summary bersifat opsional. Lengkapi item wajib sebelum Complete.";
+}
 
 function showInspectionInputScreen() {
     document.getElementById("inspectionRecordsPanel").classList.add("d-none");
