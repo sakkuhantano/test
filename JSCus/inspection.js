@@ -502,17 +502,23 @@ function renderInspectionItem(item, savedItems, readOnly) {
             (item.unit ? '<span class="input-group-text">' + escInspection(item.unit) + '</span>' : "") + '</div>';
     }
 
-    const remark = '<div class="mt-2"><label class="inspection-muted">Remark' +
-        (item.isRemarkRequired ? " (wajib)" : "") + '</label><input type="text" maxlength="500" data-role="remark" class="form-control form-control-sm" value="' +
-        escInspection(saved.Remark || "") + '"' + disabled + (item.isRemarkRequired ? " required" : "") + '></div>';
+    const remark1Text = item.remark1Text || "Remark";
+    const remark2Text = item.remark2Text || "Remark";
+    const remark1 = '<div class="mt-2"><label class="inspection-muted">' + escInspection(remark1Text) +
+        (item.isRemark1Required ? " (wajib)" : "") + '</label><input type="text" maxlength="500" data-role="remark1" class="form-control form-control-sm" value="' +
+        escInspection(saved.Remark1 || saved.Remark || "") + '"' + disabled + (item.isRemark1Required ? " required" : "") + '></div>';
+    const remark2 = '<div class="mt-2"><label class="inspection-muted">' + escInspection(remark2Text) +
+        (item.isRemark2Required ? " (wajib)" : "") + '</label><input type="text" maxlength="500" data-role="remark2" class="form-control form-control-sm" value="' +
+        escInspection(saved.Remark2 || "") + '"' + disabled + (item.isRemark2Required ? " required" : "") + '></div>';
 
     return '<div class="inspection-item" data-item-id="' + id + '" data-item-type="' + escInspection(type) +
         '" data-min="' + escInspection(item.min == null ? "" : item.min) +
         '" data-max="' + escInspection(item.max == null ? "" : item.max) +
         '" data-required="' + (item.isValueRequired ? "1" : "0") +
-        '" data-remark-required="' + (item.isRemarkRequired ? "1" : "0") + '">' +
+        '" data-remark1-required="' + (item.isRemark1Required ? "1" : "0") +
+        '" data-remark2-required="' + (item.isRemark2Required ? "1" : "0") + '">' +
         '<label class="inspection-item-label">' + escInspection(item.label || ("Item " + id)) + '</label>' +
-        control + remark + '</div>';
+        control + remark1 + remark2 + '</div>';
 }
 
 function collectInspectionItems() {
@@ -526,8 +532,10 @@ function collectInspectionItems() {
             values[field.dataset.field] = field.value === "" ? null : field.value;
         });
         const value = type === "GROUP" ? "" : (valueElement ? valueElement.value : "");
-        const remarkElement = container.querySelector('[data-role="remark"]');
-        const remark = remarkElement ? remarkElement.value.trim() : "";
+        const remark1Element = container.querySelector('[data-role="remark1"]');
+        const remark2Element = container.querySelector('[data-role="remark2"]');
+        const remark1 = remark1Element ? remark1Element.value.trim() : "";
+        const remark2 = remark2Element ? remark2Element.value.trim() : "";
         const templateItem = findInspectionTemplateItem(itemId);
         let isAnomali = false;
         const numericValue = value === "" ? null : Number(value);
@@ -568,7 +576,8 @@ function collectInspectionItems() {
             ItemLabel: templateItem ? templateItem.label : ("Item " + itemId),
             Type: type,
             Value: value,
-            Remark: remark,
+            Remark1: remark1,
+            Remark2: remark2,
             IsAnomali: isAnomali,
             DisplayOrder: index + 1,
             Values: type === "GROUP" ? values : null
@@ -609,8 +618,11 @@ function validateInspectionItems(items) {
                 return "Nilai wajib diisi: " + item.ItemLabel;
             }
         }
-        if (templateItem.isRemarkRequired && (!item.Remark || !item.Remark.trim())) {
-            return "Remark wajib diisi: " + item.ItemLabel;
+        if (templateItem.isRemark1Required && (!item.Remark1 || !item.Remark1.trim())) {
+            return (templateItem.remark1Text || "Remark") + " wajib diisi: " + item.ItemLabel;
+        }
+        if (templateItem.isRemark2Required && (!item.Remark2 || !item.Remark2.trim())) {
+            return (templateItem.remark2Text || "Remark") + " wajib diisi: " + item.ItemLabel;
         }
     }
     return "";
