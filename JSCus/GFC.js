@@ -1041,15 +1041,34 @@ async function uploadPendingInspections() {
         };
     }));
 
-    const response = await fetch("inspection.aspx/SyncInspections", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ inspections: payload, userId: login.employeeid })
-    });
-    if (!response.ok) throw new Error("Upload Inspection failed");
-    const json = await response.json();
-    const result = json.d || {};
-    const outcomes = result.results || [];
+    // Keep each ASP.NET WebMethod request below the usual IIS 4 MB request limit.
+    // Photo blobs are base64 encoded, so chunk by serialized payload size, not record count.
+    const payloadBatches = [];
+    let batch = [];
+    for (const item of payload) {
+        const candidate = batch.concat([item]);
+        const candidateSize = JSON.stringify({ inspections: candidate, userId: login.employeeid }).length;
+        if (batch.length && candidateSize > 3000000) {
+            payloadBatches.push(batch);
+            batch = [item];
+        } else {
+            batch = candidate;
+        }
+    }
+    if (batch.length) payloadBatches.push(batch);
+
+    const outcomes = [];
+    for (const batchItems of payloadBatches) {
+        const response = await fetch("inspection.aspx/SyncInspections", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ inspections: batchItems, userId: login.employeeid })
+        });
+        const json = await response.json();
+        if (!response.ok) throw new Error((json && json.Message) || "Upload Inspection failed");
+        const result = json.d || {};
+        outcomes.push(...(result.results || []));
+    }
     const successfulIds = new Set(outcomes.filter(x => x.success).map(x => x.ClientInspectionID));
 
     if (successfulIds.size) {
