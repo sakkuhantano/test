@@ -473,13 +473,14 @@ function renderInspectionItem(item, savedItems, readOnly) {
         const groups = item.groups || [];
         control = groups.map(group => {
             const fields = String(group.fieldList || "").split(";").map(x => x.trim()).filter(Boolean);
-            return '<div class="mb-2"><div class="small fw-semibold mb-1">' +
+            return '<div class="mb-2 inspection-group-value-set" data-group-name="' +
+                escInspection(group.groupName || "Values") + '"><div class="small fw-semibold mb-1">' +
                 escInspection(group.groupName || "Values") + '</div><div class="row g-2">' +
                 fields.map(field => '<div class="col-6 col-md-4"><label class="inspection-muted">' +
                     escInspection(field + (group.unit ? " (" + group.unit + ")" : "")) +
                     '</label><input type="number" step="any" class="form-control form-control-sm" data-role="group-value" data-field="' +
                     escInspection(field) + '" value="' + escInspection(values[field] == null ? "" : values[field]) +
-                    '"' + disabled + (item.isValueRequired ? " required" : "") + '></div>').join("") +
+                    '"' + disabled + '></div>').join("") +
                 '</div></div>';
         }).join("");
     } else if (type === "TEXT") {
@@ -591,9 +592,18 @@ function validateInspectionItems(items) {
         if (!templateItem) continue;
         if (templateItem.isValueRequired) {
             if (item.Type === "GROUP") {
-                const vals = Object.values(item.Values || {});
-                if (!vals.length || vals.some(value => value == null || String(value).trim() === "")) {
-                    return "Lengkapi semua nilai untuk: " + item.ItemLabel;
+                const groups = templateItem.groups || [];
+                if (!groups.length) return "GROUP tidak memiliki kolom input: " + item.ItemLabel;
+                for (const group of groups) {
+                    const fields = String(group.fieldList || "").split(";").map(field => field.trim()).filter(Boolean);
+                    const filledCount = fields.filter(field => item.Values && item.Values[field] != null &&
+                        String(item.Values[field]).trim() !== "").length;
+                    if (fields.length > 3) {
+                        return "Maksimal 3 kolom untuk GROUP " + (group.groupName || "") + " pada " + item.ItemLabel;
+                    }
+                    if (fields.length < 2 || filledCount < 2) {
+                        return "Minimal 2 kolom harus diisi untuk GROUP " + (group.groupName || "") + " pada " + item.ItemLabel;
+                    }
                 }
             } else if (item.Value == null || String(item.Value).trim() === "") {
                 return "Nilai wajib diisi: " + item.ItemLabel;
