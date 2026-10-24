@@ -10,8 +10,8 @@
       S = Selected Company / Location
       A = All Company / Location
 
-    Existing templates are preserved as PM/WO and their current property is migrated
-    into the scope mapping table.
+    Existing templates are preserved as PM/WO. Assignment lists are stored directly
+    on the template row and legacy relation tables are migrated/dropped below.
 */
 SET NOCOUNT ON;
 SET XACT_ABORT ON;
@@ -75,52 +75,51 @@ BEGIN
         CONSTRAINT DF_PIP_M_CheckListWOPM_CompanyScope DEFAULT ('S');
 END;
 
-IF OBJECT_ID('dbo.PIP_M_CheckListWOPM_CompanyLocation', 'U') IS NULL
+/* Store assignments directly on the template row. */
+IF COL_LENGTH('dbo.PIP_M_CheckListWOPM', 'CompanyLocationList') IS NULL
+    ALTER TABLE dbo.PIP_M_CheckListWOPM ADD CompanyLocationList VARCHAR(8000) NOT NULL CONSTRAINT DF_PIP_M_CheckListWOPM_CompanyLocationList DEFAULT ('');
+IF COL_LENGTH('dbo.PIP_M_CheckListWOPM', 'EmployeeList') IS NULL
+    ALTER TABLE dbo.PIP_M_CheckListWOPM ADD EmployeeList VARCHAR(8000) NOT NULL CONSTRAINT DF_PIP_M_CheckListWOPM_EmployeeList DEFAULT ('');
+
+/* Migrate existing assignments before dropping the old relation tables. */
+IF OBJECT_ID('dbo.PIP_M_CheckListWOPM_CompanyLocation', 'U') IS NOT NULL
 BEGIN
-    CREATE TABLE dbo.PIP_M_CheckListWOPM_CompanyLocation
-    (
-        IDTemplate INT NOT NULL,
-        CompanyID VARCHAR(10) NOT NULL,
-        LocationID VARCHAR(10) NOT NULL,
-        EntryUser VARCHAR(50) NULL,
-        EntryDate DATETIME NULL,
-        CONSTRAINT PK_PIP_M_CheckListWOPM_CompanyLocation
-            PRIMARY KEY CLUSTERED (IDTemplate, CompanyID, LocationID)
-    );
+ EXEC('UPDATE T SET CompanyLocationList=ISNULL(STUFF((
+   SELECT '';''+S.CompanyID+S.LocationID FROM dbo.PIP_M_CheckListWOPM_CompanyLocation S
+   WHERE S.IDTemplate=T.IDTemplate ORDER BY S.CompanyID,S.LocationID
+   FOR XML PATH(''''),TYPE).value(''.'',''varchar(8000)''),1,1,''''),'''')
+ FROM dbo.PIP_M_CheckListWOPM T WHERE ISNULL(T.CompanyLocationList,'''')=''''');
+END;
+IF OBJECT_ID('dbo.PIP_M_CheckListWOPM_Employee', 'U') IS NOT NULL
+BEGIN
+ EXEC('UPDATE T SET EmployeeList=ISNULL(STUFF((
+   SELECT '';''+E.EmployeeID FROM dbo.PIP_M_CheckListWOPM_Employee E
+   WHERE E.IDTemplate=T.IDTemplate ORDER BY E.EmployeeID
+   FOR XML PATH(''''),TYPE).value(''.'',''varchar(8000)''),1,1,''''),'''')
+ FROM dbo.PIP_M_CheckListWOPM T WHERE ISNULL(T.EmployeeList,'''')=''''');
 END;
 
-IF OBJECT_ID('dbo.PIP_M_CheckListWOPM_Employee', 'U') IS NULL
-BEGIN
-    CREATE TABLE dbo.PIP_M_CheckListWOPM_Employee
-    (
-        IDTemplate INT NOT NULL,
-        EmployeeID VARCHAR(50) NOT NULL,
-        EntryUser VARCHAR(50) NULL,
-        EntryDate DATETIME NULL,
-        CONSTRAINT PK_PIP_M_CheckListWOPM_Employee
-            PRIMARY KEY CLUSTERED (IDTemplate, EmployeeID)
-    );
-END;
-
-/* Migrate the existing one-property scope without duplicating rows. */
-INSERT INTO dbo.PIP_M_CheckListWOPM_CompanyLocation
-    (IDTemplate, CompanyID, LocationID, EntryUser, EntryDate)
-SELECT T.IDTemplate, T.CompanyID, T.LocationID, T.EntryUser, GETDATE()
+/* Keep the historical one-property default when a template has no mapped pair. */
+UPDATE T SET CompanyLocationList=T.CompanyID+T.LocationID
 FROM dbo.PIP_M_CheckListWOPM T
-WHERE T.CompanyID IS NOT NULL
-  AND T.LocationID IS NOT NULL
-  AND NOT EXISTS
-  (
-      SELECT 1
-      FROM dbo.PIP_M_CheckListWOPM_CompanyLocation S
-      WHERE S.IDTemplate = T.IDTemplate
-        AND S.CompanyID = T.CompanyID
-        AND S.LocationID = T.LocationID
-  );
+WHERE ISNULL(T.CompanyLocationList,'')='' AND T.CompanyID IS NOT NULL AND T.LocationID IS NOT NULL;
+
+IF OBJECT_ID('dbo.PIP_M_CheckListWOPM_CompanyLocation', 'U') IS NOT NULL
+BEGIN
+ IF EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name='FK_PIP_M_CheckListWOPM_CompanyLocation_Template' AND parent_object_id=OBJECT_ID('dbo.PIP_M_CheckListWOPM_CompanyLocation'))
+  ALTER TABLE dbo.PIP_M_CheckListWOPM_CompanyLocation DROP CONSTRAINT FK_PIP_M_CheckListWOPM_CompanyLocation_Template;
+ DROP TABLE dbo.PIP_M_CheckListWOPM_CompanyLocation;
+END;
+IF OBJECT_ID('dbo.PIP_M_CheckListWOPM_Employee', 'U') IS NOT NULL
+BEGIN
+ IF EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name='FK_PIP_M_CheckListWOPM_Employee_Template' AND parent_object_id=OBJECT_ID('dbo.PIP_M_CheckListWOPM_Employee'))
+  ALTER TABLE dbo.PIP_M_CheckListWOPM_Employee DROP CONSTRAINT FK_PIP_M_CheckListWOPM_Employee_Template;
+ DROP TABLE dbo.PIP_M_CheckListWOPM_Employee;
+END;
 
 IF NOT EXISTS
 (
-    SELECT 1 FROM sys.check_constraints
+ SELECT 1 FROM sys.check_constraints
     WHERE name = 'CK_PIP_M_CheckListWOPM_TemplateType'
       AND parent_object_id = OBJECT_ID('dbo.PIP_M_CheckListWOPM')
 )
