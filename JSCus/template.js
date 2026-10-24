@@ -2094,6 +2094,15 @@ async function cloneVersionToExistingTemplate(sourceSectionId, sourceRuntimeTemp
         showToast("Choose a different destination Template.");
         return;
     }
+    if (String(sourceNode.Template.TemplateType || "W") !== String(targetNode.Template.TemplateType || "W")) {
+        showToast("Source and destination Templates must have the same Template Type.");
+        return;
+    }
+    if (String(sourceNode.Template.TemplateType || "W") === "I" &&
+        String(sourceNode.Template.InspectionTypeCode || "") !== String(targetNode.Template.InspectionTypeCode || "")) {
+        showToast("Source and destination Inspection Templates must use the same Inspection Type.");
+        return;
+    }
     if (Number(targetNode.Template.IDTemplate) <= 0) {
         showToast("Save the destination Template before cloning a Version into it.");
         return;
@@ -7693,7 +7702,11 @@ async function cloneTemplate()
     newTemplate.RuntimeTemplateID =
         generateRuntimeID();
     newTemplate.Dirty = true;
-    // Clone type metadata, but create a fresh property scope and no employee assignments.
+    // A cloned Template gets a fresh selected-company scope; SaveTemplateMetadata
+    // will assign the current Company/Location instead of copying the source scope.
+    newTemplate.CompanyScope = "S";
+    newTemplate.IsActive = false;
+    newTemplate.HasActiveVersion = false;
     newTemplate.MetadataDirty = true;
     newTemplate.TemplateNo += "_COPY";    
 
