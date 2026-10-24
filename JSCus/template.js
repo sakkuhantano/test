@@ -2026,6 +2026,50 @@ function cloneVersionStructureForTemplate(sourceStructure, sourceVersionInfo)
     });
     return clone;
 }
+async function cloneVersionToNewTemplate(sourceSectionId, sourceRuntimeTemplateId, sourceRuntimeVersionId)
+{
+    const section = getSectionCache(sourceSectionId);
+    const sourceNode = section && section.Templates[sourceRuntimeTemplateId];
+    const sourceVersionNode = sourceNode && sourceNode.Versions[sourceRuntimeVersionId];
+    if (!sourceNode || !sourceVersionNode) {
+        showToast("Source Template/Version could not be found.");
+        return;
+    }
+    if (String(sourceVersionNode.VersionInfo && sourceVersionNode.VersionInfo.Status) !== "Active") {
+        showToast("Only an Active Version can be cloned to a new Template.");
+        return;
+    }
+    if (!sourceVersionNode.Structure && Number(sourceVersionNode.VersionInfo.IDVersion) > 0) {
+        try {
+            const sourceJson = await promisifyPageMethod(
+                PageMethods.GetVersionStructure,
+                String(sourceVersionNode.VersionInfo.IDVersion)
+            );
+            const loaded = JSON.parse(sourceJson || "{}");
+            if (loaded && loaded.VersionInfo && loaded.Sections) {
+                sourceVersionNode.Structure = loaded;
+                sourceVersionNode.VersionInfo = Object.assign({}, sourceVersionNode.VersionInfo, loaded.VersionInfo);
+            }
+        } catch (err) {
+            console.error("Could not load source Version for new Template clone:", err);
+        }
+    }
+    if (!sourceVersionNode.Structure) {
+        showToast("Could not load the source Version structure. Open it once and retry.");
+        return;
+    }
+    const confirmed = await showConfirmation({
+        title: "Clone to New Template",
+        message: "Create a new Template and copy this Active Version into it as a Draft? The source Template will remain unchanged."
+    });
+    if (!confirmed) return;
+
+    currentTemplate = sourceNode.Template;
+    currentVersions = Object.values(sourceNode.Versions || {});
+    currentVersion = sourceVersionNode.VersionInfo;
+    currentVersionData = sourceVersionNode.Structure;
+    await cloneTemplate();
+}
 async function chooseCloneTargetTemplate(sourceSectionId, sourceRuntimeTemplateId, sourceRuntimeVersionId)
 {
     const section = getSectionCache(sourceSectionId);
@@ -7608,7 +7652,11 @@ function showVersionContextMenu(e, version)
         items.push({
             text: "Clone to New Template",
             icon: "bi-file-earmark-plus",
-            action: () => cloneTemplate()
+            action: () => cloneVersionToNewTemplate(
+                currentTemplate.SectionID,
+                currentTemplate.RuntimeTemplateID,
+                version.RuntimeVersionID
+            )
         });
     }
 
