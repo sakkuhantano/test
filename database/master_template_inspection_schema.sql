@@ -82,8 +82,12 @@ IF COL_LENGTH('dbo.PIP_M_CheckListWOPM', 'EmployeeList') IS NULL
     ALTER TABLE dbo.PIP_M_CheckListWOPM ADD EmployeeList VARCHAR(8000) NOT NULL CONSTRAINT DF_PIP_M_CheckListWOPM_EmployeeList DEFAULT ('');
   
 /* Version-level Remark defaults and per-item default/override switches. */
+DECLARE @RemarkDefaultsAdded BIT = 0;
 IF COL_LENGTH('dbo.PIP_M_CheckListWOPM_Version', 'IsRemark1Required') IS NULL
+BEGIN
     ALTER TABLE dbo.PIP_M_CheckListWOPM_Version ADD IsRemark1Required BIT NOT NULL CONSTRAINT DF_PIP_M_CheckListWOPM_Version_IsRemark1Required DEFAULT (0);
+    SET @RemarkDefaultsAdded = 1;
+END;
 IF COL_LENGTH('dbo.PIP_M_CheckListWOPM_Version', 'Remark1Text') IS NULL
     ALTER TABLE dbo.PIP_M_CheckListWOPM_Version ADD Remark1Text VARCHAR(100) NOT NULL CONSTRAINT DF_PIP_M_CheckListWOPM_Version_Remark1Text DEFAULT ('Remark');
 IF COL_LENGTH('dbo.PIP_M_CheckListWOPM_Version', 'IsRemark2Required') IS NULL
@@ -95,7 +99,9 @@ IF COL_LENGTH('dbo.PIP_M_CheckListWOPM_Item', 'IsUseDefaultRemark1') IS NULL
 IF COL_LENGTH('dbo.PIP_M_CheckListWOPM_Item', 'IsUseDefaultRemark2') IS NULL
     ALTER TABLE dbo.PIP_M_CheckListWOPM_Item ADD IsUseDefaultRemark2 BIT NOT NULL CONSTRAINT DF_PIP_M_CheckListWOPM_Item_IsUseDefaultRemark2 DEFAULT (0);
 
-/* Preserve legacy item-level behavior: old items remain local overrides. */
+/* Preserve legacy item-level behavior only during the first schema upgrade. */
+IF @RemarkDefaultsAdded = 1
+BEGIN
 UPDATE V SET
     IsRemark1Required=CASE WHEN EXISTS (
         SELECT 1 FROM dbo.PIP_M_CheckListWOPM_Section S
@@ -108,6 +114,7 @@ UPDATE V SET
         WHERE S.IDVersion=V.IDVersion AND I.IsRemark2Required=1
     ) THEN 1 ELSE V.IsRemark2Required END
 FROM dbo.PIP_M_CheckListWOPM_Version V;
+END;
 
 /* Migrate existing assignments before dropping the old relation tables. */
 IF OBJECT_ID('dbo.PIP_M_CheckListWOPM_CompanyLocation', 'U') IS NOT NULL
