@@ -1480,6 +1480,36 @@ function renderTemplates(data, container, sectionId)
     //-----------------------------------
     // Restore versions for new templates
     //-----------------------------------
+    // Drop targets: drop an Active Version onto another Template to clone it as Draft.
+    container.querySelectorAll(".template-root-item").forEach(function(root) {
+        const versionContainer = root.querySelector(".template-version-container");
+        if (!versionContainer) return;
+        root.addEventListener("dragover", function(event) {
+            if (event.dataTransfer && Array.from(event.dataTransfer.types || []).includes("application/x-pip-version")) {
+                event.preventDefault();
+                root.classList.add("border", "border-primary");
+            }
+        });
+        root.addEventListener("dragleave", function(event) {
+            if (!root.contains(event.relatedTarget)) root.classList.remove("border", "border-primary");
+        });
+        root.addEventListener("drop", async function(event) {
+            root.classList.remove("border", "border-primary");
+            const raw = event.dataTransfer && event.dataTransfer.getData("application/x-pip-version");
+            if (!raw) return;
+            event.preventDefault();
+            event.stopPropagation();
+            let source;
+            try { source = JSON.parse(raw); } catch (_) { return; }
+            await cloneVersionToExistingTemplate(
+                source.sectionId,
+                source.templateRuntimeId,
+                source.versionRuntimeId,
+                versionContainer.dataset.templateId
+            );
+        });
+    });
+
     data.forEach(tpl =>
     {
         if(tpl.Template.IDTemplate != 0)
@@ -2730,6 +2760,25 @@ function renderTemplateVersions(data,container)
             //------------------------------------
             const node =
                 container.lastElementChild;
+            if (version.Status === "Active" && !isReadonlyMode) {
+                node.draggable = true;
+                node.title = "Drag this Active Version onto another Template to clone it as a Draft";
+                node.addEventListener("dragstart", function(event) {
+                    event.dataTransfer.effectAllowed = "copy";
+                    event.dataTransfer.setData("application/x-pip-version", JSON.stringify({
+                        sectionId: sectionId,
+                        templateRuntimeId: templateRuntimeID,
+                        versionRuntimeId: version.RuntimeVersionID
+                    }));
+                    node.classList.add("opacity-50");
+                });
+                node.addEventListener("dragend", function() {
+                    node.classList.remove("opacity-50");
+                    document.querySelectorAll(".template-root-item.border-primary").forEach(function(root) {
+                        root.classList.remove("border", "border-primary");
+                    });
+                });
+            }
             const menuBtn =
                 node.querySelector(
                     '.version-menu-btn'
