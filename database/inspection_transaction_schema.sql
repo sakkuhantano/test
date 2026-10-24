@@ -365,23 +365,20 @@ BEGIN
           AND T.InspectionTypeCode=@p_InspectionTypeCode
           AND T.IsActive=1
           AND V.Version=@p_TemplateVersion
-          AND V.Status='Active'
+          AND (V.Status='Active' OR
+          (V.Status='Archieved' AND EXISTS
+             (SELECT 1 FROM dbo.PIP_T_Inspection Existing
+              WHERE Existing.ClientInspectionID=@p_ClientInspectionID
+                AND Existing.IDTemplate=T.IDTemplate AND Existing.IDVersion=V.IDVersion
+                AND Existing.OwnerEmployeeID=@p_UpdateUser AND ISNULL(Existing.IsApprove,0)=0)))
           AND
           (
-              NOT EXISTS (SELECT 1 FROM dbo.PIP_M_CheckListWOPM_Employee EA WHERE EA.IDTemplate=T.IDTemplate)
-              OR EXISTS (SELECT 1 FROM dbo.PIP_M_CheckListWOPM_Employee EA
-                         WHERE EA.IDTemplate=T.IDTemplate AND EA.EmployeeID=@p_UpdateUser)
+              ISNULL(T.EmployeeList,'')='' OR (';' + ISNULL(T.EmployeeList,'') + ';' LIKE '%;' + @p_UpdateUser + ';%')
           )
           AND
           (
               ISNULL(T.CompanyScope,'S')='A'
-              OR EXISTS
-              (
-                  SELECT 1 FROM dbo.PIP_M_CheckListWOPM_CompanyLocation S
-                  WHERE S.IDTemplate=T.IDTemplate
-                    AND S.CompanyID=@p_CompanyID
-                    AND S.LocationID=@p_LocationID
-              )
+              OR (';' + ISNULL(T.CompanyLocationList, '') + ';' LIKE '%;' + @p_CompanyID + @p_LocationID + ';%')
           )
     )
     BEGIN
