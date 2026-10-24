@@ -2166,13 +2166,20 @@ async function openWO(keyHD, el) {
     	currentWO = wo;
         if (!currentWO.DataCheckListJSON)
             currentWO.DataCheckListJSON = await getChecklistByWO(currentWO.KeyHD);
-    	let template = await getTemplate(
-            currentWO.TemplateWOPM,
-            currentWO.ModelCode,
-            currentWO.SectionID,
-            currentWO.CompanyID,
-            currentWO.LocationID
-        );
+    	let template = currentWO.TemplateJSON &&
+            (!currentWO.TemplateVersion || String(currentWO.TemplateJSON.Version || "") === String(currentWO.TemplateVersion))
+            ? currentWO.TemplateJSON
+            : await getTemplate(
+                currentWO.TemplateWOPM,
+                currentWO.ModelCode,
+                currentWO.SectionID,
+                currentWO.CompanyID,
+                currentWO.LocationID
+            );
+        if (currentWO.TemplateVersion && String(template.Version || "") !== String(currentWO.TemplateVersion)) {
+            showToast("Template snapshot untuk versi Work Order ini belum tersedia. Sync Work Order saat online; template versi baru tidak akan dipakai untuk menggantikan versi lama.", "warning");
+            return;
+        }
         if (template.SectionID && String(template.SectionID) !== String(currentWO.SectionID)) {
             showToast("Template offline tidak sesuai dengan Section Work Order ini. Sync ulang atau periksa TemplateNo yang duplikat.", "warning");
             return;
@@ -2662,6 +2669,11 @@ async function saveToIndexedDB(payload) {
                 dataWO.InspectionOwnerID = existingOwner || login.employeeid;
                 dataWO.Status = payload.Status;
                 dataWO.DataCheckListJSON = data;
+                if (currentTemplate) {
+                    dataWO.TemplateJSON = JSON.parse(JSON.stringify(currentTemplate));
+                    dataWO.TemplateVersion = String(currentTemplate.Version || dataWO.TemplateVersion || "");
+                    dataWO.IDVersion = Number(currentTemplate.IDVersion || dataWO.IDVersion || 0);
+                }
                 checklistStore.put(data);
                 woStore.put(dataWO);
             };
