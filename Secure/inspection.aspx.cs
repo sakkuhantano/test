@@ -770,7 +770,7 @@ SELECT S.IDSection, S.SectionName, S.DisplayOrder AS SectionOrder,
        ISNULL(SS.DisplayOrder,0) AS SubSectionOrder,
        I.ItemLabel, I.ItemType, ISNULL(I.OptionList,'') OptionList,
        I.MinValue, I.MaxValue, ISNULL(I.Unit,'') Unit, I.IsValueRequired,
-       I.IsRemark1Required, I.IsRemark2Required, I.Remark1Text, I.Remark2Text, I.IsUseDefaultRemark1, I.IsUseDefaultRemark2, I.UseDefaultOption, ISNULL(I.RemarkRequiredOptions,'') RemarkRequiredOptions, I.DisplayOrder AS ItemOrder, V.StatusOption,
+       I.IsRemark1Required, I.IsRemark2Required, I.Remark1Text, I.Remark2Text, I.IsUseDefaultRemark1, I.IsUseDefaultRemark2, ISNULL(I.RemarkRequiredOptions,'') RemarkRequiredOptions, I.DisplayOrder AS ItemOrder, V.StatusOption,
        I.ModelCode, I.MinTolerance, I.MaxTolerance, I.IsToleranceRequired
 FROM dbo.PIP_M_CheckListWOPM_Section S
 JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDSection=S.IDSection
