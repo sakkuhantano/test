@@ -142,7 +142,8 @@ WHERE m.IDTemplate=@IDTemplate
   AND m.TemplateNo = @TemplateNo
   AND m.IsActive=1
   AND ISNULL(m.TemplateType,'W')=@TemplateType
-  AND v.Status='Active'
+  -- The header query has already authorized the requested Active version or
+  -- the exact archived version referenced by an existing WorkOrder.
   AND (ISNULL(i.ModelCode,'')='' OR i.ModelCode=@ModelCode OR @ModelCode='')
 ORDER BY s.DisplayOrder, CASE WHEN ISNULL(i.IDSubSection,0)=0 THEN i.DisplayOrder ELSE ss.DisplayOrder END, CASE WHEN ISNULL(i.IDSubSection,0)=0 THEN 0 ELSE 1 END, i.DisplayOrder",
                                         "@TemplateNo=" + row["TemplateNo"].ToString() + GF.Str2 +
