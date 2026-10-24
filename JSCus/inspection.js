@@ -568,7 +568,7 @@ function updateInspectionRemarkPanels() {
             wrap2.style.display = showRemark2 ? "" : "none";
             const label2 = wrap2.querySelector("label");
             if (label2) label2.textContent =
-                (optionRequires && container.dataset.remark2Required !== "1"
+                (optionRequires && container.dataset.remark2BaseRequired !== "1"
                     ? (container.dataset.remark2VersionText || "Remark")
                     : (container.dataset.remark2ItemText || "Remark")) +
                 (showRemark2 ? " (wajib)" : "");
@@ -656,7 +656,7 @@ function renderInspectionItem(item, savedItems, readOnly) {
         '" data-max="' + escInspection(item.max == null ? "" : item.max) +
         '" data-required="' + (item.isValueRequired ? "1" : "0") +
         '" data-remark1-base-required="' + (item.isRemark1Required ? "1" : "0") +
-        '" data-remark2-required="' + (item.isRemark2Required ? "1" : "0") +
+        '" data-remark2-base-required="' + (item.isRemark2Required ? "1" : "0") +
         '" data-remark1-version-enabled="' + (versionRemark1Enabled ? "1" : "0") +
         '" data-remark2-version-enabled="' + (versionRemark2Enabled ? "1" : "0") +
         '" data-remark-options="' + escInspection(remarkOptions.join(";")) +
