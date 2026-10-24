@@ -751,8 +751,8 @@ function updateWorkOrderRemarkPanels(template) {
             Array.isArray(item.RemarkRequiredOptions) ? item.RemarkRequiredOptions.map(String) : [];
         const selected = container.querySelector('[data-role="option"]:checked');
         const optionRequires = String(item.type || "").toUpperCase() === "OPTION" && !!selected && options.includes(String(selected.value));
-        const show1 = !!(item.isRemark1Required || item.isRemarkRequired || optionRequires);
-        const show2 = !!item.isRemark2Required;
+        const show1 = !!(item.isRemark1Required || item.isRemarkRequired || (optionRequires && item.versionIsRemark1Required));
+        const show2 = !!(item.isRemark2Required || (optionRequires && item.versionIsRemark2Required));
         const panel = container.querySelector('[data-role="remark-panel"]');
         const remark1 = container.querySelector('[data-role="remark1"]');
         const remark2 = container.querySelector('[data-role="remark2"]');
@@ -2970,8 +2970,10 @@ function validateItem(item, container) {
             : [];
     const selectedOptionRequiresRemark = item.type === "OPTION" && !!checked &&
         requiredOptionRemarks.map(String).includes(String(checked.value));
+    const selectedOptionRequiresRemark1 = selectedOptionRequiresRemark && !!item.versionIsRemark1Required;
+    const selectedOptionRequiresRemark2 = selectedOptionRequiresRemark && !!item.versionIsRemark2Required;
 
-    if (!error && (item.isRemark1Required || item.isRemarkRequired || selectedOptionRequiresRemark)) {
+    if (!error && (item.isRemark1Required || item.isRemarkRequired || selectedOptionRequiresRemark1)) {
 
         let remark = remarkEl?.value?.trim();
 
@@ -3010,7 +3012,7 @@ function validateItem(item, container) {
         }        
     }
 
-    if (!error && item.isRemark2Required) {
+    if (!error && (item.isRemark2Required || selectedOptionRequiresRemark2)) {
         const remark2 = container.querySelector("[data-role='remark2']")?.value?.trim() || "";
         let hasValue2 = false;
         switch (item.type) {
