@@ -104,6 +104,7 @@ ORDER BY CASE WHEN ISNULL(b.CompanyScope,'S')='S' THEN 0 ELSE 1 END, B.IDTemplat
                     dict["TemplateName"] = row["TemplateName"].ToString();
                     dict["StatusOption"] = row["StatusOption"].ToString();
                     dict["RemarkRequiredOptions"] = String.IsNullOrWhiteSpace(GF.GetString(row["VersionRemarkRequiredOptions"])) ? new string[0] : GF.GetString(row["VersionRemarkRequiredOptions"]).Split(';');
+                    dict["RemarkRequiredOptions"] = String.IsNullOrWhiteSpace(GF.GetString(row["VersionRemarkRequiredOptions"])) ? new string[0] : GF.GetString(row["VersionRemarkRequiredOptions"]).Split(';');
                     DataTable dt1 = br.EQuery(
 @"SELECT  
 s.IDSection,
@@ -120,7 +121,7 @@ i.MinValue,
 i.MaxValue,
 ISNULL(i.Unit,'') Unit,
 i.IsValueRequired,
-i.IsRemark1Required, i.IsRemark2Required, i.Remark1Text, i.Remark2Text, ISNULL(i.RemarkRequiredOptions,'') ItemRemarkRequiredOptions,
+i.IsRemark1Required, i.IsRemark2Required, i.Remark1Text, i.Remark2Text, ISNULL(i.RemarkRequiredOptions,'') ItemRemarkRequiredOptions, ISNULL(i.RemarkRequiredOptions,'') ItemRemarkRequiredOptions,
 i.DisplayOrder AS ItemOrder,
 v.StatusOption, i.ModelCode, i.MinTolerance, i.MaxTolerance, i.IsToleranceRequired
 FROM PIP_M_CheckListWOPM_Section s
@@ -198,6 +199,7 @@ ORDER BY s.DisplayOrder, CASE WHEN ISNULL(i.IDSubSection,0)=0 THEN i.DisplayOrde
                                     isValueRequired = Convert.ToBoolean(item["IsValueRequired"]),
                                     isRemark1Required = Convert.ToBoolean(item["IsRemark1Required"]),
                                     isRemark2Required = Convert.ToBoolean(item["IsRemark2Required"]),
+                                    remarkRequiredOptions = String.IsNullOrWhiteSpace(GF.GetString(item["ItemRemarkRequiredOptions"])) ? new string[0] : GF.GetString(item["ItemRemarkRequiredOptions"]).Split(';'),
                                     remarkRequiredOptions = String.IsNullOrWhiteSpace(GF.GetString(item["ItemRemarkRequiredOptions"])) ? new string[0] : GF.GetString(item["ItemRemarkRequiredOptions"]).Split(';'),
                                     remark1Text = item["Remark1Text"] == DBNull.Value ? "Remark" : item["Remark1Text"].ToString(),
                                     remark2Text = item["Remark2Text"] == DBNull.Value ? "Remark" : item["Remark2Text"].ToString(),
