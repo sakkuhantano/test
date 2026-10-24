@@ -2110,100 +2110,159 @@ async function chooseCloneTargetTemplate(sourceSectionId, sourceRuntimeTemplateI
     }
 
     await loadTemplateSectionsForClone();
-    const sections = [];
-    Object.keys(templateCache.sections || {}).forEach(function(sectionId) {
-        const section = templateCache.sections[sectionId];
-        const templates = Object.values(section.Templates || {}).filter(function(node) {
-            return Number(node.Template.IDTemplate) > 0 &&
-                !(String(sectionId) === String(sourceSectionId) &&
-                  String(node.Template.RuntimeTemplateID) === String(sourceRuntimeTemplateId));
-        });
-        if (templates.length) {
-            templates.sort(function(a, b) {
-                return String(a.Template.TemplateNo || "").localeCompare(String(b.Template.TemplateNo || ""));
-            });
-            sections.push({ sectionId: sectionId, templates: templates });
-        }
-    });
-    sections.sort(function(a, b) { return String(a.sectionId).localeCompare(String(b.sectionId)); });
-    if (!sections.length) {
-        showToast("No saved destination Template is available.");
-        return;
-    }
+    let roots = [];
+    try {
+        roots = Array.isArray(explorerRoot) ? explorerRoot : JSON.parse(explorerRoot || "[]");
+    } catch (_) {}
+    const sections = roots.map(function(root) {
+        return {
+            id: String(root.SectionID || ""),
+            name: String(root.SectionName || root.SectionDescription || root.SectionID || ""),
+            templates: []
+        };
+    }).filter(function(section) { return !!section.id; });
 
-    // Folder-picker style dialog: expand a Section, then select the exact Template node.
-    const previous = document.getElementById("cloneVersionTargetModal");
-    if (previous) previous.remove();
-    const modalHost = document.createElement("div");
-    modalHost.id = "cloneVersionTargetModal";
-    modalHost.innerHTML = `
-      <div class="modal fade" tabindex="-1" aria-labelledby="cloneVersionTargetTitle" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-scrollable modal-lg modal-dialog-centered">
-          <div class="modal-content">
-            <div class="modal-header">
-              <h5 class="modal-title" id="cloneVersionTargetTitle"><i class="bi bi-folder2-open me-2"></i>Choose Destination Template</h5>
-              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+    sections.forEach(function(section) {
+        const cache = getSectionCache(section.id);
+        Object.values((cache && cache.Templates) || {}).forEach(function(node) {
+            if (Number(node.Template.IDTemplate) > 0 &&
+                !(section.id === String(sourceSectionId) &&
+                  String(node.Template.RuntimeTemplateID) === String(sourceRuntimeTemplateId))) {
+                section.templates.push(node);
+            }
+        });
+        section.templates.sort(function(a,b) {
+            return String(a.Template.TemplateNo || "").localeCompare(String(b.Template.TemplateNo || ""));
+        });
+    });
+
+    const overlay = document.createElement("div");
+    overlay.className = "modal fade show";
+    overlay.style.cssText = "display:block;background:rgba(0,0,0,.45);position:fixed;inset:0;z-index:1090;overflow:auto;";
+    overlay.setAttribute("role", "dialog");
+    overlay.setAttribute("aria-modal", "true");
+    overlay.setAttribute("aria-labelledby", "cloneVersionDialogTitle");
+    overlay.innerHTML = `
+      <div class="modal-dialog modal-lg modal-dialog-centered" style="max-width:760px">
+        <div class="modal-content shadow">
+          <div class="modal-header">
+            <h5 class="modal-title" id="cloneVersionDialogTitle"><i class="bi bi-files me-2"></i>Clone Version to Template</h5>
+            <button type="button" class="btn-close" data-clone-close aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <div class="text-muted small mb-3">Pilih Section tujuan, lalu pilih Template. Version sumber tidak dipindahkan dan akan tetap utuh.</div>
+            <div class="row g-3">
+              <div class="col-md-5">
+                <label class="form-label fw-semibold">Section tujuan</label>
+                <div class="list-group" data-clone-sections style="max-height:48vh;overflow:auto"></div>
+              </div>
+              <div class="col-md-7">
+                <label class="form-label fw-semibold">Template tujuan</label>
+                <input class="form-control form-control-sm mb-2" data-clone-search placeholder="Cari nomor / nama Template...">
+                <div class="list-group" data-clone-templates style="max-height:42vh;overflow:auto"></div>
+                <div class="small text-muted mt-2">Drop Version hanya diterima pada node/header Template, bukan Section atau Version.</div>
+              </div>
             </div>
-            <div class="modal-body">
-              <div class="small text-muted mb-3">Expand a Section and click the exact Template to receive the cloned Draft. Section headers and Version rows are not selectable.</div>
-              <div class="list-group clone-target-sections"></div>
-            </div>
-            <div class="modal-footer">
-              <span class="small text-muted me-auto">Source: ${escapeHtml(sourceNode.Template.TemplateNo || "")} — ${escapeHtml(sourceNode.Template.TemplateName || "")}</span>
-              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-            </div>
+          </div>
+          <div class="modal-footer">
+            <span class="small text-muted me-auto" data-clone-selection>Belum ada Template dipilih</span>
+            <button type="button" class="btn btn-outline-secondary" data-clone-close>Batal</button>
+            <button type="button" class="btn btn-primary" data-clone-confirm disabled>Clone as Draft</button>
           </div>
         </div>
       </div>`;
-    document.body.appendChild(modalHost);
-    const modalEl = modalHost.querySelector(".modal");
-    const sectionList = modalHost.querySelector(".clone-target-sections");
-    sections.forEach(function(entry, sectionIndex) {
-        const collapseId = "cloneTargetSection_" + sectionIndex;
-        const sectionWrap = document.createElement("div");
-        sectionWrap.className = "list-group-item p-0";
-        const header = document.createElement("button");
-        header.type = "button";
-        header.className = "list-group-item list-group-item-action d-flex align-items-center fw-semibold";
-        header.setAttribute("data-bs-toggle", "collapse");
-        header.setAttribute("data-bs-target", "#" + collapseId);
-        header.innerHTML = '<i class="bi bi-folder me-2"></i><span class="me-auto"></span><span class="badge bg-secondary rounded-pill"></span><i class="bi bi-chevron-down ms-2"></i>';
-        header.querySelector("span.me-auto").textContent = entry.sectionId;
-        header.querySelector(".badge").textContent = String(entry.templates.length);
-        const children = document.createElement("div");
-        children.id = collapseId;
-        children.className = "collapse";
-        entry.templates.forEach(function(node) {
+
+    document.body.appendChild(overlay);
+    let selectedSectionId = sections.find(s => s.templates.length)?.id || sections[0]?.id || "";
+    let selectedTarget = null;
+    const sectionList = overlay.querySelector("[data-clone-sections]");
+    const templateList = overlay.querySelector("[data-clone-templates]");
+    const searchInput = overlay.querySelector("[data-clone-search]");
+    const confirmButton = overlay.querySelector("[data-clone-confirm]");
+    const selectionLabel = overlay.querySelector("[data-clone-selection]");
+    const close = function() { overlay.remove(); document.removeEventListener("keydown", onKeyDown); };
+    const onKeyDown = function(event) { if (event.key === "Escape") close(); };
+    document.addEventListener("keydown", onKeyDown);
+    overlay.addEventListener("click", function(event) { if (event.target === overlay) close(); });
+    overlay.querySelectorAll("[data-clone-close]").forEach(function(button) { button.addEventListener("click", close); });
+
+    function renderSections() {
+        sectionList.innerHTML = "";
+        sections.forEach(function(section) {
+            const button = document.createElement("button");
+            button.type = "button";
+            button.className = "list-group-item list-group-item-action d-flex justify-content-between align-items-center" +
+                (section.id === selectedSectionId ? " active" : "");
+            button.innerHTML = '<span></span><span class="badge bg-secondary rounded-pill"></span>';
+            button.firstElementChild.textContent = section.name;
+            button.lastElementChild.textContent = String(section.templates.length);
+            button.addEventListener("click", function() {
+                selectedSectionId = section.id;
+                selectedTarget = null;
+                renderSections();
+                renderTemplates();
+            });
+            sectionList.appendChild(button);
+        });
+    }
+    function renderTemplates() {
+        templateList.innerHTML = "";
+        selectedTarget = null;
+        confirmButton.disabled = true;
+        selectionLabel.textContent = "Belum ada Template dipilih";
+        const section = sections.find(s => s.id === selectedSectionId);
+        const query = String(searchInput.value || "").trim().toLowerCase();
+        const matches = (section ? section.templates : []).filter(function(node) {
+            const tpl = node.Template;
+            return (String(tpl.TemplateNo || "") + " " + String(tpl.TemplateName || "")).toLowerCase().includes(query);
+        });
+        if (!matches.length) {
+            const empty = document.createElement("div");
+            empty.className = "text-muted small p-3";
+            empty.textContent = "Tidak ada Template tujuan pada Section ini.";
+            templateList.appendChild(empty);
+            return;
+        }
+        matches.forEach(function(node) {
             const tpl = node.Template;
             const button = document.createElement("button");
             button.type = "button";
-            button.className = "list-group-item list-group-item-action d-flex align-items-start gap-2 ps-4";
-            button.innerHTML = '<i class="bi bi-file-earmark-text mt-1"></i><span class="text-start"><span class="d-block fw-semibold template-no"></span><span class="d-block small text-muted template-name"></span></span><i class="bi bi-arrow-return-left ms-auto mt-1"></i>';
-            button.querySelector(".template-no").textContent = tpl.TemplateNo || "(No Template No.)";
-            button.querySelector(".template-name").textContent = tpl.TemplateName || "";
-            button.title = "Clone Version into this Template as a Draft";
-            button.addEventListener("click", async function() {
-                const targetSectionId = entry.sectionId;
-                const targetRuntimeTemplateId = tpl.RuntimeTemplateID;
-                const bsModal = bootstrap.Modal.getOrCreateInstance(modalEl);
-                bsModal.hide();
-                await cloneVersionToExistingTemplate(
-                    sourceSectionId,
-                    sourceRuntimeTemplateId,
-                    sourceRuntimeVersionId,
-                    targetSectionId,
-                    targetRuntimeTemplateId
-                );
+            button.className = "list-group-item list-group-item-action";
+            const title = document.createElement("div");
+            title.className = "fw-semibold";
+            title.textContent = tpl.TemplateNo || "(No Template No.)";
+            const description = document.createElement("div");
+            description.className = "small text-muted";
+            description.textContent = tpl.TemplateName || "";
+            button.appendChild(title);
+            button.appendChild(description);
+            button.addEventListener("click", function() {
+                selectedTarget = { sectionId: selectedSectionId, runtimeTemplateId: tpl.RuntimeTemplateID };
+                templateList.querySelectorAll(".list-group-item").forEach(x => x.classList.remove("active"));
+                button.classList.add("active");
+                confirmButton.disabled = false;
+                selectionLabel.textContent = section.name + " / " + (tpl.TemplateNo || "") + " — " + (tpl.TemplateName || "");
             });
-            children.appendChild(button);
+            templateList.appendChild(button);
         });
-        sectionWrap.appendChild(header);
-        sectionWrap.appendChild(children);
-        sectionList.appendChild(sectionWrap);
+    }
+    searchInput.addEventListener("input", renderTemplates);
+    confirmButton.addEventListener("click", async function() {
+        if (!selectedTarget) return;
+        const target = selectedTarget;
+        close();
+        await cloneVersionToExistingTemplate(
+            sourceSectionId,
+            sourceRuntimeTemplateId,
+            sourceRuntimeVersionId,
+            target.sectionId,
+            target.runtimeTemplateId
+        );
     });
-    modalEl.addEventListener("hidden.bs.modal", function() { modalHost.remove(); }, { once: true });
-    bootstrap.Modal.getOrCreateInstance(modalEl).show();
+    renderSections();
+    renderTemplates();
 }
+
 async function cloneVersionToExistingTemplate(sourceSectionId, sourceRuntimeTemplateId, sourceRuntimeVersionId, targetSectionId, targetRuntimeTemplateId)
 {
     const sourceSection = getSectionCache(sourceSectionId);
