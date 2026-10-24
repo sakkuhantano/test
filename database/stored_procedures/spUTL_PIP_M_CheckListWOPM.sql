@@ -73,6 +73,34 @@ BEGIN
 END
 
 
+/* Published/Active and archived versions are immutable at the database boundary. */
+IF EXISTS (SELECT 1 FROM @tbl_Version S JOIN dbo.PIP_M_CheckListWOPM_Version V ON V.IDVersion=S.IDVersion
+           WHERE S.IDVersion>0 AND (ISNULL(V.[Status],'')<>'Draft' OR ISNULL(S.[Status],'')<>'Draft'))
+BEGIN RAISERROR('Only Draft versions can be edited or published.',16,1); RETURN; END;
+IF EXISTS (SELECT 1 FROM @tbl_DelVersion D JOIN dbo.PIP_M_CheckListWOPM_Version V ON V.IDVersion=D.IDVersion
+           WHERE ISNULL(V.[Status],'')<>'Draft')
+BEGIN RAISERROR('Only Draft versions can be deleted.',16,1); RETURN; END;
+IF EXISTS (SELECT 1 FROM @tbl_Section X JOIN dbo.PIP_M_CheckListWOPM_Section S ON S.IDSection=X.IDSection
+           JOIN dbo.PIP_M_CheckListWOPM_Version V ON V.IDVersion=S.IDVersion
+           WHERE X.IDSection>0 AND ISNULL(V.[Status],'')<>'Draft')
+OR EXISTS (SELECT 1 FROM @tbl_Item X JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDItem=X.IDItem
+           JOIN dbo.PIP_M_CheckListWOPM_Section S ON S.IDSection=I.IDSection
+           JOIN dbo.PIP_M_CheckListWOPM_Version V ON V.IDVersion=S.IDVersion
+           WHERE X.IDItem>0 AND ISNULL(V.[Status],'')<>'Draft')
+OR EXISTS (SELECT 1 FROM @tbl_Group X JOIN dbo.PIP_M_CheckListWOPM_ItemGroup G ON G.IDGroup=X.IDGroup
+           JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDItem=G.IDItem
+           JOIN dbo.PIP_M_CheckListWOPM_Section S ON S.IDSection=I.IDSection
+           JOIN dbo.PIP_M_CheckListWOPM_Version V ON V.IDVersion=S.IDVersion
+           WHERE X.IDGroup>0 AND ISNULL(V.[Status],'')<>'Draft')
+OR EXISTS (SELECT 1 FROM @tbl_SubSection X JOIN dbo.PIP_M_CheckListWOPM_SubSection SS ON SS.IDSubSection=X.IDSubSection
+           JOIN dbo.PIP_M_CheckListWOPM_Section S ON S.IDSection=SS.IDSubSection
+           JOIN dbo.PIP_M_CheckListWOPM_Version V ON V.IDVersion=S.IDVersion
+           WHERE X.IDSubSection>0 AND ISNULL(V.[Status],'')<>'Draft')
+BEGIN RAISERROR('Published/Active version structure is immutable.',16,1); RETURN; END;
+IF EXISTS (SELECT 1 FROM @tbl_DelTemplate D JOIN dbo.PIP_M_CheckListWOPM_Version V ON V.IDTemplate=D.IDTemplate
+           WHERE V.[Status] IN ('Active','Archieved'))
+BEGIN RAISERROR('Templates with published versions cannot be deleted.',16,1); RETURN; END;
+
 --- begin processsing
 --- DELETED
 DELETE S2 FROM PIP_M_CheckListWOPM_itemgroup S2 JOIN PIP_M_CheckListWOPM_Item S1 ON S1.IDItem = S2.IDItem
@@ -82,13 +110,7 @@ JOIN PIP_M_CheckListWOPM_Version AS pmclwv ON pmclwv.IDVersion = S4.IDVersion
 JOIN PIP_M_CheckListWOPM AS pmclw ON pmclw.IDTemplate=pmclwv.IDTemplate
 WHERE NOT EXISTS (SELECT * FROM @tbl_Group S WHERE S.IDGroup=S2.IDGroup)
 AND (ISNULL(pmclw.CompanyScope,'S')='A'
-     OR EXISTS
-     (
-         SELECT 1 FROM dbo.PIP_M_CheckListWOPM_CompanyLocation ScopeRow
-         WHERE ScopeRow.IDTemplate=pmclw.IDTemplate
-           AND ScopeRow.CompanyID=@p_CompanyID
-           AND ScopeRow.LocationID=@p_LocationID
-     ))
+     OR (';' + ISNULL(pmclw.CompanyLocationList, '') + ';' LIKE '%;' + @p_CompanyID + @p_LocationID + ';%'))
 
 
 DELETE S2 FROM PIP_M_CheckListWOPM_item S2 JOIN PIP_M_CheckListWOPM_Section S1 ON S1.IDSection = S2.IDSection
@@ -97,13 +119,7 @@ JOIN PIP_M_CheckListWOPM_Version AS pmclwv ON pmclwv.IDVersion = S3.IDVersion
 JOIN PIP_M_CheckListWOPM AS pmclw ON pmclw.IDTemplate=pmclwv.IDTemplate
 WHERE NOT EXISTS (SELECT * FROM @tbl_Item S WHERE S.IDItem=S2.IDItem)
 AND (ISNULL(pmclw.CompanyScope,'S')='A'
-     OR EXISTS
-     (
-         SELECT 1 FROM dbo.PIP_M_CheckListWOPM_CompanyLocation ScopeRow
-         WHERE ScopeRow.IDTemplate=pmclw.IDTemplate
-           AND ScopeRow.CompanyID=@p_CompanyID
-           AND ScopeRow.LocationID=@p_LocationID
-     ))
+     OR (';' + ISNULL(pmclw.CompanyLocationList, '') + ';' LIKE '%;' + @p_CompanyID + @p_LocationID + ';%'))
 
 
 DELETE OldSub
@@ -113,20 +129,14 @@ JOIN @tbl_Version V ON V.IDVersion=OldSec.IDVersion
 JOIN PIP_M_CheckListWOPM_Version VER ON VER.IDVersion=V.IDVersion
 JOIN PIP_M_CheckListWOPM T ON T.IDTemplate=VER.IDTemplate
 WHERE NOT EXISTS (SELECT 1 FROM @tbl_Section S WHERE S.IDSection=OldSec.IDSection)
-AND (ISNULL(T.CompanyScope,'S')='A' OR EXISTS (SELECT 1 FROM dbo.PIP_M_CheckListWOPM_CompanyLocation ScopeRow WHERE ScopeRow.IDTemplate=T.IDTemplate AND ScopeRow.CompanyID=@p_CompanyID AND ScopeRow.LocationID=@p_LocationID));
+AND (ISNULL(T.CompanyScope,'S')='A' OR (';' + ISNULL(T.CompanyLocationList, '') + ';' LIKE '%;' + @p_CompanyID + @p_LocationID + ';%'));
 
 DELETE S2 FROM PIP_M_CheckListWOPM_section S2 JOIN @tbl_Version S1 ON S1.IDVersion = S2.IDVersion
 JOIN PIP_M_CheckListWOPM_Version AS pmclwv ON pmclwv.IDVersion = S2.IDVersion
 JOIN PIP_M_CheckListWOPM AS pmclw ON pmclw.IDTemplate=pmclwv.IDTemplate
 WHERE NOT EXISTS (SELECT * FROM @tbl_Section S WHERE S.IDSection=S2.IDSection)
 AND (ISNULL(pmclw.CompanyScope,'S')='A'
-     OR EXISTS
-     (
-         SELECT 1 FROM dbo.PIP_M_CheckListWOPM_CompanyLocation ScopeRow
-         WHERE ScopeRow.IDTemplate=pmclw.IDTemplate
-           AND ScopeRow.CompanyID=@p_CompanyID
-           AND ScopeRow.LocationID=@p_LocationID
-     ))
+     OR (';' + ISNULL(pmclw.CompanyLocationList, '') + ';' LIKE '%;' + @p_CompanyID + @p_LocationID + ';%'))
 
 
 IF EXISTS (SELECT * FROM @tbl_DelVersion)
@@ -137,36 +147,27 @@ BEGIN
 	JOIN PIP_M_CheckListWOPM_Version AS pmclwv ON pmclwv.IDVersion = B.IDVersion
 	JOIN PIP_M_CheckListWOPM AS pmclw ON pmclw.IDTemplate=pmclwv.IDTemplate
 	WHERE (ISNULL(pmclw.CompanyScope,'S')='A'
-       OR EXISTS (SELECT 1 FROM dbo.PIP_M_CheckListWOPM_CompanyLocation ScopeRow
-                  WHERE ScopeRow.IDTemplate=pmclw.IDTemplate
-                    AND ScopeRow.CompanyID=@p_CompanyID
-                    AND ScopeRow.LocationID=@p_LocationID))
+       OR (';' + ISNULL(pmclw.CompanyLocationList, '') + ';' LIKE '%;' + @p_CompanyID + @p_LocationID + ';%'))
 	
 	DELETE A FROM PIP_M_CheckListWOPM_item A JOIN PIP_M_CheckListWOPM_section AA ON AA.IDSection = A.IDSection
 	JOIN @tbl_DelVersion B ON B.IDVersion=AA.IDVersion
 	JOIN PIP_M_CheckListWOPM_Version AS pmclwv ON pmclwv.IDVersion = B.IDVersion
 	JOIN PIP_M_CheckListWOPM AS pmclw ON pmclw.IDTemplate=pmclwv.IDTemplate
 	WHERE (ISNULL(pmclw.CompanyScope,'S')='A'
-       OR EXISTS (SELECT 1 FROM dbo.PIP_M_CheckListWOPM_CompanyLocation ScopeRow
-                  WHERE ScopeRow.IDTemplate=pmclw.IDTemplate
-                    AND ScopeRow.CompanyID=@p_CompanyID
-                    AND ScopeRow.LocationID=@p_LocationID))
+       OR (';' + ISNULL(pmclw.CompanyLocationList, '') + ';' LIKE '%;' + @p_CompanyID + @p_LocationID + ';%'))
 	
 	DELETE SS FROM PIP_M_CheckListWOPM_SubSection SS
 	JOIN PIP_M_CheckListWOPM_section AAA ON AAA.IDSection=SS.IDSection
 	JOIN @tbl_DelVersion B ON B.IDVersion=AAA.IDVersion
 	JOIN PIP_M_CheckListWOPM_Version VER ON VER.IDVersion=B.IDVersion
 	JOIN PIP_M_CheckListWOPM T ON T.IDTemplate=VER.IDTemplate
-	WHERE (ISNULL(T.CompanyScope,'S')='A' OR EXISTS (SELECT 1 FROM dbo.PIP_M_CheckListWOPM_CompanyLocation ScopeRow WHERE ScopeRow.IDTemplate=T.IDTemplate AND ScopeRow.CompanyID=@p_CompanyID AND ScopeRow.LocationID=@p_LocationID));
+	WHERE (ISNULL(T.CompanyScope,'S')='A' OR (';' + ISNULL(T.CompanyLocationList, '') + ';' LIKE '%;' + @p_CompanyID + @p_LocationID + ';%'));
 
 	DELETE A FROM PIP_M_CheckListWOPM_section A JOIN @tbl_DelVersion B ON B.IDVersion=A.IDVersion
 	JOIN PIP_M_CheckListWOPM_Version AS pmclwv ON pmclwv.IDVersion = B.IDVersion
 	JOIN PIP_M_CheckListWOPM AS pmclw ON pmclw.IDTemplate=pmclwv.IDTemplate
 	WHERE (ISNULL(pmclw.CompanyScope,'S')='A'
-       OR EXISTS (SELECT 1 FROM dbo.PIP_M_CheckListWOPM_CompanyLocation ScopeRow
-                  WHERE ScopeRow.IDTemplate=pmclw.IDTemplate
-                    AND ScopeRow.CompanyID=@p_CompanyID
-                    AND ScopeRow.LocationID=@p_LocationID))
+       OR (';' + ISNULL(pmclw.CompanyLocationList, '') + ';' LIKE '%;' + @p_CompanyID + @p_LocationID + ';%'))
 	
 END
 
@@ -174,10 +175,7 @@ DELETE V FROM PIP_M_CheckListWOPM_version V
 INNER JOIN @tbl_DelVersion D ON V.IDTemplate = D.IDTemplate AND V.IDVersion = D.IDVersion
 JOIN PIP_M_CheckListWOPM AS pmclw ON pmclw.IDTemplate=V.IDTemplate
 WHERE (ISNULL(pmclw.CompanyScope,'S')='A'
-       OR EXISTS (SELECT 1 FROM dbo.PIP_M_CheckListWOPM_CompanyLocation ScopeRow
-                  WHERE ScopeRow.IDTemplate=pmclw.IDTemplate
-                    AND ScopeRow.CompanyID=@p_CompanyID
-                    AND ScopeRow.LocationID=@p_LocationID))
+       OR (';' + ISNULL(pmclw.CompanyLocationList, '') + ';' LIKE '%;' + @p_CompanyID + @p_LocationID + ';%'))
 
 
 /* Resolve which requested templates are visible in this company/location before removing their relations. */
@@ -187,21 +185,7 @@ SELECT T.IDTemplate
 FROM dbo.PIP_M_CheckListWOPM T
 JOIN @tbl_DelTemplate D ON D.IDTemplate=T.IDTemplate
 WHERE ISNULL(T.CompanyScope,'S')='A'
-   OR EXISTS
-   (
-       SELECT 1 FROM dbo.PIP_M_CheckListWOPM_CompanyLocation ScopeRow
-       WHERE ScopeRow.IDTemplate=T.IDTemplate
-         AND ScopeRow.CompanyID=@p_CompanyID
-         AND ScopeRow.LocationID=@p_LocationID
-   );
-
-DELETE A
-FROM dbo.PIP_M_CheckListWOPM_Employee A
-JOIN @tbl_AllowedDelTemplate D ON D.IDTemplate=A.IDTemplate;
-
-DELETE S
-FROM dbo.PIP_M_CheckListWOPM_CompanyLocation S
-JOIN @tbl_AllowedDelTemplate D ON D.IDTemplate=S.IDTemplate;
+   OR (';' + ISNULL(T.CompanyLocationList, '') + ';' LIKE '%;' + @p_CompanyID + @p_LocationID + ';%');
 
 UPDATE I SET I.IDSubSection=NULL
 FROM PIP_M_CheckListWOPM_Item I
@@ -244,27 +228,13 @@ USING (
 ) AS source
 ON 1 = 0 
 WHEN NOT MATCHED THEN
-    INSERT (IDTemplate, TemplateNo, TemplateName, SectionID, IsActive, EntryUser, EntryDate, UpdateUser, UpdateDate, CompanyID, LocationID)
-    VALUES (source.NewIDTemplate, source.templateno, source.templatename, source.sectionid, 1, @p_UpdateUser, GETDATE(), @p_UpdateUser, GETDATE(), @p_CompanyID, @p_LocationID)
+    INSERT (IDTemplate, TemplateNo, TemplateName, SectionID, IsActive, EntryUser, EntryDate, UpdateUser, UpdateDate, CompanyID, LocationID, CompanyLocationList, EmployeeList)
+    VALUES (source.NewIDTemplate, source.templateno, source.templatename, source.sectionid, 1, @p_UpdateUser, GETDATE(), @p_UpdateUser, GETDATE(), @p_CompanyID, @p_LocationID, @p_CompanyID + @p_LocationID, '')
 OUTPUT 
     'Template' Entity,
     source.runtimetemplateid,   
     inserted.IDTemplate   -- Tetap mengembalikan IDTemplate manual yang baru saja dimasukkan
 INTO @tbl_Identity (Entity, RuntimeID, ID);
-
-/* Every newly created template starts with the current property as its Selected Company scope. */
-INSERT dbo.PIP_M_CheckListWOPM_CompanyLocation
-    (IDTemplate, CompanyID, LocationID, EntryUser, EntryDate)
-SELECT I.ID, @p_CompanyID, @p_LocationID, @p_UpdateUser, GETDATE()
-FROM @tbl_Identity I
-WHERE I.Entity='Template'
-  AND NOT EXISTS
-  (
-      SELECT 1 FROM dbo.PIP_M_CheckListWOPM_CompanyLocation S
-      WHERE S.IDTemplate=I.ID
-        AND S.CompanyID=@p_CompanyID
-        AND S.LocationID=@p_LocationID
-  );
 
 --- Version
 UPDATE V
@@ -424,7 +394,7 @@ WHERE NOT EXISTS (SELECT 1 FROM @tbl_SubSection S WHERE S.IDSubSection=SS.IDSubS
 -- Newly inserted rows have generated database IDs that are not present in the TVP's IDSubSection=0 rows.
 -- Preserve them during this cleanup; otherwise every new Sub-section is deleted in the same Save All call.
 AND NOT EXISTS (SELECT 1 FROM @tbl_Identity NewSub WHERE NewSub.Entity='SubSection' AND NewSub.ID=SS.IDSubSection)
-AND (ISNULL(T.CompanyScope,'S')='A' OR EXISTS (SELECT 1 FROM dbo.PIP_M_CheckListWOPM_CompanyLocation ScopeRow WHERE ScopeRow.IDTemplate=T.IDTemplate AND ScopeRow.CompanyID=@p_CompanyID AND ScopeRow.LocationID=@p_LocationID));
+AND (ISNULL(T.CompanyScope,'S')='A' OR (';' + ISNULL(T.CompanyLocationList, '') + ';' LIKE '%;' + @p_CompanyID + @p_LocationID + ';%'));
 
 MERGE INTO PIP_M_CheckListWOPM_item AS target
 USING (
