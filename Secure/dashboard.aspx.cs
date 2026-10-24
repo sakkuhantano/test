@@ -67,20 +67,17 @@ namespace UTL1.Secure
                     section = String.Join(";", requestedSections);
                 }
                 DataTable dt = br.EQuery(
-@"SELECT B.IDTemplate, B.TemplateNo, B.TemplateName, B.SectionID, ISNULL(B.TemplateType,'W') TemplateType, ISNULL(B.InspectionTypeCode,'') InspectionTypeCode, a.IDVersion, a.Version, a.StatusOption FROM PIP_M_CheckListWOPM_Version a 
+@"SELECT B.IDTemplate, B.TemplateNo, B.TemplateName, B.SectionID, ISNULL(B.TemplateType,'W') TemplateType, ISNULL(B.InspectionTypeCode,'') InspectionTypeCode, a.IDVersion, a.Version, a.StatusOption, ISNULL(a.RemarkRequiredOptions,'') VersionRemarkRequiredOptions FROM PIP_M_CheckListWOPM_Version a 
 JOIN PIP_M_CheckListWOPM b on A.IDTemplate=B.IDTemplate 
 WHERE b.IsActive=1
 AND ISNULL(b.TemplateType,'W')=@TemplateType
 AND a.Status='Active'
 AND (
     @TemplateType <> 'I'
-    OR NOT EXISTS (SELECT 1 FROM dbo.PIP_M_CheckListWOPM_Employee EA WHERE EA.IDTemplate=B.IDTemplate)
-    OR EXISTS (SELECT 1 FROM dbo.PIP_M_CheckListWOPM_Employee EA WHERE EA.IDTemplate=B.IDTemplate AND EA.EmployeeID=@EmployeeID)
+    OR ISNULL(B.EmployeeList,'')='' OR (';' + ISNULL(B.EmployeeList,'') + ';' LIKE '%;' + @EmployeeID + ';%')
 )
 AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@sectionlist,';') c WHERE c.val=b.sectionid)
-AND (ISNULL(b.CompanyScope,'S')='A' OR EXISTS
-    (SELECT 1 FROM dbo.PIP_M_CheckListWOPM_CompanyLocation sc
-     WHERE sc.IDTemplate=b.IDTemplate AND sc.CompanyID=@CompanyID AND sc.LocationID=@LocationID))
+AND (ISNULL(b.CompanyScope,'S')='A' OR (';' + ISNULL(b.CompanyLocationList, '') + ';' LIKE '%;' + @CompanyID + @LocationID + ';%'))
 AND B.TemplateNo=CASE WHEN @templateno='' THEN B.TemplateNo ELSE @templateno END
 AND a.Version=CASE WHEN @version='' THEN a.Version ELSE @version END
 ORDER BY CASE WHEN ISNULL(b.CompanyScope,'S')='S' THEN 0 ELSE 1 END, B.IDTemplate, a.IDVersion
@@ -106,6 +103,7 @@ ORDER BY CASE WHEN ISNULL(b.CompanyScope,'S')='S' THEN 0 ELSE 1 END, B.IDTemplat
                     dict["TemplateNo"] = row["TemplateNo"].ToString();
                     dict["TemplateName"] = row["TemplateName"].ToString();
                     dict["StatusOption"] = row["StatusOption"].ToString();
+                    dict["RemarkRequiredOptions"] = String.IsNullOrWhiteSpace(GF.GetString(row["VersionRemarkRequiredOptions"])) ? new string[0] : GF.GetString(row["VersionRemarkRequiredOptions"]).Split(';');
                     DataTable dt1 = br.EQuery(
 @"SELECT  
 s.IDSection,
@@ -122,7 +120,7 @@ i.MinValue,
 i.MaxValue,
 ISNULL(i.Unit,'') Unit,
 i.IsValueRequired,
-i.IsRemark1Required, i.IsRemark2Required, i.Remark1Text, i.Remark2Text,
+i.IsRemark1Required, i.IsRemark2Required, i.Remark1Text, i.Remark2Text, ISNULL(i.RemarkRequiredOptions,'') ItemRemarkRequiredOptions,
 i.DisplayOrder AS ItemOrder,
 v.StatusOption, i.ModelCode, i.MinTolerance, i.MaxTolerance, i.IsToleranceRequired
 FROM PIP_M_CheckListWOPM_Section s
@@ -200,6 +198,7 @@ ORDER BY s.DisplayOrder, CASE WHEN ISNULL(i.IDSubSection,0)=0 THEN i.DisplayOrde
                                     isValueRequired = Convert.ToBoolean(item["IsValueRequired"]),
                                     isRemark1Required = Convert.ToBoolean(item["IsRemark1Required"]),
                                     isRemark2Required = Convert.ToBoolean(item["IsRemark2Required"]),
+                                    remarkRequiredOptions = String.IsNullOrWhiteSpace(GF.GetString(item["ItemRemarkRequiredOptions"])) ? new string[0] : GF.GetString(item["ItemRemarkRequiredOptions"]).Split(';'),
                                     remark1Text = item["Remark1Text"] == DBNull.Value ? "Remark" : item["Remark1Text"].ToString(),
                                     remark2Text = item["Remark2Text"] == DBNull.Value ? "Remark" : item["Remark2Text"].ToString(),
                                     isToleranceRequired = GF.GetBoolean(item["IsToleranceRequired"]),
