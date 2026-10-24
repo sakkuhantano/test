@@ -3281,9 +3281,11 @@ function normalizeVersionStructure(data)
             item.IsRemark2Required = !!item.IsRemark2Required;
             item.IsUseDefaultRemark1 = !!item.IsUseDefaultRemark1;
             item.IsUseDefaultRemark2 = !!item.IsUseDefaultRemark2;
-            if (!item.IsUseDefaultRemark1 && !item.IsRemark1Required) item.Remark1Text = "";
+            if (item.IsUseDefaultRemark1) item.Remark1Text = item.Remark1Text == null ? "" : item.Remark1Text;
+            else if (!item.IsRemark1Required) item.Remark1Text = "";
             else item.Remark1Text = item.Remark1Text || "Remark";
-            if (!item.IsUseDefaultRemark2 && !item.IsRemark2Required) item.Remark2Text = "";
+            if (item.IsUseDefaultRemark2) item.Remark2Text = item.Remark2Text == null ? "" : item.Remark2Text;
+            else if (!item.IsRemark2Required) item.Remark2Text = "";
             else item.Remark2Text = item.Remark2Text || "Remark";
 
         });
