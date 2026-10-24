@@ -557,13 +557,21 @@ function updateInspectionRemarkPanels() {
         if (wrap) {
             wrap.style.display = showRemark1 ? "" : "none";
             const label = wrap.querySelector("label");
-            if (label) label.textContent = (label.textContent || "Remark").replace(/\s*\(wajib\)$/, "") + (showRemark1 ? " (wajib)" : "");
+            if (label) label.textContent =
+                (optionRequires && container.dataset.remark1BaseRequired !== "1"
+                    ? (container.dataset.remark1VersionText || "Remark")
+                    : (container.dataset.remark1ItemText || "Remark")) +
+                (showRemark1 ? " (wajib)" : "");
         }
         if (input) input.required = showRemark1;
         if (wrap2) {
             wrap2.style.display = showRemark2 ? "" : "none";
             const label2 = wrap2.querySelector("label");
-            if (label2) label2.textContent = (label2.textContent || "Remark").replace(/\s*\(wajib\)$/, "") + (showRemark2 ? " (wajib)" : "");
+            if (label2) label2.textContent =
+                (optionRequires && container.dataset.remark2Required !== "1"
+                    ? (container.dataset.remark2VersionText || "Remark")
+                    : (container.dataset.remark2ItemText || "Remark")) +
+                (showRemark2 ? " (wajib)" : "");
         }
         if (input2) input2.required = showRemark2;
     });
@@ -618,12 +626,16 @@ function renderInspectionItem(item, savedItems, readOnly) {
             (item.unit ? '<span class="input-group-text">' + escInspection(item.unit) + '</span>' : "") + '</div>';
     }
 
-    const remark1Text = item.remark1Text || "Remark";
-    const remark2Text = item.remark2Text || "Remark";
     const remarkOptions = Array.isArray(item.remarkRequiredOptions) ? item.remarkRequiredOptions.map(x => String(x).trim()) : [];
     const selectedOptionRequiresRemark = type === "OPTION" && remarkOptions.includes(String(saved.Value || "").trim());
     const versionRemark1Enabled = isInspectionVersionRemarkEnabled(item, 1);
     const versionRemark2Enabled = isInspectionVersionRemarkEnabled(item, 2);
+    const itemRemark1Text = item.remark1Text || "Remark";
+    const itemRemark2Text = item.remark2Text || "Remark";
+    const versionRemark1Text = item.versionRemark1Text || item.VersionRemark1Text || "Remark";
+    const versionRemark2Text = item.versionRemark2Text || item.VersionRemark2Text || "Remark";
+    const remark1Text = selectedOptionRequiresRemark && !item.isRemark1Required ? versionRemark1Text : itemRemark1Text;
+    const remark2Text = selectedOptionRequiresRemark && !item.isRemark2Required ? versionRemark2Text : itemRemark2Text;
     const showRemark1 = versionRemark1Enabled && (!!item.isRemark1Required || selectedOptionRequiresRemark);
     const showRemark2 = versionRemark2Enabled && (!!item.isRemark2Required || selectedOptionRequiresRemark);
     const renderRemark1 = versionRemark1Enabled && (!!item.isRemark1Required || (type === "OPTION" && remarkOptions.length > 0));
@@ -647,7 +659,11 @@ function renderInspectionItem(item, savedItems, readOnly) {
         '" data-remark2-required="' + (item.isRemark2Required ? "1" : "0") +
         '" data-remark1-version-enabled="' + (versionRemark1Enabled ? "1" : "0") +
         '" data-remark2-version-enabled="' + (versionRemark2Enabled ? "1" : "0") +
-        '" data-remark-options="' + escInspection(remarkOptions.join(";")) + '">' +
+        '" data-remark-options="' + escInspection(remarkOptions.join(";")) +
+        '" data-remark1-item-text="' + escInspection(itemRemark1Text) +
+        '" data-remark1-version-text="' + escInspection(versionRemark1Text) +
+        '" data-remark2-item-text="' + escInspection(itemRemark2Text) +
+        '" data-remark2-version-text="' + escInspection(versionRemark2Text) + '">' +
         '<label class="inspection-item-label">' + escInspection(item.label || ("Item " + id)) + '</label>' +
         control + remark1 + remark2 + '</div>';
 }
@@ -764,11 +780,17 @@ function validateInspectionItems(items) {
         const versionRemark2Enabled = isInspectionVersionRemarkEnabled(templateItem, 2);
         const selectedOptionRequiresRemark1 = selectedOptionRequiresRemark && versionRemark1Enabled;
         const selectedOptionRequiresRemark2 = selectedOptionRequiresRemark && versionRemark2Enabled;
+        const remark1Title = selectedOptionRequiresRemark && !templateItem.isRemark1Required
+            ? (templateItem.versionRemark1Text || templateItem.VersionRemark1Text || "Remark")
+            : (templateItem.remark1Text || "Remark");
+        const remark2Title = selectedOptionRequiresRemark && !templateItem.isRemark2Required
+            ? (templateItem.versionRemark2Text || templateItem.VersionRemark2Text || "Remark")
+            : (templateItem.remark2Text || "Remark");
         if (versionRemark1Enabled && (templateItem.isRemark1Required || selectedOptionRequiresRemark1) && (!item.Remark1 || !item.Remark1.trim())) {
-            return (templateItem.remark1Text || "Remark") + " wajib diisi: " + item.ItemLabel;
+            return remark1Title + " wajib diisi: " + item.ItemLabel;
         }
         if (versionRemark2Enabled && (templateItem.isRemark2Required || selectedOptionRequiresRemark2) && (!item.Remark2 || !item.Remark2.trim())) {
-            return (templateItem.remark2Text || "Remark") + " wajib diisi: " + item.ItemLabel;
+            return remark2Title + " wajib diisi: " + item.ItemLabel;
         }
     }
     return "";
