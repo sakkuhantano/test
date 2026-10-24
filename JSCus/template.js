@@ -497,8 +497,10 @@ function createNewItem()
         RuntimeSubSectionID:0,
         IsRemark1Required:false,
         IsRemark2Required:false,
-        Remark1Text:"Remark",
-        Remark2Text:"Remark",
+        IsUseDefaultRemark1:false,
+        IsUseDefaultRemark2:false,
+        Remark1Text:"",
+        Remark2Text:"",
         IsValueRequired:false,
         ShowUnitInRange:false,
         UseDefaultOption:false,
@@ -518,6 +520,10 @@ function createNewVersion()
         EffectiveDate:"",
         Remark:"NEW VERSION",
         SummarySampleText:"",
+        IsRemark1Required:false,
+        Remark1Text:"",
+        IsRemark2Required:false,
+        Remark2Text:"",
         StatusOption:[],
         RemarkRequiredOptions:[],
         GroupEquipment:""
@@ -2615,7 +2621,7 @@ function showVersionPropertiesEvent(version) {
     renderVersionRemarkRequiredOptions(version);
     if (!isReadonlyMode)
     {
-        document.querySelectorAll("#propVersionRemark, #propVersionDate, #propVersionName, #propVersionSummarySample")
+        document.querySelectorAll("#propVersionRemark, #propVersionDate, #propVersionName, #propVersionSummarySample, #propVersionRemark1Text, #propVersionRemark2Text")
             .forEach(element => {
                 element.addEventListener("change", function () {
                     // 1. Perbarui data target berdasarkan ID elemen yang berubah
@@ -2631,6 +2637,12 @@ function showVersionPropertiesEvent(version) {
                             break;
                         case "propVersionSummarySample":
                             version.SummarySampleText = this.value;
+                            break;
+                        case "propVersionRemark1Text":
+                            version.Remark1Text = this.value;
+                            break;
+                        case "propVersionRemark2Text":
+                            version.Remark2Text = this.value;
                             break;
                     }
 
@@ -2707,6 +2719,23 @@ function showVersionPropertiesEvent(version) {
                 }
             );
 
+        [["propVersionRemark1Required", "IsRemark1Required", "Remark1Text", "versionRemark1TextRow", "propVersionRemark1Text"],
+         ["propVersionRemark2Required", "IsRemark2Required", "Remark2Text", "versionRemark2TextRow", "propVersionRemark2Text"]].forEach(function(cfg) {
+            const toggle = document.getElementById(cfg[0]);
+            if (!toggle) return;
+            toggle.addEventListener("change", function() {
+                version[cfg[1]] = this.checked;
+                const row = document.getElementById(cfg[3]);
+                const input = document.getElementById(cfg[4]);
+                if (row) row.style.display = this.checked ? "" : "none";
+                if (input) {
+                    if (this.checked && !String(input.value || "").trim()) input.value = "Remark";
+                    if (!this.checked) input.value = "";
+                    version[cfg[2]] = this.checked ? (input.value || "Remark") : "";
+                }
+                markCurrentVersionDirty();
+            });
+        });
     }
 
 }
@@ -2805,6 +2834,24 @@ function showVersionProperties(version, isNewTemplate)
                     <label class="form-label text-xs fw-bold mb-1">Summary Sample Text</label>
                     <textarea id="propVersionSummarySample" class="form-control form-control-compact" rows="4" maxlength="2000" ${isReadonlyMode ? 'disabled' : ''}>${version.SummarySampleText || ""}</textarea>
                     <div class="form-text text-xs">Example text shown as the Summary placeholder in the Work Order checklist.</div>
+                </div>
+                <div class="mb-3 border rounded p-2">
+                    <div class="form-check form-switch mb-2">
+                        <input id="propVersionRemark1Required" class="form-check-input" type="checkbox" ${version.IsRemark1Required ? 'checked' : ''} ${isReadonlyMode ? 'disabled' : ''}>
+                        <label class="form-check-label text-xs">Version Default: Remark 1 Required</label>
+                    </div>
+                    <div id="versionRemark1TextRow" style="${version.IsRemark1Required ? '' : 'display:none;'}">
+                        <label class="form-label text-xs">Default Remark 1 Title</label>
+                        <input id="propVersionRemark1Text" class="form-control form-control-sm" maxlength="100" value="${version.Remark1Text || 'Remark'}" ${isReadonlyMode ? 'disabled' : ''}>
+                    </div>
+                    <div class="form-check form-switch mt-3 mb-2">
+                        <input id="propVersionRemark2Required" class="form-check-input" type="checkbox" ${version.IsRemark2Required ? 'checked' : ''} ${isReadonlyMode ? 'disabled' : ''}>
+                        <label class="form-check-label text-xs">Version Default: Remark 2 Required</label>
+                    </div>
+                    <div id="versionRemark2TextRow" style="${version.IsRemark2Required ? '' : 'display:none;'}">
+                        <label class="form-label text-xs">Default Remark 2 Title</label>
+                        <input id="propVersionRemark2Text" class="form-control form-control-sm" maxlength="100" value="${version.Remark2Text || 'Remark'}" ${isReadonlyMode ? 'disabled' : ''}>
+                    </div>
                 </div>
                 <div class="mb-3" id="versionRemarkRequiredGroup">
                     <label class="form-label text-xs fw-bold mb-1">
@@ -3136,6 +3183,10 @@ function normalizeVersionStructure(data)
     data.VersionInfo.GroupEquipment =
         data.VersionInfo.GroupEquipment || "";
     data.VersionInfo.SummarySampleText = data.VersionInfo.SummarySampleText || "";
+    data.VersionInfo.IsRemark1Required = !!data.VersionInfo.IsRemark1Required;
+    data.VersionInfo.IsRemark2Required = !!data.VersionInfo.IsRemark2Required;
+    data.VersionInfo.Remark1Text = data.VersionInfo.IsRemark1Required ? (data.VersionInfo.Remark1Text || "Remark") : "";
+    data.VersionInfo.Remark2Text = data.VersionInfo.IsRemark2Required ? (data.VersionInfo.Remark2Text || "Remark") : "";
 
     data.VersionInfo.StatusOption =
         data.VersionInfo.StatusOption || [];
@@ -3197,8 +3248,12 @@ function normalizeVersionStructure(data)
             // A remark title only has meaning when its corresponding field is enabled.
             item.IsRemark1Required = !!item.IsRemark1Required;
             item.IsRemark2Required = !!item.IsRemark2Required;
-            item.Remark1Text = item.IsRemark1Required ? (item.Remark1Text || "Remark") : "";
-            item.Remark2Text = item.IsRemark2Required ? (item.Remark2Text || "Remark") : "";
+            item.IsUseDefaultRemark1 = !!item.IsUseDefaultRemark1;
+            item.IsUseDefaultRemark2 = !!item.IsUseDefaultRemark2;
+            if (!item.IsUseDefaultRemark1 && !item.IsRemark1Required) item.Remark1Text = "";
+            else item.Remark1Text = item.Remark1Text || "Remark";
+            if (!item.IsUseDefaultRemark2 && !item.IsRemark2Required) item.Remark2Text = "";
+            else item.Remark2Text = item.Remark2Text || "Remark";
 
         });
 
