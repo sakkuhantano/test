@@ -1480,21 +1480,25 @@ function renderTemplates(data, container, sectionId)
     //-----------------------------------
     // Restore versions for new templates
     //-----------------------------------
-    // Drop targets: drop an Active Version onto another Template to clone it as Draft.
+    // Only the Template header/name is a valid drop target.
+    // Section headers and Version rows are deliberately not drop targets.
     container.querySelectorAll(".template-root-item").forEach(function(root) {
         const versionContainer = root.querySelector(".template-version-container");
-        if (!versionContainer) return;
-        root.addEventListener("dragover", function(event) {
+        const templateHeader = root.querySelector(".template-group-header");
+        if (!versionContainer || !templateHeader) return;
+        templateHeader.addEventListener("dragover", function(event) {
             if (event.dataTransfer && Array.from(event.dataTransfer.types || []).includes("application/x-pip-version")) {
                 event.preventDefault();
-                root.classList.add("border", "border-primary");
+                event.dataTransfer.dropEffect = "copy";
+                templateHeader.classList.add("border", "border-primary");
             }
         });
-        root.addEventListener("dragleave", function(event) {
-            if (!root.contains(event.relatedTarget)) root.classList.remove("border", "border-primary");
+        templateHeader.addEventListener("dragleave", function(event) {
+            if (!templateHeader.contains(event.relatedTarget))
+                templateHeader.classList.remove("border", "border-primary");
         });
-        root.addEventListener("drop", async function(event) {
-            root.classList.remove("border", "border-primary");
+        templateHeader.addEventListener("drop", async function(event) {
+            templateHeader.classList.remove("border", "border-primary");
             const raw = event.dataTransfer && event.dataTransfer.getData("application/x-pip-version");
             if (!raw) return;
             event.preventDefault();
@@ -1505,6 +1509,7 @@ function renderTemplates(data, container, sectionId)
                 source.sectionId,
                 source.templateRuntimeId,
                 source.versionRuntimeId,
+                versionContainer.dataset.sectionId,
                 versionContainer.dataset.templateId
             );
         });
@@ -2072,26 +2077,51 @@ async function cloneVersionToNewTemplate(sourceSectionId, sourceRuntimeTemplateI
     currentVersionData = sourceVersionNode.Structure;
     await cloneTemplate();
 }
+async function loadTemplateSectionsForClone()
+{
+    const roots = Array.isArray(explorerRoot) ? explorerRoot : [];
+    for (const root of roots) {
+        const sectionId = String(root.SectionID || "");
+        if (!sectionId) continue;
+        const container = document.querySelector('.template-list-container[data-section-id="' + sectionId.replace(/"/g, '\\"') + '"]');
+        const button = document.getElementById("rootHeader_" + sectionId);
+        if (container && button && container.dataset.loaded !== "1") {
+            await loadTemplatesBySection(sectionId, button);
+        }
+    }
+}
 async function chooseCloneTargetTemplate(sourceSectionId, sourceRuntimeTemplateId, sourceRuntimeVersionId)
 {
-    const section = getSectionCache(sourceSectionId);
-    const sourceNode = section && section.Templates[sourceRuntimeTemplateId];
+    const sourceSection = getSectionCache(sourceSectionId);
+    const sourceNode = sourceSection && sourceSection.Templates[sourceRuntimeTemplateId];
     const sourceVersionNode = sourceNode && sourceNode.Versions[sourceRuntimeVersionId];
-    if (!sourceNode || !sourceVersionNode || !sourceVersionNode.Structure) {
-        showToast("Open the source Version first, then try cloning again.");
+    if (!sourceNode || !sourceVersionNode) {
+        showToast("Source Template/Version could not be found.");
         return;
     }
-    const targets = Object.values(section.Templates || {}).filter(function(node) {
-        return Number(node.Template.IDTemplate) > 0 &&
-            String(node.Template.RuntimeTemplateID) !== String(sourceRuntimeTemplateId) &&
-            String(node.Template.SectionID) === String(sourceSectionId);
+    await loadTemplateSectionsForClone();
+    const targets = [];
+    Object.keys(templateCache.sections || {}).forEach(function(sectionId) {
+        const section = templateCache.sections[sectionId];
+        Object.values(section.Templates || {}).forEach(function(node) {
+            if (Number(node.Template.IDTemplate) > 0 &&
+                !(String(sectionId) === String(sourceSectionId) && String(node.Template.RuntimeTemplateID) === String(sourceRuntimeTemplateId))) {
+                targets.push({ sectionId: sectionId, node: node });
+            }
+        });
+    });
+    targets.sort(function(a, b) {
+        const sectionCompare = String(a.sectionId).localeCompare(String(b.sectionId));
+        if (sectionCompare !== 0) return sectionCompare;
+        return String(a.node.Template.TemplateNo || "").localeCompare(String(b.node.Template.TemplateNo || ""));
     });
     if (!targets.length) {
-        showToast("No saved Template is available in this Section. Create a new Template instead.");
+        showToast("No saved destination Template is available.");
         return;
     }
-    const choices = targets.map(function(node, index) {
-        return (index + 1) + ". " + (node.Template.TemplateNo || "") + " — " + (node.Template.TemplateName || "");
+    const choices = targets.map(function(entry, index) {
+        const tpl = entry.node.Template;
+        return (index + 1) + ". [" + entry.sectionId + "] " + (tpl.TemplateNo || "") + " — " + (tpl.TemplateName || "");
     }).join("\n");
     const answer = window.prompt("Clone Version to which Template? Enter the number:\n\n" + choices, "1");
     if (answer === null) return;
@@ -2100,18 +2130,21 @@ async function chooseCloneTargetTemplate(sourceSectionId, sourceRuntimeTemplateI
         showToast("Invalid Template selection.");
         return;
     }
+    const target = targets[selectedIndex];
     await cloneVersionToExistingTemplate(
         sourceSectionId,
         sourceRuntimeTemplateId,
         sourceRuntimeVersionId,
-        targets[selectedIndex].Template.RuntimeTemplateID
+        target.sectionId,
+        target.node.Template.RuntimeTemplateID
     );
 }
-async function cloneVersionToExistingTemplate(sourceSectionId, sourceRuntimeTemplateId, sourceRuntimeVersionId, targetRuntimeTemplateId)
+async function cloneVersionToExistingTemplate(sourceSectionId, sourceRuntimeTemplateId, sourceRuntimeVersionId, targetSectionId, targetRuntimeTemplateId)
 {
-    const section = getSectionCache(sourceSectionId);
-    const sourceNode = section && section.Templates[sourceRuntimeTemplateId];
-    const targetNode = section && section.Templates[targetRuntimeTemplateId];
+    const sourceSection = getSectionCache(sourceSectionId);
+    const targetSection = getSectionCache(targetSectionId);
+    const sourceNode = sourceSection && sourceSection.Templates[sourceRuntimeTemplateId];
+    const targetNode = targetSection && targetSection.Templates[targetRuntimeTemplateId];
     const sourceVersionNode = sourceNode && sourceNode.Versions[sourceRuntimeVersionId];
     if (!sourceNode || !targetNode || !sourceVersionNode) {
         showToast("Source or destination Template/Version could not be found.");
@@ -2207,9 +2240,14 @@ async function cloneVersionToExistingTemplate(sourceSectionId, sourceRuntimeTemp
         Structure: clone
     };
     targetNode.Template.Dirty = true;
-    section.Dirty = true;
+    targetSection.Dirty = true;
     templateCache.Dirty = true;
 
+    // Switch the editor to the destination Template before refreshing its section.
+    currentTemplate = targetNode.Template;
+    currentVersions = Object.values(targetNode.Versions || {});
+    currentVersion = clone.VersionInfo;
+    currentVersionData = clone;
     await refreshCurrentTemplateExplorer(targetRuntimeTemplateId, runtimeVersionId);
     evaluateDirtyState();
     showToast("Version copied as Draft. Review mandatory fields, then use Save All.");
