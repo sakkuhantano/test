@@ -84,10 +84,12 @@ IF COL_LENGTH('dbo.PIP_M_CheckListWOPM', 'EmployeeList') IS NULL
 /* Version-level Remark defaults and per-item default/override switches. */
 DECLARE @RemarkDefaultsAdded BIT = 0;
 IF COL_LENGTH('dbo.PIP_M_CheckListWOPM_Version', 'IsRemark1Required') IS NULL
-BEGIN
-    ALTER TABLE dbo.PIP_M_CheckListWOPM_Version ADD IsRemark1Required BIT NOT NULL CONSTRAINT DF_PIP_M_CheckListWOPM_Version_IsRemark1Required DEFAULT (0);
+   OR COL_LENGTH('dbo.PIP_M_CheckListWOPM_Version', 'Remark1Text') IS NULL
+   OR COL_LENGTH('dbo.PIP_M_CheckListWOPM_Version', 'IsRemark2Required') IS NULL
+   OR COL_LENGTH('dbo.PIP_M_CheckListWOPM_Version', 'Remark2Text') IS NULL
     SET @RemarkDefaultsAdded = 1;
-END;
+IF COL_LENGTH('dbo.PIP_M_CheckListWOPM_Version', 'IsRemark1Required') IS NULL
+    ALTER TABLE dbo.PIP_M_CheckListWOPM_Version ADD IsRemark1Required BIT NOT NULL CONSTRAINT DF_PIP_M_CheckListWOPM_Version_IsRemark1Required DEFAULT (0);
 IF COL_LENGTH('dbo.PIP_M_CheckListWOPM_Version', 'Remark1Text') IS NULL
     ALTER TABLE dbo.PIP_M_CheckListWOPM_Version ADD Remark1Text VARCHAR(100) NOT NULL CONSTRAINT DF_PIP_M_CheckListWOPM_Version_Remark1Text DEFAULT ('Remark');
 IF COL_LENGTH('dbo.PIP_M_CheckListWOPM_Version', 'IsRemark2Required') IS NULL
