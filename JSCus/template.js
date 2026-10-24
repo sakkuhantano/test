@@ -5909,6 +5909,12 @@ async function showTemplateRootProperties(template, version)
             </div>
         </div>
     `;
+    if (version) {
+        // The first Draft renders version properties inside the Template root panel;
+        // wire the same version controls used by the regular Version Properties panel.
+        showVersionPropertiesEvent(version);
+        bindGroupEquipmentDropdown(version.GroupEquipment || "");
+    }
     if (!isReadonlyMode)
     {
         document
