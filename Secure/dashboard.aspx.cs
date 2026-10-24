@@ -129,7 +129,7 @@ i.MinValue,
 i.MaxValue,
 ISNULL(i.Unit,'') Unit,
 i.IsValueRequired,
-i.IsRemark1Required, i.IsRemark2Required, i.Remark1Text, i.Remark2Text, i.IsUseDefaultRemark1, i.IsUseDefaultRemark2, i.UseDefaultOption, ISNULL(i.RemarkRequiredOptions,'') ItemRemarkRequiredOptions,
+i.IsRemark1Required, i.IsRemark2Required, i.Remark1Text, i.Remark2Text, i.IsUseDefaultRemark1, i.IsUseDefaultRemark2, ISNULL(i.RemarkRequiredOptions,'') ItemRemarkRequiredOptions,
 i.DisplayOrder AS ItemOrder,
 v.StatusOption, i.ModelCode, i.MinTolerance, i.MaxTolerance, i.IsToleranceRequired
 FROM PIP_M_CheckListWOPM_Section s
