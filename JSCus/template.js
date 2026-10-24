@@ -2067,8 +2067,27 @@ async function cloneVersionToExistingTemplate(sourceSectionId, sourceRuntimeTemp
     const sourceNode = section && section.Templates[sourceRuntimeTemplateId];
     const targetNode = section && section.Templates[targetRuntimeTemplateId];
     const sourceVersionNode = sourceNode && sourceNode.Versions[sourceRuntimeVersionId];
-    if (!sourceNode || !targetNode || !sourceVersionNode || !sourceVersionNode.Structure) {
+    if (!sourceNode || !targetNode || !sourceVersionNode) {
         showToast("Source or destination Template/Version could not be found.");
+        return;
+    }
+    if (!sourceVersionNode.Structure && Number(sourceVersionNode.VersionInfo && sourceVersionNode.VersionInfo.IDVersion) > 0) {
+        try {
+            const sourceJson = await promisifyPageMethod(
+                PageMethods.GetVersionStructure,
+                String(sourceVersionNode.VersionInfo.IDVersion)
+            );
+            const loadedStructure = JSON.parse(sourceJson || "{}");
+            if (loadedStructure && loadedStructure.VersionInfo && loadedStructure.Sections) {
+                sourceVersionNode.Structure = loadedStructure;
+                sourceVersionNode.VersionInfo = Object.assign({}, sourceVersionNode.VersionInfo, loadedStructure.VersionInfo);
+            }
+        } catch (loadError) {
+            console.error("Could not load source Version structure for cloning:", loadError);
+        }
+    }
+    if (!sourceVersionNode.Structure) {
+        showToast("Could not load the source Version structure. Open it once and retry.");
         return;
     }
     if (String(sourceRuntimeTemplateId) === String(targetRuntimeTemplateId)) {
@@ -7700,6 +7719,9 @@ async function cloneTemplate()
     const clonedStructure = cloneVersionStructureForTemplate(sourceStructureForClone, structure.VersionInfo);
     structure.Sections = clonedStructure.Sections;
     structure.VersionInfo = Object.assign(structure.VersionInfo, clonedStructure.VersionInfo);
+    structure.VersionInfo.IDTemplate = 0;
+    structure.VersionInfo.TemplateNo = newTemplate.TemplateNo;
+    structure.VersionInfo.TemplateName = newTemplate.TemplateName;
     structure.VersionInfo.Version = "1.0";
     structure.VersionInfo.EffectiveDate = "";
     structure.VersionInfo.Remark = "";
