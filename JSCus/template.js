@@ -1993,9 +1993,11 @@ function cloneVersionStructureForTemplate(sourceStructure, sourceVersionInfo)
     clone.Sections = (clone.Sections || []).map(function(sec) {
         const oldSubsectionMap = {};
         const sectionsubsections = (sec.SubSections || []).map(function(sub) {
-            const oldRuntime = Number(sub.RuntimeSubSectionID || sub.IDSubSection || 0);
+            const oldDatabaseId = Number(sub.IDSubSection || 0);
+            const oldRuntime = Number(sub.RuntimeSubSectionID || oldDatabaseId || 0);
             const newRuntime = generateRuntimeID();
             if (oldRuntime) oldSubsectionMap[oldRuntime] = newRuntime;
+            if (oldDatabaseId) oldSubsectionMap[oldDatabaseId] = newRuntime;
             return Object.assign({}, sub, {
                 IDSubSection: 0,
                 RuntimeSubSectionID: newRuntime
