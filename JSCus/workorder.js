@@ -754,12 +754,14 @@ function updateWorkOrderRemarkPanels(template) {
     root.querySelectorAll("[data-item-id]").forEach(container => {
         const item = items.find(x => String(x.idItem) === String(container.dataset.itemId));
         if (!item) return;
-        const options = Array.isArray(item.remarkRequiredOptions) ? item.remarkRequiredOptions.map(String) :
-            Array.isArray(item.RemarkRequiredOptions) ? item.RemarkRequiredOptions.map(String) : [];
+        const options = Array.isArray(item.remarkRequiredOptions) ? item.remarkRequiredOptions.map(x => String(x).trim()) :
+            Array.isArray(item.RemarkRequiredOptions) ? item.RemarkRequiredOptions.map(x => String(x).trim()) : [];
         const selected = container.querySelector('[data-role="option"]:checked');
-        const optionRequires = String(item.type || "").toUpperCase() === "OPTION" && !!selected && options.includes(String(selected.value));
-        const show1 = !!(item.isRemark1Required || item.isRemarkRequired || (optionRequires && isWorkOrderVersionRemarkEnabled(item, 1, template)));
-        const show2 = !!(item.isRemark2Required || (optionRequires && isWorkOrderVersionRemarkEnabled(item, 2, template)));
+        const optionRequires = String(item.type || "").toUpperCase() === "OPTION" && !!selected && options.includes(String(selected.value).trim());
+        const versionRemark1Enabled = isWorkOrderVersionRemarkEnabled(item, 1, template);
+        const versionRemark2Enabled = isWorkOrderVersionRemarkEnabled(item, 2, template);
+        const show1 = versionRemark1Enabled && !!(item.isRemark1Required || item.isRemarkRequired || optionRequires);
+        const show2 = versionRemark2Enabled && !!(item.isRemark2Required || optionRequires);
         const panel = container.querySelector('[data-role="remark-panel"]');
         const remark1 = container.querySelector('[data-role="remark1"]');
         const remark2 = container.querySelector('[data-role="remark2"]');
@@ -2976,11 +2978,13 @@ function validateItem(item, container) {
             ? item.RemarkRequiredOptions
             : [];
     const selectedOptionRequiresRemark = item.type === "OPTION" && !!checked &&
-        requiredOptionRemarks.map(String).includes(String(checked.value));
-    const selectedOptionRequiresRemark1 = selectedOptionRequiresRemark && isWorkOrderVersionRemarkEnabled(item, 1);
-    const selectedOptionRequiresRemark2 = selectedOptionRequiresRemark && isWorkOrderVersionRemarkEnabled(item, 2);
+        requiredOptionRemarks.map(x => String(x).trim()).includes(String(checked.value).trim());
+    const versionRemark1Enabled = isWorkOrderVersionRemarkEnabled(item, 1);
+    const versionRemark2Enabled = isWorkOrderVersionRemarkEnabled(item, 2);
+    const selectedOptionRequiresRemark1 = selectedOptionRequiresRemark && versionRemark1Enabled;
+    const selectedOptionRequiresRemark2 = selectedOptionRequiresRemark && versionRemark2Enabled;
 
-    if (!error && (item.isRemark1Required || item.isRemarkRequired || selectedOptionRequiresRemark1)) {
+    if (!error && versionRemark1Enabled && (item.isRemark1Required || item.isRemarkRequired || selectedOptionRequiresRemark1)) {
 
         let remark = remarkEl?.value?.trim();
 
@@ -3019,7 +3023,7 @@ function validateItem(item, container) {
         }        
     }
 
-    if (!error && (item.isRemark2Required || selectedOptionRequiresRemark2)) {
+    if (!error && versionRemark2Enabled && (item.isRemark2Required || selectedOptionRequiresRemark2)) {
         const remark2 = container.querySelector("[data-role='remark2']")?.value?.trim() || "";
         let hasValue2 = false;
         switch (item.type) {
