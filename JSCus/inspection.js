@@ -620,10 +620,12 @@ function renderInspectionItem(item, savedItems, readOnly) {
     const remark2Text = item.remark2Text || "Remark";
     const remarkOptions = Array.isArray(item.remarkRequiredOptions) ? item.remarkRequiredOptions.map(String) : [];
     const selectedOptionRequiresRemark = type === "OPTION" && remarkOptions.includes(String(saved.Value || ""));
-    const showRemark1 = !!item.isRemark1Required || (selectedOptionRequiresRemark && !!item.versionIsRemark1Required);
-    const showRemark2 = !!item.isRemark2Required || (selectedOptionRequiresRemark && !!item.versionIsRemark2Required);
-    const renderRemark1 = !!item.isRemark1Required || (type === "OPTION" && remarkOptions.length > 0 && !!item.versionIsRemark1Required);
-    const renderRemark2 = !!item.isRemark2Required || (type === "OPTION" && remarkOptions.length > 0 && !!item.versionIsRemark2Required);
+    const versionRemark1Enabled = isInspectionVersionRemarkEnabled(item, 1);
+    const versionRemark2Enabled = isInspectionVersionRemarkEnabled(item, 2);
+    const showRemark1 = !!item.isRemark1Required || (selectedOptionRequiresRemark && versionRemark1Enabled);
+    const showRemark2 = !!item.isRemark2Required || (selectedOptionRequiresRemark && versionRemark2Enabled);
+    const renderRemark1 = !!item.isRemark1Required || (type === "OPTION" && remarkOptions.length > 0 && versionRemark1Enabled);
+    const renderRemark2 = !!item.isRemark2Required || (type === "OPTION" && remarkOptions.length > 0 && versionRemark2Enabled);
     const remark1 = renderRemark1
         ? '<div class="mt-2" data-role="remark1-wrap" style="' + (showRemark1 ? "" : "display:none;") + '"><label class="inspection-muted">' + escInspection(remark1Text) +
           (showRemark1 ? ' (wajib)' : '') + '</label><input type="text" maxlength="500" data-role="remark1" class="form-control form-control-sm" value="' +
@@ -641,8 +643,8 @@ function renderInspectionItem(item, savedItems, readOnly) {
         '" data-required="' + (item.isValueRequired ? "1" : "0") +
         '" data-remark1-base-required="' + (item.isRemark1Required ? "1" : "0") +
         '" data-remark2-required="' + (item.isRemark2Required ? "1" : "0") +
-        '" data-remark1-version-enabled="' + (item.versionIsRemark1Required ? "1" : "0") +
-        '" data-remark2-version-enabled="' + (item.versionIsRemark2Required ? "1" : "0") +
+        '" data-remark1-version-enabled="' + (versionRemark1Enabled ? "1" : "0") +
+        '" data-remark2-version-enabled="' + (versionRemark2Enabled ? "1" : "0") +
         '" data-remark-options="' + escInspection(remarkOptions.join(";")) + '">' +
         '<label class="inspection-item-label">' + escInspection(item.label || ("Item " + id)) + '</label>' +
         control + remark1 + remark2 + '</div>';
@@ -722,6 +724,14 @@ function findInspectionTemplateItem(itemId) {
     return null;
 }
 
+function isInspectionVersionRemarkEnabled(item, remarkNumber) {
+    const key = remarkNumber === 1 ? "versionIsRemark1Required" : "versionIsRemark2Required";
+    if (item && item[key] != null) return !!item[key];
+    const snapshot = currentInspectionRecord && currentInspectionRecord.TemplateSnapshot;
+    const snapshotKey = remarkNumber === 1 ? "IsRemark1Required" : "IsRemark2Required";
+    return !!(snapshot && snapshot[snapshotKey]);
+}
+
 function validateInspectionItems(items) {
     for (const item of items) {
         const templateItem = findInspectionTemplateItem(item.IDItem);
@@ -748,8 +758,8 @@ function validateInspectionItems(items) {
         const requiredOptionRemarks = Array.isArray(templateItem.remarkRequiredOptions) ? templateItem.remarkRequiredOptions.map(String) : [];
         const selectedOptionRequiresRemark = String(templateItem.type || "").toUpperCase() === "OPTION" &&
             requiredOptionRemarks.includes(String(item.Value || ""));
-        const selectedOptionRequiresRemark1 = selectedOptionRequiresRemark && !!templateItem.versionIsRemark1Required;
-        const selectedOptionRequiresRemark2 = selectedOptionRequiresRemark && !!templateItem.versionIsRemark2Required;
+        const selectedOptionRequiresRemark1 = selectedOptionRequiresRemark && isInspectionVersionRemarkEnabled(templateItem, 1);
+        const selectedOptionRequiresRemark2 = selectedOptionRequiresRemark && isInspectionVersionRemarkEnabled(templateItem, 2);
         if ((templateItem.isRemark1Required || selectedOptionRequiresRemark1) && (!item.Remark1 || !item.Remark1.trim())) {
             return (templateItem.remark1Text || "Remark") + " wajib diisi: " + item.ItemLabel;
         }
