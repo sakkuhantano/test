@@ -6029,7 +6029,7 @@ async function renderTemplateCompanyAssignments(template)
             check.className = 'form-check-input';
             check.checked = !!row.IsAssigned;
             // Keep the current property selected so the editor does not lose access mid-session.
-            check.disabled = isReadonlyMode || isNewTemplate ||
+            check.disabled = isNewTemplate ||
                 (String(row.CompanyID) === String(companyId) && String(row.LocationID) === String(locationId));
             if (check.disabled && !isReadonlyMode) {
                 if (isNewTemplate)
@@ -6149,7 +6149,7 @@ async function renderTemplateEmployeeAssignments(template)
             check.type = 'checkbox';
             check.className = 'form-check-input';
             check.checked = !!row.IsAssigned;
-            check.disabled = isReadonlyMode;
+            check.disabled = false;
             check.addEventListener('change', async function() {
                 const oldValue = !this.checked;
                 try {
@@ -9289,6 +9289,7 @@ function patchSavedIdentity(saveResult)
                 template.RuntimeTemplateID == m.RuntimeID)
             {
                 template.IDTemplate = m.ID;
+                template.IsActive = true;
             }
 
             Object.values(node.Versions || {}).forEach(function(ver)
