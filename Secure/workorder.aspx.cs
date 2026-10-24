@@ -134,6 +134,13 @@ UPDATE UserSession SET LastSyncWO=@V_GetDate WHERE IsActive=1
 SELECT TOP 10 a.KeyHD,a.WONo,a.WODate,a.EquipmentCode,a.LocationNo,a.[Description], a.SectionID, 
 Status=CASE WHEN ReasonRespondDC<>'' THEN 'DRAFT' WHEN ISNULL(a.RemarkTechnician,'')<>'' THEN 'SYNCED' ELSE 'PENDING' END, 
 ISNULL(a.TemplateWOPM,'') TemplateWOPM, a.ReasonRespondDC ReasonVoid, LastUpdated=@V_GetDate, a.CompanyID, a.LocationID,a.RemarkTechnician,a.IsCompleteDC, ISNULL(a.TemplateVersion,'') TemplateVersion,
+TemplateVersionStatus=ISNULL((SELECT TOP 1 vv.Status
+ FROM PIP_M_CheckListWOPM_Version vv
+ JOIN PIP_M_CheckListWOPM tt ON tt.IDTemplate=vv.IDTemplate
+ WHERE tt.TemplateNo=a.TemplateWOPM AND tt.SectionID=a.SectionID
+   AND ISNULL(tt.TemplateType,'W')='W' AND vv.Version=a.TemplateVersion
+   AND (ISNULL(tt.CompanyScope,'S')='A' OR (';' + ISNULL(tt.CompanyLocationList,'') + ';' LIKE '%;' + a.CompanyID + a.LocationID + ';%'))
+ ORDER BY CASE WHEN ISNULL(tt.CompanyScope,'S')='S' THEN 0 ELSE 1 END, tt.IDTemplate),''),
 SummarySampleText=ISNULL((SELECT TOP 1 vv.SummarySampleText
 FROM PIP_M_CheckListWOPM_Version vv
 JOIN PIP_M_CheckListWOPM tt ON tt.IDTemplate=vv.IDTemplate
@@ -755,17 +762,24 @@ string.Format(@"
                     dict["ReasonVoid"] = row["ReasonVoid"];
                     dict["IsCompleteDC"] = row["IsCompleteDC"];
                     
-                    // Keep the exact template version snapshot with every WorkOrder, including archived versions.
-                    var _checkList = Secure.dashboard.getCheckList(row["SectionID"].ToString(),
-                                                                    row["TemplateWOPM"].ToString(),
-                                                                    row["TemplateVersion"].ToString(),
-                                                                    _modelCode,
-                                                                    row["CompanyID"].ToString(),
-                                                                    row["LocationID"].ToString(),
-                                                                    "W"
-                                                                    );
-                    var listData = _checkList as List<Dictionary<string, object>>;
-                    dict["TemplateJSON"] = listData != null && listData.Count > 0 ? listData[0] : null;
+                    // SPV needs the checklist for review; technicians only need a server snapshot when their version is archived.
+                    if (isSPV || String.Equals(GF.GetString(row["TemplateVersionStatus"]), "Archieved", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var _checkList = Secure.dashboard.getCheckList(row["SectionID"].ToString(),
+                                                                        row["TemplateWOPM"].ToString(),
+                                                                        row["TemplateVersion"].ToString(),
+                                                                        _modelCode,
+                                                                        row["CompanyID"].ToString(),
+                                                                        row["LocationID"].ToString(),
+                                                                        "W"
+                                                                        );
+                        var listData = _checkList as List<Dictionary<string, object>>;
+                        dict["TemplateJSON"] = listData != null && listData.Count > 0 ? listData[0] : null;
+                    }
+                    else
+                    {
+                        dict["TemplateJSON"] = null;
+                    }
 
                     // data saved checklist
                     dt1 = br.EQuery("SELECT A.IDItem, A.Value, A.Remark1, A.Remark2, B.ItemType, A.IDResult, A.IsAnomali " +
