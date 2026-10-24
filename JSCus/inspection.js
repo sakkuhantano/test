@@ -115,6 +115,11 @@ function wireInspectionEvents() {
         window.alert(count + " inspeksi mengalami konflik saat sync. Buka daftar inspeksi untuk melihat alasan dan pilih Delete Local Transaction bila record lokal memang harus dibuang.");
     });
     document.getElementById("inspectionChecklistHost").addEventListener("input", function () { scheduleInspectionAutosave(); updateInspectionChecklistGate(); });
+    document.getElementById("inspectionChecklistHost").addEventListener("change", function (event) {
+        if (event.target && event.target.matches('[data-role="value"][type="radio"]')) updateInspectionRemarkPanels();
+        scheduleInspectionAutosave();
+        updateInspectionChecklistGate();
+    });
     document.getElementById("txtInspectionSummary").addEventListener("input", scheduleInspectionAutosave);
 }
 
@@ -529,8 +534,26 @@ async function renderInspectionForm(record, readOnly) {
         record.SyncStatus === "SYNCED" ? "Sudah tersinkron ke server." :
         record.Status === "DONE" ? "Selesai offline; menunggu sync." :
         "Draft tersimpan otomatis di perangkat.";
+    updateInspectionRemarkPanels();
     await renderInspectionPhotos();
     await updateInspectionChecklistGate();
+}
+
+function updateInspectionRemarkPanels() {
+    document.querySelectorAll("#inspectionChecklistHost .inspection-item[data-item-id]").forEach(function(container) {
+        const options = String(container.dataset.remarkOptions || "").split(";").filter(Boolean);
+        const selected = container.querySelector('[data-role="value"][type="radio"]:checked');
+        const optionRequires = container.dataset.itemType === "OPTION" && !!selected && options.includes(String(selected.value));
+        const showRemark1 = container.dataset.remark1BaseRequired === "1" || optionRequires;
+        const wrap = container.querySelector('[data-role="remark1-wrap"]');
+        const input = container.querySelector('[data-role="remark1"]');
+        if (wrap) {
+            wrap.style.display = showRemark1 ? "" : "none";
+            const label = wrap.querySelector("label");
+            if (label) label.textContent = (label.textContent || "Remark").replace(/\s*\(wajib\)$/, "") + (showRemark1 ? " (wajib)" : "");
+        }
+        if (input) input.required = showRemark1;
+    });
 }
 
 function renderInspectionItem(item, savedItems, readOnly) {
@@ -584,13 +607,16 @@ function renderInspectionItem(item, savedItems, readOnly) {
 
     const remark1Text = item.remark1Text || "Remark";
     const remark2Text = item.remark2Text || "Remark";
-    const remark1 = item.isRemark1Required
-        ? '<div class="mt-2"><label class="inspection-muted">' + escInspection(remark1Text) +
-          ' (wajib)</label><input type="text" maxlength="500" data-role="remark1" class="form-control form-control-sm" value="' +
-          escInspection(saved.Remark1 || saved.Remark || "") + '"' + disabled + ' required></div>'
+    const remarkOptions = Array.isArray(item.remarkRequiredOptions) ? item.remarkRequiredOptions.map(String) : [];
+    const selectedOptionRequiresRemark = type === "OPTION" && remarkOptions.includes(String(saved.Value || ""));
+    const showRemark1 = !!item.isRemark1Required || selectedOptionRequiresRemark;
+    const remark1 = (item.isRemark1Required || (type === "OPTION" && remarkOptions.length > 0))
+        ? '<div class="mt-2" data-role="remark1-wrap" style="' + (showRemark1 ? "" : "display:none;") + '"><label class="inspection-muted">' + escInspection(remark1Text) +
+          (showRemark1 ? ' (wajib)' : '') + '</label><input type="text" maxlength="500" data-role="remark1" class="form-control form-control-sm" value="' +
+          escInspection(saved.Remark1 || saved.Remark || "") + '"' + disabled + (showRemark1 ? ' required' : '') + '></div>'
         : "";
     const remark2 = item.isRemark2Required
-        ? '<div class="mt-2"><label class="inspection-muted">' + escInspection(remark2Text) +
+        ? '<div class="mt-2" data-role="remark2-wrap"><label class="inspection-muted">' + escInspection(remark2Text) +
           ' (wajib)</label><input type="text" maxlength="500" data-role="remark2" class="form-control form-control-sm" value="' +
           escInspection(saved.Remark2 || "") + '"' + disabled + ' required></div>'
         : "";
@@ -599,8 +625,9 @@ function renderInspectionItem(item, savedItems, readOnly) {
         '" data-min="' + escInspection(item.min == null ? "" : item.min) +
         '" data-max="' + escInspection(item.max == null ? "" : item.max) +
         '" data-required="' + (item.isValueRequired ? "1" : "0") +
-        '" data-remark1-required="' + (item.isRemark1Required ? "1" : "0") +
-        '" data-remark2-required="' + (item.isRemark2Required ? "1" : "0") + '">' +
+        '" data-remark1-base-required="' + (item.isRemark1Required ? "1" : "0") +
+        '" data-remark2-required="' + (item.isRemark2Required ? "1" : "0") +
+        '" data-remark-options="' + escInspection(remarkOptions.join(";")) + '">' +
         '<label class="inspection-item-label">' + escInspection(item.label || ("Item " + id)) + '</label>' +
         control + remark1 + remark2 + '</div>';
 }
@@ -702,7 +729,10 @@ function validateInspectionItems(items) {
                 return "Nilai wajib diisi: " + item.ItemLabel;
             }
         }
-        if (templateItem.isRemark1Required && (!item.Remark1 || !item.Remark1.trim())) {
+        const requiredOptionRemarks = Array.isArray(templateItem.remarkRequiredOptions) ? templateItem.remarkRequiredOptions.map(String) : [];
+        const selectedOptionRequiresRemark = String(templateItem.type || "").toUpperCase() === "OPTION" &&
+            requiredOptionRemarks.includes(String(item.Value || ""));
+        if ((templateItem.isRemark1Required || selectedOptionRequiresRemark) && (!item.Remark1 || !item.Remark1.trim())) {
             return (templateItem.remark1Text || "Remark") + " wajib diisi: " + item.ItemLabel;
         }
         if (templateItem.isRemark2Required && (!item.Remark2 || !item.Remark2.trim())) {
