@@ -6242,7 +6242,7 @@ async function renderTemplateEmployeeAssignments(template)
         assignAll.type = 'button';
         assignAll.className = 'btn btn-sm btn-outline-primary text-nowrap';
         assignAll.textContent = 'Assign All';
-        assignAll.disabled = isReadonlyMode;
+        assignAll.disabled = false;
         const clearSearch = document.createElement('button');
         clearSearch.type = 'button';
         clearSearch.className = 'btn btn-sm btn-outline-secondary text-nowrap';
@@ -6363,7 +6363,7 @@ async function renderTemplateEmployeeAssignments(template)
                 }
             } finally {
                 hideLoading();
-                assignAll.disabled = isReadonlyMode;
+                assignAll.disabled = false;
             }
             alert('Assigned ' + assigned + ' of ' + pending.length + ' employees.' +
                 (failed.length ? '\nFailed: ' + failed.join('\n') : ''));
