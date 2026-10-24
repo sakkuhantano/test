@@ -2065,9 +2065,12 @@ async function cloneVersionToNewTemplate(sourceSectionId, sourceRuntimeTemplateI
         showToast("Could not load the source Version structure. Open it once and retry.");
         return;
     }
+    const targetSectionId = await chooseCloneTargetSection(sourceSectionId);
+    if (!targetSectionId) return;
+
     const confirmed = await showConfirmation({
         title: "Clone to New Template",
-        message: "Create a new Template and copy this Active Version into it as a Draft? The source Template will remain unchanged."
+        message: "Create a new Template in Section " + targetSectionId + " and copy this Active Version into it as a Draft? The source Template will remain unchanged."
     });
     if (!confirmed) return;
 
@@ -2075,7 +2078,89 @@ async function cloneVersionToNewTemplate(sourceSectionId, sourceRuntimeTemplateI
     currentVersions = Object.values(sourceNode.Versions || {});
     currentVersion = sourceVersionNode.VersionInfo;
     currentVersionData = sourceVersionNode.Structure;
-    await cloneTemplate();
+    await cloneTemplate(targetSectionId);
+}
+
+async function chooseCloneTargetSection(sourceSectionId)
+{
+    await loadTemplateSectionsForClone();
+    let roots = [];
+    try {
+        roots = Array.isArray(explorerRoot) ? explorerRoot : JSON.parse(explorerRoot || "[]");
+    } catch (err) {
+        showToast("Could not load sections. Refresh the Template explorer and retry.");
+        return null;
+    }
+    if (!Array.isArray(roots) || !roots.length) {
+        showToast("No destination Section is available.");
+        return null;
+    }
+
+    const overlay = document.createElement("div");
+    overlay.className = "modal fade show";
+    overlay.style.cssText = "display:block;background:rgba(0,0,0,.45);position:fixed;inset:0;z-index:1090;overflow:auto;";
+    overlay.setAttribute("role", "dialog");
+    overlay.setAttribute("aria-modal", "true");
+    overlay.innerHTML = `
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content shadow">
+          <div class="modal-header">
+            <h5 class="modal-title"><i class="bi bi-folder2-open me-2"></i>Clone to New Template</h5>
+            <button type="button" class="btn-close" data-clone-section-close aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <div class="text-muted small mb-3">Pilih Section tujuan untuk Template baru.</div>
+            <div class="list-group" data-clone-section-options></div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" data-clone-section-close>Batal</button>
+            <button type="button" class="btn btn-primary" data-clone-section-confirm disabled>Lanjutkan</button>
+          </div>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+    const list = overlay.querySelector("[data-clone-section-options]");
+    const confirm = overlay.querySelector("[data-clone-section-confirm]");
+    let selected = "";
+    roots.forEach(function(root) {
+        const id = String(root.SectionID || "");
+        if (!id) return;
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "list-group-item list-group-item-action";
+        button.textContent = String(root.SectionName || root.SectionDescription || id) + " (" + id + ")";
+        button.addEventListener("click", function() {
+            selected = id;
+            list.querySelectorAll("button").forEach(x => x.classList.remove("active"));
+            button.classList.add("active");
+            confirm.disabled = false;
+        });
+        list.appendChild(button);
+    });
+    if (!list.children.length) {
+        overlay.remove();
+        showToast("No destination Section is available.");
+        return null;
+    }
+    return await new Promise(function(resolve) {
+        let settled = false;
+        function finish(value) {
+            if (settled) return;
+            settled = true;
+            document.removeEventListener("keydown", onKeyDown);
+            overlay.remove();
+            resolve(value);
+        }
+        function onKeyDown(event) {
+            if (event.key === "Escape") finish(null);
+        }
+        document.addEventListener("keydown", onKeyDown);
+        overlay.addEventListener("click", function(event) {
+            if (event.target === overlay) finish(null);
+        });
+        overlay.querySelectorAll("[data-clone-section-close]").forEach(x => x.addEventListener("click", () => finish(null)));
+        confirm.addEventListener("click", () => finish(selected || null));
+    });
 }
 async function loadTemplateSectionsForClone()
 {
@@ -7879,7 +7964,7 @@ function renderContextMenu(x, y, items) {
     menu.style.top = `${y}px`;
     menu.classList.remove('d-none');
 }
-async function cloneTemplate()
+async function cloneTemplate(targetSectionId)
 {
     removeExistingContextMenu();
 
@@ -7911,6 +7996,8 @@ async function cloneTemplate()
         );
 
     newTemplate.IDTemplate = 0;
+    if (targetSectionId)
+        newTemplate.SectionID = String(targetSectionId);
     newTemplate.RuntimeTemplateID =
         generateRuntimeID();
     newTemplate.Dirty = true;
