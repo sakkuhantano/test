@@ -770,7 +770,7 @@ SELECT S.IDSection, S.SectionName, S.DisplayOrder AS SectionOrder,
        ISNULL(SS.DisplayOrder,0) AS SubSectionOrder,
        I.ItemLabel, I.ItemType, ISNULL(I.OptionList,'') OptionList,
        I.MinValue, I.MaxValue, ISNULL(I.Unit,'') Unit, I.IsValueRequired,
-       I.IsRemark1Required, I.IsRemark2Required, I.Remark1Text, I.Remark2Text, I.DisplayOrder AS ItemOrder, V.StatusOption,
+       I.IsRemark1Required, I.IsRemark2Required, I.Remark1Text, I.Remark2Text, ISNULL(I.RemarkRequiredOptions,'') RemarkRequiredOptions, I.DisplayOrder AS ItemOrder, V.StatusOption,
        I.ModelCode, I.MinTolerance, I.MaxTolerance, I.IsToleranceRequired
 FROM dbo.PIP_M_CheckListWOPM_Section S
 JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDSection=S.IDSection
@@ -831,6 +831,7 @@ ORDER BY G.DisplayOrder",
                                         isRemark2Required = Convert.ToBoolean(itemRow["IsRemark2Required"]),
                                         remark1Text = itemRow["Remark1Text"] == DBNull.Value ? "Remark" : itemRow["Remark1Text"].ToString(),
                                         remark2Text = itemRow["Remark2Text"] == DBNull.Value ? "Remark" : itemRow["Remark2Text"].ToString(),
+                                         remarkRequiredOptions = String.IsNullOrWhiteSpace(GF.GetString(itemRow["RemarkRequiredOptions"])) ? new string[0] : GF.GetString(itemRow["RemarkRequiredOptions"]).Split(';'),
                                         isToleranceRequired = itemRow["IsToleranceRequired"] != DBNull.Value && Convert.ToBoolean(itemRow["IsToleranceRequired"]),
                                         mintol = itemRow["MinTolerance"] == DBNull.Value ? (decimal?)null : Convert.ToDecimal(itemRow["MinTolerance"]),
                                         maxtol = itemRow["MaxTolerance"] == DBNull.Value ? (decimal?)null : Convert.ToDecimal(itemRow["MaxTolerance"]),
