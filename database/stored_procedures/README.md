@@ -11,7 +11,7 @@ Source scripts for SQL Server stored procedures live in this folder.
 1. Run `database/master_template_inspection_schema.sql` first. It adds
    `CompanyLocationList` and `EmployeeList`, migrates existing assignments, and drops
    the two legacy relation tables only after migration.
-2. Deploy `database/stored_procedures/spUTL_PIP_M_CheckListWOPM.sql` and the updated
-   application files together.
+2. Deploy `database/stored_procedures/spUTL_PIP_M_CheckListWOPM.sql`,
+   `database/inspection_transaction_schema.sql`, and the updated application files together.
 3. Active/Archieved version content is immutable through the Save All stored procedure;
    only Draft versions can be edited or deleted.
