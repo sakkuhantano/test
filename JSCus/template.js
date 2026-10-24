@@ -1285,22 +1285,42 @@ async function loadTemplatesBySection(sectionId, btn)
         //-----------------------------------
         templates.forEach(tpl =>
         {
-            // tpl.RuntimeTemplateID = tpl.IDTemplate;            
-            if(!sectionCache.Templates[tpl.RuntimeTemplateID])
-            {
+            // A newly created template keeps its runtime ID for the current editor session,
+            // while the server returns its database ID as RuntimeTemplateID. Match by the
+            // persisted ID as well, otherwise a stale local "Inactive" entry survives beside
+            // the refreshed server entry until the page is reloaded.
+            let existingKey = String(tpl.RuntimeTemplateID);
+            let existingNode = sectionCache.Templates[existingKey];
+            if (!existingNode && Number(tpl.IDTemplate) > 0) {
+                const match = Object.entries(sectionCache.Templates).find(([, node]) =>
+                    Number(node && node.Template && node.Template.IDTemplate) === Number(tpl.IDTemplate)
+                );
+                if (match) {
+                    existingKey = match[0];
+                    existingNode = match[1];
+                }
+            }
+
+            if (existingNode) {
+                const stableRuntimeID = existingNode.Template.RuntimeTemplateID;
+                existingNode.Template = Object.assign({}, tpl, { RuntimeTemplateID: stableRuntimeID });
+                existingNode.Dirty = false;
+                // Remove duplicate cache entries for this same database template.
+                Object.entries(sectionCache.Templates).forEach(([key, node]) => {
+                    if (key !== existingKey &&
+                        Number(node && node.Template && node.Template.IDTemplate) === Number(tpl.IDTemplate) &&
+                        Number(tpl.IDTemplate) > 0) {
+                        delete sectionCache.Templates[key];
+                    }
+                });
+            } else {
                 if (tpl.GroupEquipment == null)
-                    tpl.GroupEquipment = "";            
-                sectionCache.Templates[tpl.RuntimeTemplateID] =
-                {
-                    Template : tpl,
-                    Versions : {},
+                    tpl.GroupEquipment = "";
+                sectionCache.Templates[tpl.RuntimeTemplateID] = {
+                    Template: tpl,
+                    Versions: {},
                     Dirty: false
                 };
-            }
-            else
-            {
-                sectionCache.Templates[tpl.RuntimeTemplateID].Template = tpl;
-                sectionCache.Templates[tpl.RuntimeTemplateID].Dirty = false;
             }
         });
         //-----------------------------------
@@ -9375,7 +9395,6 @@ function patchSavedIdentity(saveResult)
                 template.RuntimeTemplateID == m.RuntimeID)
             {
                 template.IDTemplate = m.ID;
-                template.IsActive = true;
                 template.IsActive = true;
             }
 
