@@ -762,24 +762,18 @@ string.Format(@"
                     dict["ReasonVoid"] = row["ReasonVoid"];
                     dict["IsCompleteDC"] = row["IsCompleteDC"];
                     
-                    // SPV needs the checklist for review; technicians only need a server snapshot when their version is archived.
-                    if (isSPV || String.Equals(GF.GetString(row["TemplateVersionStatus"]), "Archieved", StringComparison.OrdinalIgnoreCase))
-                    {
-                        var _checkList = Secure.dashboard.getCheckList(row["SectionID"].ToString(),
-                                                                        row["TemplateWOPM"].ToString(),
-                                                                        row["TemplateVersion"].ToString(),
-                                                                        _modelCode,
-                                                                        row["CompanyID"].ToString(),
-                                                                        row["LocationID"].ToString(),
-                                                                        "W"
-                                                                        );
-                        var listData = _checkList as List<Dictionary<string, object>>;
-                        dict["TemplateJSON"] = listData != null && listData.Count > 0 ? listData[0] : null;
-                    }
-                    else
-                    {
-                        dict["TemplateJSON"] = null;
-                    }
+                    // Pin every WorkOrder to the exact version selected when it was created.
+                    // This snapshot is cached with the WorkOrder on the client so a later
+                    // publish/archive cannot silently replace the checklist with a newer version.
+                    var _checkList = Secure.dashboard.getCheckList(row["SectionID"].ToString(),
+                                                                    row["TemplateWOPM"].ToString(),
+                                                                    row["TemplateVersion"].ToString(),
+                                                                    _modelCode,
+                                                                    row["CompanyID"].ToString(),
+                                                                    row["LocationID"].ToString(),
+                                                                    "W");
+                    var listData = _checkList as List<Dictionary<string, object>>;
+                    dict["TemplateJSON"] = listData != null && listData.Count > 0 ? listData[0] : null;
 
                     // data saved checklist
                     dt1 = br.EQuery("SELECT A.IDItem, A.Value, A.Remark1, A.Remark2, B.ItemType, A.IDResult, A.IsAnomali " +
