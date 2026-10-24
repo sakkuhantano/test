@@ -9290,6 +9290,7 @@ function patchSavedIdentity(saveResult)
             {
                 template.IDTemplate = m.ID;
                 template.IsActive = true;
+                template.IsActive = true;
             }
 
             Object.values(node.Versions || {}).forEach(function(ver)
