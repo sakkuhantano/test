@@ -2091,8 +2091,9 @@ async function loadTemplateSectionsForClone()
     for (const root of roots) {
         const sectionId = String(root.SectionID || "");
         if (!sectionId) continue;
-        const container = document.querySelector('.template-list-container[data-section-id="' + sectionId.replace(/"/g, '\\"') + '"]');
         const button = document.getElementById("rootHeader_" + sectionId);
+        const sectionItem = button && button.closest(".accordion-item");
+        const container = sectionItem && sectionItem.querySelector(".template-list-container");
         if (container && button && container.dataset.loaded !== "1") {
             await loadTemplatesBySection(sectionId, button);
         }
