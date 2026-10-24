@@ -739,6 +739,29 @@ function renderHeaderWO(wo) {
     }
 	// document.getElementById("woEmployeeModal").innerHTML = currentWO.EmployeeHTML;
 }
+function updateWorkOrderRemarkPanels(template) {
+    const root = document.getElementById("containerCheckList");
+    if (!root || !template) return;
+    const items = [];
+    (template.sections || []).forEach(section => (section.items || []).forEach(item => items.push(item)));
+    root.querySelectorAll("[data-item-id]").forEach(container => {
+        const item = items.find(x => String(x.idItem) === String(container.dataset.itemId));
+        if (!item) return;
+        const options = Array.isArray(item.remarkRequiredOptions) ? item.remarkRequiredOptions.map(String) :
+            Array.isArray(item.RemarkRequiredOptions) ? item.RemarkRequiredOptions.map(String) : [];
+        const selected = container.querySelector('[data-role="option"]:checked');
+        const optionRequires = String(item.type || "").toUpperCase() === "OPTION" && !!selected && options.includes(String(selected.value));
+        const show1 = !!(item.isRemark1Required || item.isRemarkRequired || optionRequires);
+        const show2 = !!item.isRemark2Required;
+        const panel = container.querySelector('[data-role="remark-panel"]');
+        const remark1 = container.querySelector('[data-role="remark1"]');
+        const remark2 = container.querySelector('[data-role="remark2"]');
+        if (panel) panel.style.display = (show1 || show2) ? "" : "none";
+        if (remark1) remark1.style.display = show1 ? "" : "none";
+        if (remark2) remark2.style.display = show2 ? "" : "none";
+    });
+}
+
 async function renderChecklist(template, isEntryMode) {
 	
     let html = `
@@ -891,7 +914,7 @@ async function renderChecklist(template, isEntryMode) {
                             <div class="btn-group w-100">${radios}</div>
                         </div>
                     </div>
-                    <div class="row mt-1 g-1">
+                    <div class="row mt-1 g-1" data-role="remark-panel">
                         <div class="col-md-12">
                             <input class="form-control form-control-sm" data-role="remark1"
                                    placeholder="${item.remark1Text || item.Remark1Text || "Remark"}" type="text" maxlength="500"
@@ -962,7 +985,7 @@ async function renderChecklist(template, isEntryMode) {
                             </div>
                         </div>
                     </div>
-                    <div class="row mt-1 g-2">
+                    <div class="row mt-1 g-2" data-role="remark-panel">
                         <div class="col-md-12">
                             <input class="form-control form-control-sm" data-role="remark1"
                                    placeholder="${item.remark1Text || item.Remark1Text || "Remark"}" type="text" maxlength="500"
@@ -987,7 +1010,7 @@ async function renderChecklist(template, isEntryMode) {
                             <input type="text" maxlength="50" class="form-control form-control-sm" data-role="value"
                             ${!isEntryMode ? "disabled" : ""} value="${V_Value}"/>
                         </div>
-                        <div class="col-md-6">
+                        <div class="col-md-6" data-role="remark-panel">
                             <input class="form-control form-control-sm" data-role="remark1"
                                    placeholder="${item.remark1Text || item.Remark1Text || "Remark"}" type="text" maxlength="500"
                                    value="${V_Remark1}" ${!isEntryMode ? "disabled" : ""}/>
@@ -1571,6 +1594,9 @@ if (currentWO.ReasonVoid != "") {
 }
 
     document.getElementById("containerCheckList").innerHTML = html;
+    const remarkRoot = document.getElementById("containerCheckList");
+    remarkRoot.onchange = function(event) { if (event.target && event.target.matches('[data-role="option"]')) updateWorkOrderRemarkPanels(template); };
+    updateWorkOrderRemarkPanels(template);
     renderFollowupSections(currentWO.DataCheckListJSON?.FollowUpSection ?? "");
     initFollowUpEvents();
     initCharCounters();
