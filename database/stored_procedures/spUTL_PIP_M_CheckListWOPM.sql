@@ -93,7 +93,7 @@ OR EXISTS (SELECT 1 FROM @tbl_Group X JOIN dbo.PIP_M_CheckListWOPM_ItemGroup G O
            JOIN dbo.PIP_M_CheckListWOPM_Version V ON V.IDVersion=S.IDVersion
            WHERE X.IDGroup>0 AND ISNULL(V.[Status],'')<>'Draft')
 OR EXISTS (SELECT 1 FROM @tbl_SubSection X JOIN dbo.PIP_M_CheckListWOPM_SubSection SS ON SS.IDSubSection=X.IDSubSection
-           JOIN dbo.PIP_M_CheckListWOPM_Section S ON S.IDSection=SS.IDSubSection
+           JOIN dbo.PIP_M_CheckListWOPM_Section S ON S.IDSection=SS.IDSection
            JOIN dbo.PIP_M_CheckListWOPM_Version V ON V.IDVersion=S.IDVersion
            WHERE X.IDSubSection>0 AND ISNULL(V.[Status],'')<>'Draft')
 BEGIN RAISERROR('Published/Active version structure is immutable.',16,1); RETURN; END;
