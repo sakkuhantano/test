@@ -760,14 +760,26 @@ function updateWorkOrderRemarkPanels(template) {
         const optionRequires = String(item.type || "").toUpperCase() === "OPTION" && !!selected && options.includes(String(selected.value).trim());
         const versionRemark1Enabled = isWorkOrderVersionRemarkEnabled(item, 1, template);
         const versionRemark2Enabled = isWorkOrderVersionRemarkEnabled(item, 2, template);
-        const show1 = versionRemark1Enabled && !!(item.isRemark1Required || item.isRemarkRequired || optionRequires);
-        const show2 = versionRemark2Enabled && !!(item.isRemark2Required || optionRequires);
+        const baseRemark1Required = !!(item.isRemark1Required || item.isRemarkRequired);
+        const baseRemark2Required = !!item.isRemark2Required;
+        const show1 = versionRemark1Enabled && (baseRemark1Required || optionRequires);
+        const show2 = versionRemark2Enabled && (baseRemark2Required || optionRequires);
         const panel = container.querySelector('[data-role="remark-panel"]');
         const remark1 = container.querySelector('[data-role="remark1"]');
         const remark2 = container.querySelector('[data-role="remark2"]');
+        const versionRemark1Text = item.versionRemark1Text || item.VersionRemark1Text || (template.Remark1Text || "Remark");
+        const versionRemark2Text = item.versionRemark2Text || item.VersionRemark2Text || (template.Remark2Text || "Remark");
+        const itemRemark1Text = item.remark1Text || item.Remark1Text || "Remark";
+        const itemRemark2Text = item.remark2Text || item.Remark2Text || "Remark";
         if (panel) panel.style.display = (show1 || show2) ? "" : "none";
-        if (remark1) remark1.style.display = show1 ? "" : "none";
-        if (remark2) remark2.style.display = show2 ? "" : "none";
+        if (remark1) {
+            remark1.style.display = show1 ? "" : "none";
+            remark1.placeholder = optionRequires && !baseRemark1Required ? versionRemark1Text : itemRemark1Text;
+        }
+        if (remark2) {
+            remark2.style.display = show2 ? "" : "none";
+            remark2.placeholder = optionRequires && !baseRemark2Required ? versionRemark2Text : itemRemark2Text;
+        }
     });
 }
 
