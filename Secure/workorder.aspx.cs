@@ -755,22 +755,17 @@ string.Format(@"
                     dict["ReasonVoid"] = row["ReasonVoid"];
                     dict["IsCompleteDC"] = row["IsCompleteDC"];
                     
-                    // master checklist
-                    if (isSPV) 
-                    {
-                        var _checkList = Secure.dashboard.getCheckList(row["SectionID"].ToString(),
-                                                                        row["TemplateWOPM"].ToString(),
-                                                                        row["TemplateVersion"].ToString(),
-                                                                        _modelCode,
-                                                                        row["CompanyID"].ToString(),
-                                                                        row["LocationID"].ToString(),
-                                                                        "W"
-                                                                        );
-                        var listData = _checkList as List<Dictionary<string, object>>;
-                        dict["TemplateJSON"] = listData[0];
-                    }
-                    else
-                        dict["TemplateJSON"] = null;
+                    // Keep the exact template version snapshot with every WorkOrder, including archived versions.
+                    var _checkList = Secure.dashboard.getCheckList(row["SectionID"].ToString(),
+                                                                    row["TemplateWOPM"].ToString(),
+                                                                    row["TemplateVersion"].ToString(),
+                                                                    _modelCode,
+                                                                    row["CompanyID"].ToString(),
+                                                                    row["LocationID"].ToString(),
+                                                                    "W"
+                                                                    );
+                    var listData = _checkList as List<Dictionary<string, object>>;
+                    dict["TemplateJSON"] = listData != null && listData.Count > 0 ? listData[0] : null;
 
                     // data saved checklist
                     dt1 = br.EQuery("SELECT A.IDItem, A.Value, A.Remark1, A.Remark2, B.ItemType, A.IDResult, A.IsAnomali " +
