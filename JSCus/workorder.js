@@ -739,6 +739,13 @@ function renderHeaderWO(wo) {
     }
 	// document.getElementById("woEmployeeModal").innerHTML = currentWO.EmployeeHTML;
 }
+function isWorkOrderVersionRemarkEnabled(item, remarkNumber, templateOverride) {
+    const itemKey = remarkNumber === 1 ? "versionIsRemark1Required" : "versionIsRemark2Required";
+    if (item && item[itemKey] != null) return !!item[itemKey];
+    const source = templateOverride || currentTemplate || (currentWO && currentWO.TemplateJSON);
+    const sourceKey = remarkNumber === 1 ? "IsRemark1Required" : "IsRemark2Required";
+    return !!(source && source[sourceKey]);
+}
 function updateWorkOrderRemarkPanels(template) {
     const root = document.getElementById("containerCheckList");
     if (!root || !template) return;
@@ -751,8 +758,8 @@ function updateWorkOrderRemarkPanels(template) {
             Array.isArray(item.RemarkRequiredOptions) ? item.RemarkRequiredOptions.map(String) : [];
         const selected = container.querySelector('[data-role="option"]:checked');
         const optionRequires = String(item.type || "").toUpperCase() === "OPTION" && !!selected && options.includes(String(selected.value));
-        const show1 = !!(item.isRemark1Required || item.isRemarkRequired || (optionRequires && item.versionIsRemark1Required));
-        const show2 = !!(item.isRemark2Required || (optionRequires && item.versionIsRemark2Required));
+        const show1 = !!(item.isRemark1Required || item.isRemarkRequired || (optionRequires && isWorkOrderVersionRemarkEnabled(item, 1, template)));
+        const show2 = !!(item.isRemark2Required || (optionRequires && isWorkOrderVersionRemarkEnabled(item, 2, template)));
         const panel = container.querySelector('[data-role="remark-panel"]');
         const remark1 = container.querySelector('[data-role="remark1"]');
         const remark2 = container.querySelector('[data-role="remark2"]');
@@ -2970,8 +2977,8 @@ function validateItem(item, container) {
             : [];
     const selectedOptionRequiresRemark = item.type === "OPTION" && !!checked &&
         requiredOptionRemarks.map(String).includes(String(checked.value));
-    const selectedOptionRequiresRemark1 = selectedOptionRequiresRemark && !!item.versionIsRemark1Required;
-    const selectedOptionRequiresRemark2 = selectedOptionRequiresRemark && !!item.versionIsRemark2Required;
+    const selectedOptionRequiresRemark1 = selectedOptionRequiresRemark && isWorkOrderVersionRemarkEnabled(item, 1);
+    const selectedOptionRequiresRemark2 = selectedOptionRequiresRemark && isWorkOrderVersionRemarkEnabled(item, 2);
 
     if (!error && (item.isRemark1Required || item.isRemarkRequired || selectedOptionRequiresRemark1)) {
 
