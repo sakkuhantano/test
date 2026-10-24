@@ -541,13 +541,15 @@ async function renderInspectionForm(record, readOnly) {
 
 function updateInspectionRemarkPanels() {
     document.querySelectorAll("#inspectionChecklistHost .inspection-item[data-item-id]").forEach(function(container) {
-        const options = String(container.dataset.remarkOptions || "").split(";").filter(Boolean);
+        const options = String(container.dataset.remarkOptions || "").split(";").map(x => x.trim()).filter(Boolean);
         const selected = container.querySelector('[data-role="value"][type="radio"]:checked');
-        const optionRequires = container.dataset.itemType === "OPTION" && !!selected && options.includes(String(selected.value));
-        const showRemark1 = container.dataset.remark1BaseRequired === "1" ||
-            (optionRequires && container.dataset.remark1VersionEnabled === "1");
-        const showRemark2 = container.dataset.remark2BaseRequired === "1" ||
-            (optionRequires && container.dataset.remark2VersionEnabled === "1");
+        const optionRequires = container.dataset.itemType === "OPTION" && !!selected && options.includes(String(selected.value).trim());
+        const versionRemark1Enabled = container.dataset.remark1VersionEnabled === "1";
+        const versionRemark2Enabled = container.dataset.remark2VersionEnabled === "1";
+        const showRemark1 = versionRemark1Enabled &&
+            (container.dataset.remark1BaseRequired === "1" || optionRequires);
+        const showRemark2 = versionRemark2Enabled &&
+            (container.dataset.remark2BaseRequired === "1" || optionRequires);
         const wrap = container.querySelector('[data-role="remark1-wrap"]');
         const input = container.querySelector('[data-role="remark1"]');
         const wrap2 = container.querySelector('[data-role="remark2-wrap"]');
@@ -618,14 +620,14 @@ function renderInspectionItem(item, savedItems, readOnly) {
 
     const remark1Text = item.remark1Text || "Remark";
     const remark2Text = item.remark2Text || "Remark";
-    const remarkOptions = Array.isArray(item.remarkRequiredOptions) ? item.remarkRequiredOptions.map(String) : [];
-    const selectedOptionRequiresRemark = type === "OPTION" && remarkOptions.includes(String(saved.Value || ""));
+    const remarkOptions = Array.isArray(item.remarkRequiredOptions) ? item.remarkRequiredOptions.map(x => String(x).trim()) : [];
+    const selectedOptionRequiresRemark = type === "OPTION" && remarkOptions.includes(String(saved.Value || "").trim());
     const versionRemark1Enabled = isInspectionVersionRemarkEnabled(item, 1);
     const versionRemark2Enabled = isInspectionVersionRemarkEnabled(item, 2);
-    const showRemark1 = !!item.isRemark1Required || (selectedOptionRequiresRemark && versionRemark1Enabled);
-    const showRemark2 = !!item.isRemark2Required || (selectedOptionRequiresRemark && versionRemark2Enabled);
-    const renderRemark1 = !!item.isRemark1Required || (type === "OPTION" && remarkOptions.length > 0 && versionRemark1Enabled);
-    const renderRemark2 = !!item.isRemark2Required || (type === "OPTION" && remarkOptions.length > 0 && versionRemark2Enabled);
+    const showRemark1 = versionRemark1Enabled && (!!item.isRemark1Required || selectedOptionRequiresRemark);
+    const showRemark2 = versionRemark2Enabled && (!!item.isRemark2Required || selectedOptionRequiresRemark);
+    const renderRemark1 = versionRemark1Enabled && (!!item.isRemark1Required || (type === "OPTION" && remarkOptions.length > 0));
+    const renderRemark2 = versionRemark2Enabled && (!!item.isRemark2Required || (type === "OPTION" && remarkOptions.length > 0));
     const remark1 = renderRemark1
         ? '<div class="mt-2" data-role="remark1-wrap" style="' + (showRemark1 ? "" : "display:none;") + '"><label class="inspection-muted">' + escInspection(remark1Text) +
           (showRemark1 ? ' (wajib)' : '') + '</label><input type="text" maxlength="500" data-role="remark1" class="form-control form-control-sm" value="' +
@@ -755,15 +757,17 @@ function validateInspectionItems(items) {
                 return "Nilai wajib diisi: " + item.ItemLabel;
             }
         }
-        const requiredOptionRemarks = Array.isArray(templateItem.remarkRequiredOptions) ? templateItem.remarkRequiredOptions.map(String) : [];
+        const requiredOptionRemarks = Array.isArray(templateItem.remarkRequiredOptions) ? templateItem.remarkRequiredOptions.map(x => String(x).trim()) : [];
         const selectedOptionRequiresRemark = String(templateItem.type || "").toUpperCase() === "OPTION" &&
-            requiredOptionRemarks.includes(String(item.Value || ""));
-        const selectedOptionRequiresRemark1 = selectedOptionRequiresRemark && isInspectionVersionRemarkEnabled(templateItem, 1);
-        const selectedOptionRequiresRemark2 = selectedOptionRequiresRemark && isInspectionVersionRemarkEnabled(templateItem, 2);
-        if ((templateItem.isRemark1Required || selectedOptionRequiresRemark1) && (!item.Remark1 || !item.Remark1.trim())) {
+            requiredOptionRemarks.includes(String(item.Value || "").trim());
+        const versionRemark1Enabled = isInspectionVersionRemarkEnabled(templateItem, 1);
+        const versionRemark2Enabled = isInspectionVersionRemarkEnabled(templateItem, 2);
+        const selectedOptionRequiresRemark1 = selectedOptionRequiresRemark && versionRemark1Enabled;
+        const selectedOptionRequiresRemark2 = selectedOptionRequiresRemark && versionRemark2Enabled;
+        if (versionRemark1Enabled && (templateItem.isRemark1Required || selectedOptionRequiresRemark1) && (!item.Remark1 || !item.Remark1.trim())) {
             return (templateItem.remark1Text || "Remark") + " wajib diisi: " + item.ItemLabel;
         }
-        if ((templateItem.isRemark2Required || selectedOptionRequiresRemark2) && (!item.Remark2 || !item.Remark2.trim())) {
+        if (versionRemark2Enabled && (templateItem.isRemark2Required || selectedOptionRequiresRemark2) && (!item.Remark2 || !item.Remark2.trim())) {
             return (templateItem.remark2Text || "Remark") + " wajib diisi: " + item.ItemLabel;
         }
     }
