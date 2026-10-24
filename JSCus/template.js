@@ -1945,6 +1945,172 @@ function markCurrentVersionDirty()
     templateCache.Dirty=true;
     refreshDirtyUI();
 }
+
+// Clone a version structure with fresh database/runtime IDs, including subsections.
+function cloneVersionStructureForTemplate(sourceStructure, sourceVersionInfo)
+{
+    const clone = JSON.parse(JSON.stringify(sourceStructure));
+    const oldVersion = clone.VersionInfo || sourceVersionInfo || {};
+    clone.VersionInfo = Object.assign({}, oldVersion, {
+        IDVersion: 0,
+        RuntimeVersionID: generateRuntimeID(),
+        Status: "Draft",
+        Version: "NEW",
+        EffectiveDate: "",
+        Remark: "",
+        Dirty: true
+    });
+    clone.Sections = (clone.Sections || []).map(function(sec) {
+        const oldSubsectionMap = {};
+        const sectionsubsections = (sec.SubSections || []).map(function(sub) {
+            const oldRuntime = Number(sub.RuntimeSubSectionID || sub.IDSubSection || 0);
+            const newRuntime = generateRuntimeID();
+            if (oldRuntime) oldSubsectionMap[oldRuntime] = newRuntime;
+            return Object.assign({}, sub, {
+                IDSubSection: 0,
+                RuntimeSubSectionID: newRuntime
+            });
+        });
+        const clonedItems = (sec.Items || []).map(function(item) {
+            const oldSubID = Number(item.RuntimeSubSectionID || item.IDSubSection || 0);
+            const newSubID = oldSubsectionMap[oldSubID] || 0;
+            return Object.assign({}, item, {
+                IDItem: 0,
+                RuntimeItemID: generateRuntimeID(),
+                IDSubSection: newSubID,
+                RuntimeSubSectionID: newSubID,
+                Groups: (item.Groups || []).map(function(group) {
+                    return Object.assign({}, group, {
+                        IDGroup: 0,
+                        RuntimeGroupID: generateRuntimeID()
+                    });
+                })
+            });
+        });
+        return Object.assign({}, sec, {
+            IDSection: 0,
+            RuntimeSectionID: generateRuntimeID(),
+            SubSections: sectionsubsections,
+            Items: clonedItems
+        });
+    });
+    return clone;
+}
+async function chooseCloneTargetTemplate(sourceSectionId, sourceRuntimeTemplateId, sourceRuntimeVersionId)
+{
+    const section = getSectionCache(sourceSectionId);
+    const sourceNode = section && section.Templates[sourceRuntimeTemplateId];
+    const sourceVersionNode = sourceNode && sourceNode.Versions[sourceRuntimeVersionId];
+    if (!sourceNode || !sourceVersionNode || !sourceVersionNode.Structure) {
+        showToast("Open the source Version first, then try cloning again.");
+        return;
+    }
+    const targets = Object.values(section.Templates || {}).filter(function(node) {
+        return Number(node.Template.IDTemplate) > 0 &&
+            String(node.Template.RuntimeTemplateID) !== String(sourceRuntimeTemplateId) &&
+            String(node.Template.SectionID) === String(sourceSectionId);
+    });
+    if (!targets.length) {
+        showToast("No saved Template is available in this Section. Create a new Template instead.");
+        return;
+    }
+    const choices = targets.map(function(node, index) {
+        return (index + 1) + ". " + (node.Template.TemplateNo || "") + " — " + (node.Template.TemplateName || "");
+    }).join("\n");
+    const answer = window.prompt("Clone Version to which Template? Enter the number:\n\n" + choices, "1");
+    if (answer === null) return;
+    const selectedIndex = Number(answer) - 1;
+    if (!Number.isInteger(selectedIndex) || selectedIndex < 0 || selectedIndex >= targets.length) {
+        showToast("Invalid Template selection.");
+        return;
+    }
+    await cloneVersionToExistingTemplate(
+        sourceSectionId,
+        sourceRuntimeTemplateId,
+        sourceRuntimeVersionId,
+        targets[selectedIndex].Template.RuntimeTemplateID
+    );
+}
+async function cloneVersionToExistingTemplate(sourceSectionId, sourceRuntimeTemplateId, sourceRuntimeVersionId, targetRuntimeTemplateId)
+{
+    const section = getSectionCache(sourceSectionId);
+    const sourceNode = section && section.Templates[sourceRuntimeTemplateId];
+    const targetNode = section && section.Templates[targetRuntimeTemplateId];
+    const sourceVersionNode = sourceNode && sourceNode.Versions[sourceRuntimeVersionId];
+    if (!sourceNode || !targetNode || !sourceVersionNode || !sourceVersionNode.Structure) {
+        showToast("Source or destination Template/Version could not be found.");
+        return;
+    }
+    if (String(sourceRuntimeTemplateId) === String(targetRuntimeTemplateId)) {
+        showToast("Choose a different destination Template.");
+        return;
+    }
+    if (Number(targetNode.Template.IDTemplate) <= 0) {
+        showToast("Save the destination Template before cloning a Version into it.");
+        return;
+    }
+
+    // Refresh destination version statuses from the server before enforcing the one-Draft rule.
+    try {
+        const versionJson = await promisifyPageMethod(PageMethods.GetTemplateVersions, String(targetNode.Template.IDTemplate));
+        const savedVersions = JSON.parse(versionJson || "[]");
+        targetNode.Versions = targetNode.Versions || {};
+        savedVersions.forEach(function(info) {
+            const key = info.RuntimeVersionID || info.IDVersion;
+            const existing = targetNode.Versions[key];
+            if (existing) {
+                existing.VersionInfo = Object.assign({}, existing.VersionInfo || {}, info);
+                if (existing.Structure && existing.Structure.VersionInfo)
+                    existing.Structure.VersionInfo = existing.VersionInfo;
+            } else {
+                targetNode.Versions[key] = {
+                    Info: info,
+                    VersionInfo: info,
+                    Structure: null
+                };
+            }
+        });
+    } catch (err) {
+        console.error("Could not refresh destination Versions before clone:", err);
+        showToast("Could not check destination Versions. Please retry.");
+        return;
+    }
+
+    const existingDraft = Object.values(targetNode.Versions || {}).find(function(node) {
+        return String(node.VersionInfo && node.VersionInfo.Status) === "Draft";
+    });
+    if (existingDraft) {
+        showToast("Destination Template already has a Draft Version. Save or delete that Draft before cloning another.");
+        return;
+    }
+
+    const confirmed = await showConfirmation({
+        title: "Clone Version to Template",
+        message: "Copy this Version structure into the selected Template as a new Draft? The source and existing Active Versions will not be changed."
+    });
+    if (!confirmed) return;
+
+    const clone = cloneVersionStructureForTemplate(sourceVersionNode.Structure, sourceVersionNode.VersionInfo);
+    const runtimeVersionId = clone.VersionInfo.RuntimeVersionID;
+    clone.VersionInfo.IDTemplate = targetNode.Template.IDTemplate;
+    clone.VersionInfo.TemplateNo = targetNode.Template.TemplateNo;
+    clone.VersionInfo.TemplateName = targetNode.Template.TemplateName;
+    clone.VersionInfo.Dirty = true;
+
+    targetNode.Versions[runtimeVersionId] = {
+        Info: clone.VersionInfo,
+        VersionInfo: clone.VersionInfo,
+        Structure: clone
+    };
+    targetNode.Template.Dirty = true;
+    section.Dirty = true;
+    templateCache.Dirty = true;
+
+    await refreshCurrentTemplateExplorer(targetRuntimeTemplateId, runtimeVersionId);
+    evaluateDirtyState();
+    showToast("Version copied as Draft. Review mandatory fields, then use Save All.");
+}
+
 async function cloneActiveVersion(idTemplate)
 {
     removeExistingContextMenu();
@@ -7349,15 +7515,23 @@ function showVersionContextMenu(e, version)
     if(version.Status=="Active")
     {
         items.push({
-            text:
-                "Clone As Draft",
-
-            icon:
-                "bi-files",
-
-            action:
-                () =>
-                cloneActiveVersion()
+            text: "Clone As Draft",
+            icon: "bi-files",
+            action: () => cloneActiveVersion()
+        });
+        items.push({
+            text: "Clone to Existing Template...",
+            icon: "bi-box-arrow-right",
+            action: () => chooseCloneTargetTemplate(
+                currentTemplate.SectionID,
+                currentTemplate.RuntimeTemplateID,
+                version.RuntimeVersionID
+            )
+        });
+        items.push({
+            text: "Clone to New Template",
+            icon: "bi-file-earmark-plus",
+            action: () => cloneTemplate()
         });
     }
 
@@ -7471,37 +7645,16 @@ async function cloneTemplate()
         "1.0";
 
     // ==========================
-    // Sections
+    // Sections (fresh IDs for sections, subsections, items and groups)
     // ==========================
-
-    structure.Sections.forEach(
-        sec =>
-        {
-            sec.IDSection = 0;
-            sec.RuntimeSectionID =
-                generateRuntimeID();
-
-            sec.Items.forEach(
-                item =>
-                {
-                    item.IDItem = 0;
-                    item.RuntimeItemID =
-                        generateRuntimeID();
-                    if(item.Groups)
-                    {
-                        item.Groups.forEach(
-                            g =>
-                            {
-                                g.IDGroup = 0;
-                                g.RuntimeGroupID =
-                                    generateRuntimeID();
-                            }
-                        );
-                    }                        
-                }
-            );
-        }
-    );
+    const sourceStructureForClone = JSON.parse(JSON.stringify(currentVersionData));
+    const clonedStructure = cloneVersionStructureForTemplate(sourceStructureForClone, structure.VersionInfo);
+    structure.Sections = clonedStructure.Sections;
+    structure.VersionInfo = Object.assign(structure.VersionInfo, clonedStructure.VersionInfo);
+    structure.VersionInfo.Version = "1.0";
+    structure.VersionInfo.EffectiveDate = "";
+    structure.VersionInfo.Remark = "";
+    structure.VersionInfo.Dirty = true;
 
     // ==========================
     // Cache
@@ -8990,30 +9143,43 @@ async function saveAllTemplate()
     // Validation
     //-----------------------------------
 
-    for(
-        let i=0;
-        i<payload.Templates.length;
-        i++
-    )
-    {
-        const valid=
-            await validateCurrentTemplate(payload.Templates[i]);
-
-        if(!valid.success)
-        {
-            gotoValidationError(
-                valid.firstError
-            );
-
-            showToast(
-                valid.firstError.message
-            );
-
+    const validationOriginalState = {
+        template: currentTemplate,
+        version: currentVersion,
+        versionData: currentVersionData,
+        versions: currentVersions
+    };
+    for (let i = 0; i < payload.Templates.length; i++) {
+        const payloadTemplate = payload.Templates[i].Template;
+        const targetSection = getSectionCache(payloadTemplate.SectionID);
+        const targetNode = targetSection && targetSection.Templates[payloadTemplate.RuntimeTemplateID];
+        const targetDraft = targetNode && Object.values(targetNode.Versions || {}).find(x =>
+            x && x.VersionInfo && x.VersionInfo.Status === "Draft" && x.Structure
+        );
+        if (!targetNode || !targetDraft) {
+            currentTemplate = validationOriginalState.template;
+            currentVersion = validationOriginalState.version;
+            currentVersionData = validationOriginalState.versionData;
+            currentVersions = validationOriginalState.versions;
+            showToast("Could not find the Draft structure for a Template in Save All.");
             return;
         }
-
-
+        currentTemplate = targetNode.Template;
+        currentVersions = Object.values(targetNode.Versions || {});
+        currentVersion = targetDraft.VersionInfo;
+        currentVersionData = targetDraft.Structure;
+        const valid = await validateCurrentTemplate();
+        if (!valid.success) {
+            // Keep the invalid target selected so the user can fix the exact Template/Version.
+            gotoValidationError(valid.firstError);
+            showToast(valid.firstError.message);
+            return;
+        }
     }
+    currentTemplate = validationOriginalState.template;
+    currentVersion = validationOriginalState.version;
+    currentVersionData = validationOriginalState.versionData;
+    currentVersions = validationOriginalState.versions;
 
     //-----------------------------------
     // Save
