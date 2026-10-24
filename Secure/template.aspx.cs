@@ -37,13 +37,7 @@ SELECT aa.val SectionID,
            WHERE bb.SectionID = aa.val
              AND (
                  ISNULL(bb.CompanyScope, 'S') = 'A'
-                 OR EXISTS (
-                     SELECT 1
-                     FROM dbo.PIP_M_CheckListWOPM_CompanyLocation sc
-                     WHERE sc.IDTemplate = bb.IDTemplate
-                       AND sc.CompanyID = @CompanyID
-                       AND sc.LocationID = @LocationID
-                 )
+                 OR (';' + ISNULL(bb.CompanyLocationList, '') + ';' LIKE '%;' + @CompanyID + @LocationID + ';%')
              )
        ), 0)
 FROM dbo.UTL_User a
@@ -316,13 +310,7 @@ WHERE a.SectionID = @SectionID
   )
   AND (
       ISNULL(a.CompanyScope, 'S') = 'A'
-      OR EXISTS (
-          SELECT 1
-          FROM dbo.PIP_M_CheckListWOPM_CompanyLocation sc
-          WHERE sc.IDTemplate = a.IDTemplate
-            AND sc.CompanyID = @CompanyID
-            AND sc.LocationID = @LocationID
-      )
+      OR (';' + ISNULL(a.CompanyLocationList, '') + ';' LIKE '%;' + @CompanyID + @LocationID + ';%')
   )",
                     "@SectionID=" + sectionId
                     + GF.Str2 + "@CompanyID=" + companyId
@@ -975,22 +963,10 @@ WHERE T.IDTemplate=@IDTemplate
   AND
   (
        ISNULL(T.CompanyScope,'S')='A'
-       OR EXISTS
-       (
-           SELECT 1
-           FROM dbo.PIP_M_CheckListWOPM_CompanyLocation AccessScope
-           WHERE AccessScope.IDTemplate=T.IDTemplate
-             AND AccessScope.CompanyID=@CompanyID
-             AND AccessScope.LocationID=@LocationID
-       )
+       OR (';' + ISNULL(T.CompanyLocationList, '') + ';' LIKE '%;' + @CompanyID + @LocationID + ';%')
        -- A brand-new template has no scope row yet; allow this first metadata save
        -- to create the initial Selected Company / Location assignment below.
-       OR NOT EXISTS
-       (
-           SELECT 1
-           FROM dbo.PIP_M_CheckListWOPM_CompanyLocation AnyScope
-           WHERE AnyScope.IDTemplate=T.IDTemplate
-       )
+       OR ISNULL(T.CompanyLocationList,'')=''
   )",
                     "@IDTemplate=" + id + GF.Str2 +
                     "@InspectionTypeCode=" + inspectionTypeCode + GF.Str2 +
@@ -1017,35 +993,23 @@ SET TemplateType=@TemplateType,
 WHERE IDTemplate=@IDTemplate;
 
 IF @CompanyScope='S'
-AND NOT EXISTS
-(
-    SELECT 1 FROM dbo.PIP_M_CheckListWOPM_CompanyLocation
-    WHERE IDTemplate=@IDTemplate AND CompanyID=@CompanyID AND LocationID=@LocationID
-)
+AND (';' + ISNULL((SELECT CompanyLocationList FROM dbo.PIP_M_CheckListWOPM WHERE IDTemplate=@IDTemplate),'') + ';' NOT LIKE '%;' + @CompanyID + @LocationID + ';%')
 BEGIN
-    INSERT dbo.PIP_M_CheckListWOPM_CompanyLocation
-        (IDTemplate, CompanyID, LocationID, EntryUser, EntryDate)
-    VALUES (@IDTemplate, @CompanyID, @LocationID, @UpdateUser, GETDATE());
+ UPDATE dbo.PIP_M_CheckListWOPM
+ SET CompanyLocationList=CASE WHEN ISNULL(CompanyLocationList,'')='' THEN @CompanyID+@LocationID ELSE CompanyLocationList+';'+@CompanyID+@LocationID END
+ WHERE IDTemplate=@IDTemplate;
 END;
 
 /* PM/WO templates do not retain Inspection employee assignments. */
-IF @TemplateType='W'
-    DELETE FROM dbo.PIP_M_CheckListWOPM_Employee WHERE IDTemplate=@IDTemplate;
-
-/* If scope narrows to Selected Company, remove assignments outside selected locations. */
-IF @CompanyScope='S'
+IF @TemplateType='W' UPDATE dbo.PIP_M_CheckListWOPM SET EmployeeList='' WHERE IDTemplate=@IDTemplate;
+IF @CompanyScope='S' AND @TemplateType='I'
 BEGIN
-    DELETE A
-    FROM dbo.PIP_M_CheckListWOPM_Employee A
-    JOIN dbo.M_HRD_Employee E ON E.EmployeeID=A.EmployeeID
-    WHERE A.IDTemplate=@IDTemplate
-      AND NOT EXISTS
-      (
-          SELECT 1 FROM dbo.PIP_M_CheckListWOPM_CompanyLocation S
-          WHERE S.IDTemplate=A.IDTemplate
-            AND S.CompanyID=E.CompanyID
-            AND S.LocationID=E.LocationID
-      );
+ UPDATE T SET EmployeeList=ISNULL(STUFF((
+  SELECT ';'+X.val FROM dbo.SplitStringConvertToTable(ISNULL(T.EmployeeList,''),';') X
+  JOIN dbo.M_HRD_Employee E ON E.EmployeeID=X.val
+  WHERE (';'+ISNULL(T.CompanyLocationList,'')+';' LIKE '%;'+E.CompanyID+E.LocationID+';%')
+  FOR XML PATH(''),TYPE).value('.','varchar(8000)'),1,1,''),'')
+ FROM dbo.PIP_M_CheckListWOPM T WHERE T.IDTemplate=@IDTemplate;
 END;
 COMMIT TRANSACTION;",
                     "@TemplateType=" + templateType + GF.Str2 +
@@ -1070,7 +1034,7 @@ COMMIT TRANSACTION;",
                 DataTable dt = br.EQuery(@"
 SELECT L.CompanyID, L.LocationID, L.CompanyName, L.LocationName,
        IsAssigned=CAST(CASE
-           WHEN S.IDTemplate IS NOT NULL THEN 1
+           WHEN T.IDTemplate IS NOT NULL AND (';' + ISNULL(T.CompanyLocationList, '') + ';' LIKE '%;' + L.CompanyID + L.LocationID + ';%') THEN 1
            WHEN @IDTemplate<=0 AND L.CompanyID=@CompanyID AND L.LocationID=@LocationID THEN 1
            ELSE 0 END AS BIT)
 FROM
@@ -1088,8 +1052,7 @@ FROM
                         AND LoginCompany.LocationID=swl.LocationID)
        )
 ) L
-LEFT JOIN dbo.PIP_M_CheckListWOPM_CompanyLocation S
-  ON S.IDTemplate=@IDTemplate AND S.CompanyID=L.CompanyID AND S.LocationID=L.LocationID
+LEFT JOIN dbo.PIP_M_CheckListWOPM T ON T.IDTemplate=@IDTemplate
 WHERE (
      EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation CurrentPermission
              WHERE CurrentPermission.AppID='PIP' AND CurrentPermission.UserID=@UserID
@@ -1104,11 +1067,7 @@ AND
     (
         SELECT 1 FROM dbo.PIP_M_CheckListWOPM T
         WHERE T.IDTemplate=@IDTemplate
-          AND (ISNULL(T.CompanyScope,'S')='A' OR EXISTS
-               (SELECT 1 FROM dbo.PIP_M_CheckListWOPM_CompanyLocation AccessScope
-                WHERE AccessScope.IDTemplate=T.IDTemplate
-                  AND AccessScope.CompanyID=@CompanyID
-                  AND AccessScope.LocationID=@LocationID))
+          AND (ISNULL(T.CompanyScope,'S')='A' OR (';' + ISNULL(T.CompanyLocationList, '') + ';' LIKE '%;' + @CompanyID + @LocationID + ';%'))
     )
 )
 ORDER BY L.CompanyID, L.LocationID",
@@ -1152,11 +1111,7 @@ WHERE T.IDTemplate=@IDTemplate
                   WHERE LoginCompany.CompanyID=@CurrentCompanyID
                     AND LoginCompany.LocationID=@CurrentLocationID)
   )
-  AND (ISNULL(T.CompanyScope,'S')='A' OR EXISTS
-       (SELECT 1 FROM dbo.PIP_M_CheckListWOPM_CompanyLocation AccessScope
-        WHERE AccessScope.IDTemplate=T.IDTemplate
-          AND AccessScope.CompanyID=@CurrentCompanyID
-          AND AccessScope.LocationID=@CurrentLocationID))",
+  AND (ISNULL(T.CompanyScope,'S')='A' OR (';' + ISNULL(T.CompanyLocationList, '') + ';' LIKE '%;' + @CurrentCompanyID + @CurrentLocationID + ';%'))",
                     "@IDTemplate=" + id + GF.Str2 +
                     "@UpdateUser=" + updateUser + GF.Str2 +
                     "@CurrentCompanyID=" + currentCompanyId + GF.Str2 +
@@ -1186,14 +1141,8 @@ IF NOT EXISTS
        )
 )
     RAISERROR('The company/location is inactive or you do not have PIP permission for it.',16,1);
-IF NOT EXISTS
-(
-    SELECT 1 FROM dbo.PIP_M_CheckListWOPM_CompanyLocation
-    WHERE IDTemplate=@IDTemplate AND CompanyID=@CompanyID AND LocationID=@LocationID
-)
-    INSERT dbo.PIP_M_CheckListWOPM_CompanyLocation
-        (IDTemplate, CompanyID, LocationID, EntryUser, EntryDate)
-    VALUES (@IDTemplate, @CompanyID, @LocationID, @UpdateUser, GETDATE())",
+IF (';' + ISNULL((SELECT CompanyLocationList FROM dbo.PIP_M_CheckListWOPM WHERE IDTemplate=@IDTemplate),'') + ';' NOT LIKE '%;' + @CompanyID + @LocationID + ';%')
+ UPDATE dbo.PIP_M_CheckListWOPM SET CompanyLocationList=CASE WHEN ISNULL(CompanyLocationList,'')='' THEN @CompanyID+@LocationID ELSE CompanyLocationList+';'+@CompanyID+@LocationID END WHERE IDTemplate=@IDTemplate",
                         "@IDTemplate=" + id + GF.Str2 +
                         "@CompanyID=" + companyId + GF.Str2 +
                         "@LocationID=" + locationId + GF.Str2 +
@@ -1203,8 +1152,7 @@ IF NOT EXISTS
                 {
                     DataTable scopeCount = br.EQuery(@"
 SELECT COUNT(*) Total
-FROM dbo.PIP_M_CheckListWOPM_CompanyLocation
-WHERE IDTemplate=@IDTemplate",
+FROM dbo.SplitStringConvertToTable((SELECT ISNULL(CompanyLocationList,'') FROM dbo.PIP_M_CheckListWOPM WHERE IDTemplate=@IDTemplate), ';')",
                         "@IDTemplate=" + id);
                     if (Convert.ToInt32(scopeCount.Rows[0]["Total"]) <= 1)
                         return new { success = false, message = "Selected Company requires at least one company/location assignment." };
@@ -1212,15 +1160,13 @@ WHERE IDTemplate=@IDTemplate",
                     br.EQuery(@"
 SET XACT_ABORT ON;
 BEGIN TRANSACTION;
-DELETE FROM dbo.PIP_M_CheckListWOPM_Employee
-WHERE IDTemplate=@IDTemplate
-  AND EmployeeID IN
-  (
-      SELECT EmployeeID FROM dbo.M_HRD_Employee
-      WHERE CompanyID=@CompanyID AND LocationID=@LocationID
-  );
-DELETE FROM dbo.PIP_M_CheckListWOPM_CompanyLocation
-WHERE IDTemplate=@IDTemplate AND CompanyID=@CompanyID AND LocationID=@LocationID;
+UPDATE T
+SET EmployeeList=ISNULL(STUFF((SELECT ';'+X.val FROM dbo.SplitStringConvertToTable(ISNULL(T.EmployeeList,''),';') X
+ WHERE NOT EXISTS (SELECT 1 FROM dbo.M_HRD_Employee E WHERE E.EmployeeID=X.val AND E.CompanyID=@CompanyID AND E.LocationID=@LocationID)
+ FOR XML PATH(''),TYPE).value('.','varchar(8000)'),1,1,''),''),
+ CompanyLocationList=ISNULL(STUFF((SELECT ';'+X.val FROM dbo.SplitStringConvertToTable(ISNULL(T.CompanyLocationList,''),';') X
+ WHERE X.val<>@CompanyID+@LocationID FOR XML PATH(''),TYPE).value('.','varchar(8000)'),1,1,''),'')
+FROM dbo.PIP_M_CheckListWOPM T WHERE T.IDTemplate=@IDTemplate;
 COMMIT TRANSACTION;",
                         "@IDTemplate=" + id + GF.Str2 +
                         "@CompanyID=" + companyId + GF.Str2 +
@@ -1240,11 +1186,10 @@ COMMIT TRANSACTION;",
             {
                 DataTable dt = br.EQuery(@"
 SELECT E.EmployeeID, E.Name, E.CompanyID, E.LocationID,
-       IsAssigned=CAST(CASE WHEN A.EmployeeID IS NULL THEN 0 ELSE 1 END AS BIT), swc.BuildingName
+       IsAssigned=CAST(CASE WHEN (';' + ISNULL(T.EmployeeList,'') + ';' LIKE '%;' + E.EmployeeID + ';%') THEN 1 ELSE 0 END AS BIT), swc.BuildingName
 FROM dbo.M_HRD_Employee E JOIN SysWebCompany swc ON swc.CompanyID=E.CompanyID
 JOIN dbo.PIP_M_CheckListWOPM T ON T.IDTemplate=@IDTemplate
-LEFT JOIN dbo.PIP_M_CheckListWOPM_Employee A
-  ON A.IDTemplate=T.IDTemplate AND A.EmployeeID=E.EmployeeID
+
 WHERE E.SectionID=T.SectionID
   AND E.SectionID=@SectionID
   AND ISNULL(E.TerminationDate,'')=''
@@ -1259,11 +1204,7 @@ WHERE E.SectionID=T.SectionID
                     AND LoginCompany.LocationID=@CurrentLocationID)
   )
 
-  AND (ISNULL(T.CompanyScope,'S')='A' OR EXISTS
-       (SELECT 1 FROM dbo.PIP_M_CheckListWOPM_CompanyLocation AccessScope
-        WHERE AccessScope.IDTemplate=T.IDTemplate
-          AND AccessScope.CompanyID=@CurrentCompanyID
-          AND AccessScope.LocationID=@CurrentLocationID))
+  AND (ISNULL(T.CompanyScope,'S')='A' OR (';' + ISNULL(T.CompanyLocationList, '') + ';' LIKE '%;' + @CurrentCompanyID + @CurrentLocationID + ';%'))
 ORDER BY E.CompanyID, E.LocationID, E.EmployeeID",
                     "@IDTemplate=" + id + GF.Str2 +
                     "@SectionID=" + sectionId + GF.Str2 +
@@ -1312,11 +1253,7 @@ WHERE T.IDTemplate=@IDTemplate
                   WHERE LoginCompany.CompanyID=@CurrentCompanyID
                     AND LoginCompany.LocationID=@CurrentLocationID)
   )
-  AND (ISNULL(T.CompanyScope,'S')='A' OR EXISTS
-       (SELECT 1 FROM dbo.PIP_M_CheckListWOPM_CompanyLocation AccessScope
-        WHERE AccessScope.IDTemplate=T.IDTemplate
-          AND AccessScope.CompanyID=@CurrentCompanyID
-          AND AccessScope.LocationID=@CurrentLocationID))",
+  AND (ISNULL(T.CompanyScope,'S')='A' OR (';' + ISNULL(T.CompanyLocationList, '') + ';' LIKE '%;' + @CurrentCompanyID + @CurrentLocationID + ';%'))",
                     "@IDTemplate=" + id + GF.Str2 +
                     "@EmployeeID=" + employeeId + GF.Str2 +
                     "@UpdateUser=" + updateUser + GF.Str2 +
@@ -1333,8 +1270,7 @@ WHERE T.IDTemplate=@IDTemplate
                 if (action == "ADD" && GF.GetString(row["CompanyScope"]) != "A")
                 {
                     DataTable scope = br.EQuery(@"
-SELECT 1 FROM dbo.PIP_M_CheckListWOPM_CompanyLocation
-WHERE IDTemplate=@IDTemplate AND CompanyID=@CompanyID AND LocationID=@LocationID",
+SELECT 1 FROM dbo.PIP_M_CheckListWOPM T WHERE T.IDTemplate=@IDTemplate AND (';' + ISNULL(T.CompanyLocationList,'') + ';' LIKE '%;' + @CompanyID + @LocationID + ';%')",
                         "@IDTemplate=" + id + GF.Str2 +
                         "@CompanyID=" + GF.GetString(row["CompanyID"]) + GF.Str2 +
                         "@LocationID=" + GF.GetString(row["LocationID"]));
@@ -1345,9 +1281,8 @@ WHERE IDTemplate=@IDTemplate AND CompanyID=@CompanyID AND LocationID=@LocationID
                 if (action == "ADD")
                 {
                     br.EQuery(@"
-IF NOT EXISTS (SELECT 1 FROM dbo.PIP_M_CheckListWOPM_Employee WHERE IDTemplate=@IDTemplate AND EmployeeID=@EmployeeID)
-    INSERT dbo.PIP_M_CheckListWOPM_Employee (IDTemplate, EmployeeID, EntryUser, EntryDate)
-    VALUES (@IDTemplate, @EmployeeID, @UpdateUser, GETDATE())",
+IF (';' + ISNULL((SELECT EmployeeList FROM dbo.PIP_M_CheckListWOPM WHERE IDTemplate=@IDTemplate),'') + ';' NOT LIKE '%;' + @EmployeeID + ';%')
+ UPDATE dbo.PIP_M_CheckListWOPM SET EmployeeList=CASE WHEN ISNULL(EmployeeList,'')='' THEN @EmployeeID ELSE EmployeeList+';'+@EmployeeID END WHERE IDTemplate=@IDTemplate",
                         "@IDTemplate=" + id + GF.Str2 +
                         "@EmployeeID=" + employeeId + GF.Str2 +
                         "@UpdateUser=" + updateUser);
@@ -1355,8 +1290,9 @@ IF NOT EXISTS (SELECT 1 FROM dbo.PIP_M_CheckListWOPM_Employee WHERE IDTemplate=@
                 else
                 {
                     br.EQuery(@"
-DELETE FROM dbo.PIP_M_CheckListWOPM_Employee
-WHERE IDTemplate=@IDTemplate AND EmployeeID=@EmployeeID",
+UPDATE T SET EmployeeList=ISNULL(STUFF((SELECT ';'+X.val FROM dbo.SplitStringConvertToTable(ISNULL(T.EmployeeList,''),';') X
+ WHERE X.val<>@EmployeeID FOR XML PATH(''),TYPE).value('.','varchar(8000)'),1,1,''),'')
+FROM dbo.PIP_M_CheckListWOPM T WHERE T.IDTemplate=@IDTemplate",
                         "@IDTemplate=" + id + GF.Str2 +
                         "@EmployeeID=" + employeeId);
                 }
