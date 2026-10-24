@@ -544,15 +544,26 @@ function updateInspectionRemarkPanels() {
         const options = String(container.dataset.remarkOptions || "").split(";").filter(Boolean);
         const selected = container.querySelector('[data-role="value"][type="radio"]:checked');
         const optionRequires = container.dataset.itemType === "OPTION" && !!selected && options.includes(String(selected.value));
-        const showRemark1 = container.dataset.remark1BaseRequired === "1" || optionRequires;
+        const showRemark1 = container.dataset.remark1BaseRequired === "1" ||
+            (optionRequires && container.dataset.remark1VersionEnabled === "1");
+        const showRemark2 = container.dataset.remark2BaseRequired === "1" ||
+            (optionRequires && container.dataset.remark2VersionEnabled === "1");
         const wrap = container.querySelector('[data-role="remark1-wrap"]');
         const input = container.querySelector('[data-role="remark1"]');
+        const wrap2 = container.querySelector('[data-role="remark2-wrap"]');
+        const input2 = container.querySelector('[data-role="remark2"]');
         if (wrap) {
             wrap.style.display = showRemark1 ? "" : "none";
             const label = wrap.querySelector("label");
             if (label) label.textContent = (label.textContent || "Remark").replace(/\s*\(wajib\)$/, "") + (showRemark1 ? " (wajib)" : "");
         }
         if (input) input.required = showRemark1;
+        if (wrap2) {
+            wrap2.style.display = showRemark2 ? "" : "none";
+            const label2 = wrap2.querySelector("label");
+            if (label2) label2.textContent = (label2.textContent || "Remark").replace(/\\s*\\(wajib\\)$/, "") + (showRemark2 ? " (wajib)" : "");
+        }
+        if (input2) input2.required = showRemark2;
     });
 }
 
@@ -609,16 +620,19 @@ function renderInspectionItem(item, savedItems, readOnly) {
     const remark2Text = item.remark2Text || "Remark";
     const remarkOptions = Array.isArray(item.remarkRequiredOptions) ? item.remarkRequiredOptions.map(String) : [];
     const selectedOptionRequiresRemark = type === "OPTION" && remarkOptions.includes(String(saved.Value || ""));
-    const showRemark1 = !!item.isRemark1Required || selectedOptionRequiresRemark;
-    const remark1 = (item.isRemark1Required || (type === "OPTION" && remarkOptions.length > 0))
+    const showRemark1 = !!item.isRemark1Required || (selectedOptionRequiresRemark && !!item.versionIsRemark1Required);
+    const showRemark2 = !!item.isRemark2Required || (selectedOptionRequiresRemark && !!item.versionIsRemark2Required);
+    const renderRemark1 = !!item.isRemark1Required || (type === "OPTION" && remarkOptions.length > 0 && !!item.versionIsRemark1Required);
+    const renderRemark2 = !!item.isRemark2Required || (type === "OPTION" && remarkOptions.length > 0 && !!item.versionIsRemark2Required);
+    const remark1 = renderRemark1
         ? '<div class="mt-2" data-role="remark1-wrap" style="' + (showRemark1 ? "" : "display:none;") + '"><label class="inspection-muted">' + escInspection(remark1Text) +
           (showRemark1 ? ' (wajib)' : '') + '</label><input type="text" maxlength="500" data-role="remark1" class="form-control form-control-sm" value="' +
           escInspection(saved.Remark1 || saved.Remark || "") + '"' + disabled + (showRemark1 ? ' required' : '') + '></div>'
         : "";
-    const remark2 = item.isRemark2Required
-        ? '<div class="mt-2" data-role="remark2-wrap"><label class="inspection-muted">' + escInspection(remark2Text) +
-          ' (wajib)</label><input type="text" maxlength="500" data-role="remark2" class="form-control form-control-sm" value="' +
-          escInspection(saved.Remark2 || "") + '"' + disabled + ' required></div>'
+    const remark2 = renderRemark2
+        ? '<div class="mt-2" data-role="remark2-wrap" style="' + (showRemark2 ? "" : "display:none;") + '"><label class="inspection-muted">' + escInspection(remark2Text) +
+          (showRemark2 ? ' (wajib)' : '') + '</label><input type="text" maxlength="500" data-role="remark2" class="form-control form-control-sm" value="' +
+          escInspection(saved.Remark2 || "") + '"' + disabled + (showRemark2 ? ' required' : '') + '></div>'
         : "";
 
     return '<div class="inspection-item" data-item-id="' + id + '" data-item-type="' + escInspection(type) +
@@ -627,6 +641,8 @@ function renderInspectionItem(item, savedItems, readOnly) {
         '" data-required="' + (item.isValueRequired ? "1" : "0") +
         '" data-remark1-base-required="' + (item.isRemark1Required ? "1" : "0") +
         '" data-remark2-required="' + (item.isRemark2Required ? "1" : "0") +
+        '" data-remark1-version-enabled="' + (item.versionIsRemark1Required ? "1" : "0") +
+        '" data-remark2-version-enabled="' + (item.versionIsRemark2Required ? "1" : "0") +
         '" data-remark-options="' + escInspection(remarkOptions.join(";")) + '">' +
         '<label class="inspection-item-label">' + escInspection(item.label || ("Item " + id)) + '</label>' +
         control + remark1 + remark2 + '</div>';
@@ -732,10 +748,12 @@ function validateInspectionItems(items) {
         const requiredOptionRemarks = Array.isArray(templateItem.remarkRequiredOptions) ? templateItem.remarkRequiredOptions.map(String) : [];
         const selectedOptionRequiresRemark = String(templateItem.type || "").toUpperCase() === "OPTION" &&
             requiredOptionRemarks.includes(String(item.Value || ""));
-        if ((templateItem.isRemark1Required || selectedOptionRequiresRemark) && (!item.Remark1 || !item.Remark1.trim())) {
+        const selectedOptionRequiresRemark1 = selectedOptionRequiresRemark && !!templateItem.versionIsRemark1Required;
+        const selectedOptionRequiresRemark2 = selectedOptionRequiresRemark && !!templateItem.versionIsRemark2Required;
+        if ((templateItem.isRemark1Required || selectedOptionRequiresRemark1) && (!item.Remark1 || !item.Remark1.trim())) {
             return (templateItem.remark1Text || "Remark") + " wajib diisi: " + item.ItemLabel;
         }
-        if (templateItem.isRemark2Required && (!item.Remark2 || !item.Remark2.trim())) {
+        if ((templateItem.isRemark2Required || selectedOptionRequiresRemark2) && (!item.Remark2 || !item.Remark2.trim())) {
             return (templateItem.remark2Text || "Remark") + " wajib diisi: " + item.ItemLabel;
         }
     }
