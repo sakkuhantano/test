@@ -1430,12 +1430,23 @@ function renderTemplates(data, container, sectionId)
     {
         const collapseId = `collapseTemplate_${sectionId}_${tpl.Template.RuntimeTemplateID}`;
         const headingId = `headingTemplate_${sectionId}_${tpl.Template.RuntimeTemplateID}`;
+        const isMasterEnabled = tpl.Template.IsActive === true ||
+            tpl.Template.IsActive === 1 ||
+            String(tpl.Template.IsActive).toLowerCase() === 'true' ||
+            String(tpl.Template.IsActive) === '1';
+        const hasActiveVersion = tpl.Template.HasActiveVersion === true ||
+            tpl.Template.HasActiveVersion === 1 ||
+            String(tpl.Template.HasActiveVersion).toLowerCase() === 'true' ||
+            String(tpl.Template.HasActiveVersion) === '1';
+        // The master row can be enabled while it has no published Active version.
+        // In that state the template is not usable and must keep its Inactive badge.
+        const isDisplayedActive = isMasterEnabled && hasActiveVersion;
         const statusClass =
-            tpl.Template.IsActive
+            isDisplayedActive
                 ? '' //'badge-status-active'
                 : 'badge-status-inactive';
         const statusText =
-            tpl.Template.IsActive
+            isDisplayedActive
                 ? ''
                 : '<span class="badge-status badge-status-inactive ms-auto me-2">Inactive</span>';
         const isCurrent =
