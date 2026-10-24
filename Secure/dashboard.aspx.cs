@@ -71,7 +71,12 @@ namespace UTL1.Secure
 JOIN PIP_M_CheckListWOPM b on A.IDTemplate=B.IDTemplate 
 WHERE b.IsActive=1
 AND ISNULL(b.TemplateType,'W')=@TemplateType
-AND a.Status='Active'
+AND (a.Status='Active' OR (@version<>'' AND a.Status='Archieved' AND EXISTS (
+    SELECT 1 FROM dbo.PIP_T_WO ExistingWO
+    WHERE ExistingWO.TemplateWOPM=B.TemplateNo AND ExistingWO.TemplateVersion=a.Version
+      AND ExistingWO.CompanyID=@CompanyID AND ExistingWO.LocationID=@LocationID
+      AND ExistingWO.SectionID=B.SectionID
+)))
 AND (
     @TemplateType <> 'I'
     OR ISNULL(B.EmployeeList,'')='' OR (';' + ISNULL(B.EmployeeList,'') + ';' LIKE '%;' + @EmployeeID + ';%')
