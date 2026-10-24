@@ -140,9 +140,7 @@ JOIN PIP_M_CheckListWOPM tt ON tt.IDTemplate=vv.IDTemplate
 WHERE tt.TemplateNo=a.TemplateWOPM
   AND ISNULL(tt.TemplateType,'W')='W'
   AND tt.SectionID=a.SectionID
-  AND (ISNULL(tt.CompanyScope,'S')='A' OR EXISTS
-       (SELECT 1 FROM dbo.PIP_M_CheckListWOPM_CompanyLocation sc
-        WHERE sc.IDTemplate=tt.IDTemplate AND sc.CompanyID=a.CompanyID AND sc.LocationID=a.LocationID))
+  AND (ISNULL(tt.CompanyScope,'S')='A' OR (';' + ISNULL(tt.CompanyLocationList, '') + ';' LIKE '%;' + a.CompanyID + a.LocationID + ';%'))
   AND vv.Version=a.TemplateVersion
 ORDER BY CASE WHEN ISNULL(tt.CompanyScope,'S')='S' THEN 0 ELSE 1 END, tt.IDTemplate),''),
 FollowUp=CASE WHEN ISNULL(a.isFollowUp,0)=1 THEN 'Recommend Follow Up' ELSE 'No Follow Up' END, 
@@ -165,13 +163,7 @@ AND EXISTS
       AND
       (
           ISNULL(T.CompanyScope,'S')='A'
-          OR EXISTS
-          (
-              SELECT 1 FROM dbo.PIP_M_CheckListWOPM_CompanyLocation ScopeRow
-              WHERE ScopeRow.IDTemplate=T.IDTemplate
-                AND ScopeRow.CompanyID=@CompanyID
-                AND ScopeRow.LocationID=@LocationID
-          )
+          OR (';' + ISNULL(T.CompanyLocationList, '') + ';' LIKE '%;' + @CompanyID + @LocationID + ';%')
       )
 )
 AND " + _condition +
