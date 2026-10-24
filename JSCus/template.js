@@ -2079,7 +2079,15 @@ async function cloneVersionToNewTemplate(sourceSectionId, sourceRuntimeTemplateI
 }
 async function loadTemplateSectionsForClone()
 {
-    const roots = Array.isArray(explorerRoot) ? explorerRoot : [];
+    let roots = [];
+    try {
+        roots = Array.isArray(explorerRoot) ? explorerRoot : JSON.parse(explorerRoot || "[]");
+    } catch (parseError) {
+        console.error("Could not parse Template explorer sections for clone:", parseError);
+        showToast("Could not load the available sections. Refresh the Template explorer and retry.");
+        return;
+    }
+    if (!Array.isArray(roots)) roots = [];
     for (const root of roots) {
         const sectionId = String(root.SectionID || "");
         if (!sectionId) continue;
