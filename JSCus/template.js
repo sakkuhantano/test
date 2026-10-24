@@ -3748,11 +3748,11 @@ function showItemProperties(itemData)
 
     // Clean legacy titles on editable drafts even when the user does not toggle the checkbox.
     let clearedUnusedRemarkTitle = false;
-    if (!isReadonlyMode && !itemData.IsRemark1Required && String(itemData.Remark1Text || "").trim() !== "") {
+    if (!isReadonlyMode && !itemData.IsUseDefaultRemark1 && !itemData.IsRemark1Required && String(itemData.Remark1Text || "").trim() !== "") {
         itemData.Remark1Text = "";
         clearedUnusedRemarkTitle = true;
     }
-    if (!isReadonlyMode && !itemData.IsRemark2Required && String(itemData.Remark2Text || "").trim() !== "") {
+    if (!isReadonlyMode && !itemData.IsUseDefaultRemark2 && !itemData.IsRemark2Required && String(itemData.Remark2Text || "").trim() !== "") {
         itemData.Remark2Text = "";
         clearedUnusedRemarkTitle = true;
     }
@@ -3873,25 +3873,39 @@ function showItemProperties(itemData)
                     </label>
                 </div>
 
-                <div class="form-check form-switch mb-2">
-                    <input id="propMandatoryRemark1" class="form-check-input" type="checkbox"
-                        ${itemData.IsRemark1Required ? 'checked' : ''} ${isReadonlyMode ? 'disabled' : ''}>
-                    <label class="form-check-label text-xs">Remark 1 Required</label>
+                <div class="form-check form-switch mb-2" style="${currentVersion && currentVersion.IsRemark1Required ? '' : 'display:none;'}">
+                    <input id="chkUseDefaultRemark1" class="form-check-input" type="checkbox"
+                        ${itemData.IsUseDefaultRemark1 ? 'checked' : ''} ${isReadonlyMode ? 'disabled' : ''}>
+                    <label class="form-check-label text-xs">Use Version Default Remark 1</label>
                 </div>
-                <div class="mb-2" id="rowRemark1Title" style="${itemData.IsRemark1Required ? '' : 'display:none;'}">
-                    <label class="form-label text-xs">Remark 1 Title</label>
-                    <input id="propRemark1Text" class="form-control form-control-sm" maxlength="100"
-                        value="${itemData.Remark1Text || 'Remark'}" ${isReadonlyMode ? 'disabled' : ''}>
+                <div id="groupRemark1Local" style="${currentVersion && currentVersion.IsRemark1Required && !itemData.IsUseDefaultRemark1 ? '' : 'display:none;'}">
+                    <div class="form-check form-switch mb-2">
+                        <input id="propMandatoryRemark1" class="form-check-input" type="checkbox"
+                            ${itemData.IsRemark1Required ? 'checked' : ''} ${isReadonlyMode ? 'disabled' : ''}>
+                        <label class="form-check-label text-xs">Remark 1 Required</label>
+                    </div>
+                    <div class="mb-2" id="rowRemark1Title" style="${itemData.IsRemark1Required ? '' : 'display:none;'}">
+                        <label class="form-label text-xs">Remark 1 Title</label>
+                        <input id="propRemark1Text" class="form-control form-control-sm" maxlength="100"
+                            value="${itemData.Remark1Text || 'Remark'}" ${isReadonlyMode ? 'disabled' : ''}>
+                    </div>
                 </div>
-                <div class="form-check form-switch mb-2">
-                    <input id="propMandatoryRemark2" class="form-check-input" type="checkbox"
-                        ${itemData.IsRemark2Required ? 'checked' : ''} ${isReadonlyMode ? 'disabled' : ''}>
-                    <label class="form-check-label text-xs">Remark 2 Required</label>
+                <div class="form-check form-switch mb-2" style="${currentVersion && currentVersion.IsRemark2Required ? '' : 'display:none;'}">
+                    <input id="chkUseDefaultRemark2" class="form-check-input" type="checkbox"
+                        ${itemData.IsUseDefaultRemark2 ? 'checked' : ''} ${isReadonlyMode ? 'disabled' : ''}>
+                    <label class="form-check-label text-xs">Use Version Default Remark 2</label>
                 </div>
-                <div class="mb-2" id="rowRemark2Title" style="${itemData.IsRemark2Required ? '' : 'display:none;'}">
-                    <label class="form-label text-xs">Remark 2 Title</label>
-                    <input id="propRemark2Text" class="form-control form-control-sm" maxlength="100"
-                        value="${itemData.Remark2Text || 'Remark'}" ${isReadonlyMode ? 'disabled' : ''}>
+                <div id="groupRemark2Local" style="${currentVersion && currentVersion.IsRemark2Required && !itemData.IsUseDefaultRemark2 ? '' : 'display:none;'}">
+                    <div class="form-check form-switch mb-2">
+                        <input id="propMandatoryRemark2" class="form-check-input" type="checkbox"
+                            ${itemData.IsRemark2Required ? 'checked' : ''} ${isReadonlyMode ? 'disabled' : ''}>
+                        <label class="form-check-label text-xs">Remark 2 Required</label>
+                    </div>
+                    <div class="mb-2" id="rowRemark2Title" style="${itemData.IsRemark2Required ? '' : 'display:none;'}">
+                        <label class="form-label text-xs">Remark 2 Title</label>
+                        <input id="propRemark2Text" class="form-control form-control-sm" maxlength="100"
+                            value="${itemData.Remark2Text || 'Remark'}" ${isReadonlyMode ? 'disabled' : ''}>
+                    </div>
                 </div>
                 <div class="form-check form-switch mb-2" id="divUseDefaultOption"
                      style="${Array.isArray(currentVersion?.StatusOption) && currentVersion.StatusOption.some(option => String(option || "").trim() !== "") ? "" : "display:none;"}">
@@ -4525,6 +4539,17 @@ function showItemProperties(itemData)
         );
     }
 
+    [["chkUseDefaultRemark1", "IsUseDefaultRemark1", "groupRemark1Local"],
+     ["chkUseDefaultRemark2", "IsUseDefaultRemark2", "groupRemark2Local"]].forEach(function(cfg) {
+        const toggle = document.getElementById(cfg[0]);
+        if (!toggle) return;
+        toggle.addEventListener("change", function() {
+            itemData[cfg[1]] = this.checked;
+            const localGroup = document.getElementById(cfg[2]);
+            if (localGroup) localGroup.style.display = this.checked ? "none" : "";
+            markCurrentVersionDirty();
+        });
+    });
     const chkRemark =
         document.getElementById(
             "propMandatoryRemark1"
