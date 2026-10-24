@@ -84,7 +84,7 @@ WHERE a.UserID = @UserID
             using (var br = new WAL.BR.CF())
             {
                 DataTable dt = br.EQuery(@"
-SELECT a.IDVersion, a.Version, a.[Status], a.EffectiveDate, a.StatusOption, a.Remark, RuntimeVersionID=a.IDVersion, a.GroupEquipment, a.RemarkRequiredOptions, a.SummarySampleText
+SELECT a.IDVersion, a.Version, a.[Status], a.EffectiveDate, a.StatusOption, a.Remark, RuntimeVersionID=a.IDVersion, a.GroupEquipment, a.RemarkRequiredOptions, a.SummarySampleText, a.IsRemark1Required, a.Remark1Text, a.IsRemark2Required, a.Remark2Text
 FROM PIP_M_CheckListWOPM_Version a WHERE a.IDTemplate=@IDTemplate", "@IDTemplate=" + idTemplate);
                 var versionList = dt.AsEnumerable().Select(row => new
                 {
@@ -100,7 +100,11 @@ FROM PIP_M_CheckListWOPM_Version a WHERE a.IDTemplate=@IDTemplate", "@IDTemplate
                     Remark = row["Remark"] == DBNull.Value ? null : row.Field<string>("Remark"),
                     GroupEquipment = GF.GetString(row["GroupEquipment"]),
                     RemarkRequiredOptions = String.IsNullOrWhiteSpace(GF.GetString(row["RemarkRequiredOptions"])) ? new string[0] : GF.GetString(row["RemarkRequiredOptions"]).Split(';'),
-                    SummarySampleText = GF.GetString(row["SummarySampleText"])
+                    SummarySampleText = GF.GetString(row["SummarySampleText"]),
+                    IsRemark1Required = Convert.ToBoolean(row["IsRemark1Required"]),
+                    Remark1Text = GF.GetString(row["Remark1Text"]),
+                    IsRemark2Required = Convert.ToBoolean(row["IsRemark2Required"]),
+                    Remark2Text = GF.GetString(row["Remark2Text"])
                 }).ToList();
 
                 JavaScriptSerializer serializer = new JavaScriptSerializer();
@@ -115,7 +119,7 @@ FROM PIP_M_CheckListWOPM_Version a WHERE a.IDTemplate=@IDTemplate", "@IDTemplate
             using (var br = new WAL.BR.CF())
             {
                 DataSet ds = br.EQuery_DS(@"
-SELECT IDVersion, A.IDTemplate, B.TemplateNo, B.TemplateName, A.Version, A.Status, A.EffectiveDate, A.Remark, A.StatusOption StatusOptionRaw, A.GroupEquipment, A.RemarkRequiredOptions RemarkRequiredOptionsRaw, A.SummarySampleText
+SELECT IDVersion, A.IDTemplate, B.TemplateNo, B.TemplateName, A.Version, A.Status, A.EffectiveDate, A.Remark, A.StatusOption StatusOptionRaw, A.GroupEquipment, A.RemarkRequiredOptions RemarkRequiredOptionsRaw, A.SummarySampleText, A.IsRemark1Required, A.Remark1Text, A.IsRemark2Required, A.Remark2Text
 FROM PIP_M_CheckListWOPM_Version A JOIN PIP_M_CheckListWOPM B ON B.IDTemplate = A.IDTemplate 
 WHERE IDVersion = @IDVersion;
 
@@ -123,7 +127,7 @@ SELECT IDSection, SectionName, DisplayOrder
 FROM PIP_M_CheckListWOPM_Section WHERE IDVersion = @IDVersion ORDER BY DisplayOrder;
 
 SELECT A.IDItem, A.IDSection, A.IDSubSection, A.ItemLabel, A.ItemType, A.DisplayOrder, A.Unit, 
-        a.IsRemark1Required, a.IsRemark2Required, a.Remark1Text, a.Remark2Text, A.IsValueRequired, a.ShowUnitInRange, 
+        a.IsRemark1Required, a.IsRemark2Required, a.Remark1Text, a.Remark2Text, a.IsUseDefaultRemark1, a.IsUseDefaultRemark2, A.IsValueRequired, a.ShowUnitInRange, 
         UseDefaultOption=CAST((CASE WHEN a.ItemType='OPTION' AND ISNULL(a.OptionList,'')='' THEN 1 ELSE 0 END) AS BIT), 
         a.OptionList OptionListRaw, a.RemarkRequiredOptions RemarkRequiredOptionsRaw, a.MinValue, a.MaxValue, a.MinTolerance, a.MaxTolerance, a.ModelCode, a.IsToleranceRequired
 FROM PIP_M_CheckListWOPM_Item A JOIN PIP_M_CheckListWOPM_Section B ON B.IDSection = A.IDSection 
@@ -161,6 +165,10 @@ WHERE SEC.IDVersion=@IDVersion ORDER BY SS.DisplayOrder;",
                         Remark = versionRow["Remark"] == DBNull.Value ? null : versionRow["Remark"].ToString(),
                         GroupEquipment = GF.GetString(versionRow["GroupEquipment"]),
                         SummarySampleText = GF.GetString(versionRow["SummarySampleText"]),
+                        IsRemark1Required = Convert.ToBoolean(versionRow["IsRemark1Required"]),
+                        Remark1Text = GF.GetString(versionRow["Remark1Text"]),
+                        IsRemark2Required = Convert.ToBoolean(versionRow["IsRemark2Required"]),
+                        Remark2Text = GF.GetString(versionRow["Remark2Text"]),
                         RemarkRequiredOptions = String.IsNullOrWhiteSpace(GF.GetString(versionRow["RemarkRequiredOptionsRaw"])) ? new string[0] : GF.GetString(versionRow["RemarkRequiredOptionsRaw"]).Split(';'),
                         // Mengubah string koma "OK;MF;NA" dari DB menjadi array ["OK","MF","NA"]
                         StatusOption = versionRow["StatusOptionRaw"] == DBNull.Value ? new string[0] : versionRow["StatusOptionRaw"].ToString().Split(';')
@@ -207,6 +215,8 @@ WHERE SEC.IDVersion=@IDVersion ORDER BY SS.DisplayOrder;",
                                         ModelCode = itemRow["ModelCode"].ToString(),
                                         IsRemark1Required = Convert.ToBoolean(itemRow["IsRemark1Required"]),
                                         IsRemark2Required = Convert.ToBoolean(itemRow["IsRemark2Required"]),
+                                        IsUseDefaultRemark1 = Convert.ToBoolean(itemRow["IsUseDefaultRemark1"]),
+                                        IsUseDefaultRemark2 = Convert.ToBoolean(itemRow["IsUseDefaultRemark2"]),
                                         Remark1Text = itemRow["Remark1Text"] == DBNull.Value ? "Remark" : itemRow["Remark1Text"].ToString(),
                                         Remark2Text = itemRow["Remark2Text"] == DBNull.Value ? "Remark" : itemRow["Remark2Text"].ToString(),
                                         IsValueRequired = Convert.ToBoolean(itemRow["IsValueRequired"]),
@@ -695,6 +705,8 @@ WHERE a.SectionID = @SectionID
                                 vRow["C9"] = vInfo["GroupEquipment"];
                                 vRow["C10"] = vInfo.ContainsKey("SummarySampleText") ? GF.GetString(vInfo["SummarySampleText"]) : "";
                                 vRow["C11"] = versionRemarkRequiredOptionsStr;
+                                vRow["C12"] = (vInfo.ContainsKey("IsRemark1Required") && Convert.ToBoolean(vInfo["IsRemark1Required"]) ? "1" : "0") + "|" + (vInfo.ContainsKey("Remark1Text") ? GF.GetString(vInfo["Remark1Text"]) : "Remark");
+                                vRow["C13"] = (vInfo.ContainsKey("IsRemark2Required") && Convert.ToBoolean(vInfo["IsRemark2Required"]) ? "1" : "0") + "|" + (vInfo.ContainsKey("Remark2Text") ? GF.GetString(vInfo["Remark2Text"]) : "Remark");
                                 dtVersion.Rows.Add(vRow);
                             }
 
@@ -782,6 +794,8 @@ WHERE a.SectionID = @SectionID
                                             iRow["C16"] = (itemType == "INPUT" || itemType == "RANGE") && Convert.ToBoolean(item["UseTolerance"]);
                                             iRow["C17"] = itemRemarkRequiredOptionsStr;
                                             iRow["C21"] = item.ContainsKey("RuntimeSubSectionID") ? item["RuntimeSubSectionID"] : 0;
+                                            iRow["C23"] = item.ContainsKey("IsUseDefaultRemark1") && Convert.ToBoolean(item["IsUseDefaultRemark1"]) ? "1" : "0";
+                                            iRow["C24"] = item.ContainsKey("IsUseDefaultRemark2") && Convert.ToBoolean(item["IsUseDefaultRemark2"]) ? "1" : "0";
                                             iRow["C22"] = item.ContainsKey("DisplayOrder") ? item["DisplayOrder"] : 0;
                                             dtItem.Rows.Add(iRow);
 
