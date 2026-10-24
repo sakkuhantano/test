@@ -154,30 +154,4 @@ BEGIN
         REFERENCES dbo.PIP_M_InspectionType (InspectionTypeCode);
 END;
 
-IF NOT EXISTS
-(
-    SELECT 1 FROM sys.foreign_keys
-    WHERE name = 'FK_PIP_M_CheckListWOPM_CompanyLocation_Template'
-      AND parent_object_id = OBJECT_ID('dbo.PIP_M_CheckListWOPM_CompanyLocation')
-)
-BEGIN
-    ALTER TABLE dbo.PIP_M_CheckListWOPM_CompanyLocation WITH CHECK
-    ADD CONSTRAINT FK_PIP_M_CheckListWOPM_CompanyLocation_Template
-        FOREIGN KEY (IDTemplate)
-        REFERENCES dbo.PIP_M_CheckListWOPM (IDTemplate);
-END;
-
-IF NOT EXISTS
-(
-    SELECT 1 FROM sys.foreign_keys
-    WHERE name = 'FK_PIP_M_CheckListWOPM_Employee_Template'
-      AND parent_object_id = OBJECT_ID('dbo.PIP_M_CheckListWOPM_Employee')
-)
-BEGIN
-    ALTER TABLE dbo.PIP_M_CheckListWOPM_Employee WITH CHECK
-    ADD CONSTRAINT FK_PIP_M_CheckListWOPM_Employee_Template
-        FOREIGN KEY (IDTemplate)
-        REFERENCES dbo.PIP_M_CheckListWOPM (IDTemplate);
-END;
-
 COMMIT TRANSACTION;
