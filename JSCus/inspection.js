@@ -561,7 +561,7 @@ function updateInspectionRemarkPanels() {
         if (wrap2) {
             wrap2.style.display = showRemark2 ? "" : "none";
             const label2 = wrap2.querySelector("label");
-            if (label2) label2.textContent = (label2.textContent || "Remark").replace(/\\s*\\(wajib\\)$/, "") + (showRemark2 ? " (wajib)" : "");
+            if (label2) label2.textContent = (label2.textContent || "Remark").replace(/\s*\(wajib\)$/, "") + (showRemark2 ? " (wajib)" : "");
         }
         if (input2) input2.required = showRemark2;
     });
