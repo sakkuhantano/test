@@ -353,6 +353,19 @@ BEGIN
         RETURN;
     END;
 
+    /* A synced inspection keeps the exact template/version selected when it was created. */
+    IF EXISTS
+    (
+        SELECT 1
+        FROM dbo.PIP_T_Inspection Existing
+        WHERE Existing.ClientInspectionID=@p_ClientInspectionID
+          AND (Existing.IDTemplate<>@p_IDTemplate OR Existing.IDVersion<>@p_IDVersion)
+    )
+    BEGIN
+        RAISERROR('An existing inspection cannot change its template version.', 16, 1);
+        RETURN;
+    END;
+
     IF NOT EXISTS
     (
         SELECT 1
