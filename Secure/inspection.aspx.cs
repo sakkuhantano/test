@@ -93,35 +93,6 @@ namespace UTL1.Secure
                     if (status != "DRAFT" && status != "DONE")
                         throw new Exception("Invalid inspection status.");
 
-                    using (var br = new WAL.BR.CF())
-                    {
-                        DataTable saved = br.EQueryP("spUTL_PIP_T_Inspection_Sync", new SqlParameter[]
-                        {
-                            new SqlParameter("@p_ClientInspectionID", Limit(clientId, 36)),
-                            new SqlParameter("@p_CompanyID", Limit(TokenString(record, "CompanyID"), 10)),
-                            new SqlParameter("@p_LocationID", Limit(TokenString(record, "LocationID"), 3)),
-                            new SqlParameter("@p_SectionID", Limit(TokenString(record, "SectionID"), 10)),
-                            new SqlParameter("@p_InspectionTypeCode", Limit(TokenString(record, "InspectionTypeCode"), 2)),
-                            new SqlParameter("@p_InspectionTypeDetailCode", Limit(TokenString(record, "InspectionTypeDetailCode"), 20)),
-                            new SqlParameter("@p_ScheduledTime", Limit(TokenString(record, "ScheduledTime"), 5)),
-                            new SqlParameter("@p_IDTemplate", TokenInt(record, "IDTemplate")),
-                            new SqlParameter("@p_IDVersion", TokenInt(record, "IDVersion")),
-                            new SqlParameter("@p_TemplateNo", Limit(TokenString(record, "TemplateNo"), 50)),
-                            new SqlParameter("@p_TemplateVersion", Limit(TokenString(record, "TemplateVersion"), 10)),
-                            new SqlParameter("@p_InspectionDate", ParseDate(TokenString(record, "InspectionDate"), DateTime.Today)),
-                            new SqlParameter("@p_StartDateTime", ParseNullableDate(TokenString(record, "StartDateTime"))),
-                            new SqlParameter("@p_EndDateTime", ParseNullableDate(TokenString(record, "EndDateTime"))),
-                            new SqlParameter("@p_Status", status),
-                            new SqlParameter("@p_Summary", Limit(TokenString(record, "Summary"), 500)),
-                            new SqlParameter("@p_UpdateUser", Limit(userId, 50)),
-                            new SqlParameter("@p_Items", items),
-                            new SqlParameter("@p_ItemValues", itemValues)
-                        }, true, true);
-
-                        long inspectionId = saved.Rows.Count > 0 ? Convert.ToInt64(saved.Rows[0]["InspectionID"]) : 0;
-                        if (inspectionId <= 0)
-                            throw new Exception("Inspection header was not saved; photo upload was stopped.");
-
                         DateTime inspectionDate = ParseDate(TokenString(record, "InspectionDate"), DateTime.Today);
                         JArray photoArray = record["Photos"] as JArray ?? new JArray();
                         var incomingPhotos = new List<Tuple<string, int, string, byte[]>>();
@@ -153,6 +124,35 @@ namespace UTL1.Secure
                                 throw new Exception("Inspection photo must be between 1 byte and 1 MB.");
                             incomingPhotos.Add(Tuple.Create(type, seqNo, extension, bytes));
                         }
+
+                    using (var br = new WAL.BR.CF())
+                    {
+                        DataTable saved = br.EQueryP("spUTL_PIP_T_Inspection_Sync", new SqlParameter[]
+                        {
+                            new SqlParameter("@p_ClientInspectionID", Limit(clientId, 36)),
+                            new SqlParameter("@p_CompanyID", Limit(TokenString(record, "CompanyID"), 10)),
+                            new SqlParameter("@p_LocationID", Limit(TokenString(record, "LocationID"), 3)),
+                            new SqlParameter("@p_SectionID", Limit(TokenString(record, "SectionID"), 10)),
+                            new SqlParameter("@p_InspectionTypeCode", Limit(TokenString(record, "InspectionTypeCode"), 2)),
+                            new SqlParameter("@p_InspectionTypeDetailCode", Limit(TokenString(record, "InspectionTypeDetailCode"), 20)),
+                            new SqlParameter("@p_ScheduledTime", Limit(TokenString(record, "ScheduledTime"), 5)),
+                            new SqlParameter("@p_IDTemplate", TokenInt(record, "IDTemplate")),
+                            new SqlParameter("@p_IDVersion", TokenInt(record, "IDVersion")),
+                            new SqlParameter("@p_TemplateNo", Limit(TokenString(record, "TemplateNo"), 50)),
+                            new SqlParameter("@p_TemplateVersion", Limit(TokenString(record, "TemplateVersion"), 10)),
+                            new SqlParameter("@p_InspectionDate", ParseDate(TokenString(record, "InspectionDate"), DateTime.Today)),
+                            new SqlParameter("@p_StartDateTime", ParseNullableDate(TokenString(record, "StartDateTime"))),
+                            new SqlParameter("@p_EndDateTime", ParseNullableDate(TokenString(record, "EndDateTime"))),
+                            new SqlParameter("@p_Status", status),
+                            new SqlParameter("@p_Summary", Limit(TokenString(record, "Summary"), 500)),
+                            new SqlParameter("@p_UpdateUser", Limit(userId, 50)),
+                            new SqlParameter("@p_Items", items),
+                            new SqlParameter("@p_ItemValues", itemValues)
+                        }, true, true);
+
+                        long inspectionId = saved.Rows.Count > 0 ? Convert.ToInt64(saved.Rows[0]["InspectionID"]) : 0;
+                        if (inspectionId <= 0)
+                            throw new Exception("Inspection header was not saved; photo upload was stopped.");
 
                         string photoFolder = GetInspectionPhotoFolder(inspectionDate);
                         DataTable oldPhotoRows = br.EQueryP(@"
