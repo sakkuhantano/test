@@ -174,8 +174,8 @@ WHERE InspectionID=@InspectionID",
                                     "_" + photo.Item2.ToString(CultureInfo.InvariantCulture) +
                                     "_" + Guid.NewGuid().ToString("N").Substring(0, 8);
                                 string fullPath = Path.Combine(photoFolder, fileName + "." + photo.Item3);
-                                File.WriteAllBytes(fullPath, photo.Item4);
                                 createdPhotoPaths.Add(fullPath);
+                                File.WriteAllBytes(fullPath, photo.Item4);
                                 savedPhotoRows.Add(Tuple.Create(photo.Item1, fileName, photo.Item3, photo.Item2, fullPath));
                             }
 
