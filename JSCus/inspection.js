@@ -10,6 +10,7 @@ let serverSlotRecords = [];
 let currentInspectionRecord = null;
 let currentInspectionReadOnly = false;
 let inspectionAutoSaveTimer = null;
+let inspectionPhotoViewerState = { type: "", photos: [], index: 0, objectUrl: null, touchStartX: null };
 
 document.addEventListener("DOMContentLoaded", async function () {
     try {
@@ -86,8 +87,26 @@ function wireInspectionEvents() {
     document.getElementById("btnCompleteInspection").addEventListener("click", () => saveInspection("DONE"));
     document.getElementById("inspectionPhotoBeforeInput").addEventListener("change", e => handleInspectionPhotoInput(e, "BEFORE"));
     document.getElementById("inspectionPhotoAfterInput").addEventListener("change", e => handleInspectionPhotoInput(e, "AFTER"));
-    document.getElementById("inspectionPhotoBeforeList").addEventListener("click", handleInspectionPhotoDelete);
-    document.getElementById("inspectionPhotoAfterList").addEventListener("click", handleInspectionPhotoDelete);
+    document.getElementById("inspectionPhotoBeforeList").addEventListener("click", handleInspectionPhotoListClick);
+    document.getElementById("inspectionPhotoAfterList").addEventListener("click", handleInspectionPhotoListClick);
+    document.getElementById("inspectionPhotoViewerClose").addEventListener("click", closeInspectionPhotoViewer);
+    document.getElementById("inspectionPhotoViewerPrev").addEventListener("click", () => stepInspectionPhotoViewer(-1));
+    document.getElementById("inspectionPhotoViewerNext").addEventListener("click", () => stepInspectionPhotoViewer(1));
+    document.getElementById("inspectionPhotoViewer").addEventListener("click", event => {
+        if (event.target.id === "inspectionPhotoViewer") closeInspectionPhotoViewer();
+    });
+    document.getElementById("inspectionPhotoViewerStage").addEventListener("touchstart", event => {
+        inspectionPhotoViewerState.touchStartX = event.changedTouches && event.changedTouches.length
+            ? event.changedTouches[0].clientX : null;
+    }, { passive: true });
+    document.getElementById("inspectionPhotoViewerStage").addEventListener("touchend", event => {
+        const startX = inspectionPhotoViewerState.touchStartX;
+        const endX = event.changedTouches && event.changedTouches.length ? event.changedTouches[0].clientX : null;
+        inspectionPhotoViewerState.touchStartX = null;
+        if (startX == null || endX == null || Math.abs(endX - startX) < 45) return;
+        stepInspectionPhotoViewer(endX < startX ? 1 : -1);
+    }, { passive: true });
+    document.addEventListener("keydown", handleInspectionPhotoViewerKeydown);
     document.getElementById("btnInspectionBackToList").addEventListener("click", closeInspectionForm);
     document.getElementById("btnInspectionSync").addEventListener("click", syncInspectionNow);
     ["inspectionDraftList", "inspectionSubmittedList"].forEach(function (listId) {
@@ -1037,7 +1056,120 @@ function populateInspectionParameters(record){const t=document.getElementById("s
 async function saveInspectionParameters(){if(!currentInspectionRecord||currentInspectionReadOnly)return;const typeCode=document.getElementById("selInspectionType").value,parts=document.getElementById("selInspectionDetail").value.split("|"),detailCode=parts[0]||"",scheduledTime=parts[1]||"",templateId=Number(document.getElementById("selInspectionTemplate").value);const type=inspectionTypes.find(x=>x.InspectionTypeCode===typeCode),detail=inspectionDetails.find(x=>x.InspectionTypeCode===typeCode&&x.InspectionTypeDetailCode===detailCode),selectedTemplate=inspectionTemplates.find(x=>Number(x.IDTemplate)===templateId),pinnedTemplate=currentInspectionRecord.TemplateSnapshot,template=pinnedTemplate&&Number(pinnedTemplate.IDTemplate)===templateId&&Number(pinnedTemplate.IDVersion)===Number(currentInspectionRecord.IDVersion)?pinnedTemplate:selectedTemplate;if(!type||!detail||!template){showInspectionNotice("Pilih Inspection Type, detail, dan template yang valid.","warning");return;}const duplicate=inspectionRecords.find(r=>r.LocalInspectionID!==currentInspectionRecord.LocalInspectionID&&r.CompanyID===inspectionCompanyID&&r.LocationID===inspectionLocationID&&parseInspectionDate(r.InspectionDate)===currentInspectionRecord.InspectionDate&&r.SectionID===type.SectionID&&r.InspectionTypeCode===typeCode&&r.InspectionTypeDetailCode===detailCode&&String(r.ScheduledTime||"")===scheduledTime&&Number(r.IDTemplate)===Number(template.IDTemplate)&&r.SyncStatus!=="DELETE_PENDING");if(duplicate){showInspectionNotice("Kombinasi parameter ini sudah dipakai transaksi lain. Draft tidak diubah.","warning");return;}const changed=Number(currentInspectionRecord.IDTemplate)!==Number(template.IDTemplate)||Number(currentInspectionRecord.IDVersion)!==Number(template.IDVersion);const hasPinnedVersion=Number(currentInspectionRecord.IDTemplate)>0&&Number(currentInspectionRecord.IDVersion)>0;if(hasPinnedVersion&&changed){showInspectionNotice("Versi template inspeksi sudah terikat pada transaksi ini. Buat inspeksi baru untuk menggunakan versi aktif yang berbeda.","warning");return;}if(changed&&(currentInspectionRecord.Items||[]).length&&!confirm("Template berubah. Semua jawaban checklist lama akan dikosongkan. Lanjutkan?"))return;Object.assign(currentInspectionRecord,{SectionID:type.SectionID,InspectionTypeCode:type.InspectionTypeCode,InspectionTypeName:type.InspectionTypeName,InspectionTypeDetailCode:detail.InspectionTypeDetailCode,InspectionTypeDetailName:detail.InspectionTypeDetailName,ScheduledTime:scheduledTime,IDTemplate:Number(template.IDTemplate),IDVersion:Number(template.IDVersion),TemplateNo:template.TemplateNo,TemplateName:template.TemplateName,TemplateVersion:String(template.Version||""),TemplateSnapshot:JSON.parse(JSON.stringify(template)),SyncStatus:"PENDING",UpdatedAt:new Date().toISOString()});if(changed)currentInspectionRecord.Items=[];await persistInspectionRecord(currentInspectionRecord);await refreshSavedInspectionList();await renderInspectionForm(currentInspectionRecord,false);showInspectionNotice("Parameter draft berhasil diperbarui.","success");showInspectionEditorTab("param");}
 async function deleteLocalInspectionDraft(localId){const record=inspectionRecords.find(r=>r.LocalInspectionID===localId);if(!record||record.Status!=="DRAFT"||record.SyncStatus==="SYNCED"||record.SyncStatus==="CONFLICT"||record.SyncStatus==="DELETE_PENDING"){showInspectionNotice("Hanya draft lokal yang belum tersinkron yang bisa dihapus di sini.","warning");return;}if(!confirm("Hapus draft ini beserta foto BEFORE/AFTER dari perangkat? Transaksi yang sudah tersimpan di server tidak akan dihapus."))return;await new Promise((resolve,reject)=>{const tx=db.transaction(["inspection_records","inspection_photos"],"readwrite");tx.objectStore("inspection_records").delete(localId);const req=tx.objectStore("inspection_photos").index("LocalInspectionID").openCursor(IDBKeyRange.only(localId));req.onsuccess=()=>{const c=req.result;if(!c)return;c.delete();c.continue();};tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error||new Error("Hapus draft gagal."));});if(currentInspectionRecord&&currentInspectionRecord.LocalInspectionID===localId){currentInspectionRecord=null;showInspectionRecordsScreen();}await refreshSavedInspectionList();showInspectionNotice("Draft lokal beserta fotonya sudah dihapus.","success");}
 async function getInspectionPhotos(localId){return new Promise((resolve,reject)=>{const tx=db.transaction("inspection_photos","readonly"),req=tx.objectStore("inspection_photos").index("LocalInspectionID").getAll(IDBKeyRange.only(localId));req.onsuccess=()=>resolve((req.result||[]).sort((a,b)=>String(a.Type).localeCompare(String(b.Type))||Number(a.SeqNo||a.OrderNo||0)-Number(b.SeqNo||b.OrderNo||0)));req.onerror=()=>reject(req.error);});}
-async function renderInspectionPhotos(){if(!currentInspectionRecord)return;const photos=await getInspectionPhotos(currentInspectionRecord.LocalInspectionID);for(const type of ["BEFORE","AFTER"]){const host=document.getElementById(type==="BEFORE"?"inspectionPhotoBeforeList":"inspectionPhotoAfterList");host.innerHTML="";photos.filter(p=>p.Type===type).forEach(p=>{const w=document.createElement("div");w.className="inspection-photo-item";w.dataset.photoId=p.ID;const img=document.createElement("img");img.src=URL.createObjectURL(p.Blob);img.alt="Inspection "+type;img.loading="lazy";w.appendChild(img);if(!currentInspectionReadOnly){const b=document.createElement("button");b.type="button";b.className="btn btn-sm btn-danger inspection-photo-delete";b.dataset.deleteInspectionPhoto=p.ID;b.textContent="×";w.appendChild(b);}host.appendChild(w);});const count=photos.filter(p=>p.Type===type).length,input=document.getElementById(type==="BEFORE"?"inspectionPhotoBeforeInput":"inspectionPhotoAfterInput");input.disabled=currentInspectionReadOnly||(type==="AFTER"&&!photos.some(p=>p.Type==="BEFORE"));document.getElementById(type==="BEFORE"?"btnAddInspectionBeforePhoto":"btnAddInspectionAfterPhoto").disabled=input.disabled;document.getElementById(type==="BEFORE"?"inspectionBeforePhotoCount":"inspectionAfterPhotoCount").textContent=count+" foto";}}
+async function renderInspectionPhotos() {
+    if (!currentInspectionRecord) return;
+    const photos = await getInspectionPhotos(currentInspectionRecord.LocalInspectionID);
+    for (const type of ["BEFORE", "AFTER"]) {
+        const host = document.getElementById(type === "BEFORE" ? "inspectionPhotoBeforeList" : "inspectionPhotoAfterList");
+        host.innerHTML = "";
+        photos.filter(p => p.Type === type).forEach(p => {
+            const w = document.createElement("div");
+            w.className = "inspection-photo-item";
+            w.dataset.photoId = p.ID;
+            w.dataset.photoType = type;
+            w.setAttribute("role", "button");
+            w.setAttribute("tabindex", "0");
+            w.setAttribute("aria-label", "Lihat foto " + type + " nomor " + (p.SeqNo || p.OrderNo || ""));
+            const img = document.createElement("img");
+            img.src = URL.createObjectURL(p.Blob);
+            img.alt = "Inspection " + type;
+            img.loading = "lazy";
+            w.appendChild(img);
+            if (!currentInspectionReadOnly) {
+                const b = document.createElement("button");
+                b.type = "button";
+                b.className = "btn btn-sm btn-danger inspection-photo-delete";
+                b.dataset.deleteInspectionPhoto = p.ID;
+                b.setAttribute("aria-label", "Hapus foto");
+                b.textContent = "×";
+                w.appendChild(b);
+            }
+            host.appendChild(w);
+        });
+        const count = photos.filter(p => p.Type === type).length;
+        const input = document.getElementById(type === "BEFORE" ? "inspectionPhotoBeforeInput" : "inspectionPhotoAfterInput");
+        input.disabled = currentInspectionReadOnly || (type === "AFTER" && !photos.some(p => p.Type === "BEFORE"));
+        document.getElementById(type === "BEFORE" ? "btnAddInspectionBeforePhoto" : "btnAddInspectionAfterPhoto").disabled = input.disabled;
+        document.getElementById(type === "BEFORE" ? "inspectionBeforePhotoCount" : "inspectionAfterPhotoCount").textContent = count + " foto";
+    }
+}
+
+async function handleInspectionPhotoListClick(event) {
+    const deleteButton = event.target.closest("[data-delete-inspection-photo]");
+    if (deleteButton) {
+        await handleInspectionPhotoDelete(event);
+        return;
+    }
+    const photoItem = event.target.closest(".inspection-photo-item");
+    if (!photoItem) return;
+    await openInspectionPhotoViewer(photoItem.dataset.photoType, photoItem.dataset.photoId);
+}
+
+async function openInspectionPhotoViewer(type, photoId) {
+    if (type !== "BEFORE" && type !== "AFTER" || !currentInspectionRecord) return;
+    const allPhotos = await getInspectionPhotos(currentInspectionRecord.LocalInspectionID);
+    const photos = allPhotos.filter(photo => photo.Type === type);
+    const index = photos.findIndex(photo => String(photo.ID) === String(photoId));
+    if (index < 0) return;
+    inspectionPhotoViewerState.type = type;
+    inspectionPhotoViewerState.photos = photos;
+    inspectionPhotoViewerState.index = index;
+    const viewer = document.getElementById("inspectionPhotoViewer");
+    viewer.classList.remove("d-none");
+    viewer.setAttribute("aria-hidden", "false");
+    document.body.classList.add("inspection-photo-viewer-open");
+    renderInspectionPhotoViewerCurrent();
+    document.getElementById("inspectionPhotoViewerClose").focus();
+}
+
+function renderInspectionPhotoViewerCurrent() {
+    const state = inspectionPhotoViewerState;
+    const photo = state.photos[state.index];
+    if (!photo) return closeInspectionPhotoViewer();
+    if (state.objectUrl) URL.revokeObjectURL(state.objectUrl);
+    state.objectUrl = URL.createObjectURL(photo.Blob);
+    const image = document.getElementById("inspectionPhotoViewerImage");
+    image.src = state.objectUrl;
+    image.alt = "Foto " + state.type + " " + (state.index + 1);
+    document.getElementById("inspectionPhotoViewerTitle").textContent = "FIELD DOCUMENTATION " + state.type;
+    document.getElementById("inspectionPhotoViewerCount").textContent = (state.index + 1) + " / " + state.photos.length;
+    document.getElementById("inspectionPhotoViewerPrev").disabled = state.photos.length < 2;
+    document.getElementById("inspectionPhotoViewerNext").disabled = state.photos.length < 2;
+}
+
+function stepInspectionPhotoViewer(direction) {
+    const state = inspectionPhotoViewerState;
+    if (!state.photos.length) return;
+    state.index = (state.index + direction + state.photos.length) % state.photos.length;
+    renderInspectionPhotoViewerCurrent();
+}
+
+function closeInspectionPhotoViewer() {
+    const viewer = document.getElementById("inspectionPhotoViewer");
+    if (!viewer || viewer.classList.contains("d-none")) return;
+    viewer.classList.add("d-none");
+    viewer.setAttribute("aria-hidden", "true");
+    document.body.classList.remove("inspection-photo-viewer-open");
+    document.getElementById("inspectionPhotoViewerImage").removeAttribute("src");
+    if (inspectionPhotoViewerState.objectUrl) URL.revokeObjectURL(inspectionPhotoViewerState.objectUrl);
+    inspectionPhotoViewerState = { type: "", photos: [], index: 0, objectUrl: null, touchStartX: null };
+}
+
+function handleInspectionPhotoViewerKeydown(event) {
+    const viewer = document.getElementById("inspectionPhotoViewer");
+    if (!viewer || viewer.classList.contains("d-none")) return;
+    if (event.key === "Escape") {
+        event.preventDefault();
+        closeInspectionPhotoViewer();
+    } else if (event.key === "ArrowLeft") {
+        event.preventDefault();
+        stepInspectionPhotoViewer(-1);
+    } else if (event.key === "ArrowRight") {
+        event.preventDefault();
+        stepInspectionPhotoViewer(1);
+    }
+}
+
 async function handleInspectionPhotoInput(event,type){const input=event.target,files=Array.from(input.files||[]);input.value="";if(!currentInspectionRecord||currentInspectionReadOnly||!files.length)return;const existing=await getInspectionPhotos(currentInspectionRecord.LocalInspectionID);let nextSeq=Math.max(Number(currentInspectionRecord.NextPhotoSeqNo||1),existing.reduce((max,p)=>Math.max(max,Number(p.SeqNo||p.OrderNo||0)),0)+1);let added=0;for(const file of files){if(!file.type.startsWith("image/")){showInspectionNotice("File harus berupa gambar.","warning");continue;}try{const blob=typeof compressImage==="function"?await compressImage(file,{maxWidth:1280,maxHeight:1280,maxSize:300*1024,quality:.75,minQuality:.30}):file;await new Promise((resolve,reject)=>{const tx=db.transaction("inspection_photos","readwrite");tx.objectStore("inspection_photos").add({LocalInspectionID:currentInspectionRecord.LocalInspectionID,Type:type,FileName:file.name||("inspection-"+type.toLowerCase()+".jpg"),Blob:blob,SeqNo:nextSeq,CreatedAt:new Date().toISOString()});tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error||new Error("Gagal menyimpan foto."));});nextSeq++;added++;}catch(err){console.error(err);showInspectionNotice("Foto gagal disimpan: "+(err.message||err),"danger");}}if(added){currentInspectionRecord.NextPhotoSeqNo=nextSeq;currentInspectionRecord.SyncStatus="PENDING";currentInspectionRecord.UpdatedAt=new Date().toISOString();await persistInspectionRecord(currentInspectionRecord);}await renderInspectionPhotos();await updateInspectionChecklistGate();scheduleInspectionAutosave();}
 async function handleInspectionPhotoDelete(event){const b=event.target.closest("[data-delete-inspection-photo]");if(!b||!currentInspectionRecord||currentInspectionReadOnly||!confirm("Hapus foto ini?"))return;const existing=await getInspectionPhotos(currentInspectionRecord.LocalInspectionID);const nextSeq=Math.max(Number(currentInspectionRecord.NextPhotoSeqNo||1),existing.reduce((max,p)=>Math.max(max,Number(p.SeqNo||p.OrderNo||0)),0)+1);currentInspectionRecord.NextPhotoSeqNo=nextSeq;currentInspectionRecord.SyncStatus="PENDING";currentInspectionRecord.UpdatedAt=new Date().toISOString();await persistInspectionRecord(currentInspectionRecord);await new Promise((resolve,reject)=>{const tx=db.transaction("inspection_photos","readwrite");tx.objectStore("inspection_photos").delete(Number(b.dataset.deleteInspectionPhoto));tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error||new Error("Hapus foto gagal."));});await renderInspectionPhotos();await updateInspectionChecklistGate();scheduleInspectionAutosave();}
 async function updateInspectionChecklistGate() {
