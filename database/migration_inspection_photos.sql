@@ -6,9 +6,11 @@
 SET NOCOUNT ON;
 GO
 
-IF OBJECT_ID('dbo.PIP_T_InspectionPhoto', 'U') IS NULL
-BEGIN
-    CREATE TABLE dbo.PIP_T_InspectionPhoto
+IF OBJECT_ID('dbo.PIP_T_InspectionPhoto', 'U') IS NOT NULL
+    DROP TABLE dbo.PIP_T_InspectionPhoto;
+GO
+
+CREATE TABLE dbo.PIP_T_InspectionPhoto
     (
         InspectionPhotoID BIGINT IDENTITY(1,1) NOT NULL,
         InspectionID BIGINT NOT NULL,
@@ -25,7 +27,6 @@ BEGIN
         CONSTRAINT CK_PIP_T_InspectionPhoto_SeqNo CHECK (SeqNo > 0)
     );
 
-    CREATE UNIQUE INDEX UX_PIP_T_InspectionPhoto_InspectionSeqNo
-        ON dbo.PIP_T_InspectionPhoto (InspectionID, SeqNo);
-END;
+CREATE UNIQUE INDEX UX_PIP_T_InspectionPhoto_InspectionSeqNo
+    ON dbo.PIP_T_InspectionPhoto (InspectionID, SeqNo);
 GO
