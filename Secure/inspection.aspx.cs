@@ -154,7 +154,9 @@ namespace UTL1.Secure
                         if (inspectionId <= 0)
                             throw new Exception("Inspection header was not saved; photo upload was stopped.");
 
-                        string photoFolder = GetInspectionPhotoFolder(inspectionDate);
+                        string companyId = Limit(TokenString(record, "CompanyID"), 10);
+                        string locationId = Limit(TokenString(record, "LocationID"), 3);
+                        string photoFolder = GetInspectionPhotoFolder(companyId, locationId, inspectionDate, inspectionId);
                         DataTable oldPhotoRows = br.EQueryP(@"
 SELECT FileName, FileType
 FROM dbo.PIP_T_InspectionPhoto
@@ -218,7 +220,7 @@ WHERE InspectionID=@InspectionID",
                             if (String.IsNullOrWhiteSpace(oldName) || String.IsNullOrWhiteSpace(oldType)) continue;
                             try
                             {
-                                string oldPath = GetInspectionPhotoPath(inspectionDate, oldName, oldType);
+                                string oldPath = GetInspectionPhotoPath(companyId, locationId, inspectionDate, inspectionId, oldName, oldType);
                                 if (!createdPhotoPaths.Contains(oldPath) && File.Exists(oldPath)) File.Delete(oldPath);
                             }
                             catch { }
@@ -252,25 +254,32 @@ WHERE InspectionID=@InspectionID",
             return new { success = allSuccess, results = outcomes };
         }
 
-        private static string GetInspectionPhotoFolder(DateTime inspectionDate)
+        private static string GetInspectionPhotoFolder(string companyId, string locationId, DateTime inspectionDate, long inspectionId)
         {
+            if (String.IsNullOrWhiteSpace(companyId) || String.IsNullOrWhiteSpace(locationId) || inspectionId <= 0 ||
+                !String.Equals(Path.GetFileName(companyId), companyId, StringComparison.Ordinal) ||
+                !String.Equals(Path.GetFileName(locationId), locationId, StringComparison.Ordinal))
+                throw new Exception("Invalid Inspection photo folder identity.");
+
             string root = HttpContext.Current.Request.ApplicationPath.Replace("/", "").Replace(PB.AppID, "PIP");
             return Path.Combine(PB.Path_WebFolder1, root, "PIP_T_Inspection",
-                inspectionDate.ToString("yyyyMM", CultureInfo.InvariantCulture));
+                companyId + "_" + locationId,
+                inspectionDate.ToString("yyyyMM", CultureInfo.InvariantCulture),
+                inspectionId.ToString(CultureInfo.InvariantCulture));
         }
 
-        private static string GetInspectionPhotoPath(DateTime inspectionDate, string fileName, string fileType)
+        private static string GetInspectionPhotoPath(string companyId, string locationId, DateTime inspectionDate, long inspectionId, string fileName, string fileType)
         {
             if (String.IsNullOrWhiteSpace(fileName) || String.IsNullOrWhiteSpace(fileType) ||
                 !String.Equals(Path.GetFileName(fileName), fileName, StringComparison.Ordinal) ||
                 !String.Equals(Path.GetFileName(fileType), fileType, StringComparison.Ordinal))
                 throw new Exception("Invalid Inspection photo filename.");
-            return Path.Combine(GetInspectionPhotoFolder(inspectionDate), fileName + "." + fileType);
+            return Path.Combine(GetInspectionPhotoFolder(companyId, locationId, inspectionDate, inspectionId), fileName + "." + fileType);
         }
 
-        private static string GetInspectionPhotoDataUrl(DateTime inspectionDate, string fileName, string fileType)
+        private static string GetInspectionPhotoDataUrl(string companyId, string locationId, DateTime inspectionDate, long inspectionId, string fileName, string fileType)
         {
-            string path = GetInspectionPhotoPath(inspectionDate, fileName, fileType);
+            string path = GetInspectionPhotoPath(companyId, locationId, inspectionDate, inspectionId, fileName, fileType);
             if (!File.Exists(path)) return "";
             byte[] bytes = File.ReadAllBytes(path);
             string mime = "image/jpeg";
@@ -666,7 +675,7 @@ WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID
             using (var br = new WAL.BR.CF())
             {
                 DataTable rows = br.EQueryP(@"
-SELECT P.PhotoType, P.FileName, P.FileType, P.SeqNo, I.InspectionDate
+SELECT P.PhotoType, P.FileName, P.FileType, P.SeqNo, I.InspectionID, I.CompanyID, I.LocationID, I.InspectionDate
 FROM dbo.PIP_T_InspectionPhoto P
 JOIN dbo.PIP_T_Inspection I ON I.InspectionID=P.InspectionID
 WHERE I.ClientInspectionID=@ClientInspectionID
@@ -697,7 +706,7 @@ ORDER BY P.SeqNo",
                     string fileName = row["FileName"] == DBNull.Value ? "" : row["FileName"].ToString();
                     string fileType = row["FileType"] == DBNull.Value ? "" : row["FileType"].ToString();
                     DateTime photoDate = Convert.ToDateTime(row["InspectionDate"]);
-                    string dataUrl = GetInspectionPhotoDataUrl(photoDate, fileName, fileType);
+                    string dataUrl = GetInspectionPhotoDataUrl(row["CompanyID"].ToString(), row["LocationID"].ToString(), photoDate, Convert.ToInt64(row["InspectionID"]), fileName, fileType);
                     if (String.IsNullOrEmpty(dataUrl)) continue;
                     photos.Add(new Dictionary<string, object> {
                         { "Type", row["PhotoType"] == DBNull.Value ? "" : row["PhotoType"].ToString() },
@@ -794,7 +803,7 @@ ORDER BY P.SeqNo",
                     string fileName = photo["FileName"] == DBNull.Value ? "" : photo["FileName"].ToString();
                     string fileType = photo["FileType"] == DBNull.Value ? "" : photo["FileType"].ToString();
                     DateTime inspectionDate = Convert.ToDateTime(header.Rows[0]["InspectionDate"]);
-                    string dataUrl = GetInspectionPhotoDataUrl(inspectionDate, fileName, fileType);
+                    string dataUrl = GetInspectionPhotoDataUrl(header.Rows[0]["CompanyID"].ToString(), header.Rows[0]["LocationID"].ToString(), inspectionDate, Convert.ToInt64(header.Rows[0]["InspectionID"]), fileName, fileType);
                     if (String.IsNullOrEmpty(dataUrl)) continue;
                     photos.Add(new Dictionary<string, object> {
                         { "Type", photo["PhotoType"] == DBNull.Value ? "" : photo["PhotoType"].ToString() },
