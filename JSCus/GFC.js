@@ -1075,7 +1075,21 @@ async function uploadPendingInspections() {
     const payload = await Promise.all(ownedRecords.map(async record => {
         let photos=[];
         if(db.objectStoreNames.contains("inspection_photos")) photos=await new Promise((resolve,reject)=>{const tx=db.transaction("inspection_photos","readonly");const req=tx.objectStore("inspection_photos").index("LocalInspectionID").getAll(IDBKeyRange.only(record.LocalInspectionID));req.onsuccess=()=>resolve(req.result||[]);req.onerror=()=>reject(req.error);});
-        const serializedPhotos=await Promise.all(photos.map(async p=>({Type:p.Type,FileName:p.FileName||"",SeqNo:Number(p.SeqNo||p.OrderNo||0),Data:await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result||""));reader.onerror=()=>reject(reader.error);reader.readAsDataURL(p.Blob);})})));
+        const orderedPhotos = photos.slice().sort((a,b) =>
+            Number(a.SeqNo || a.OrderNo || 0) - Number(b.SeqNo || b.OrderNo || 0) ||
+            String(a.Type || "").localeCompare(String(b.Type || ""))
+        );
+        let maxPhotoSeqNo = orderedPhotos.reduce((max,p) => Math.max(max,Number(p.SeqNo || p.OrderNo || 0)),0);
+        const usedPhotoSeqNos = new Set();
+        const serializedPhotos=await Promise.all(orderedPhotos.map(async p=>{
+            let seqNo=Number(p.SeqNo||p.OrderNo||0);
+            if(seqNo<=0||usedPhotoSeqNos.has(seqNo)){
+                do { maxPhotoSeqNo++; } while(usedPhotoSeqNos.has(maxPhotoSeqNo));
+                seqNo=maxPhotoSeqNo;
+            }
+            usedPhotoSeqNos.add(seqNo);
+            return {Type:p.Type,FileName:p.FileName||"",SeqNo:seqNo,Data:await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result||""));reader.onerror=()=>reject(reader.error);reader.readAsDataURL(p.Blob);})};
+        }));
         return {
         ClientInspectionID: record.LocalInspectionID,
         OwnerEmployeeID: record.OwnerEmployeeID,
