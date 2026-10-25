@@ -1077,7 +1077,8 @@ async function uploadPendingInspections() {
         if(db.objectStoreNames.contains("inspection_photos")) photos=await new Promise((resolve,reject)=>{const tx=db.transaction("inspection_photos","readonly");const req=tx.objectStore("inspection_photos").index("LocalInspectionID").getAll(IDBKeyRange.only(record.LocalInspectionID));req.onsuccess=()=>resolve(req.result||[]);req.onerror=()=>reject(req.error);});
         const orderedPhotos = photos.slice().sort((a,b) =>
             Number(a.SeqNo || a.OrderNo || 0) - Number(b.SeqNo || b.OrderNo || 0) ||
-            String(a.Type || "").localeCompare(String(b.Type || ""))
+            (String(a.Type || "").toUpperCase() === "BEFORE" ? 0 : 1) -
+            (String(b.Type || "").toUpperCase() === "BEFORE" ? 0 : 1)
         );
         let maxPhotoSeqNo = orderedPhotos.reduce((max,p) => Math.max(max,Number(p.SeqNo || p.OrderNo || 0)),0);
         const usedPhotoSeqNos = new Set();
