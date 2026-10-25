@@ -4,6 +4,7 @@ using System.Data;
 using System.Data.SqlClient;
 using System.Globalization;
 using System.Linq;
+using System.IO;
 using System.Web;
 using System.Web.Services;
 using Newtonsoft.Json.Linq;
@@ -118,18 +119,109 @@ namespace UTL1.Secure
                         }, true, true);
 
                         long inspectionId = saved.Rows.Count > 0 ? Convert.ToInt64(saved.Rows[0]["InspectionID"]) : 0;
+                        if (inspectionId <= 0)
+                            throw new Exception("Inspection header was not saved; photo upload was stopped.");
+
+                        DateTime inspectionDate = ParseDate(TokenString(record, "InspectionDate"), DateTime.Today);
                         JArray photoArray = record["Photos"] as JArray ?? new JArray();
-                        if (inspectionId > 0 && photoArray.Count > 0)
+                        var incomingPhotos = new List<Tuple<string, int, string, byte[]>>();
+                        var usedSeqNos = new HashSet<int>();
+                        foreach (JObject photo in photoArray.OfType<JObject>())
                         {
-                            var photoRows = new List<Tuple<string,string,int,byte[]>>();
-                            foreach (JObject photo in photoArray.OfType<JObject>()) {
-                                string type=TokenString(photo,"Type").ToUpperInvariant(); if(type!="BEFORE"&&type!="AFTER")throw new Exception("Invalid inspection photo type.");
-                                string dataUrl=TokenString(photo,"Data");int comma=dataUrl.IndexOf(',');if(comma>=0)dataUrl=dataUrl.Substring(comma+1);
-                                byte[] bytes=Convert.FromBase64String(dataUrl);if(bytes.Length==0||bytes.Length>1024*1024)throw new Exception("Inspection photo must be between 1 byte and 1 MB.");
-                                photoRows.Add(Tuple.Create(type,Limit(TokenString(photo,"FileName"),255),TokenInt(photo,"OrderNo"),bytes));
+                            string type = TokenString(photo, "Type").ToUpperInvariant();
+                            if (type != "BEFORE" && type != "AFTER")
+                                throw new Exception("Invalid inspection photo type.");
+
+                            int seqNo = TokenInt(photo, "SeqNo");
+                            if (seqNo <= 0 || !usedSeqNos.Add(seqNo))
+                                throw new Exception("Inspection photo SeqNo must be unique and greater than zero.");
+
+                            string dataUrl = TokenString(photo, "Data");
+                            int comma = dataUrl.IndexOf(',');
+                            if (comma < 0)
+                                throw new Exception("Inspection photo data is invalid.");
+                            string header = dataUrl.Substring(0, comma).ToLowerInvariant();
+                            string extension;
+                            if (header.StartsWith("data:image/jpeg;") || header.StartsWith("data:image/jpg;")) extension = "jpg";
+                            else if (header.StartsWith("data:image/png;")) extension = "png";
+                            else if (header.StartsWith("data:image/webp;")) extension = "webp";
+                            else if (header.StartsWith("data:image/gif;")) extension = "gif";
+                            else throw new Exception("Unsupported Inspection photo format. Use JPEG, PNG, WEBP, or GIF.");
+
+                            byte[] bytes = Convert.FromBase64String(dataUrl.Substring(comma + 1));
+                            if (bytes.Length == 0 || bytes.Length > 1024 * 1024)
+                                throw new Exception("Inspection photo must be between 1 byte and 1 MB.");
+                            incomingPhotos.Add(Tuple.Create(type, seqNo, extension, bytes));
+                        }
+
+                        string photoFolder = GetInspectionPhotoFolder(inspectionDate);
+                        DataTable oldPhotoRows = br.EQueryP(@"
+SELECT FileName, FileType
+FROM dbo.PIP_T_InspectionPhoto
+WHERE InspectionID=@InspectionID",
+                            new SqlParameter[] { new SqlParameter("@InspectionID", inspectionId) });
+
+                        var savedPhotoRows = new List<Tuple<string, string, string, int, string>>();
+                        var createdPhotoPaths = new List<string>();
+                        try
+                        {
+                            if (incomingPhotos.Count > 0 && !Directory.Exists(photoFolder))
+                                Directory.CreateDirectory(photoFolder);
+
+                            foreach (var photo in incomingPhotos)
+                            {
+                                string fileName = "INS" + inspectionId.ToString(CultureInfo.InvariantCulture) +
+                                    "_" + photo.Item2.ToString(CultureInfo.InvariantCulture) +
+                                    "_" + Guid.NewGuid().ToString("N").Substring(0, 8);
+                                string fullPath = Path.Combine(photoFolder, fileName + "." + photo.Item3);
+                                File.WriteAllBytes(fullPath, photo.Item4);
+                                createdPhotoPaths.Add(fullPath);
+                                savedPhotoRows.Add(Tuple.Create(photo.Item1, fileName, photo.Item3, photo.Item2, fullPath));
                             }
-                            br.EQueryP("DELETE FROM dbo.PIP_T_InspectionPhoto WHERE InspectionID=@InspectionID",new SqlParameter[]{new SqlParameter("@InspectionID",inspectionId)});
-                            foreach(var photo in photoRows) br.EQueryP(@"INSERT dbo.PIP_T_InspectionPhoto (InspectionID,PhotoType,FileName,OrderNo,PhotoData,EntryUser,EntryDate) VALUES (@InspectionID,@PhotoType,@FileName,@OrderNo,@PhotoData,@EntryUser,GETDATE())",new SqlParameter[]{new SqlParameter("@InspectionID",inspectionId),new SqlParameter("@PhotoType",photo.Item1),new SqlParameter("@FileName",photo.Item2),new SqlParameter("@OrderNo",photo.Item3),new SqlParameter("@PhotoData",SqlDbType.VarBinary,-1){Value=photo.Item4},new SqlParameter("@EntryUser",Limit(userId,50))});
+
+                            var sql = new System.Text.StringBuilder();
+                            var sqlParams = new List<SqlParameter>();
+                            sql.Append("SET XACT_ABORT ON; BEGIN TRY BEGIN TRANSACTION; ");
+                            sql.Append("DELETE FROM dbo.PIP_T_InspectionPhoto WHERE InspectionID=@InspectionID; ");
+                            sqlParams.Add(new SqlParameter("@InspectionID", inspectionId));
+                            for (int photoIndex = 0; photoIndex < savedPhotoRows.Count; photoIndex++)
+                            {
+                                var photo = savedPhotoRows[photoIndex];
+                                string suffix = photoIndex.ToString(CultureInfo.InvariantCulture);
+                                sql.Append("INSERT dbo.PIP_T_InspectionPhoto (InspectionID,PhotoType,FileName,FileType,SeqNo,EntryUser,EntryDate) ");
+                                sql.Append("VALUES (@InspectionID,@PhotoType" + suffix + ",@FileName" + suffix + ",@FileType" + suffix + ",@SeqNo" + suffix + ",@EntryUser,GETDATE()); ");
+                                sqlParams.Add(new SqlParameter("@PhotoType" + suffix, photo.Item1));
+                                sqlParams.Add(new SqlParameter("@FileName" + suffix, photo.Item2));
+                                sqlParams.Add(new SqlParameter("@FileType" + suffix, photo.Item3));
+                                sqlParams.Add(new SqlParameter("@SeqNo" + suffix, photo.Item4));
+                            }
+                            sqlParams.Add(new SqlParameter("@EntryUser", Limit(userId, 50)));
+                            sql.Append("COMMIT TRANSACTION; END TRY BEGIN CATCH IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION; ");
+                            sql.Append("DECLARE @PhotoError NVARCHAR(4000), @PhotoSeverity INT, @PhotoState INT; ");
+                            sql.Append("SELECT @PhotoError=ERROR_MESSAGE(), @PhotoSeverity=ERROR_SEVERITY(), @PhotoState=ERROR_STATE(); ");
+                            sql.Append("RAISERROR(@PhotoError,@PhotoSeverity,@PhotoState); END CATCH;");
+                            br.EQueryP(sql.ToString(), sqlParams.ToArray());
+                        }
+                        catch
+                        {
+                            foreach (string path in createdPhotoPaths)
+                            {
+                                try { if (File.Exists(path)) File.Delete(path); } catch { }
+                            }
+                            throw;
+                        }
+
+                        foreach (DataRow oldPhoto in oldPhotoRows.Rows)
+                        {
+                            string oldName = Convert.ToString(oldPhoto["FileName"]);
+                            string oldType = Convert.ToString(oldPhoto["FileType"]);
+                            if (String.IsNullOrWhiteSpace(oldName) || String.IsNullOrWhiteSpace(oldType)) continue;
+                            try
+                            {
+                                string oldPath = GetInspectionPhotoPath(inspectionDate, oldName, oldType);
+                                if (!createdPhotoPaths.Contains(oldPath) && File.Exists(oldPath)) File.Delete(oldPath);
+                            }
+                            catch { }
                         }
                         outcomes.Add(new
                         {
@@ -158,6 +250,37 @@ namespace UTL1.Secure
 
             bool allSuccess = outcomes.All(x => Convert.ToBoolean(x.GetType().GetProperty("success").GetValue(x, null)));
             return new { success = allSuccess, results = outcomes };
+        }
+
+        private static string GetInspectionPhotoFolder(DateTime inspectionDate)
+        {
+            string root = HttpContext.Current.Request.ApplicationPath.Replace("/", "").Replace(PB.AppID, "PIP");
+            return Path.Combine(PB.Path_WebFolder1, root, "PIP_T_Inspection",
+                inspectionDate.ToString("yyyyMM", CultureInfo.InvariantCulture));
+        }
+
+        private static string GetInspectionPhotoPath(DateTime inspectionDate, string fileName, string fileType)
+        {
+            if (String.IsNullOrWhiteSpace(fileName) || String.IsNullOrWhiteSpace(fileType) ||
+                !String.Equals(Path.GetFileName(fileName), fileName, StringComparison.Ordinal) ||
+                !String.Equals(Path.GetFileName(fileType), fileType, StringComparison.Ordinal))
+                throw new Exception("Invalid Inspection photo filename.");
+            return Path.Combine(GetInspectionPhotoFolder(inspectionDate), fileName + "." + fileType);
+        }
+
+        private static string GetInspectionPhotoDataUrl(DateTime inspectionDate, string fileName, string fileType)
+        {
+            string path = GetInspectionPhotoPath(inspectionDate, fileName, fileType);
+            if (!File.Exists(path)) return "";
+            byte[] bytes = File.ReadAllBytes(path);
+            string mime = "image/jpeg";
+            switch ((fileType ?? "").ToLowerInvariant())
+            {
+                case "png": mime = "image/png"; break;
+                case "webp": mime = "image/webp"; break;
+                case "gif": mime = "image/gif"; break;
+            }
+            return "data:" + mime + ";base64," + Convert.ToBase64String(bytes);
         }
 
         [WebMethod]
@@ -543,7 +666,7 @@ WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID
             using (var br = new WAL.BR.CF())
             {
                 DataTable rows = br.EQueryP(@"
-SELECT P.PhotoType, P.FileName, P.OrderNo, P.PhotoData
+SELECT P.PhotoType, P.FileName, P.FileType, P.SeqNo, I.InspectionDate
 FROM dbo.PIP_T_InspectionPhoto P
 JOIN dbo.PIP_T_Inspection I ON I.InspectionID=P.InspectionID
 WHERE I.ClientInspectionID=@ClientInspectionID
@@ -561,7 +684,7 @@ WHERE I.ClientInspectionID=@ClientInspectionID
                        WHERE L.CompanyID=I.CompanyID AND L.LocationID=I.LocationID)
         )
   )
-ORDER BY P.PhotoType, P.OrderNo",
+ORDER BY P.SeqNo",
                     new SqlParameter[] {
                         new SqlParameter("@ClientInspectionID", clientInspectionId),
                         new SqlParameter("@EmployeeID", employeeId),
@@ -571,13 +694,16 @@ ORDER BY P.PhotoType, P.OrderNo",
                 var photos = new List<Dictionary<string, object>>();
                 foreach (DataRow row in rows.Rows)
                 {
-                    byte[] bytes = row["PhotoData"] == DBNull.Value ? new byte[0] : (byte[])row["PhotoData"];
-                    if (bytes.Length == 0) continue;
+                    string fileName = row["FileName"] == DBNull.Value ? "" : row["FileName"].ToString();
+                    string fileType = row["FileType"] == DBNull.Value ? "" : row["FileType"].ToString();
+                    DateTime photoDate = Convert.ToDateTime(row["InspectionDate"]);
+                    string dataUrl = GetInspectionPhotoDataUrl(photoDate, fileName, fileType);
+                    if (String.IsNullOrEmpty(dataUrl)) continue;
                     photos.Add(new Dictionary<string, object> {
                         { "Type", row["PhotoType"] == DBNull.Value ? "" : row["PhotoType"].ToString() },
-                        { "FileName", row["FileName"] == DBNull.Value ? "" : row["FileName"].ToString() },
-                        { "OrderNo", row["OrderNo"] == DBNull.Value ? 0 : Convert.ToInt32(row["OrderNo"]) },
-                        { "Data", "data:image/jpeg;base64," + Convert.ToBase64String(bytes) }
+                        { "FileName", fileName + "." + fileType },
+                        { "SeqNo", row["SeqNo"] == DBNull.Value ? 0 : Convert.ToInt32(row["SeqNo"]) },
+                        { "Data", dataUrl }
                     });
                 }
                 return new { success = true, data = photos };
@@ -657,21 +783,24 @@ ORDER BY R.DisplayOrder, V.FieldName",
                 foreach (DataColumn col in header.Columns)
                     h[col.ColumnName] = header.Rows[0][col] == DBNull.Value ? null : header.Rows[0][col];
                 DataTable photoTable = br.EQueryP(@"
-SELECT P.PhotoType, P.FileName, P.OrderNo, P.PhotoData
+SELECT P.PhotoType, P.FileName, P.FileType, P.SeqNo
 FROM dbo.PIP_T_InspectionPhoto P
 WHERE P.InspectionID=@InspectionID
-ORDER BY P.PhotoType, P.OrderNo",
+ORDER BY P.SeqNo",
                     new SqlParameter[] { new SqlParameter("@InspectionID", inspectionId) });
                 var photos = new List<Dictionary<string, object>>();
                 foreach (DataRow photo in photoTable.Rows)
                 {
-                    byte[] photoBytes = photo["PhotoData"] == DBNull.Value ? new byte[0] : (byte[])photo["PhotoData"];
-                    if (photoBytes.Length == 0) continue;
+                    string fileName = photo["FileName"] == DBNull.Value ? "" : photo["FileName"].ToString();
+                    string fileType = photo["FileType"] == DBNull.Value ? "" : photo["FileType"].ToString();
+                    DateTime inspectionDate = Convert.ToDateTime(header.Rows[0]["InspectionDate"]);
+                    string dataUrl = GetInspectionPhotoDataUrl(inspectionDate, fileName, fileType);
+                    if (String.IsNullOrEmpty(dataUrl)) continue;
                     photos.Add(new Dictionary<string, object> {
                         { "Type", photo["PhotoType"] == DBNull.Value ? "" : photo["PhotoType"].ToString() },
-                        { "FileName", photo["FileName"] == DBNull.Value ? "" : photo["FileName"].ToString() },
-                        { "OrderNo", photo["OrderNo"] == DBNull.Value ? 0 : Convert.ToInt32(photo["OrderNo"]) },
-                        { "Data", "data:image/jpeg;base64," + Convert.ToBase64String(photoBytes) }
+                        { "FileName", fileName + "." + fileType },
+                        { "SeqNo", photo["SeqNo"] == DBNull.Value ? 0 : Convert.ToInt32(photo["SeqNo"]) },
+                        { "Data", dataUrl }
                     });
                 }
                 return new { success = true, header = h, items = itemRows, photos = photos };
