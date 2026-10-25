@@ -951,7 +951,7 @@ async function downloadReturnedInspections() {
                                 LocalInspectionID: photoUpdate.LocalInspectionID,
                                 Type: String(photo.Type || "").toUpperCase(),
                                 FileName: photo.FileName || "",
-                                OrderNo: Number(photo.OrderNo || 0),
+                                SeqNo: Number(photo.SeqNo || photo.OrderNo || 0),
                                 Blob: blob,
                                 DownloadedAt: new Date().toISOString()
                             });
@@ -1075,7 +1075,7 @@ async function uploadPendingInspections() {
     const payload = await Promise.all(ownedRecords.map(async record => {
         let photos=[];
         if(db.objectStoreNames.contains("inspection_photos")) photos=await new Promise((resolve,reject)=>{const tx=db.transaction("inspection_photos","readonly");const req=tx.objectStore("inspection_photos").index("LocalInspectionID").getAll(IDBKeyRange.only(record.LocalInspectionID));req.onsuccess=()=>resolve(req.result||[]);req.onerror=()=>reject(req.error);});
-        const serializedPhotos=await Promise.all(photos.map(async p=>({Type:p.Type,FileName:p.FileName||"",OrderNo:Number(p.OrderNo||0),Data:await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result||""));reader.onerror=()=>reject(reader.error);reader.readAsDataURL(p.Blob);})})));
+        const serializedPhotos=await Promise.all(photos.map(async p=>({Type:p.Type,FileName:p.FileName||"",SeqNo:Number(p.SeqNo||p.OrderNo||0),Data:await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result||""));reader.onerror=()=>reject(reader.error);reader.readAsDataURL(p.Blob);})})));
         return {
         ClientInspectionID: record.LocalInspectionID,
         OwnerEmployeeID: record.OwnerEmployeeID,
