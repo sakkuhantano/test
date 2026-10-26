@@ -83,11 +83,14 @@ IF COL_LENGTH('dbo.PIP_M_CheckListWOPM', 'EmployeeList') IS NULL
   
 /* Version-level Remark defaults and per-item default/override switches. */
 DECLARE @RemarkDefaultsAdded BIT = 0;
-DECLARE @RemarkMandatoryAdded BIT = 0;
-IF COL_LENGTH('dbo.PIP_M_CheckListWOPM_Item', 'IsRemark1Mandatory') IS NULL OR COL_LENGTH('dbo.PIP_M_CheckListWOPM_Item', 'IsRemark2Mandatory') IS NULL SET @RemarkMandatoryAdded = 1;
-IF COL_LENGTH('dbo.PIP_M_CheckListWOPM_Item', 'IsRemark1Mandatory') IS NULL ALTER TABLE dbo.PIP_M_CheckListWOPM_Item ADD IsRemark1Mandatory BIT NOT NULL CONSTRAINT DF_PIP_M_CheckListWOPM_Item_IsRemark1Mandatory DEFAULT (0);
-IF COL_LENGTH('dbo.PIP_M_CheckListWOPM_Item', 'IsRemark2Mandatory') IS NULL ALTER TABLE dbo.PIP_M_CheckListWOPM_Item ADD IsRemark2Mandatory BIT NOT NULL CONSTRAINT DF_PIP_M_CheckListWOPM_Item_IsRemark2Mandatory DEFAULT (0);
-IF @RemarkMandatoryAdded = 1 UPDATE dbo.PIP_M_CheckListWOPM_Item SET IsRemark1Mandatory=ISNULL(IsRemark1Required,0), IsRemark2Mandatory=ISNULL(IsRemark2Required,0);
+DECLARE @Remark1MandatoryAdded BIT = 0;
+DECLARE @Remark2MandatoryAdded BIT = 0;
+IF COL_LENGTH('dbo.PIP_M_CheckListWOPM_Item', 'IsRemark1Mandatory') IS NULL SET @Remark1MandatoryAdded = 1;
+IF COL_LENGTH('dbo.PIP_M_CheckListWOPM_Item', 'IsRemark2Mandatory') IS NULL SET @Remark2MandatoryAdded = 1;
+IF @Remark1MandatoryAdded = 1 ALTER TABLE dbo.PIP_M_CheckListWOPM_Item ADD IsRemark1Mandatory BIT NOT NULL CONSTRAINT DF_PIP_M_CheckListWOPM_Item_IsRemark1Mandatory DEFAULT (0);
+IF @Remark2MandatoryAdded = 1 ALTER TABLE dbo.PIP_M_CheckListWOPM_Item ADD IsRemark2Mandatory BIT NOT NULL CONSTRAINT DF_PIP_M_CheckListWOPM_Item_IsRemark2Mandatory DEFAULT (0);
+IF @Remark1MandatoryAdded = 1 UPDATE dbo.PIP_M_CheckListWOPM_Item SET IsRemark1Mandatory=ISNULL(IsRemark1Required,0);
+IF @Remark2MandatoryAdded = 1 UPDATE dbo.PIP_M_CheckListWOPM_Item SET IsRemark2Mandatory=ISNULL(IsRemark2Required,0);
 IF COL_LENGTH('dbo.PIP_M_CheckListWOPM_Version', 'IsRemark1Required') IS NULL
    OR COL_LENGTH('dbo.PIP_M_CheckListWOPM_Version', 'Remark1Text') IS NULL
    OR COL_LENGTH('dbo.PIP_M_CheckListWOPM_Version', 'IsRemark2Required') IS NULL
