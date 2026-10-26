@@ -11,6 +11,16 @@ let currentInspectionRecord = null;
 let currentInspectionReadOnly = false;
 let inspectionAutoSaveTimer = null;
 let inspectionPhotoViewerState = { type: "", photos: [], index: 0, objectUrl: null, touchStartX: null };
+let inspectionFollowUpSections = [
+    { Code: "ACON", Name: "Air Cond." },
+    { Code: "COMM", Name: "Comm." },
+    { Code: "MECH", Name: "Mechanical" },
+    { Code: "ELEC", Name: "Electrical" },
+    { Code: "CIVIL", Name: "Civil" },
+    { Code: "PFIT", Name: "Fit Out" },
+    { Code: "PHKP", Name: "Housekeeping" },
+    { Code: "PSEC", Name: "Security" }
+];
 
 document.addEventListener("DOMContentLoaded", async function () {
     try {
@@ -140,6 +150,12 @@ function wireInspectionEvents() {
         updateInspectionChecklistGate();
     });
     document.getElementById("txtInspectionSummary").addEventListener("input", scheduleInspectionAutosave);
+    document.querySelectorAll('input[name="inspectionFollowUp"]').forEach(input => input.addEventListener("change", function () {
+        updateInspectionFollowUpPanel();
+        scheduleInspectionAutosave();
+    }));
+    document.getElementById("inspectionFollowUpSection").addEventListener("change", scheduleInspectionAutosave);
+    document.getElementById("txtInspectionFollowUpRemark").addEventListener("input", scheduleInspectionAutosave);
 }
 
 async function loadInspectionCache() {
@@ -465,6 +481,10 @@ async function startNewInspection() {
         Status: "DRAFT",
         SyncStatus: "PENDING",
         Summary: "",
+        FollowUp: "No Follow Up",
+        FollowUpSection: "",
+        FollowUpRemark: "",
+        FollowUpWONo: "",
         Items: []
     };
 
@@ -491,6 +511,19 @@ async function renderInspectionForm(record, readOnly) {
         " • Jadwal " + (record.ScheduledTime || "-") +
         " • " + record.InspectionDate;
     document.getElementById("txtInspectionSummary").value = record.Summary || "";
+    const followUpValue = record.FollowUp === "Recommend Follow Up" ? "Recommend Follow Up" : "No Follow Up";
+    document.getElementById("inspectionFollowUpNo").checked = followUpValue === "No Follow Up";
+    document.getElementById("inspectionFollowUpYes").checked = followUpValue === "Recommend Follow Up";
+    const followUpSection = document.getElementById("inspectionFollowUpSection");
+    followUpSection.innerHTML = '<option value="">Pilih section tujuan...</option>' +
+        inspectionFollowUpSections.map(section => '<option value="' + escInspection(section.Code) + '">' +
+            escInspection(section.Code + " - " + section.Name) + '</option>').join("");
+    followUpSection.value = record.FollowUpSection || "";
+    document.getElementById("txtInspectionFollowUpRemark").value = record.FollowUpRemark || "";
+    document.querySelectorAll('input[name="inspectionFollowUp"]').forEach(input => input.disabled = currentInspectionReadOnly);
+    followUpSection.disabled = currentInspectionReadOnly;
+    document.getElementById("txtInspectionFollowUpRemark").disabled = currentInspectionReadOnly;
+    updateInspectionFollowUpPanel();
 
     const template = record.TemplateSnapshot || {};
     const savedItems = record.Items || [];
@@ -556,6 +589,26 @@ async function renderInspectionForm(record, readOnly) {
     updateInspectionRemarkPanels();
     await renderInspectionPhotos();
     await updateInspectionChecklistGate();
+}
+
+function updateInspectionFollowUpPanel() {
+    const selected = document.querySelector('input[name="inspectionFollowUp"]:checked');
+    const recommend = !!selected && selected.value === "Recommend Follow Up";
+    document.getElementById("inspectionFollowUpDetails").classList.toggle("d-none", !recommend);
+    if (!recommend) {
+        document.getElementById("inspectionFollowUpSection").value = "";
+        document.getElementById("txtInspectionFollowUpRemark").value = "";
+    }
+}
+
+function collectInspectionFollowUp() {
+    const selected = document.querySelector('input[name="inspectionFollowUp"]:checked');
+    const followUp = selected ? selected.value : "No Follow Up";
+    return {
+        FollowUp: followUp,
+        FollowUpSection: followUp === "Recommend Follow Up" ? document.getElementById("inspectionFollowUpSection").value : "",
+        FollowUpRemark: followUp === "Recommend Follow Up" ? document.getElementById("txtInspectionFollowUpRemark").value.trim() : ""
+    };
 }
 
 function updateInspectionRemarkPanels() {
@@ -831,6 +884,12 @@ async function saveInspection(status) {
     const photos = await getInspectionPhotos(currentInspectionRecord.LocalInspectionID);
     if (!photos.some(p => p.Type === "BEFORE")) { showInspectionNotice("Foto BEFORE wajib diambil sebelum checklist dapat disimpan.", "warning"); showInspectionEditorTab("checklist"); return; }
     if (status === "DONE") {
+        const followUp = collectInspectionFollowUp();
+        if (followUp.FollowUp === "Recommend Follow Up" &&
+            (!followUp.FollowUpSection || !followUp.FollowUpRemark)) {
+            showInspectionNotice("Pilih Responsible Section dan isi deskripsi pekerjaan untuk Follow Up.", "warning");
+            return;
+        }
         const error = validateInspectionItems(items);
         if (error) {
             showInspectionNotice(error, "warning");
@@ -842,6 +901,7 @@ async function saveInspection(status) {
 
     currentInspectionRecord.Items = items;
     currentInspectionRecord.Summary = document.getElementById("txtInspectionSummary").value.trim();
+    Object.assign(currentInspectionRecord, collectInspectionFollowUp());
     currentInspectionRecord.Status = status;
     currentInspectionRecord.SyncStatus = "PENDING";
     currentInspectionRecord.UpdatedAt = new Date().toISOString();
@@ -868,6 +928,7 @@ function scheduleInspectionAutosave() {
             if (!photos.some(p => p.Type === "BEFORE")) return;
             currentInspectionRecord.Items = collectInspectionItems();
             currentInspectionRecord.Summary = document.getElementById("txtInspectionSummary").value.trim();
+            Object.assign(currentInspectionRecord, collectInspectionFollowUp());
             currentInspectionRecord.SyncStatus = "PENDING";
             currentInspectionRecord.UpdatedAt = new Date().toISOString();
             await persistInspectionRecord(currentInspectionRecord);
@@ -1241,6 +1302,7 @@ async function flushInspectionAutosave() {
     if (!login || currentInspectionRecord.OwnerEmployeeID !== login.employeeid) return;
     currentInspectionRecord.Items = collectInspectionItems();
     currentInspectionRecord.Summary = document.getElementById("txtInspectionSummary").value.trim();
+    Object.assign(currentInspectionRecord, collectInspectionFollowUp());
     currentInspectionRecord.SyncStatus = "PENDING";
     currentInspectionRecord.UpdatedAt = new Date().toISOString();
     await persistInspectionRecord(currentInspectionRecord);
