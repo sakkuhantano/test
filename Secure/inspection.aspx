@@ -70,6 +70,10 @@
             <div class="col-12 col-md-4"><label for="selApprovalDetail" class="form-label small mb-1">Inspection Type Detail</label><select id="selApprovalDetail" class="form-select form-select-sm"><option value="">All details</option></select></div>
             <div class="col-12 col-md-4"><label for="selApprovalTemplate" class="form-label small mb-1">Template</label><select id="selApprovalTemplate" class="form-select form-select-sm"><option value="">All templates</option></select></div>
         </div>
+        <div id="inspectionApprovalDateFilters" class="row g-2 mb-3 d-none">
+            <div class="col-6 col-md-3"><label for="txtApprovalDateFrom" class="form-label small mb-1">Approved From</label><input type="date" id="txtApprovalDateFrom" class="form-control form-control-sm" /></div>
+            <div class="col-6 col-md-3"><label for="txtApprovalDateThru" class="form-label small mb-1">Approved Thru</label><input type="date" id="txtApprovalDateThru" class="form-control form-control-sm" /></div>
+        </div>
         <ul class="nav nav-tabs mb-3" id="inspectionApprovalQueueTabs" role="tablist">
             <li class="nav-item" role="presentation">
                 <button type="button" class="nav-link active" id="btnInspectionApprovalOutstanding" role="tab" aria-selected="true">
