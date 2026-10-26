@@ -1042,7 +1042,9 @@ async function uploadPendingInspections() {
         req.onerror = () => reject(req.error);
     });
 
+    // Match Work Order behavior: drafts remain local; only completed inspections sync.
     const pendingInCompany = allRecords.filter(record =>
+        record.Status === "DONE" &&
         (record.SyncStatus === "PENDING" || !record.SyncStatus) &&
         record.CompanyID === companyId &&
         record.LocationID === locationId
@@ -1211,6 +1213,7 @@ async function countPendingSyncInspections() {
         const tx = db.transaction("inspection_records", "readonly");
         const req = tx.objectStore("inspection_records").getAll();
         req.onsuccess = () => resolve((req.result || []).filter(record =>
+            record.Status === "DONE" &&
             record.SyncStatus !== "SYNCED" &&
             record.OwnerEmployeeID === login.employeeid &&
             record.CompanyID === (companyLocation[0] || "") &&
