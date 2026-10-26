@@ -9,16 +9,16 @@ IF COL_LENGTH('dbo.PIP_T_Inspection', 'IsApprove') IS NULL
     ALTER TABLE dbo.PIP_T_Inspection ADD IsApprove BIT NULL;
 GO
 IF COL_LENGTH('dbo.PIP_T_Inspection', 'ApprovedBy') IS NULL
-    ALTER TABLE dbo.PIP_T_Inspection ADD ApprovedBy VARCHAR(50) NULL;
+    ALTER TABLE dbo.PIP_T_Inspection ADD ApprovedBy VARCHAR(50) NOT NULL CONSTRAINT DF_PIP_T_Inspection_ApprovedBy DEFAULT ('');
 GO
 IF COL_LENGTH('dbo.PIP_T_Inspection', 'ApprovedDate') IS NULL
-    ALTER TABLE dbo.PIP_T_Inspection ADD ApprovedDate DATETIME NULL;
+    ALTER TABLE dbo.PIP_T_Inspection ADD ApprovedDate DATETIME NOT NULL CONSTRAINT DF_PIP_T_Inspection_ApprovedDate DEFAULT ('19000101');
 GO
 IF COL_LENGTH('dbo.PIP_T_Inspection', 'ApprovalRemark') IS NULL
-    ALTER TABLE dbo.PIP_T_Inspection ADD ApprovalRemark VARCHAR(500) NULL;
+    ALTER TABLE dbo.PIP_T_Inspection ADD ApprovalRemark VARCHAR(500) NOT NULL CONSTRAINT DF_PIP_T_Inspection_ApprovalRemark DEFAULT ('');
 GO
 IF COL_LENGTH('dbo.PIP_T_Inspection', 'ReasonVoid') IS NULL
-    ALTER TABLE dbo.PIP_T_Inspection ADD ReasonVoid VARCHAR(500) NULL;
+    ALTER TABLE dbo.PIP_T_Inspection ADD ReasonVoid VARCHAR(500) NOT NULL CONSTRAINT DF_PIP_T_Inspection_ReasonVoid DEFAULT ('');
 GO
 
 IF COL_LENGTH('dbo.PIP_T_Inspection', 'IsVoid') IS NOT NULL
@@ -31,7 +31,7 @@ BEGIN
           WHERE IsVoid=1');
     EXEC('UPDATE dbo.PIP_T_Inspection
           SET IsApprove=0
-          WHERE IsVoid=0 AND ApprovedBy IS NULL AND ApprovedDate IS NULL');
+          WHERE IsVoid=0 AND ISNULL(ApprovedBy,'')='' AND ISNULL(ApprovedDate,CONVERT(DATETIME,'19000101',112))<=CONVERT(DATETIME,'19000101',112)');
     DECLARE @V_IsVoidDefault sysname;
     SELECT @V_IsVoidDefault=dc.name
     FROM sys.default_constraints dc
@@ -57,6 +57,19 @@ UPDATE dbo.PIP_T_Inspection SET IsApprove=0 WHERE IsApprove IS NULL;
 IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id=OBJECT_ID('dbo.PIP_T_Inspection') AND name='IsApprove' AND is_nullable=1)
     ALTER TABLE dbo.PIP_T_Inspection ALTER COLUMN IsApprove BIT NOT NULL;
 ALTER TABLE dbo.PIP_T_Inspection ADD CONSTRAINT DF_PIP_T_Inspection_IsApprove DEFAULT (0) FOR IsApprove;
+GO
+UPDATE dbo.PIP_T_Inspection
+SET ApprovedBy=ISNULL(ApprovedBy,''), ApprovedDate=ISNULL(ApprovedDate,CONVERT(DATETIME,'19000101',112)),
+    ApprovalRemark=ISNULL(ApprovalRemark,''), ReasonVoid=ISNULL(ReasonVoid,'')
+WHERE ApprovedBy IS NULL OR ApprovedDate IS NULL OR ApprovalRemark IS NULL OR ReasonVoid IS NULL;
+ALTER TABLE dbo.PIP_T_Inspection ALTER COLUMN ApprovedBy VARCHAR(50) NOT NULL;
+ALTER TABLE dbo.PIP_T_Inspection ALTER COLUMN ApprovedDate DATETIME NOT NULL;
+ALTER TABLE dbo.PIP_T_Inspection ALTER COLUMN ApprovalRemark VARCHAR(500) NOT NULL;
+ALTER TABLE dbo.PIP_T_Inspection ALTER COLUMN ReasonVoid VARCHAR(500) NOT NULL;
+IF NOT EXISTS (SELECT 1 FROM sys.default_constraints WHERE parent_object_id=OBJECT_ID('dbo.PIP_T_Inspection') AND name='DF_PIP_T_Inspection_ApprovedBy') ALTER TABLE dbo.PIP_T_Inspection ADD CONSTRAINT DF_PIP_T_Inspection_ApprovedBy DEFAULT ('') FOR ApprovedBy;
+IF NOT EXISTS (SELECT 1 FROM sys.default_constraints WHERE parent_object_id=OBJECT_ID('dbo.PIP_T_Inspection') AND name='DF_PIP_T_Inspection_ApprovedDate') ALTER TABLE dbo.PIP_T_Inspection ADD CONSTRAINT DF_PIP_T_Inspection_ApprovedDate DEFAULT ('19000101') FOR ApprovedDate;
+IF NOT EXISTS (SELECT 1 FROM sys.default_constraints WHERE parent_object_id=OBJECT_ID('dbo.PIP_T_Inspection') AND name='DF_PIP_T_Inspection_ApprovalRemark') ALTER TABLE dbo.PIP_T_Inspection ADD CONSTRAINT DF_PIP_T_Inspection_ApprovalRemark DEFAULT ('') FOR ApprovalRemark;
+IF NOT EXISTS (SELECT 1 FROM sys.default_constraints WHERE parent_object_id=OBJECT_ID('dbo.PIP_T_Inspection') AND name='DF_PIP_T_Inspection_ReasonVoid') ALTER TABLE dbo.PIP_T_Inspection ADD CONSTRAINT DF_PIP_T_Inspection_ReasonVoid DEFAULT ('') FOR ReasonVoid;
 GO
 
 IF NOT EXISTS (
