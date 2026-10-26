@@ -702,10 +702,10 @@ function renderInspectionItem(item, savedItems, readOnly) {
     const selectedOptionRequiresRemark = type === "OPTION" && remarkOptions.includes(String(saved.Value || "").trim());
     const versionRemark1Enabled = isInspectionVersionRemarkEnabled(item, 1);
     const versionRemark2Enabled = isInspectionVersionRemarkEnabled(item, 2);
-    const itemRemark1Text = item.remark1Text || "Remark";
-    const itemRemark2Text = item.remark2Text || "Remark";
-    const versionRemark1Text = item.versionRemark1Text || item.VersionRemark1Text || "Remark";
-    const versionRemark2Text = item.versionRemark2Text || item.VersionRemark2Text || "Remark";
+    const itemRemark1Text = item.isRemark1Required ? (item.remark1Text || "Remark") : "";
+    const itemRemark2Text = item.isRemark2Required ? (item.remark2Text || "Remark") : "";
+    const versionRemark1Text = versionRemark1Enabled ? (item.versionRemark1Text || item.VersionRemark1Text || "Remark") : "";
+    const versionRemark2Text = versionRemark2Enabled ? (item.versionRemark2Text || item.VersionRemark2Text || "Remark") : "";
     const remark1Text = selectedOptionRequiresRemark && !item.isRemark1Required ? versionRemark1Text : itemRemark1Text;
     const remark2Text = selectedOptionRequiresRemark && !item.isRemark2Required ? versionRemark2Text : itemRemark2Text;
     const showRemark1 = versionRemark1Enabled && (!!item.isRemark1Required || selectedOptionRequiresRemark);
@@ -1596,6 +1596,11 @@ async function loadInspectionApprovalDetail(inspectionId) {
             '<div class="inspection-muted mb-1">Section ' + escInspection(h.SectionID || "") + ' • Teknisi ' + escInspection(h.OwnerEmployeeID || "") + '</div>' +
             '<div class="inspection-muted mb-2">' + escInspection(h.TemplateNo || "") + ' v' + escInspection(h.TemplateVersion || "") + ' • Jadwal ' + escInspection(h.ScheduledTime || "-") + '</div>' +
             '<div class="small mb-1"><strong>Summary:</strong> ' + escInspection(h.Summary || "-") + '</div>' +
+        '<div class="small mb-1"><strong>Follow Up:</strong> ' + escInspection(h.FollowUp || "No Follow Up") + '</div>' +
+        (h.FollowUp === "Recommend Follow Up" ?
+            '<div class="small mb-1"><strong>Responsible Section:</strong> ' + escInspection(h.FollowUpSection || "-") + '</div>' +
+            '<div class="small mb-1"><strong>WO Description:</strong> ' + escInspection(h.FollowUpRemark || "-") + '</div>' +
+            (h.FollowUpWONo ? '<div class="small mb-1"><strong>Internal WO:</strong> ' + escInspection(h.FollowUpWONo) + '</div>' : '') : '') +
             '</div>' +
             photoHtml +
             (!photos.length ? '<div class="inspection-muted mb-3">Foto BEFORE/AFTER belum tersedia di server.</div>' : '') +
@@ -1638,7 +1643,7 @@ async function processInspectionApproval(action) {
 
     const inspectionId = Number(selectedInspectionApproval.InspectionID);
     try {
-        await inspectionApprovalPost("ProcessInspectionApproval", {
+        const approvalResult = await inspectionApprovalPost("ProcessInspectionApproval", {
             inspectionId: inspectionId,
             action: action,
             employeeId: inspectionLogin.employeeid,
@@ -1648,7 +1653,11 @@ async function processInspectionApproval(action) {
         });
         document.getElementById("inspectionApprovalNotice").className = "alert alert-success py-2 small";
         document.getElementById("inspectionApprovalNotice").textContent =
-            action === "APPROVE" ? "Inspection berhasil di-approve." : "Inspection di-void dan dikembalikan ke Draft.";
+            action === "APPROVE"
+                ? (approvalResult.followUpWONo
+                    ? "Inspection berhasil di-approve. Internal WO " + approvalResult.followUpWONo + " dibuat untuk Follow Up."
+                    : "Inspection berhasil di-approve.")
+                : "Inspection di-void dan dikembalikan ke Draft.";
         await loadInspectionApprovalQueue();
     } catch (err) {
         document.getElementById("inspectionApprovalNotice").className = "alert alert-danger py-2 small";
