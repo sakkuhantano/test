@@ -122,7 +122,6 @@ function wireInspectionEvents() {
         stepInspectionPhotoViewer(endX < startX ? 1 : -1);
     }, { passive: true });
     document.addEventListener("keydown", handleInspectionPhotoViewerKeydown);
-    document.getElementById("btnInspectionSync").addEventListener("click", syncInspectionNow);
     ["inspectionDraftList", "inspectionSubmittedList"].forEach(function (listId) {
         document.getElementById(listId).addEventListener("click", async function (event) {
             const deleteButton = event.target.closest("[data-delete-conflict]");
@@ -497,7 +496,27 @@ async function startNewInspection() {
     await renderInspectionForm(currentInspectionRecord, false);
 }
 
-async function renderInspectionForm(record, readOnly) {
+async function formatInspectionDateDMY(value) {
+    if (!value) return "-";
+    const raw = String(value);
+    const match = raw.match(/^(\\d{4})-(\\d{2})-(\\d{2})/);
+    if (match) return match[3] + "-" + match[2] + "-" + match[1];
+    const date = new Date(value);
+    if (isNaN(date.getTime())) return "-";
+    return String(date.getDate()).padStart(2, "0") + "-" +
+        String(date.getMonth() + 1).padStart(2, "0") + "-" +
+        date.getFullYear();
+}
+
+function formatInspectionClock(value) {
+    if (!value) return "--:--";
+    const date = new Date(value);
+    if (isNaN(date.getTime()) || date.getFullYear() <= 1900) return "--:--";
+    return String(date.getHours()).padStart(2, "0") + ":" +
+        String(date.getMinutes()).padStart(2, "0");
+}
+
+function renderInspectionForm(record, readOnly) {
     currentInspectionRecord = record;
     const photosAtOpen = await getInspectionPhotos(record.LocalInspectionID);
     inspectionPhotoBaseline = photosAtOpen.map(photo => Object.assign({}, photo));
@@ -520,10 +539,17 @@ async function renderInspectionForm(record, readOnly) {
     document.getElementById("btnCompleteInspection").classList.toggle("d-none", currentInspectionReadOnly);
     document.getElementById("inspectionFormTitle").textContent =
         record.InspectionTypeName + " — " + record.InspectionTypeDetailName;
+    const transactionNo = record.InspectionNo
+        ? record.InspectionNo
+        : "TEMP-" + String(record.LocalInspectionID || "").replace(/-/g, "").substring(0, 8).toUpperCase();
+    const startTime = formatInspectionClock(record.StartDateTime);
+    const endTime = formatInspectionClock(record.EndDateTime);
     document.getElementById("inspectionFormSubtitle").textContent =
+        "No. " + transactionNo + "\\n" +
         record.TemplateNo + " / v" + record.TemplateVersion +
         " • Jadwal " + (record.ScheduledTime || "-") +
-        " • " + record.InspectionDate;
+        " • " + formatInspectionDateDMY(record.InspectionDate) + "\\n" +
+        startTime + " - " + endTime;
     document.getElementById("txtInspectionSummary").value = record.Summary || "";
     const followUpValue = record.FollowUp === "Recommend Follow Up" ? "Recommend Follow Up" : "No Follow Up";
     document.getElementById("inspectionFollowUpNo").checked = followUpValue === "No Follow Up";
@@ -1450,52 +1476,6 @@ function showInspectionInputScreen() {
 function showInspectionRecordsScreen() {
     document.getElementById("inspectionInputPanel").classList.add("d-none");
     document.getElementById("inspectionRecordsPanel").classList.remove("d-none");
-}
-
-async function syncInspectionNow() {
-    if (!navigator.onLine) {
-        showInspectionNotice("Tidak ada koneksi internet. Inspeksi tetap tersimpan di perangkat.", "warning");
-        return;
-    }
-    try {
-        const button = document.getElementById("btnInspectionSync");
-        button.disabled = true;
-        await flushInspectionAutosave();
-        if (typeof syncAllData === "function") {
-            await syncAllData();
-        } else if (typeof uploadPendingInspections === "function") {
-            await uploadPendingInspections();
-        }
-        await loadInspectionCache();
-        await refreshSavedInspectionList();
-        const conflictCount = inspectionRecords.filter(record => record.SyncStatus === "CONFLICT").length;
-        const deleteCount = inspectionRecords.filter(record => record.SyncStatus === "DELETE_PENDING").length;
-        // DRAFT stays local; only DONE inspections count as waiting for SQL sync.
-        const pendingCount = inspectionRecords.filter(record =>
-            record.Status === "DONE" &&
-            (record.SyncStatus === "PENDING" || !record.SyncStatus)
-        ).length;
-        if (conflictCount || deleteCount) {
-            showInspectionNotice(conflictCount + " konflik perlu ditangani; " + deleteCount + " penghapusan menunggu arsip server. Data lokal belum dibuang sebelum arsip dikonfirmasi.", "warning");
-        } else if (pendingCount) {
-            showInspectionNotice(pendingCount + " inspeksi masih menunggu sync. Data tetap tersimpan lokal.", "warning");
-        } else {
-            showInspectionNotice("Semua inspeksi milik akun ini sudah tersinkron.", "success");
-        }
-    } catch (err) {
-        console.error(err);
-        showInspectionNotice("Sync gagal. Data tetap tersimpan di perangkat: " + (err.message || err), "danger");
-    } finally {
-        document.getElementById("btnInspectionSync").disabled = false;
-    }
-}
-
-async function flushInspectionAutosave() {
-    if (inspectionAutoSaveTimer) {
-        clearTimeout(inspectionAutoSaveTimer);
-        inspectionAutoSaveTimer = null;
-    }
-    // Deliberately do not persist anything here. Only Save Draft/Complete commits edits.
 }
 
 function updateInspectionConflictBadge() {
