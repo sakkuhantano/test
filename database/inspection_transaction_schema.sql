@@ -309,14 +309,7 @@ GO
 
 
 
-IF TYPE_ID('dbo.Type_N_Tbl_InspectionPhoto') IS NULL
-    EXEC('CREATE TYPE dbo.Type_N_Tbl_InspectionPhoto AS TABLE
-    (
-        PhotoType VARCHAR(10) NOT NULL,
-        FileName VARCHAR(255) NOT NULL,
-        FileType VARCHAR(10) NOT NULL,
-        SeqNo INT NOT NULL
-    )');
+/* Inspection photos reuse the shared dbo.Type_N_Tbl_C5 TVP (C1-C4 used, C5 unused). */
 GO
 
 IF OBJECT_ID('dbo.spUTL_PIP_T_Inspection_Sync', 'P') IS NULL
@@ -346,7 +339,7 @@ ALTER PROCEDURE dbo.spUTL_PIP_T_Inspection_Sync
     @p_FollowUpRemark VARCHAR(300),
     @p_UpdateUser VARCHAR(50),
     @p_InspectionNo VARCHAR(10),
-    @p_Photos dbo.Type_N_Tbl_InspectionPhoto READONLY,
+    @p_Photos dbo.Type_N_Tbl_C5 READONLY,
     @p_Items dbo.Type_N_Tbl_C13 READONLY,
     @p_ItemValues dbo.Type_N_Tbl_C5 READONLY
 )
@@ -722,7 +715,8 @@ BEGIN
         DELETE FROM dbo.PIP_T_InspectionPhoto WHERE InspectionID=@V_InspectionID;
         INSERT dbo.PIP_T_InspectionPhoto
             (InspectionID, PhotoType, FileName, FileType, SeqNo, EntryUser, EntryDate)
-        SELECT @V_InspectionID, P.PhotoType, P.FileName, P.FileType, P.SeqNo, @p_UpdateUser, GETDATE()
+        SELECT @V_InspectionID, ISNULL(P.C1,''), ISNULL(P.C2,''), ISNULL(P.C3,''),
+               CAST(ISNULL(NULLIF(P.C4,''),'0') AS INT), @p_UpdateUser, GETDATE()
         FROM @p_Photos P;
 
         COMMIT TRANSACTION;
