@@ -876,7 +876,7 @@ SELECT I.InspectionID, I.ClientInspectionID, I.InspectionNo, I.CompanyID, I.Loca
        I.ReasonVoid, I.UpdateDate
 FROM dbo.PIP_T_Inspection I
 WHERE I.OwnerEmployeeID=@EmployeeID AND I.CompanyID=@CompanyID AND I.LocationID=@LocationID
-  AND I.Status='DRAFT' AND I.IsApprove=0 AND I.ApprovedBy IS NOT NULL AND I.ApprovedDate IS NOT NULL
+  AND I.Status='DRAFT' AND I.IsApprove=0 AND ISNULL(I.ApprovedBy,'')<>'' AND ISNULL(I.ApprovedDate,CONVERT(DATETIME,'19000101',112))>CONVERT(DATETIME,'19000101',112)
   AND EXISTS (SELECT 1 FROM dbo.UTL_User U WHERE U.EmployeeID=@EmployeeID AND ISNULL(U.IsWO,0)=1
               AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(U.Section,';') S WHERE S.val=I.SectionID)
               AND (
