@@ -1607,17 +1607,16 @@ async function loadInspectionApprovalQueue() {
     const host = document.getElementById("inspectionApprovalQueue");
     notice.className = "alert alert-info py-2 small";
     notice.textContent = "Memuat antrean approval...";
-    host.innerHTML = '<div class="text-muted py-2">Memuat...</div>';
+    host.innerHTML = '<tr><td colspan="8" class="text-muted py-2">Memuat...</td></tr>';
     selectedInspectionApproval = null;
     if (!navigator.onLine) {
         notice.className = "alert alert-warning py-2 small";
         notice.textContent = "Approval Supervisor memerlukan koneksi ke server. Mode approval offline belum didukung.";
-        host.innerHTML = '<div class="text-muted py-2">Hubungkan internet lalu tekan Refresh.</div>';
+        host.innerHTML = '<tr><td colspan="8" class="text-muted py-2">Hubungkan internet lalu tekan Refresh.</td></tr>';
         document.getElementById("inspectionApprovalDetail").innerHTML = '<div class="text-muted">Detail approval hanya dapat dibuka saat online.</div>';
         return;
     }
     document.getElementById("inspectionApprovalDetail").innerHTML = '<div class="text-muted">Pilih inspeksi untuk melihat detail checklist.</div>';
-    document.getElementById("inspectionApprovalActions").classList.add("d-none");
     try {
         const result = await inspectionApprovalPost("GetInspectionApprovalQueue", {
             employeeId: inspectionLogin.employeeid,
@@ -1630,7 +1629,7 @@ async function loadInspectionApprovalQueue() {
         notice.className = "alert alert-success py-2 small";
         notice.textContent = inspectionApprovalRows.length + " inspeksi menunggu approval.";
     } catch (err) {
-        host.innerHTML = "";
+        host.innerHTML = '<tr><td colspan="8" class="text-danger py-2">' + escInspection(err.message || "Gagal memuat antrean approval.") + '</td></tr>';
         notice.className = "alert alert-danger py-2 small";
         notice.textContent = err.message || "Gagal memuat antrean approval.";
     }
@@ -1787,56 +1786,6 @@ async function executeInspectionApprovalAction(ids, action, remark) {
 
 async function processBatchInspectionApproval(action) {
     openInspectionApprovalAction(action, true);
-}
-
-async function processBatchInspectionApprovalasync function processBatchInspectionApproval(action) {
-    const ids = Array.from(document.querySelectorAll("#inspectionApprovalQueue [data-approval-select]:checked"))
-        .map(box => Number(box.value)).filter(id => id > 0);
-    if (!ids.length) {
-        showToast("Pilih minimal satu inspeksi terlebih dahulu.", "warning");
-        return;
-    }
-    let remark = "";
-    if (action === "VOID") {
-        remark = window.prompt("Alasan Void untuk semua inspeksi terpilih (wajib):");
-        if (remark == null) return;
-        remark = remark.trim();
-        if (!remark) {
-            showToast("Alasan Void wajib diisi.", "warning");
-            return;
-        }
-    } else {
-        remark = window.prompt("Catatan approval untuk semua inspeksi terpilih (opsional):") || "";
-    }
-    const confirmed = await showConfirmation({
-        title: action === "APPROVE" ? "Approve Inspeksi" : "Void Inspeksi",
-        message: (action === "APPROVE" ? "Approve " : "Void ") + ids.length + " inspeksi terpilih?",
-        yesText: action === "APPROVE" ? "Approve" : "Void"
-    });
-    if (!confirmed) return;
-
-    let succeeded = 0;
-    const failures = [];
-    for (const inspectionId of ids) {
-        try {
-            await inspectionApprovalPost("ProcessInspectionApproval", {
-                inspectionId: inspectionId,
-                action: action,
-                employeeId: inspectionLogin.employeeid,
-                companyId: inspectionCompanyID,
-                locationId: inspectionLocationID,
-                remark: remark
-            });
-            succeeded++;
-        } catch (err) {
-            failures.push("Inspection #" + inspectionId + ": " + (err.message || "gagal"));
-        }
-    }
-    await loadInspectionApprovalQueue();
-    const notice = document.getElementById("inspectionApprovalNotice");
-    notice.className = "alert alert-" + (failures.length ? "warning" : "success") + " py-2 small";
-    notice.textContent = succeeded + " berhasil diproses; " + failures.length + " gagal." +
-        (failures.length ? " " + failures.slice(0, 3).join(" | ") : "");
 }
 
 async function loadInspectionApprovalDetail(inspectionId) {
