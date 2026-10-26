@@ -2996,7 +2996,7 @@ function validateItem(item, container) {
     const selectedOptionRequiresRemark1 = selectedOptionRequiresRemark && versionRemark1Enabled;
     const selectedOptionRequiresRemark2 = selectedOptionRequiresRemark && versionRemark2Enabled;
 
-    if (!error && versionRemark1Enabled && (item.isRemark1Required || item.isRemarkRequired || selectedOptionRequiresRemark1)) {
+    if (!error && versionRemark1Enabled && ((item.isRemark1Mandatory != null ? item.isRemark1Mandatory : (item.isRemark1Required || item.isRemarkRequired)) || selectedOptionRequiresRemark1)) {
 
         let remark = remarkEl?.value?.trim();
 
@@ -3035,7 +3035,7 @@ function validateItem(item, container) {
         }        
     }
 
-    if (!error && versionRemark2Enabled && (item.isRemark2Required || selectedOptionRequiresRemark2)) {
+    if (!error && versionRemark2Enabled && ((item.isRemark2Mandatory != null ? item.isRemark2Mandatory : item.isRemark2Required) || selectedOptionRequiresRemark2)) {
         const remark2 = container.querySelector("[data-role='remark2']")?.value?.trim() || "";
         let hasValue2 = false;
         switch (item.type) {
