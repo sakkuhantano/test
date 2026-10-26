@@ -1562,30 +1562,77 @@ function escInspection(value) {
 
 let selectedInspectionApproval = null;
 let inspectionApprovalRows = [];
+let currentInspectionApprovalTab = "OUTSTANDING";
+
+function addInspectionApprovalListener(id, eventName, handler) {
+    const element = document.getElementById(id);
+    if (!element) {
+        console.error("Inspection Approval: elemen #" + id + " tidak ditemukan; event " + eventName + " dilewati.");
+        return false;
+    }
+    element.addEventListener(eventName, handler);
+    return true;
+}
 
 function wireInspectionApprovalEvents() {
-    document.getElementById("btnRefreshInspectionApproval").addEventListener("click", loadInspectionApprovalQueue);
-    document.getElementById("inspectionApprovalQueue").addEventListener("click", function (event) {
+    addInspectionApprovalListener("btnRefreshInspectionApproval", "click", loadInspectionApprovalQueue);
+    addInspectionApprovalListener("btnInspectionApprovalOutstanding", "click", () => setInspectionApprovalTab("OUTSTANDING"));
+    addInspectionApprovalListener("btnInspectionApprovalApproved", "click", () => setInspectionApprovalTab("APPROVED"));
+    addInspectionApprovalListener("inspectionApprovalQueue", "click", function (event) {
         const link = event.target.closest("[data-approval-id]");
         if (link) openInspectionApprovalDetail(Number(link.dataset.approvalId));
     });
-    document.getElementById("inspectionApprovalQueue").addEventListener("change", function (event) {
+    addInspectionApprovalListener("inspectionApprovalQueue", "change", function (event) {
         if (event.target.matches("[data-approval-select]")) updateInspectionApprovalSelectAll();
     });
     ["selApprovalType", "selApprovalDetail", "selApprovalTemplate"].forEach(id =>
-        document.getElementById(id).addEventListener("change", renderInspectionApprovalQueue));
-    document.getElementById("btnApprovalSelectAll").addEventListener("click", function () {
+        addInspectionApprovalListener(id, "change", renderInspectionApprovalQueue));
+    addInspectionApprovalListener("btnApprovalSelectAll", "click", function () {
         document.querySelectorAll("#inspectionApprovalQueue [data-approval-select]").forEach(box => { box.checked = true; });
         updateInspectionApprovalSelectAll();
     });
-    document.getElementById("chkAllInspectionApproval").addEventListener("change", function () {
+    addInspectionApprovalListener("chkAllInspectionApproval", "change", function () {
         document.querySelectorAll("#inspectionApprovalQueue [data-approval-select]").forEach(box => { box.checked = this.checked; });
     });
-    document.getElementById("btnBatchApproveInspection").addEventListener("click", () => openInspectionApprovalAction("APPROVE", true));
-    document.getElementById("btnBatchVoidInspection").addEventListener("click", () => openInspectionApprovalAction("VOID", true));
-    document.getElementById("btnApproveInspection").addEventListener("click", () => processInspectionApproval("APPROVE"));
-    document.getElementById("btnVoidInspection").addEventListener("click", () => openInspectionApprovalAction("VOID", false));
-    document.getElementById("btnConfirmInspectionApprovalAction").addEventListener("click", confirmInspectionApprovalAction);
+    addInspectionApprovalListener("btnBatchApproveInspection", "click", () => openInspectionApprovalAction("APPROVE", true));
+    addInspectionApprovalListener("btnBatchVoidInspection", "click", () => openInspectionApprovalAction("VOID", true));
+    addInspectionApprovalListener("btnApproveInspection", "click", () => processInspectionApproval("APPROVE"));
+    addInspectionApprovalListener("btnVoidInspection", "click", () => openInspectionApprovalAction("VOID", false));
+    addInspectionApprovalListener("btnConfirmInspectionApprovalAction", "click", confirmInspectionApprovalAction);
+}
+
+function setInspectionApprovalTab(tab) {
+    currentInspectionApprovalTab = tab === "APPROVED" ? "APPROVED" : "OUTSTANDING";
+    const outstanding = currentInspectionApprovalTab === "OUTSTANDING";
+    const outstandingButton = document.getElementById("btnInspectionApprovalOutstanding");
+    const approvedButton = document.getElementById("btnInspectionApprovalApproved");
+    if (outstandingButton) {
+        outstandingButton.classList.toggle("active", outstanding);
+        outstandingButton.setAttribute("aria-selected", outstanding ? "true" : "false");
+    }
+    if (approvedButton) {
+        approvedButton.classList.toggle("active", !outstanding);
+        approvedButton.setAttribute("aria-selected", outstanding ? "false" : "true");
+    }
+    const batchActions = document.getElementById("inspectionApprovalBatchActions");
+    if (batchActions) batchActions.classList.toggle("d-none", !outstanding);
+    const selectAllHeader = document.getElementById("thInspectionApprovalSelectAll");
+    if (selectAllHeader) selectAllHeader.classList.toggle("d-none", !outstanding);
+    updateInspectionApprovalCounts();
+    renderInspectionApprovalQueue();
+}
+
+function updateInspectionApprovalCounts() {
+    const outstandingCount = inspectionApprovalRows.filter(row => !isInspectionApprovalApproved(row)).length;
+    const approvedCount = inspectionApprovalRows.filter(isInspectionApprovalApproved).length;
+    const outstandingElement = document.getElementById("inspectionApprovalOutstandingCount");
+    const approvedElement = document.getElementById("inspectionApprovalApprovedCount");
+    if (outstandingElement) outstandingElement.textContent = String(outstandingCount);
+    if (approvedElement) approvedElement.textContent = String(approvedCount);
+}
+
+function isInspectionApprovalApproved(row) {
+    return row && (row.IsApprove === true || row.IsApprove === 1 || String(row.IsApprove).toLowerCase() === "true" || String(row.IsApprove) === "1");
 }
 
 async function inspectionApprovalPost(method, args) {
@@ -1627,9 +1674,11 @@ async function loadInspectionApprovalQueue() {
         });
         inspectionApprovalRows = result.data || [];
         populateInspectionApprovalFilters();
-        renderInspectionApprovalQueue();
+        updateInspectionApprovalCounts();
+        setInspectionApprovalTab(currentInspectionApprovalTab);
         notice.className = "alert alert-success py-2 small";
-        notice.textContent = inspectionApprovalRows.length + " inspeksi menunggu approval.";
+        notice.textContent = inspectionApprovalRows.filter(row => !isInspectionApprovalApproved(row)).length +
+            " outstanding • " + inspectionApprovalRows.filter(isInspectionApprovalApproved).length + " approved.";
     } catch (err) {
         host.innerHTML = '<tr><td colspan="8" class="text-danger py-2">' + escInspection(err.message || "Gagal memuat antrean approval.") + '</td></tr>';
         notice.className = "alert alert-danger py-2 small";
@@ -1666,13 +1715,15 @@ function renderInspectionApprovalQueue() {
     const detailCode = document.getElementById("selApprovalDetail").value;
     const templateId = document.getElementById("selApprovalTemplate").value;
     const rows = inspectionApprovalRows.filter(row =>
+        (currentInspectionApprovalTab === "APPROVED" ? isInspectionApprovalApproved(row) : !isInspectionApprovalApproved(row)) &&
         (!typeCode || String(row.InspectionTypeCode) === typeCode) &&
         (!detailCode || String(row.InspectionTypeDetailCode) === detailCode) &&
         (!templateId || String(row.IDTemplate) === templateId)
     );
     if (!rows.length) {
-        host.innerHTML = '<tr><td colspan="8" class="text-muted py-3 text-center">Tidak ada inspeksi untuk filter ini.</td></tr>';
-        document.getElementById("chkAllInspectionApproval").checked = false;
+        host.innerHTML = '<tr><td colspan="' + (currentInspectionApprovalTab === "OUTSTANDING" ? "8" : "7") + '" class="text-muted py-3 text-center">Tidak ada inspeksi untuk filter ini.</td></tr>';
+        const selectAll = document.getElementById("chkAllInspectionApproval");
+        if (selectAll) selectAll.checked = false;
         return;
     }
     host.innerHTML = rows.map(row => {
@@ -1680,8 +1731,11 @@ function renderInspectionApprovalQueue() {
         const start = formatInspectionClock(row.StartDateTime);
         const end = formatInspectionClock(row.EndDateTime);
         const range = (start && start !== "-" ? start : "-") + " – " + (end && end !== "-" ? end : "-");
+        const selectCell = currentInspectionApprovalTab === "OUTSTANDING"
+            ? '<td><input type="checkbox" class="form-check-input" data-approval-select value="' + id + '" aria-label="Select inspection ' + escInspection(row.InspectionNo || id) + '"></td>'
+            : '';
         return '<tr>' +
-            '<td><input type="checkbox" class="form-check-input" data-approval-select value="' + id + '" aria-label="Select inspection ' + escInspection(row.InspectionNo || id) + '"></td>' +
+            selectCell +
             '<td><button type="button" class="btn btn-link p-0 text-nowrap" data-approval-id="' + id + '">' + escInspection(row.InspectionNo || ("Inspection #" + id)) + '</button></td>' +
             '<td>' + escInspection(row.InspectionTypeName || row.InspectionTypeCode || "") + '</td>' +
             '<td>' + escInspection(row.InspectionTypeDetailName || row.InspectionTypeDetailCode || "") + '</td>' +
@@ -1697,7 +1751,7 @@ function renderInspectionApprovalQueue() {
 function updateInspectionApprovalSelectAll() {
     const boxes = Array.from(document.querySelectorAll("#inspectionApprovalQueue [data-approval-select]"));
     const all = document.getElementById("chkAllInspectionApproval");
-    if (all) all.checked = boxes.length > 0 && boxes.every(box => box.checked);
+    if (all) all.checked = currentInspectionApprovalTab === "OUTSTANDING" && boxes.length > 0 && boxes.every(box => box.checked);
 }
 
 function openInspectionApprovalDetail(inspectionId) {
@@ -1806,6 +1860,13 @@ async function loadInspectionApprovalDetail(inspectionId) {
         });
         selectedInspectionApproval = result.header;
         const h = result.header || {};
+        const isApproved = isInspectionApprovalApproved(h);
+        const remarkInput = document.getElementById("txtInspectionApprovalRemark");
+        remarkInput.value = h.ApprovalRemark || h.ReasonVoid || "";
+        remarkInput.readOnly = isApproved;
+        document.getElementById("inspectionApprovalRemarkPanel").classList.toggle("d-none", isApproved && !remarkInput.value);
+        document.getElementById("btnApproveInspection").classList.toggle("d-none", isApproved);
+        document.getElementById("btnVoidInspection").classList.toggle("d-none", isApproved);
         const items = result.items || [];
         const photos = result.photos || [];
         const start = formatInspectionClock(h.StartDateTime);
@@ -1846,10 +1907,14 @@ async function loadInspectionApprovalDetail(inspectionId) {
             '<div class="small text-muted mt-1"><strong>Remark 1:</strong> ' + escInspection(item.Remark1 || item.Remark || "-") + '</div>' +
             (item.Remark2 ? '<div class="small text-muted"><strong>Remark 2:</strong> ' + escInspection(item.Remark2) + '</div>' : '') + '</div>'
         ).join("") : '<div class="text-muted">Tidak ada hasil checklist.</div>');
-        document.getElementById("btnApproveInspection").disabled = false;
-        document.getElementById("btnVoidInspection").disabled = false;
+        document.getElementById("btnApproveInspection").disabled = isApproved;
+        document.getElementById("btnVoidInspection").disabled = isApproved;
     } catch (err) {
         selectedInspectionApproval = null;
+        document.getElementById("inspectionApprovalRemarkPanel").classList.remove("d-none");
+        document.getElementById("txtInspectionApprovalRemark").readOnly = false;
+        document.getElementById("btnApproveInspection").classList.remove("d-none");
+        document.getElementById("btnVoidInspection").classList.remove("d-none");
         checklistHost.innerHTML = '<div class="alert alert-danger py-2 small">' + escInspection(err.message || "Gagal memuat detail.") + '</div>';
         document.getElementById("btnApproveInspection").disabled = true;
         document.getElementById("btnVoidInspection").disabled = true;
