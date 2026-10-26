@@ -686,9 +686,9 @@ function updateInspectionRemarkPanels() {
                 (optionRequires && container.dataset.remark1BaseRequired !== "1"
                     ? (container.dataset.remark1VersionText || "Remark")
                     : (container.dataset.remark1ItemText || "Remark")) +
-                (showRemark1 ? " (wajib)" : "");
+                (showRemark1 && (container.dataset.remark1Mandatory === "1" || optionRequires) ? " (wajib)" : "");
         }
-        if (input) input.required = showRemark1;
+        if (input) input.required = showRemark1 && (container.dataset.remark1Mandatory === "1" || optionRequires);
         if (wrap2) {
             wrap2.style.display = showRemark2 ? "" : "none";
             const label2 = wrap2.querySelector("label");
@@ -696,9 +696,9 @@ function updateInspectionRemarkPanels() {
                 (optionRequires && container.dataset.remark2BaseRequired !== "1"
                     ? (container.dataset.remark2VersionText || "Remark")
                     : (container.dataset.remark2ItemText || "Remark")) +
-                (showRemark2 ? " (wajib)" : "");
+                (showRemark2 && (container.dataset.remark2Mandatory === "1" || optionRequires) ? " (wajib)" : "");
         }
-        if (input2) input2.required = showRemark2;
+        if (input2) input2.required = showRemark2 && (container.dataset.remark2Mandatory === "1" || optionRequires);
     });
 }
 
@@ -767,13 +767,13 @@ function renderInspectionItem(item, savedItems, readOnly) {
     const renderRemark2 = versionRemark2Enabled && (!!item.isRemark2Required || (type === "OPTION" && remarkOptions.length > 0));
     const remark1 = renderRemark1
         ? '<div class="mt-2" data-role="remark1-wrap" style="' + (showRemark1 ? "" : "display:none;") + '"><label class="inspection-muted">' + escInspection(remark1Text) +
-          (showRemark1 ? ' (wajib)' : '') + '</label><input type="text" maxlength="500" data-role="remark1" class="form-control form-control-sm" value="' +
-          escInspection(saved.Remark1 || saved.Remark || "") + '"' + disabled + (showRemark1 ? ' required' : '') + '></div>'
+          (showRemark1 && (!!item.isRemark1Mandatory || selectedOptionRequiresRemark) ? ' (wajib)' : '') + '</label><input type="text" maxlength="500" data-role="remark1" class="form-control form-control-sm" value="' +
+          escInspection(saved.Remark1 || saved.Remark || "") + '"' + disabled + (showRemark1 && (!!item.isRemark1Mandatory || selectedOptionRequiresRemark) ? ' required' : '') + '></div>'
         : "";
     const remark2 = renderRemark2
         ? '<div class="mt-2" data-role="remark2-wrap" style="' + (showRemark2 ? "" : "display:none;") + '"><label class="inspection-muted">' + escInspection(remark2Text) +
-          (showRemark2 ? ' (wajib)' : '') + '</label><input type="text" maxlength="500" data-role="remark2" class="form-control form-control-sm" value="' +
-          escInspection(saved.Remark2 || "") + '"' + disabled + (showRemark2 ? ' required' : '') + '></div>'
+          (showRemark2 && (!!item.isRemark2Mandatory || selectedOptionRequiresRemark) ? ' (wajib)' : '') + '</label><input type="text" maxlength="500" data-role="remark2" class="form-control form-control-sm" value="' +
+          escInspection(saved.Remark2 || "") + '"' + disabled + (showRemark2 && (!!item.isRemark2Mandatory || selectedOptionRequiresRemark) ? ' required' : '') + '></div>'
         : "";
 
     return '<div class="inspection-item" data-item-id="' + id + '" data-item-type="' + escInspection(type) +
@@ -782,6 +782,8 @@ function renderInspectionItem(item, savedItems, readOnly) {
         '" data-required="' + (item.isValueRequired ? "1" : "0") +
         '" data-remark1-base-required="' + (item.isRemark1Required ? "1" : "0") +
         '" data-remark2-base-required="' + (item.isRemark2Required ? "1" : "0") +
+        '" data-remark1-mandatory="' + (item.isRemark1Mandatory ? "1" : "0") +
+        '" data-remark2-mandatory="' + (item.isRemark2Mandatory ? "1" : "0") +
         '" data-remark1-version-enabled="' + (versionRemark1Enabled ? "1" : "0") +
         '" data-remark2-version-enabled="' + (versionRemark2Enabled ? "1" : "0") +
         '" data-remark-options="' + escInspection(remarkOptions.join(";")) +
@@ -911,10 +913,10 @@ function validateInspectionItems(items) {
         const remark2Title = selectedOptionRequiresRemark && !templateItem.isRemark2Required
             ? (templateItem.versionRemark2Text || templateItem.VersionRemark2Text || "Remark")
             : (templateItem.remark2Text || "Remark");
-        if (versionRemark1Enabled && (templateItem.isRemark1Required || selectedOptionRequiresRemark1) && (!item.Remark1 || !item.Remark1.trim())) {
+        if (versionRemark1Enabled && (templateItem.isRemark1Mandatory || selectedOptionRequiresRemark1) && (!item.Remark1 || !item.Remark1.trim())) {
             return remark1Title + " wajib diisi: " + item.ItemLabel;
         }
-        if (versionRemark2Enabled && (templateItem.isRemark2Required || selectedOptionRequiresRemark2) && (!item.Remark2 || !item.Remark2.trim())) {
+        if (versionRemark2Enabled && (templateItem.isRemark2Mandatory || selectedOptionRequiresRemark2) && (!item.Remark2 || !item.Remark2.trim())) {
             return remark2Title + " wajib diisi: " + item.ItemLabel;
         }
     }
