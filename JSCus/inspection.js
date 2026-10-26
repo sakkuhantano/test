@@ -1125,7 +1125,7 @@ function formatInspectionClockTime(value) {
     if (!value) return "";
     const asp = String(value).match(/\/Date\((\d+)/);
     const date = asp ? new Date(Number(asp[1])) : new Date(value);
-    if (Number.isNaN(date.getTime())) return "";
+    if (Number.isNaN(date.getTime()) || date.getFullYear() <= 1900) return "";
     return String(date.getHours()).padStart(2, "0") + ":" +
         String(date.getMinutes()).padStart(2, "0");
 }
