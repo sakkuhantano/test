@@ -913,10 +913,10 @@ function validateInspectionItems(items) {
         const remark2Title = selectedOptionRequiresRemark && !templateItem.isRemark2Required
             ? (templateItem.versionRemark2Text || templateItem.VersionRemark2Text || "Remark")
             : (templateItem.remark2Text || "Remark");
-        if (versionRemark1Enabled && (templateItem.isRemark1Mandatory || selectedOptionRequiresRemark1) && (!item.Remark1 || !item.Remark1.trim())) {
+        if (versionRemark1Enabled && ((templateItem.isRemark1Required && templateItem.isRemark1Mandatory) || selectedOptionRequiresRemark1) && (!item.Remark1 || !item.Remark1.trim())) {
             return remark1Title + " wajib diisi: " + item.ItemLabel;
         }
-        if (versionRemark2Enabled && (templateItem.isRemark2Mandatory || selectedOptionRequiresRemark2) && (!item.Remark2 || !item.Remark2.trim())) {
+        if (versionRemark2Enabled && ((templateItem.isRemark2Required && templateItem.isRemark2Mandatory) || selectedOptionRequiresRemark2) && (!item.Remark2 || !item.Remark2.trim())) {
             return remark2Title + " wajib diisi: " + item.ItemLabel;
         }
     }
