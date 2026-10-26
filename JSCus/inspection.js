@@ -1727,6 +1727,8 @@ function populateInspectionApprovalFilters(filterRows) {
             const key = String(row[spec.key] == null ? "" : row[spec.key]);
             if (key && !values.has(key)) values.set(key, String(row[spec.label] || key));
         });
+        if (previous && !values.has(previous))
+            values.set(previous, previous + " (no records in this tab/date)");
         select.innerHTML = '<option value="">' + spec.all + '</option>' +
             Array.from(values.entries()).sort((a, b) => a[1].localeCompare(b[1])).map(pair =>
                 '<option value="' + escInspection(pair[0]) + '">' + escInspection(pair[1]) + '</option>'
