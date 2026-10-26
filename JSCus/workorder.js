@@ -2687,6 +2687,14 @@ async function saveToIndexedDB(payload) {
                     return;
                 }
                 const existingOwner = dataWO.InspectionOwnerID || "";
+                const companyLocation = (login.curcompany || "").split(";");
+                const allowedSections = (login.section || "").split(";").filter(Boolean);
+                if (dataWO.CompanyID !== (companyLocation[0] || "") ||
+                    dataWO.LocationID !== (companyLocation[1] || "") ||
+                    !allowedSections.includes(dataWO.SectionID)) {
+                    reject(new Error("WO ini bukan milik company/location/section login aktif; data tidak disimpan."));
+                    return;
+                }
                 if (existingOwner && existingOwner !== login.employeeid) {
                     reject(new Error("WO ini dimiliki teknisi lain; data tidak disimpan."));
                     return;
@@ -2697,6 +2705,10 @@ async function saveToIndexedDB(payload) {
                 }
                 dataWO.InspectionOwnerID = existingOwner || login.employeeid;
                 dataWO.Status = payload.Status;
+                // Workflow Status (DRAFT/DONE) and synchronization state are separate concepts.
+                // Keep SyncStatus explicit while preserving legacy Status behavior for the UI.
+                dataWO.SyncStatus = "PENDING";
+                dataWO.SyncStatusUpdatedAt = new Date().toISOString();
                 dataWO.DataCheckListJSON = data;
                 if (currentTemplate) {
                     dataWO.TemplateJSON = JSON.parse(JSON.stringify(currentTemplate));
@@ -3927,9 +3939,23 @@ async function submitVoidToIndexedDb(type, reason) {
                 if (!data) return reject(new Error("Data workorder tidak ditemukan"));
 
                 const login = getLoginData();
-                data.SupervisorActionOwnerID = (login && login.employeeid) || "";
+                if (!login || !login.employeeid) {
+                    reject(new Error("Identitas supervisor tidak ditemukan; aksi tidak disimpan."));
+                    return;
+                }
+                const companyLocation = (login.curcompany || "").split(";");
+                const allowedSections = (login.section || "").split(";").filter(Boolean);
+                if (data.CompanyID !== (companyLocation[0] || "") ||
+                    data.LocationID !== (companyLocation[1] || "") ||
+                    !allowedSections.includes(data.SectionID)) {
+                    reject(new Error("WO ini bukan milik company/location/section login aktif; aksi tidak disimpan."));
+                    return;
+                }
+                data.SupervisorActionOwnerID = login.employeeid;
                 data.Status = "";
                 data.StatusSPV = "PENDING";
+                data.SyncStatus = "PENDING";
+                data.SyncStatusUpdatedAt = new Date().toISOString();
                 data.ActionSPV = (type === "0" ? "VOID" : "APPROVED");
                 data.ReasonVoid = reason;
                 data.DataCheckListJSON.RemarkSPV = document.querySelector("[data-role='remarkspv']")?.value || "";
