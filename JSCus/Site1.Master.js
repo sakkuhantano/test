@@ -1999,7 +1999,8 @@ async function uploadWOGroup(workOrders, mode) {
                 Summary: data.Summary || "",
                 FollowUp: data.FollowUp || "",
                 RemarkSPV: data.RemarkSPV || "",
-                ActionSPV: wo.ActionSPV || "",
+                // Only supervisor batches may carry an SPV action; a stale field on a technician WO must not change server authorization mode.
+                ActionSPV: mode === "SUPERVISOR" ? (wo.ActionSPV || "") : "",
                 Reason: wo.ReasonVoid || "",
                 FollowUpSection: data.FollowUpSection || "",
                 FollowUpRemark: data.FollowUpRemark || "",
