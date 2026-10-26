@@ -496,13 +496,27 @@ async function startNewInspection() {
     await renderInspectionForm(currentInspectionRecord, false);
 }
 
+function parseInspectionDateValue(value) {
+    if (value == null || value === "") return null;
+    if (value instanceof Date) return isNaN(value.getTime()) ? null : value;
+    const raw = String(value).trim();
+    // ASP.NET ASMX serializes DateTime as /Date(milliseconds)/.
+    const dotNet = raw.match(/^\/?Date\((-?\d+)(?:[+-]\d{4})?\)\/?$/i);
+    if (dotNet) {
+        const parsed = new Date(Number(dotNet[1]));
+        return isNaN(parsed.getTime()) ? null : parsed;
+    }
+    const parsed = new Date(raw);
+    return isNaN(parsed.getTime()) ? null : parsed;
+}
+
 function formatInspectionDateDMY(value) {
     if (!value) return "-";
-    const raw = String(value);
+    const raw = String(value).trim();
     const match = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
     if (match) return match[3] + "-" + match[2] + "-" + match[1];
-    const date = new Date(value);
-    if (isNaN(date.getTime())) return "-";
+    const date = parseInspectionDateValue(value);
+    if (!date) return "-";
     return String(date.getDate()).padStart(2, "0") + "-" +
         String(date.getMonth() + 1).padStart(2, "0") + "-" +
         date.getFullYear();
@@ -510,8 +524,8 @@ function formatInspectionDateDMY(value) {
 
 function formatInspectionClock(value) {
     if (!value) return "--:--";
-    const date = new Date(value);
-    if (isNaN(date.getTime()) || date.getFullYear() <= 1900) return "--:--";
+    const date = parseInspectionDateValue(value);
+    if (!date || date.getFullYear() <= 1900) return "--:--";
     return String(date.getHours()).padStart(2, "0") + ":" +
         String(date.getMinutes()).padStart(2, "0");
 }
