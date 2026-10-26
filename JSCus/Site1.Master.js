@@ -530,19 +530,26 @@ async function countApproval() {
         getAllRequest.onerror = () => reject(getAllRequest.error);
         });
 
-        // Kriteria 1: StatusSPV === "PENDING"
-        const jmlPendingLokal = localStores.filter(
-        item => item.StatusSPV != ""
-        ).length;
+        // Only reconcile local approval actions belonging to this exact company/location
+        // and an authorized section. IndexedDB is shared by all logins on this device.
+        const companyLocation = (data.curcompany || "").split(";");
+        const companyId = companyLocation[0] || "";
+        const locationId = companyLocation[1] || "";
+        const allowedSections = (data.section || "").split(";").filter(Boolean);
+        const scopedLocalStores = localStores.filter(item =>
+            item.CompanyID === companyId &&
+            item.LocationID === locationId &&
+            allowedSections.includes(item.SectionID)
+        );
 
-        // Kriteria 2: StatusSPV === "PENDING" dan ActionSPV === "VOID"
-        const jmlRejectedLokal = localStores.filter(
-        item => item.StatusSPV === "PENDING" && item.ActionSPV === "VOID"
+        const jmlPendingLokal = scopedLocalStores.filter(
+            item => item.StatusSPV === "PENDING"
         ).length;
-
-        // Kriteria 3: StatusSPV === "PENDING" dan ActionSPV === "APPROVED"
-        const jmlApprovedLokal = localStores.filter(
-        item => item.StatusSPV === "PENDING" && item.ActionSPV === "APPROVED"
+        const jmlRejectedLokal = scopedLocalStores.filter(
+            item => item.StatusSPV === "PENDING" && item.ActionSPV === "VOID"
+        ).length;
+        const jmlApprovedLokal = scopedLocalStores.filter(
+            item => item.StatusSPV === "PENDING" && item.ActionSPV === "APPROVED"
         ).length;
 
         // 3. Modifikasi nilai counter berdasarkan logika bisnis kamu
@@ -587,9 +594,14 @@ async function countPendingWO() {
         if (cursor) {
             var item =
                 cursor.value;
+            const login = getLoginData();
+            const companyLocation = (login && login.curcompany || "").split(";");
+            const allowedSections = (login && login.section || "").split(";").filter(Boolean);
             if (
-                "PENDING;DRAFT".includes(item.Status) &&
-                getLoginData().section.includes(item.SectionID)
+                ["PENDING", "DRAFT"].includes(item.Status) &&
+                item.CompanyID === (companyLocation[0] || "") &&
+                item.LocationID === (companyLocation[1] || "") &&
+                allowedSections.includes(item.SectionID)
             ) {
                 count++;
             }
@@ -2097,8 +2109,10 @@ async function uploadWOGroup(workOrders, mode) {
             }
 
             // Mark only the WOs in this confirmed-success batch. Failed batches remain retryable.
+            // Pass the upload mode so a concurrent company/owner change cannot mark another
+            // local record as synced merely because its server KeyHD matches.
             for (const item of batchItems) {
-                await markWOSynced(item.wo, result.serverTime);
+                await markWOSynced(item.wo, result.serverTime, mode);
             }
         } catch (ex) {
             console.error("WO sync failed; this batch remains pending:", mode, batchItems.map(x => x.wo.KeyHD), ex);
@@ -2106,61 +2120,55 @@ async function uploadWOGroup(workOrders, mode) {
         }
     }
 }
-async function markWOSynced(wo, lastUpdate) {
-
+async function markWOSynced(wo, lastUpdate, mode) {
     return new Promise((resolve, reject) => {
-
-        let tx =
-            db.transaction(
-                "workorder",
-                "readwrite"
-            );
-
-        let store =
-            tx.objectStore("workorder");
-
-        let getReq =
-            store.get(wo.KeyHD);
+        const tx = db.transaction("workorder", "readwrite");
+        const store = tx.objectStore("workorder");
+        const getReq = store.get(wo.KeyHD);
 
         getReq.onsuccess = function () {
-
-            let data = getReq.result;
-
+            const data = getReq.result;
             if (!data) {
-
-                resolve();
+                reject(new Error("WO lokal tidak ditemukan saat konfirmasi sync; status tidak diubah."));
                 return;
             }
 
-            // =====================
-            // UPDATE STATUS
-            // =====================
-            if (wo.Status === "DONE") {
-                data.Status = "SYNCED";    
-                data.ReasonVoid = "";
+            // Revalidate immutable scope/owner metadata before updating the record.
+            // This protects against stale async responses and accidental KeyHD collisions.
+            const sameScope =
+                data.CompanyID === wo.CompanyID &&
+                data.LocationID === wo.LocationID &&
+                data.SectionID === wo.SectionID;
+            const sameOwner = mode === "TECHNICIAN"
+                ? data.InspectionOwnerID === wo.InspectionOwnerID
+                : data.SupervisorActionOwnerID === wo.SupervisorActionOwnerID;
+            const stillSameStage = mode === "TECHNICIAN"
+                ? data.Status === "DONE"
+                : data.StatusSPV === "PENDING";
+
+            if (!sameScope || !sameOwner || !stillSameStage) {
+                reject(new Error("Scope, pemilik, atau status WO berubah selama sync. Status lokal tidak diubah; periksa dan sync ulang."));
+                return;
             }
-            if (data.StatusSPV === "PENDING") {
+
+            // Keep legacy Status transitions for compatibility with current UI,
+            // while adding an explicit sync state separate from the workflow state.
+            if (mode === "TECHNICIAN") {
+                data.Status = "SYNCED";
+                data.ReasonVoid = "";
+            } else {
                 data.StatusSPV = "SYNCED";
             }
-            
-			data.LastUpdated = lastUpdate;
-			// data.ReasonVoid = "";
+            data.SyncStatus = "SYNCED";
+            data.LastSyncAt = new Date().toISOString();
+            if (lastUpdate) data.LastUpdated = lastUpdate;
 
-            // data.LastSync =
-                // new Date().toISOString();
-
-            let putReq =
-                store.put(data);
-
-            putReq.onsuccess =
-                () => resolve();
-
-            putReq.onerror =
-                () => reject(putReq.error);
+            const putReq = store.put(data);
+            putReq.onsuccess = () => resolve();
+            putReq.onerror = () => reject(putReq.error);
         };
-
-        getReq.onerror =
-            () => reject(getReq.error);
+        getReq.onerror = () => reject(getReq.error);
+        tx.onabort = () => reject(tx.error || new Error("IndexedDB sync-status update aborted"));
     });
 }
 // async function cleanupOldWorkOrders() {
