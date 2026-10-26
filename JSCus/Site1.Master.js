@@ -2066,6 +2066,7 @@ async function uploadWOGroup(workOrders, mode) {
         checklistgroups: items.flatMap(x => x.checklistgroups),
         photos: items.flatMap(x => x.photos),
         userid: login.employeeid,
+        companyLocation: login.curcompany || "",
         checklistsummarys: items.flatMap(x => x.checklistsummarys)
     });
 
