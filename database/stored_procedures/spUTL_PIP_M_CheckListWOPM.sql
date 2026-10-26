@@ -356,9 +356,21 @@ END;
 
 -- Resolve/create sub-sections before linking items to them.
 MERGE INTO PIP_M_CheckListWOPM_SubSection AS target
-USING (SELECT v.RuntimeSubSectionID, v.RuntimeSectionID, v.SubSectionName, v.DisplayOrder, sec.IDSection FROM @tbl_SubSection v INNER JOIN (SELECT RuntimeID RuntimeSectionID, ID IDSection FROM @tbl_Identity WHERE Entity='Section' UNION ALL SELECT RuntimeSectionID, IDSection FROM @tbl_Section WHERE IDSection <> 0) sec ON sec.RuntimeSectionID=v.RuntimeSectionID WHERE v.IDSubSection=0) AS source
+USING (
+    SELECT v.RuntimeSubSectionID, v.RuntimeSectionID, v.SubSectionName, v.DisplayOrder, sec.IDSection,
+           (SELECT ISNULL(MAX(IDSubSection),0) FROM PIP_M_CheckListWOPM_SubSection) +
+           ROW_NUMBER() OVER (ORDER BY v.RuntimeSectionID, v.RuntimeSubSectionID) AS NewIDSubSection
+    FROM @tbl_SubSection v
+    INNER JOIN (
+        SELECT RuntimeID RuntimeSectionID, ID IDSection FROM @tbl_Identity WHERE Entity='Section'
+        UNION ALL SELECT RuntimeSectionID, IDSection FROM @tbl_Section WHERE IDSection <> 0
+    ) sec ON sec.RuntimeSectionID=v.RuntimeSectionID
+    WHERE v.IDSubSection=0
+) AS source
 ON 1=0
-WHEN NOT MATCHED THEN INSERT (IDSection,SubSectionName,DisplayOrder) VALUES (source.IDSection,source.SubSectionName,source.DisplayOrder)
+WHEN NOT MATCHED THEN
+    INSERT (IDSubSection, IDSection, SubSectionName, DisplayOrder)
+    VALUES (source.NewIDSubSection, source.IDSection, source.SubSectionName, source.DisplayOrder)
 OUTPUT 'SubSection',source.RuntimeSubSectionID,inserted.IDSubSection INTO @tbl_Identity (Entity,RuntimeID,ID);
 
 UPDATE ExistingSub
