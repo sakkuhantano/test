@@ -50,7 +50,7 @@ END;
 GO
 
 /* Add the transaction number column on existing installations too.
-   Existing inspections remain NULL; new inspections receive a generated number. */
+   Existing empty numbers are normalized to ''; new inspections receive a generated number. */
 IF COL_LENGTH('dbo.PIP_T_Inspection', 'InspectionNo') IS NULL
     ALTER TABLE dbo.PIP_T_Inspection ADD InspectionNo VARCHAR(10) NULL;
 GO
@@ -244,26 +244,6 @@ UPDATE dbo.PIP_T_InspectionResultValue SET Value=ISNULL(Value,'') WHERE Value IS
 ALTER TABLE dbo.PIP_T_InspectionResultValue ALTER COLUMN Value VARCHAR(500) NOT NULL;
 IF NOT EXISTS (SELECT 1 FROM sys.default_constraints WHERE parent_object_id=OBJECT_ID('dbo.PIP_T_InspectionResultValue') AND name='DF_PIP_T_InspectionResultValue_Value') ALTER TABLE dbo.PIP_T_InspectionResultValue ADD CONSTRAINT DF_PIP_T_InspectionResultValue_Value DEFAULT ('') FOR Value;
 
-UPDATE dbo.PIP_T_Inspection_Delete
-SET ServerInspectionID=ISNULL(ServerInspectionID,0), InspectionNo=ISNULL(InspectionNo,''),
-    ScheduledTime=ISNULL(ScheduledTime,''), OriginalStatus=ISNULL(OriginalStatus,''),
-    OriginalSyncStatus=ISNULL(OriginalSyncStatus,''), ConflictReason=ISNULL(ConflictReason,'')
-WHERE ServerInspectionID IS NULL OR InspectionNo IS NULL OR ScheduledTime IS NULL
-   OR OriginalStatus IS NULL OR OriginalSyncStatus IS NULL OR ConflictReason IS NULL;
-ALTER TABLE dbo.PIP_T_Inspection_Delete ALTER COLUMN ServerInspectionID BIGINT NOT NULL;
-ALTER TABLE dbo.PIP_T_Inspection_Delete ALTER COLUMN InspectionNo VARCHAR(10) NOT NULL;
-ALTER TABLE dbo.PIP_T_Inspection_Delete ALTER COLUMN ScheduledTime VARCHAR(5) NOT NULL;
-ALTER TABLE dbo.PIP_T_Inspection_Delete ALTER COLUMN OriginalStatus VARCHAR(10) NOT NULL;
-ALTER TABLE dbo.PIP_T_Inspection_Delete ALTER COLUMN OriginalSyncStatus VARCHAR(20) NOT NULL;
-ALTER TABLE dbo.PIP_T_Inspection_Delete ALTER COLUMN ConflictReason VARCHAR(1000) NOT NULL;
-IF NOT EXISTS (SELECT 1 FROM sys.default_constraints WHERE parent_object_id=OBJECT_ID('dbo.PIP_T_Inspection_Delete') AND name='DF_PIP_T_Inspection_Delete_ServerInspectionID') ALTER TABLE dbo.PIP_T_Inspection_Delete ADD CONSTRAINT DF_PIP_T_Inspection_Delete_ServerInspectionID DEFAULT (0) FOR ServerInspectionID;
-IF NOT EXISTS (SELECT 1 FROM sys.default_constraints WHERE parent_object_id=OBJECT_ID('dbo.PIP_T_Inspection_Delete') AND name='DF_PIP_T_Inspection_Delete_InspectionNo') ALTER TABLE dbo.PIP_T_Inspection_Delete ADD CONSTRAINT DF_PIP_T_Inspection_Delete_InspectionNo DEFAULT ('') FOR InspectionNo;
-IF NOT EXISTS (SELECT 1 FROM sys.default_constraints WHERE parent_object_id=OBJECT_ID('dbo.PIP_T_Inspection_Delete') AND name='DF_PIP_T_Inspection_Delete_ScheduledTime') ALTER TABLE dbo.PIP_T_Inspection_Delete ADD CONSTRAINT DF_PIP_T_Inspection_Delete_ScheduledTime DEFAULT ('') FOR ScheduledTime;
-IF NOT EXISTS (SELECT 1 FROM sys.default_constraints WHERE parent_object_id=OBJECT_ID('dbo.PIP_T_Inspection_Delete') AND name='DF_PIP_T_Inspection_Delete_OriginalStatus') ALTER TABLE dbo.PIP_T_Inspection_Delete ADD CONSTRAINT DF_PIP_T_Inspection_Delete_OriginalStatus DEFAULT ('') FOR OriginalStatus;
-IF NOT EXISTS (SELECT 1 FROM sys.default_constraints WHERE parent_object_id=OBJECT_ID('dbo.PIP_T_Inspection_Delete') AND name='DF_PIP_T_Inspection_Delete_OriginalSyncStatus') ALTER TABLE dbo.PIP_T_Inspection_Delete ADD CONSTRAINT DF_PIP_T_Inspection_Delete_OriginalSyncStatus DEFAULT ('') FOR OriginalSyncStatus;
-IF NOT EXISTS (SELECT 1 FROM sys.default_constraints WHERE parent_object_id=OBJECT_ID('dbo.PIP_T_Inspection_Delete') AND name='DF_PIP_T_Inspection_Delete_ConflictReason') ALTER TABLE dbo.PIP_T_Inspection_Delete ADD CONSTRAINT DF_PIP_T_Inspection_Delete_ConflictReason DEFAULT ('') FOR ConflictReason;
-GO
-
 
 IF OBJECT_ID('dbo.spUTL_PIP_T_Inspection_Sync', 'P') IS NOT NULL
     DROP PROCEDURE dbo.spUTL_PIP_T_Inspection_Sync;
@@ -307,6 +287,28 @@ BEGIN
 END;
 GO
 
+UPDATE dbo.PIP_T_Inspection_Delete
+SET ServerInspectionID=ISNULL(ServerInspectionID,0), InspectionNo=ISNULL(InspectionNo,''),
+    ScheduledTime=ISNULL(ScheduledTime,''), OriginalStatus=ISNULL(OriginalStatus,''),
+    OriginalSyncStatus=ISNULL(OriginalSyncStatus,''), ConflictReason=ISNULL(ConflictReason,'')
+WHERE ServerInspectionID IS NULL OR InspectionNo IS NULL OR ScheduledTime IS NULL
+   OR OriginalStatus IS NULL OR OriginalSyncStatus IS NULL OR ConflictReason IS NULL;
+ALTER TABLE dbo.PIP_T_Inspection_Delete ALTER COLUMN ServerInspectionID BIGINT NOT NULL;
+ALTER TABLE dbo.PIP_T_Inspection_Delete ALTER COLUMN InspectionNo VARCHAR(10) NOT NULL;
+ALTER TABLE dbo.PIP_T_Inspection_Delete ALTER COLUMN ScheduledTime VARCHAR(5) NOT NULL;
+ALTER TABLE dbo.PIP_T_Inspection_Delete ALTER COLUMN OriginalStatus VARCHAR(10) NOT NULL;
+ALTER TABLE dbo.PIP_T_Inspection_Delete ALTER COLUMN OriginalSyncStatus VARCHAR(20) NOT NULL;
+ALTER TABLE dbo.PIP_T_Inspection_Delete ALTER COLUMN ConflictReason VARCHAR(1000) NOT NULL;
+IF NOT EXISTS (SELECT 1 FROM sys.default_constraints WHERE parent_object_id=OBJECT_ID('dbo.PIP_T_Inspection_Delete') AND name='DF_PIP_T_Inspection_Delete_ServerInspectionID') ALTER TABLE dbo.PIP_T_Inspection_Delete ADD CONSTRAINT DF_PIP_T_Inspection_Delete_ServerInspectionID DEFAULT (0) FOR ServerInspectionID;
+IF NOT EXISTS (SELECT 1 FROM sys.default_constraints WHERE parent_object_id=OBJECT_ID('dbo.PIP_T_Inspection_Delete') AND name='DF_PIP_T_Inspection_Delete_InspectionNo') ALTER TABLE dbo.PIP_T_Inspection_Delete ADD CONSTRAINT DF_PIP_T_Inspection_Delete_InspectionNo DEFAULT ('') FOR InspectionNo;
+IF NOT EXISTS (SELECT 1 FROM sys.default_constraints WHERE parent_object_id=OBJECT_ID('dbo.PIP_T_Inspection_Delete') AND name='DF_PIP_T_Inspection_Delete_ScheduledTime') ALTER TABLE dbo.PIP_T_Inspection_Delete ADD CONSTRAINT DF_PIP_T_Inspection_Delete_ScheduledTime DEFAULT ('') FOR ScheduledTime;
+IF NOT EXISTS (SELECT 1 FROM sys.default_constraints WHERE parent_object_id=OBJECT_ID('dbo.PIP_T_Inspection_Delete') AND name='DF_PIP_T_Inspection_Delete_OriginalStatus') ALTER TABLE dbo.PIP_T_Inspection_Delete ADD CONSTRAINT DF_PIP_T_Inspection_Delete_OriginalStatus DEFAULT ('') FOR OriginalStatus;
+IF NOT EXISTS (SELECT 1 FROM sys.default_constraints WHERE parent_object_id=OBJECT_ID('dbo.PIP_T_Inspection_Delete') AND name='DF_PIP_T_Inspection_Delete_OriginalSyncStatus') ALTER TABLE dbo.PIP_T_Inspection_Delete ADD CONSTRAINT DF_PIP_T_Inspection_Delete_OriginalSyncStatus DEFAULT ('') FOR OriginalSyncStatus;
+IF NOT EXISTS (SELECT 1 FROM sys.default_constraints WHERE parent_object_id=OBJECT_ID('dbo.PIP_T_Inspection_Delete') AND name='DF_PIP_T_Inspection_Delete_ConflictReason') ALTER TABLE dbo.PIP_T_Inspection_Delete ADD CONSTRAINT DF_PIP_T_Inspection_Delete_ConflictReason DEFAULT ('') FOR ConflictReason;
+GO
+
+
+
 CREATE PROCEDURE dbo.spUTL_PIP_T_Inspection_Sync
 (
     @p_ClientInspectionID VARCHAR(36),
@@ -337,6 +339,14 @@ BEGIN
     SET NOCOUNT ON;
     SET XACT_ABORT ON;
 
+    SET @p_ScheduledTime = ISNULL(@p_ScheduledTime, '');
+    SET @p_StartDateTime = ISNULL(@p_StartDateTime, CONVERT(DATETIME,'19000101',112));
+    SET @p_EndDateTime = ISNULL(@p_EndDateTime, CONVERT(DATETIME,'19000101',112));
+    SET @p_Summary = ISNULL(@p_Summary, '');
+    SET @p_FollowUp = ISNULL(NULLIF(LTRIM(RTRIM(@p_FollowUp)), ''), 'No Follow Up');
+    SET @p_FollowUpSection = ISNULL(@p_FollowUpSection, '');
+    SET @p_FollowUpRemark = ISNULL(@p_FollowUpRemark, '');
+
     /* Map shared generic TVPs to the inspection-specific row shape. */
     DECLARE @tbl_Items TABLE
     (
@@ -350,9 +360,9 @@ BEGIN
         DisplayOrder INT NOT NULL
     );
     INSERT INTO @tbl_Items (IDItem, ItemLabel, ItemType, Value, Remark1, IsAnomali, DisplayOrder, Remark2)
-    SELECT CAST(C1 AS INT), C2, C3, C4, C5,
+    SELECT CAST(C1 AS INT), ISNULL(C2,''), ISNULL(C3,''), ISNULL(C4,''), ISNULL(C5,''),
            CAST(ISNULL(NULLIF(C6, ''), '0') AS BIT),
-           CAST(ISNULL(NULLIF(C7, ''), '0') AS INT), C8
+           CAST(ISNULL(NULLIF(C7, ''), '0') AS INT), ISNULL(C8,'')
     FROM @p_Items;
 
     DECLARE @tbl_ItemValues TABLE
@@ -362,7 +372,7 @@ BEGIN
         Value VARCHAR(500) NULL
     );
     INSERT INTO @tbl_ItemValues (IDItem, FieldName, Value)
-    SELECT CAST(C1 AS INT), C2, C3
+    SELECT CAST(C1 AS INT), ISNULL(C2,''), ISNULL(C3,'')
     FROM @p_ItemValues;
 
     /* Drafts are device-local only. SQL may persist completed inspections only. */
