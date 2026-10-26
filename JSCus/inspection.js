@@ -1470,7 +1470,11 @@ async function syncInspectionNow() {
         await refreshSavedInspectionList();
         const conflictCount = inspectionRecords.filter(record => record.SyncStatus === "CONFLICT").length;
         const deleteCount = inspectionRecords.filter(record => record.SyncStatus === "DELETE_PENDING").length;
-        const pendingCount = inspectionRecords.filter(record => record.SyncStatus === "PENDING" || !record.SyncStatus).length;
+        // DRAFT stays local; only DONE inspections count as waiting for SQL sync.
+        const pendingCount = inspectionRecords.filter(record =>
+            record.Status === "DONE" &&
+            (record.SyncStatus === "PENDING" || !record.SyncStatus)
+        ).length;
         if (conflictCount || deleteCount) {
             showInspectionNotice(conflictCount + " konflik perlu ditangani; " + deleteCount + " penghapusan menunggu arsip server. Data lokal belum dibuang sebelum arsip dikonfirmasi.", "warning");
         } else if (pendingCount) {
