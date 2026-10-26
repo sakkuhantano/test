@@ -497,6 +497,8 @@ function createNewItem()
         RuntimeSubSectionID:0,
         IsRemark1Required:false,
         IsRemark2Required:false,
+        IsRemark1Mandatory:false,
+        IsRemark2Mandatory:false,
         IsUseDefaultRemark1:false,
         IsUseDefaultRemark2:false,
         Remark1Text:"",
@@ -3279,6 +3281,8 @@ function normalizeVersionStructure(data)
             // A remark title only has meaning when its corresponding field is enabled.
             item.IsRemark1Required = !!item.IsRemark1Required;
             item.IsRemark2Required = !!item.IsRemark2Required;
+            item.IsRemark1Mandatory = !!item.IsRemark1Mandatory;
+            item.IsRemark2Mandatory = !!item.IsRemark2Mandatory;
             item.IsUseDefaultRemark1 = !!item.IsUseDefaultRemark1;
             item.IsUseDefaultRemark2 = !!item.IsUseDefaultRemark2;
             if (item.IsUseDefaultRemark1) item.Remark1Text = item.Remark1Text == null ? "" : item.Remark1Text;
@@ -3915,13 +3919,17 @@ function showItemProperties(itemData)
                     <div class="form-check form-switch mb-2">
                         <input id="propMandatoryRemark1" class="form-check-input" type="checkbox"
                             ${itemData.IsRemark1Required ? 'checked' : ''} ${isReadonlyMode ? 'disabled' : ''}>
-                        <label class="form-check-label text-xs">Remark 1 Required</label>
+                        <label class="form-check-label text-xs">Show Remark 1</label>
                     </div>
                     <div class="mb-2" id="rowRemark1Title" style="${itemData.IsRemark1Required ? '' : 'display:none;'}">
                         <label class="form-label text-xs">Remark 1 Title</label>
                         <input id="propRemark1Text" class="form-control form-control-sm" maxlength="100"
                             value="${itemData.IsRemark1Required ? (itemData.Remark1Text || 'Remark') : ''}" ${isReadonlyMode ? 'disabled' : ''}>
                     </div>
+                </div>
+                <div class="form-check form-switch mb-2" id="rowRemark1Mandatory" style="${currentVersion && currentVersion.IsRemark1Required && (itemData.IsUseDefaultRemark1 || itemData.IsRemark1Required) ? '' : 'display:none;'}">
+                    <input id="propRemark1Mandatory" class="form-check-input" type="checkbox" ${itemData.IsRemark1Mandatory ? 'checked' : ''} ${isReadonlyMode ? 'disabled' : ''}>
+                    <label class="form-check-label text-xs">Remark 1 Mandatory</label>
                 </div>
                 <div class="form-check form-switch mb-2" style="${currentVersion && currentVersion.IsRemark2Required ? '' : 'display:none;'}">
                     <input id="chkUseDefaultRemark2" class="form-check-input" type="checkbox"
@@ -3932,13 +3940,17 @@ function showItemProperties(itemData)
                     <div class="form-check form-switch mb-2">
                         <input id="propMandatoryRemark2" class="form-check-input" type="checkbox"
                             ${itemData.IsRemark2Required ? 'checked' : ''} ${isReadonlyMode ? 'disabled' : ''}>
-                        <label class="form-check-label text-xs">Remark 2 Required</label>
+                        <label class="form-check-label text-xs">Show Remark 2</label>
                     </div>
                     <div class="mb-2" id="rowRemark2Title" style="${itemData.IsRemark2Required ? '' : 'display:none;'}">
                         <label class="form-label text-xs">Remark 2 Title</label>
                         <input id="propRemark2Text" class="form-control form-control-sm" maxlength="100"
                             value="${itemData.IsRemark2Required ? (itemData.Remark2Text || 'Remark') : ''}" ${isReadonlyMode ? 'disabled' : ''}>
                     </div>
+                </div>
+                <div class="form-check form-switch mb-2" id="rowRemark2Mandatory" style="${currentVersion && currentVersion.IsRemark2Required && (itemData.IsUseDefaultRemark2 || itemData.IsRemark2Required) ? '' : 'display:none;'}">
+                    <input id="propRemark2Mandatory" class="form-check-input" type="checkbox" ${itemData.IsRemark2Mandatory ? 'checked' : ''} ${isReadonlyMode ? 'disabled' : ''}>
+                    <label class="form-check-label text-xs">Remark 2 Mandatory</label>
                 </div>
                 <div class="form-check form-switch mb-2" id="divUseDefaultOption"
                      style="${Array.isArray(currentVersion?.StatusOption) && currentVersion.StatusOption.some(option => String(option || "").trim() !== "") ? "" : "display:none;"}">
@@ -4604,6 +4616,9 @@ function showItemProperties(itemData)
                 } else if (!this.checked) {
                     itemData.Remark1Text = "";
                 }
+                const mandatoryRow = document.getElementById("rowRemark1Mandatory");
+                if (mandatoryRow) mandatoryRow.style.display = (currentVersion && currentVersion.IsRemark1Required && (itemData.IsUseDefaultRemark1 || this.checked)) ? "" : "none";
+                if (!this.checked && !itemData.IsUseDefaultRemark1) { itemData.IsRemark1Mandatory = false; const mandatory = document.getElementById("propRemark1Mandatory"); if (mandatory) mandatory.checked = false; }
                 markCurrentVersionDirty();
             }
         );
@@ -4621,6 +4636,9 @@ function showItemProperties(itemData)
             } else if (!this.checked) {
                 itemData.Remark2Text = "";
             }
+            const mandatoryRow = document.getElementById("rowRemark2Mandatory");
+            if (mandatoryRow) mandatoryRow.style.display = (currentVersion && currentVersion.IsRemark2Required && (itemData.IsUseDefaultRemark2 || this.checked)) ? "" : "none";
+            if (!this.checked && !itemData.IsUseDefaultRemark2) { itemData.IsRemark2Mandatory = false; const mandatory = document.getElementById("propRemark2Mandatory"); if (mandatory) mandatory.checked = false; }
             markCurrentVersionDirty();
         });
     });
@@ -4630,6 +4648,10 @@ function showItemProperties(itemData)
             itemData[pair[1]] = this.value.trim() || "Remark";
             markCurrentVersionDirty();
         });
+    });
+    [["propRemark1Mandatory", "IsRemark1Mandatory"], ["propRemark2Mandatory", "IsRemark2Mandatory"]].forEach(pair => {
+        const el = document.getElementById(pair[0]);
+        if (el) el.addEventListener("change", function () { itemData[pair[1]] = this.checked; markCurrentVersionDirty(); });
     });
     const chkTolerance =
     document.getElementById(
