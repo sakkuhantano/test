@@ -917,6 +917,12 @@ string.Format(@"
                     }
                 }
 
+                string[] companyLocationParts = (companyLocation ?? "").Split(';');
+                string selectedCompanyID = companyLocationParts.Length > 0 ? companyLocationParts[0] : "";
+                string selectedLocationID = companyLocationParts.Length > 1 ? companyLocationParts[1] : "";
+                if (String.IsNullOrWhiteSpace(selectedCompanyID) || String.IsNullOrWhiteSpace(selectedLocationID))
+                    throw new Exception("Company/location is required for WO sync.");
+
                 var incomingKeys = new HashSet<int>();
                 DataTable[] incomingTables = new DataTable[] { dtChecklist, dtChecklistgroups, dtPhotos, dtChecklistsummarys };
                 foreach (DataTable incomingTable in incomingTables)
@@ -940,10 +946,23 @@ SELECT TOP 1 1
 FROM dbo.PIP_T_WO W
 JOIN dbo.UTL_User U ON U.EmployeeID=@EmployeeID
 WHERE W.KeyHD=@KeyHD
-  AND W.CompanyID+';'+W.LocationID=@CompanyLocation
+  AND W.CompanyID=@CompanyID
+  AND W.LocationID=@LocationID
   AND EXISTS
       (SELECT 1 FROM dbo.SplitStringConvertToTable(U.Section, ';') S
        WHERE S.val=W.SectionID)
+  AND
+      (
+          EXISTS (
+              SELECT 1 FROM dbo.SysWebUserCompanyLocation C
+              WHERE C.UserID=U.UserID AND C.AppID='pip'
+                AND C.CompanyID=@CompanyID AND C.LocationID=@LocationID
+          )
+          OR EXISTS (
+              SELECT 1 FROM dbo.F_SelectOneLogin('pip', U.EmployeeID, '') L
+              WHERE L.CompanyID=@CompanyID AND L.LocationID=@LocationID
+          )
+      )
   AND
       (
           (ISNULL(@ActionSPV,'')<>'' AND ISNULL(U.IsSPV,0)=1 AND ISNULL(W.IsSampling,0)=1)
@@ -955,7 +974,8 @@ WHERE W.KeyHD=@KeyHD
                                 new SqlParameter("@EmployeeID", userid),
                                 new SqlParameter("@KeyHD", keyHD),
                                 new SqlParameter("@ActionSPV", actionSPV),
-                                new SqlParameter("@CompanyLocation", companyLocation ?? "")
+                                new SqlParameter("@CompanyID", selectedCompanyID),
+                                new SqlParameter("@LocationID", selectedLocationID)
                             });
                         if (allowed.Rows.Count == 0)
                             throw new Exception("Work Order " + keyHD + " is not authorized for this employee/section. No data was uploaded.");
