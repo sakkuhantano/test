@@ -608,10 +608,6 @@ async function renderInspectionForm(record, readOnly) {
 
     document.getElementById("btnSaveInspectionDraft").classList.toggle("d-none", currentInspectionReadOnly);
     document.getElementById("btnCompleteInspection").classList.toggle("d-none", currentInspectionReadOnly);
-    document.getElementById("txtInspectionSummary").disabled = currentInspectionReadOnly || !before;
-    document.getElementById("txtInspectionFollowUpRemark").disabled = currentInspectionReadOnly || !before;
-    document.querySelectorAll('input[name="inspectionFollowUp"], #inspectionFollowUpSection input, #inspectionFollowUpSection select, #inspectionFollowUpSection textarea')
-        .forEach(el => { el.disabled = currentInspectionReadOnly || !before; });
     document.getElementById("inspectionFormMessage").textContent =
         record.ReasonVoid ? ("Dikembalikan SPV ke Draft: " + record.ReasonVoid + ". Simpan perubahan lalu Sync untuk diajukan kembali.") :
         record.SyncStatus === "SYNCED" ? "Sudah tersinkron ke server." :
@@ -1432,7 +1428,12 @@ async function updateInspectionChecklistGate() {
     const before = photos.some(photo => photo.Type === "BEFORE");
     document.querySelectorAll("#inspectionChecklistHost input, #inspectionChecklistHost select, #inspectionChecklistHost textarea")
         .forEach(el => { el.disabled = currentInspectionReadOnly || !before; });
-    document.getElementById("txtInspectionSummary").disabled = currentInspectionReadOnly;
+    document.getElementById("txtInspectionSummary").disabled = currentInspectionReadOnly || !before;
+    document.getElementById("txtInspectionFollowUpRemark").disabled = currentInspectionReadOnly || !before;
+    document.getElementById("inspectionFollowUpSection").disabled = currentInspectionReadOnly || !before;
+    document.querySelectorAll('input[name="inspectionFollowUp"]').forEach(el => {
+        el.disabled = currentInspectionReadOnly || !before;
+    });
     const afterInput = document.getElementById("inspectionPhotoAfterInput");
     afterInput.disabled = currentInspectionReadOnly || !before;
     document.getElementById("btnAddInspectionAfterPhoto").disabled = afterInput.disabled;
