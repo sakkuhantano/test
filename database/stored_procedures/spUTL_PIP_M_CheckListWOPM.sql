@@ -358,7 +358,7 @@ END;
 MERGE INTO PIP_M_CheckListWOPM_SubSection AS target
 USING (
     SELECT v.RuntimeSubSectionID, v.RuntimeSectionID, v.SubSectionName, v.DisplayOrder, sec.IDSection,
-           (SELECT ISNULL(MAX(IDSubSection),0) FROM PIP_M_CheckListWOPM_SubSection) +
+           (SELECT ISNULL(MAX(IDSubSection),0) FROM PIP_M_CheckListWOPM_SubSection WITH (UPDLOCK, HOLDLOCK)) +
            ROW_NUMBER() OVER (ORDER BY v.RuntimeSectionID, v.RuntimeSubSectionID) AS NewIDSubSection
     FROM @tbl_SubSection v
     INNER JOIN (
