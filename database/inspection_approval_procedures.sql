@@ -92,7 +92,7 @@ BEGIN
             RAISERROR('Supervisor is not authorized for this inspection section or company/location.', 16, 1);
 
         IF @V_Status <> 'DONE' OR ISNULL(@V_IsApprove,0) <> 0
-           OR @V_ApprovedBy IS NOT NULL OR @V_ApprovedDate IS NOT NULL
+           OR ISNULL(@V_ApprovedBy,'') <> '' OR ISNULL(@V_ApprovedDate,CONVERT(DATETIME,'19000101',112)) > CONVERT(DATETIME,'19000101',112)
            OR ISNULL(@V_ApprovalRemark,'') <> '' OR ISNULL(@V_ReasonVoid,'') <> ''
             RAISERROR('Only inspections awaiting approval can be processed.', 16, 1);
 
@@ -111,10 +111,10 @@ BEGIN
 
             UPDATE dbo.PIP_T_Inspection
             SET IsApprove=1, ApprovedBy=@p_EmployeeID, ApprovedDate=GETDATE(),
-                ApprovalRemark=NULLIF(LTRIM(RTRIM(@p_Remark)), ''),
-                ReasonVoid=NULL, UpdateUser=@p_EmployeeID, UpdateDate=GETDATE()
+                ApprovalRemark=ISNULL(NULLIF(LTRIM(RTRIM(@p_Remark)), ''), ''),
+                ReasonVoid='', UpdateUser=@p_EmployeeID, UpdateDate=GETDATE()
             WHERE InspectionID=@p_InspectionID AND CompanyID=@p_CompanyID AND LocationID=@p_LocationID
-              AND Status='DONE' AND IsApprove=0 AND ApprovedBy IS NULL AND ApprovedDate IS NULL
+              AND Status='DONE' AND IsApprove=0 AND ISNULL(ApprovedBy,'')='' AND ISNULL(ApprovedDate,CONVERT(DATETIME,'19000101',112))<=CONVERT(DATETIME,'19000101',112)
               AND ISNULL(ApprovalRemark,'')='' AND ISNULL(ReasonVoid,'')='';
 
             IF @@ROWCOUNT <> 1
@@ -187,10 +187,10 @@ BEGIN
         BEGIN
             UPDATE dbo.PIP_T_Inspection
             SET Status='DRAFT', IsApprove=0, ApprovedBy=@p_EmployeeID, ApprovedDate=GETDATE(),
-                ApprovalRemark=NULL, ReasonVoid=LTRIM(RTRIM(@p_Remark)),
+                ApprovalRemark='', ReasonVoid=LTRIM(RTRIM(ISNULL(@p_Remark,''))),
                 UpdateUser=@p_EmployeeID, UpdateDate=GETDATE()
             WHERE InspectionID=@p_InspectionID AND CompanyID=@p_CompanyID AND LocationID=@p_LocationID
-              AND Status='DONE' AND IsApprove=0 AND ApprovedBy IS NULL AND ApprovedDate IS NULL
+              AND Status='DONE' AND IsApprove=0 AND ISNULL(ApprovedBy,'')='' AND ISNULL(ApprovedDate,CONVERT(DATETIME,'19000101',112))<=CONVERT(DATETIME,'19000101',112)
               AND ISNULL(ApprovalRemark,'')='' AND ISNULL(ReasonVoid,'')='';
 
             IF @@ROWCOUNT <> 1
