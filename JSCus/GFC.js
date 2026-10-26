@@ -1111,6 +1111,9 @@ async function uploadPendingInspections() {
         EndDateTime: record.EndDateTime || "",
         Status: record.Status,
         Summary: record.Summary || "",
+        FollowUp: record.FollowUp === "Recommend Follow Up" ? "Recommend Follow Up" : "No Follow Up",
+        FollowUpSection: record.FollowUp === "Recommend Follow Up" ? (record.FollowUpSection || "") : "",
+        FollowUpRemark: record.FollowUp === "Recommend Follow Up" ? (record.FollowUpRemark || "") : "",
         Items: record.Items || [], Photos: serializedPhotos
         };
     }));
