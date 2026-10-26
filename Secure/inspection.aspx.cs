@@ -1038,7 +1038,9 @@ ORDER BY G.DisplayOrder",
                     new SqlParameter("@p_LocationID", locationId),
                     new SqlParameter("@p_Remark", String.IsNullOrEmpty(remark) ? (object)DBNull.Value : remark)
                 }, true, true);
-                return new { success = true, action = action.ToUpperInvariant(), inspectionId = inspectionId };
+                string followUpWONo = saved.Rows.Count > 0 && saved.Columns.Contains("FollowUpWONo") && saved.Rows[0]["FollowUpWONo"] != DBNull.Value
+                    ? Convert.ToString(saved.Rows[0]["FollowUpWONo"]) : "";
+                return new { success = true, action = action.ToUpperInvariant(), inspectionId = inspectionId, followUpWONo = followUpWONo };
             }
         }
 
