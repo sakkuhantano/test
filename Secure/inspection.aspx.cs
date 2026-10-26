@@ -466,7 +466,7 @@ SELECT I.InspectionID, I.ClientInspectionID, I.InspectionNo,
        I.CompanyID, I.LocationID, I.SectionID, I.InspectionTypeCode,
        I.InspectionTypeName, I.InspectionTypeDetailCode, I.InspectionTypeDetailName,
        I.ScheduledTime, I.IDTemplate, I.IDVersion, I.TemplateNo, I.TemplateName,
-       I.TemplateVersion, I.InspectionDate, I.StartDateTime, I.EndDateTime,
+       I.TemplateVersion, I.InspectionDate, CONVERT(VARCHAR(23), I.StartDateTime, 126) AS StartDateTime, CONVERT(VARCHAR(23), I.EndDateTime, 126) AS EndDateTime,
        I.OwnerEmployeeID, ISNULL(E.Name, I.OwnerEmployeeID) TechnicianName,
        I.Status, I.IsApprove, I.ReasonVoid
 FROM dbo.PIP_T_Inspection I
@@ -629,7 +629,7 @@ SELECT I.InspectionID, I.ClientInspectionID, I.InspectionNo,
        I.CompanyID, I.LocationID, I.SectionID, I.InspectionTypeCode,
        I.InspectionTypeName, I.InspectionTypeDetailCode, I.InspectionTypeDetailName,
        I.ScheduledTime, I.IDTemplate, I.IDVersion, I.TemplateNo, I.TemplateName,
-       I.TemplateVersion, I.InspectionDate, I.StartDateTime, I.EndDateTime,
+       I.TemplateVersion, I.InspectionDate, CONVERT(VARCHAR(23), I.StartDateTime, 126) AS StartDateTime, CONVERT(VARCHAR(23), I.EndDateTime, 126) AS EndDateTime,
        I.OwnerEmployeeID, ISNULL(E.Name, I.OwnerEmployeeID) TechnicianName, I.Status
 FROM dbo.PIP_T_Inspection I
 LEFT JOIN dbo.M_HRD_Employee E ON E.EmployeeID=I.OwnerEmployeeID
@@ -726,7 +726,7 @@ ORDER BY I.InspectionTypeName, I.InspectionTypeDetailName, I.TemplateNo",
 SELECT I.InspectionID, I.ClientInspectionID, I.InspectionNo, I.CompanyID, I.LocationID, I.SectionID,
        I.InspectionTypeCode, I.InspectionTypeName, I.InspectionTypeDetailCode, I.InspectionTypeDetailName,
        I.IDTemplate, I.IDVersion, I.ScheduledTime, I.TemplateNo, I.TemplateName, I.TemplateVersion,
-       I.InspectionDate, I.StartDateTime, I.EndDateTime, I.Summary, I.OwnerEmployeeID,
+       I.InspectionDate, CONVERT(VARCHAR(23), I.StartDateTime, 126) AS StartDateTime, CONVERT(VARCHAR(23), I.EndDateTime, 126) AS EndDateTime, I.Summary, I.OwnerEmployeeID,
        ISNULL(E.Name, I.OwnerEmployeeID) AS TechnicianName, I.Status, I.IsApprove,
        I.ApprovedBy, I.ApprovedDate, I.ApprovalRemark, I.ReasonVoid,
        I.FollowUp, I.FollowUpSection, I.FollowUpRemark, I.FollowUpWONo" + fromWhere + @"
@@ -868,7 +868,7 @@ ORDER BY P.SeqNo",
                 DataTable header = br.EQueryP(@"
 SELECT I.InspectionID, I.InspectionNo, I.CompanyID, I.LocationID, I.SectionID, I.InspectionTypeName,
        I.InspectionTypeDetailName, I.ScheduledTime, I.IDTemplate, I.IDVersion, I.TemplateNo, I.TemplateVersion,
-       I.InspectionDate, I.StartDateTime, I.EndDateTime, I.Summary, I.OwnerEmployeeID,
+       I.InspectionDate, CONVERT(VARCHAR(23), I.StartDateTime, 126) AS StartDateTime, CONVERT(VARCHAR(23), I.EndDateTime, 126) AS EndDateTime, I.Summary, I.OwnerEmployeeID,
        I.IsApprove, I.ApprovedBy, I.ApprovedDate, I.ApprovalRemark, I.ReasonVoid,
        I.FollowUp, I.FollowUpSection, I.FollowUpRemark, I.FollowUpWONo
 FROM dbo.PIP_T_Inspection I
