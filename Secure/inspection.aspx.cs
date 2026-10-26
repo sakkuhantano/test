@@ -541,17 +541,22 @@ WHERE U.EmployeeID=@EmployeeID
                     throw new HttpException(403, "This inspection section is not assigned to the current employee.");
 
                 br.EQueryP(@"
+BEGIN TRANSACTION;
 IF NOT EXISTS (SELECT 1 FROM dbo.PIP_T_Inspection_Delete WITH (UPDLOCK, HOLDLOCK) WHERE ClientInspectionID=@ClientInspectionID)
 BEGIN
+    DECLARE @NextDeleteArchiveID BIGINT;
+    SELECT @NextDeleteArchiveID=ISNULL(MAX(DeleteArchiveID),0)+1
+    FROM dbo.PIP_T_Inspection_Delete WITH (UPDLOCK, HOLDLOCK);
     INSERT dbo.PIP_T_Inspection_Delete
-    (ClientInspectionID, ServerInspectionID, InspectionNo, CompanyID, LocationID, SectionID,
+    (DeleteArchiveID, ClientInspectionID, ServerInspectionID, InspectionNo, CompanyID, LocationID, SectionID,
      InspectionTypeCode, InspectionTypeDetailCode, IDTemplate, InspectionDate, ScheduledTime,
      OriginalStatus, OriginalSyncStatus, ConflictReason, DeletedBy, OriginalTransactionJson)
     VALUES
-    (@ClientInspectionID, @ServerInspectionID, @InspectionNo, @CompanyID, @LocationID, @SectionID,
+    (@NextDeleteArchiveID, @ClientInspectionID, @ServerInspectionID, @InspectionNo, @InspectionNo, @CompanyID, @LocationID, @SectionID,
      @InspectionTypeCode, @InspectionTypeDetailCode, @IDTemplate, @InspectionDate, @ScheduledTime,
      @OriginalStatus, @OriginalSyncStatus, @ConflictReason, @DeletedBy, @OriginalTransactionJson);
-END",
+END;
+COMMIT TRANSACTION;",
                     new SqlParameter[] {
                         new SqlParameter("@ClientInspectionID", Limit(clientInspectionId, 36)),
                         new SqlParameter("@ServerInspectionID", TokenInt(record, "ServerInspectionID") > 0 ? (object)TokenInt(record, "ServerInspectionID") : DBNull.Value),
