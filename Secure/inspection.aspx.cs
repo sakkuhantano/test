@@ -195,6 +195,7 @@ SELECT ID FROM @AutoNumResult;",
 
                         try
                         {
+                            bool sqlCallReturned = false;
                             syncStage = "stage photo files before SQL transaction";
                             if (incomingPhotos.Count > 0 && !Directory.Exists(photoFolder))
                                 Directory.CreateDirectory(photoFolder);
@@ -238,6 +239,7 @@ SELECT ID FROM @AutoNumResult;",
                                 new SqlParameter("@p_Items", items),
                                 new SqlParameter("@p_ItemValues", itemValues)
                             }, true, true);
+                            sqlCallReturned = true;
 
                             if (saved == null || saved.Rows.Count == 0 || !saved.Columns.Contains("InspectionID") || saved.Rows[0]["InspectionID"] == DBNull.Value)
                                 throw new Exception("Inspection sync procedure returned no saved header.");
@@ -276,9 +278,14 @@ SELECT ID FROM @AutoNumResult;",
                         }
                         catch
                         {
-                            foreach (string path in createdPhotoPaths)
+                            /* If the SQL call threw, its transaction rolled back and staged files are safe to remove.
+                               If it returned, preserve files even if the response shape is unexpected: SQL may already have committed metadata. */
+                            if (!sqlCallReturned)
                             {
-                                try { if (File.Exists(path)) File.Delete(path); } catch { }
+                                foreach (string path in createdPhotoPaths)
+                                {
+                                    try { if (File.Exists(path)) File.Delete(path); } catch { }
+                                }
                             }
                             throw;
                         }
