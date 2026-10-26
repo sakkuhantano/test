@@ -226,7 +226,6 @@ FROM PIP_T_WO A WHERE A.KeyHD = @KeyHD AND A.IsDelete = 0
                 System.IO.Path.GetTempPath(), "UTL_WO_SYNC_ROLLBACK_" + Guid.NewGuid().ToString("N"));
             var originalFilesByFolder = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
             var backupFilesByOriginalPath = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            var touchedPhotoFolders = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var filesWrittenByThisSync = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             bool commitAttempted = false;
 
@@ -327,7 +326,6 @@ FROM PIP_T_WO A WHERE A.KeyHD = @KeyHD AND A.IsDelete = 0
                             System.IO.Directory.CreateDirectory(pathupload);
 
                         // Snapshot the complete original folder before any physical photo is deleted/replaced.
-                        touchedPhotoFolders.Add(pathupload);
                         if (!originalFilesByFolder.ContainsKey(pathupload))
                         {
                             string[] originalFiles = System.IO.Directory.GetFiles(pathupload);
