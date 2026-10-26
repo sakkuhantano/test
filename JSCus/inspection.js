@@ -496,10 +496,10 @@ async function startNewInspection() {
     await renderInspectionForm(currentInspectionRecord, false);
 }
 
-async function formatInspectionDateDMY(value) {
+function formatInspectionDateDMY(value) {
     if (!value) return "-";
     const raw = String(value);
-    const match = raw.match(/^(\\d{4})-(\\d{2})-(\\d{2})/);
+    const match = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
     if (match) return match[3] + "-" + match[2] + "-" + match[1];
     const date = new Date(value);
     if (isNaN(date.getTime())) return "-";
@@ -516,7 +516,7 @@ function formatInspectionClock(value) {
         String(date.getMinutes()).padStart(2, "0");
 }
 
-function renderInspectionForm(record, readOnly) {
+async function renderInspectionForm(record, readOnly) {
     currentInspectionRecord = record;
     const photosAtOpen = await getInspectionPhotos(record.LocalInspectionID);
     inspectionPhotoBaseline = photosAtOpen.map(photo => Object.assign({}, photo));
