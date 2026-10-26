@@ -1184,9 +1184,19 @@ async function uploadPendingInspections() {
         showToast(conflicts.length + " inspeksi konflik. Buka daftar inspeksi untuk melihat alasan dan menangani data lokal.", "warning");
         window.dispatchEvent(new CustomEvent("inspectionConflict", { detail: { count: conflicts.length } }));
     }
-    const retryableFailures = failed.length - conflicts.length;
+    const retryableOutcomes = failed.filter(x => !isValidationConflict(x.message));
+    const retryableFailures = retryableOutcomes.length;
     if (retryableFailures > 0) {
-        showToast(retryableFailures + " inspeksi belum berhasil sync karena error yang belum dikenali sebagai konflik. Data tetap PENDING dan akan dicoba lagi.", "warning");
+        const firstFailure = retryableOutcomes[0] || {};
+        console.error("Inspection sync failed; records remain PENDING:", retryableOutcomes);
+        const detail = String(firstFailure.message || "Server tidak memberikan detail error.");
+        const clientId = String(firstFailure.ClientInspectionID || "");
+        showToast(
+            retryableFailures + " inspeksi gagal sync. Data tetap PENDING. " +
+            (clientId ? "ID lokal: " + clientId + ". " : "") +
+            "Alasan server: " + detail,
+            "warning"
+        );
     }
     if (typeof updateTotalPendingSync === "function") await updateTotalPendingSync();
     return { synced: successfulIds.size, failed: failed.length, conflicts: conflicts.length };
