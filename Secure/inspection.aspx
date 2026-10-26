@@ -201,7 +201,7 @@
                 <i class="bi bi-trash"></i> Delete Draft
             </button>
             <button type="button" id="btnCompleteInspection" class="btn btn-primary flex-fill">
-                <i class="bi bi-check-circle"></i> Complete / Submit
+                <i class="bi bi-check-circle"></i> Done
             </button>
         </div>
         <div id="inspectionFormMessage" class="inspection-muted mt-2"></div>
