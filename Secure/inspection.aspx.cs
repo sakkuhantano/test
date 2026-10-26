@@ -541,6 +541,7 @@ WHERE U.EmployeeID=@EmployeeID
                     throw new HttpException(403, "This inspection section is not assigned to the current employee.");
 
                 br.EQueryP(@"
+SET XACT_ABORT ON;
 BEGIN TRANSACTION;
 IF NOT EXISTS (SELECT 1 FROM dbo.PIP_T_Inspection_Delete WITH (UPDLOCK, HOLDLOCK) WHERE ClientInspectionID=@ClientInspectionID)
 BEGIN
@@ -552,7 +553,7 @@ BEGIN
      InspectionTypeCode, InspectionTypeDetailCode, IDTemplate, InspectionDate, ScheduledTime,
      OriginalStatus, OriginalSyncStatus, ConflictReason, DeletedBy, OriginalTransactionJson)
     VALUES
-    (@NextDeleteArchiveID, @ClientInspectionID, @ServerInspectionID, @InspectionNo, @InspectionNo, @CompanyID, @LocationID, @SectionID,
+    (@NextDeleteArchiveID, @ClientInspectionID, @ServerInspectionID, @InspectionNo, @CompanyID, @LocationID, @SectionID,
      @InspectionTypeCode, @InspectionTypeDetailCode, @IDTemplate, @InspectionDate, @ScheduledTime,
      @OriginalStatus, @OriginalSyncStatus, @ConflictReason, @DeletedBy, @OriginalTransactionJson);
 END;
