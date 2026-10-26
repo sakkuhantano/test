@@ -70,7 +70,19 @@
             <div class="col-12 col-md-4"><label for="selApprovalDetail" class="form-label small mb-1">Inspection Type Detail</label><select id="selApprovalDetail" class="form-select form-select-sm"><option value="">All details</option></select></div>
             <div class="col-12 col-md-4"><label for="selApprovalTemplate" class="form-label small mb-1">Template</label><select id="selApprovalTemplate" class="form-select form-select-sm"><option value="">All templates</option></select></div>
         </div>
-        <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+        <ul class="nav nav-tabs mb-3" id="inspectionApprovalQueueTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button type="button" class="nav-link active" id="btnInspectionApprovalOutstanding" role="tab" aria-selected="true">
+                    Outstanding <span id="inspectionApprovalOutstandingCount" class="badge text-bg-secondary ms-1">0</span>
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button type="button" class="nav-link" id="btnInspectionApprovalApproved" role="tab" aria-selected="false">
+                    Approved <span id="inspectionApprovalApprovedCount" class="badge text-bg-secondary ms-1">0</span>
+                </button>
+            </li>
+        </ul>
+        <div id="inspectionApprovalBatchActions" class="d-flex flex-wrap align-items-center gap-2 mb-3">
             <button type="button" id="btnApprovalSelectAll" class="btn btn-sm btn-outline-secondary">Select all filtered</button>
             <button type="button" id="btnBatchApproveInspection" class="btn btn-sm btn-success">Approve selected</button>
             <button type="button" id="btnBatchVoidInspection" class="btn btn-sm btn-outline-danger">Void selected</button>
@@ -78,7 +90,7 @@
         <div class="table-responsive">
             <table class="table table-sm table-hover align-middle">
                 <thead><tr>
-                    <th><input type="checkbox" id="chkAllInspectionApproval" class="form-check-input" aria-label="Select all filtered inspections"></th>
+                    <th id="thInspectionApprovalSelectAll"><input type="checkbox" id="chkAllInspectionApproval" class="form-check-input" aria-label="Select all filtered inspections"></th>
                     <th>Transaction No.</th><th>Inspection Type</th><th>Inspection Type Detail</th>
                     <th>Date</th><th>Scheduled</th><th>Start – End</th><th>Technician</th>
                 </tr></thead>
@@ -100,7 +112,7 @@
                         <div class="tab-pane fade show active" id="inspectionApprovalParamPane"><div id="inspectionApprovalParameters"></div></div>
                         <div class="tab-pane fade" id="inspectionApprovalChecklistPane"><div id="inspectionApprovalDetail" class="small"></div></div>
                     </div>
-                    <div class="mt-4 border-top pt-3">
+                    <div class="mt-4 border-top pt-3" id="inspectionApprovalRemarkPanel">
                         <label for="txtInspectionApprovalRemark" class="form-label fw-semibold">Approval Remark (optional)</label>
                         <textarea id="txtInspectionApprovalRemark" class="form-control" rows="3" maxlength="500" placeholder="Catatan supervisor..."></textarea>
                     </div>
