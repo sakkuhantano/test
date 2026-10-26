@@ -876,7 +876,7 @@ string.Format(@"
             }
         }
         [WebMethod]
-        public static object SyncWO(object checklists, object checklistgroups, object photos, string userid, object checklistsummarys)
+        public static object SyncWO(object checklists, object checklistgroups, object photos, string userid, object checklistsummarys, string companyLocation)
         {
             try
             {
@@ -940,6 +940,7 @@ SELECT TOP 1 1
 FROM dbo.PIP_T_WO W
 JOIN dbo.UTL_User U ON U.EmployeeID=@EmployeeID
 WHERE W.KeyHD=@KeyHD
+  AND W.CompanyID+';'+W.LocationID=@CompanyLocation
   AND EXISTS
       (SELECT 1 FROM dbo.SplitStringConvertToTable(U.Section, ';') S
        WHERE S.val=W.SectionID)
@@ -953,7 +954,8 @@ WHERE W.KeyHD=@KeyHD
                             {
                                 new SqlParameter("@EmployeeID", userid),
                                 new SqlParameter("@KeyHD", keyHD),
-                                new SqlParameter("@ActionSPV", actionSPV)
+                                new SqlParameter("@ActionSPV", actionSPV),
+                                new SqlParameter("@CompanyLocation", companyLocation ?? "")
                             });
                         if (allowed.Rows.Count == 0)
                             throw new Exception("Work Order " + keyHD + " is not authorized for this employee/section. No data was uploaded.");
