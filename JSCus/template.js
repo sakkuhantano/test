@@ -4592,6 +4592,10 @@ function showItemProperties(itemData)
             itemData[cfg[1]] = this.checked;
             const localGroup = document.getElementById(cfg[2]);
             if (localGroup) localGroup.style.display = this.checked ? "none" : "";
+            const mandatoryRow = document.getElementById(cfg[0] === "chkUseDefaultRemark1" ? "rowRemark1Mandatory" : "rowRemark2Mandatory");
+            const isEnabled = cfg[0] === "chkUseDefaultRemark1" ? currentVersion?.IsRemark1Required : currentVersion?.IsRemark2Required;
+            const isVisible = cfg[0] === "chkUseDefaultRemark1" ? itemData.IsRemark1Required : itemData.IsRemark2Required;
+            if (mandatoryRow) mandatoryRow.style.display = (isEnabled && (this.checked || isVisible)) ? "" : "none";
             markCurrentVersionDirty();
         });
     });
