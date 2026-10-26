@@ -14,7 +14,7 @@ BEGIN
     (
         InspectionID BIGINT IDENTITY(1,1) NOT NULL,
         ClientInspectionID VARCHAR(36) NOT NULL,
-        InspectionNo VARCHAR(10) NULL,
+        InspectionNo VARCHAR(10) NOT NULL CONSTRAINT DF_PIP_T_Inspection_InspectionNo DEFAULT (''),
         CompanyID VARCHAR(10) NOT NULL,
         LocationID VARCHAR(3) NOT NULL,
         SectionID VARCHAR(10) NOT NULL,
@@ -22,21 +22,21 @@ BEGIN
         InspectionTypeName VARCHAR(100) NOT NULL,
         InspectionTypeDetailCode VARCHAR(20) NOT NULL,
         InspectionTypeDetailName VARCHAR(100) NOT NULL,
-        ScheduledTime VARCHAR(5) NULL,
+        ScheduledTime VARCHAR(5) NOT NULL CONSTRAINT DF_PIP_T_Inspection_ScheduledTime DEFAULT (''),
         IDTemplate INT NOT NULL,
         IDVersion INT NOT NULL,
         TemplateNo VARCHAR(50) NOT NULL,
         TemplateName VARCHAR(200) NOT NULL,
         TemplateVersion VARCHAR(10) NOT NULL,
         InspectionDate DATETIME NOT NULL,
-        StartDateTime DATETIME NULL,
-        EndDateTime DATETIME NULL,
+        StartDateTime DATETIME NOT NULL CONSTRAINT DF_PIP_T_Inspection_StartDateTime DEFAULT ('19000101'),
+        EndDateTime DATETIME NOT NULL CONSTRAINT DF_PIP_T_Inspection_EndDateTime DEFAULT ('19000101'),
         Status VARCHAR(10) NOT NULL,
-        Summary VARCHAR(500) NULL,
+        Summary VARCHAR(500) NOT NULL CONSTRAINT DF_PIP_T_Inspection_Summary DEFAULT (''),
         FollowUp VARCHAR(30) NOT NULL CONSTRAINT DF_PIP_T_Inspection_FollowUp DEFAULT ('No Follow Up'),
-        FollowUpSection VARCHAR(10) NULL,
-        FollowUpRemark VARCHAR(300) NULL,
-        FollowUpWONo VARCHAR(10) NULL,
+        FollowUpSection VARCHAR(10) NOT NULL CONSTRAINT DF_PIP_T_Inspection_FollowUpSection DEFAULT (''),
+        FollowUpRemark VARCHAR(300) NOT NULL CONSTRAINT DF_PIP_T_Inspection_FollowUpRemark DEFAULT (''),
+        FollowUpWONo VARCHAR(10) NOT NULL CONSTRAINT DF_PIP_T_Inspection_FollowUpWONo DEFAULT (''),
         OwnerEmployeeID VARCHAR(50) NOT NULL,
         EntryUser VARCHAR(50) NOT NULL,
         EntryDate DATETIME NOT NULL CONSTRAINT DF_PIP_T_Inspection_EntryDate DEFAULT (GETDATE()),
@@ -95,9 +95,9 @@ BEGIN
         IDItem INT NOT NULL,
         ItemLabel VARCHAR(500) NOT NULL,
         ItemType VARCHAR(20) NOT NULL,
-        Value VARCHAR(50) NULL,
-        Remark1 VARCHAR(500) NULL,
-        Remark2 VARCHAR(500) NULL,
+        Value VARCHAR(50) NOT NULL CONSTRAINT DF_PIP_T_InspectionResult_Value DEFAULT (''),
+        Remark1 VARCHAR(500) NOT NULL CONSTRAINT DF_PIP_T_InspectionResult_Remark1 DEFAULT (''),
+        Remark2 VARCHAR(500) NOT NULL CONSTRAINT DF_PIP_T_InspectionResult_Remark2 DEFAULT (''),
         IsAnomali BIT NOT NULL CONSTRAINT DF_PIP_T_InspectionResult_IsAnomali DEFAULT (0),
         DisplayOrder INT NOT NULL CONSTRAINT DF_PIP_T_InspectionResult_DisplayOrder DEFAULT (0),
         EntryUser VARCHAR(50) NOT NULL,
@@ -114,7 +114,10 @@ GO
 
 /* Keep existing installations aligned with the 50-character checklist Value field. */
 IF COL_LENGTH('dbo.PIP_T_InspectionResult', 'Value') IS NOT NULL
-    ALTER TABLE dbo.PIP_T_InspectionResult ALTER COLUMN Value VARCHAR(50) NULL;
+BEGIN
+    UPDATE dbo.PIP_T_InspectionResult SET Value='' WHERE Value IS NULL;
+    ALTER TABLE dbo.PIP_T_InspectionResult ALTER COLUMN Value VARCHAR(50) NOT NULL;
+END;
 GO
 
 IF OBJECT_ID('dbo.PIP_T_InspectionResultValue', 'U') IS NULL
@@ -123,7 +126,7 @@ BEGIN
     (
         InspectionResultID BIGINT NOT NULL,
         FieldName VARCHAR(100) NOT NULL,
-        Value VARCHAR(500) NULL,
+        Value VARCHAR(500) NOT NULL CONSTRAINT DF_PIP_T_InspectionResultValue_Value DEFAULT (''),
         EntryUser VARCHAR(50) NOT NULL,
         EntryDate DATETIME NOT NULL CONSTRAINT DF_PIP_T_InspectionResultValue_EntryDate DEFAULT (GETDATE()),
         UpdateUser VARCHAR(50) NOT NULL,
@@ -145,13 +148,13 @@ GO
 IF COL_LENGTH('dbo.PIP_T_Inspection', 'IsApprove') IS NULL
     ALTER TABLE dbo.PIP_T_Inspection ADD IsApprove BIT NULL;
 IF COL_LENGTH('dbo.PIP_T_Inspection', 'ApprovedBy') IS NULL
-    ALTER TABLE dbo.PIP_T_Inspection ADD ApprovedBy VARCHAR(50) NULL;
+    ALTER TABLE dbo.PIP_T_Inspection ADD ApprovedBy VARCHAR(50) NOT NULL CONSTRAINT DF_PIP_T_Inspection_ApprovedBy DEFAULT ('');
 IF COL_LENGTH('dbo.PIP_T_Inspection', 'ApprovedDate') IS NULL
-    ALTER TABLE dbo.PIP_T_Inspection ADD ApprovedDate DATETIME NULL;
+    ALTER TABLE dbo.PIP_T_Inspection ADD ApprovedDate DATETIME NOT NULL CONSTRAINT DF_PIP_T_Inspection_ApprovedDate DEFAULT ('19000101');
 IF COL_LENGTH('dbo.PIP_T_Inspection', 'ApprovalRemark') IS NULL
-    ALTER TABLE dbo.PIP_T_Inspection ADD ApprovalRemark VARCHAR(500) NULL;
+    ALTER TABLE dbo.PIP_T_Inspection ADD ApprovalRemark VARCHAR(500) NOT NULL CONSTRAINT DF_PIP_T_Inspection_ApprovalRemark DEFAULT ('');
 IF COL_LENGTH('dbo.PIP_T_Inspection', 'ReasonVoid') IS NULL
-    ALTER TABLE dbo.PIP_T_Inspection ADD ReasonVoid VARCHAR(500) NULL;
+    ALTER TABLE dbo.PIP_T_Inspection ADD ReasonVoid VARCHAR(500) NOT NULL CONSTRAINT DF_PIP_T_Inspection_ReasonVoid DEFAULT ('');
 IF COL_LENGTH('dbo.PIP_T_Inspection', 'IsVoid') IS NOT NULL
 BEGIN
     IF EXISTS (SELECT 1 FROM sys.indexes WHERE object_id=OBJECT_ID('dbo.PIP_T_Inspection') AND name='IX_PIP_T_Inspection_ApprovalQueue')
@@ -163,7 +166,7 @@ BEGIN
           WHERE IsVoid=1');
     EXEC('UPDATE dbo.PIP_T_Inspection
           SET IsApprove=0
-          WHERE IsVoid=0 AND ApprovedBy IS NULL AND ApprovedDate IS NULL');
+          WHERE IsVoid=0 AND ISNULL(ApprovedBy,'')='' AND ISNULL(ApprovedDate,CONVERT(DATETIME,'19000101',112))<=CONVERT(DATETIME,'19000101',112)');
     DECLARE @V_IsVoidDefault sysname;
     SELECT @V_IsVoidDefault=dc.name
     FROM sys.default_constraints dc
@@ -190,6 +193,78 @@ IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id=OBJECT_ID('dbo.PIP_T_Inspec
 ALTER TABLE dbo.PIP_T_Inspection ADD CONSTRAINT DF_PIP_T_Inspection_IsApprove DEFAULT (0) FOR IsApprove;
 GO
 
+/* Normalize nullable transaction fields to explicit defaults.
+   Empty text is '', numeric/bit is 0, and missing dates use 1900-01-01. */
+UPDATE dbo.PIP_T_Inspection
+SET InspectionNo=ISNULL(InspectionNo,''), ScheduledTime=ISNULL(ScheduledTime,''),
+    StartDateTime=ISNULL(StartDateTime,CONVERT(DATETIME,'19000101',112)),
+    EndDateTime=ISNULL(EndDateTime,CONVERT(DATETIME,'19000101',112)),
+    Summary=ISNULL(Summary,''), FollowUpSection=ISNULL(FollowUpSection,''),
+    FollowUpRemark=ISNULL(FollowUpRemark,''), FollowUpWONo=ISNULL(FollowUpWONo,''),
+    ApprovedBy=ISNULL(ApprovedBy,''), ApprovedDate=ISNULL(ApprovedDate,CONVERT(DATETIME,'19000101',112)),
+    ApprovalRemark=ISNULL(ApprovalRemark,''), ReasonVoid=ISNULL(ReasonVoid,'')
+WHERE InspectionNo IS NULL OR ScheduledTime IS NULL OR StartDateTime IS NULL OR EndDateTime IS NULL
+   OR Summary IS NULL OR FollowUpSection IS NULL OR FollowUpRemark IS NULL OR FollowUpWONo IS NULL
+   OR ApprovedBy IS NULL OR ApprovedDate IS NULL OR ApprovalRemark IS NULL OR ReasonVoid IS NULL;
+ALTER TABLE dbo.PIP_T_Inspection ALTER COLUMN InspectionNo VARCHAR(10) NOT NULL;
+ALTER TABLE dbo.PIP_T_Inspection ALTER COLUMN ScheduledTime VARCHAR(5) NOT NULL;
+ALTER TABLE dbo.PIP_T_Inspection ALTER COLUMN StartDateTime DATETIME NOT NULL;
+ALTER TABLE dbo.PIP_T_Inspection ALTER COLUMN EndDateTime DATETIME NOT NULL;
+ALTER TABLE dbo.PIP_T_Inspection ALTER COLUMN Summary VARCHAR(500) NOT NULL;
+ALTER TABLE dbo.PIP_T_Inspection ALTER COLUMN FollowUpSection VARCHAR(10) NOT NULL;
+ALTER TABLE dbo.PIP_T_Inspection ALTER COLUMN FollowUpRemark VARCHAR(300) NOT NULL;
+ALTER TABLE dbo.PIP_T_Inspection ALTER COLUMN FollowUpWONo VARCHAR(10) NOT NULL;
+ALTER TABLE dbo.PIP_T_Inspection ALTER COLUMN ApprovedBy VARCHAR(50) NOT NULL;
+ALTER TABLE dbo.PIP_T_Inspection ALTER COLUMN ApprovedDate DATETIME NOT NULL;
+ALTER TABLE dbo.PIP_T_Inspection ALTER COLUMN ApprovalRemark VARCHAR(500) NOT NULL;
+ALTER TABLE dbo.PIP_T_Inspection ALTER COLUMN ReasonVoid VARCHAR(500) NOT NULL;
+IF NOT EXISTS (SELECT 1 FROM sys.default_constraints WHERE parent_object_id=OBJECT_ID('dbo.PIP_T_Inspection') AND name='DF_PIP_T_Inspection_InspectionNo') ALTER TABLE dbo.PIP_T_Inspection ADD CONSTRAINT DF_PIP_T_Inspection_InspectionNo DEFAULT ('') FOR InspectionNo;
+IF NOT EXISTS (SELECT 1 FROM sys.default_constraints WHERE parent_object_id=OBJECT_ID('dbo.PIP_T_Inspection') AND name='DF_PIP_T_Inspection_ScheduledTime') ALTER TABLE dbo.PIP_T_Inspection ADD CONSTRAINT DF_PIP_T_Inspection_ScheduledTime DEFAULT ('') FOR ScheduledTime;
+IF NOT EXISTS (SELECT 1 FROM sys.default_constraints WHERE parent_object_id=OBJECT_ID('dbo.PIP_T_Inspection') AND name='DF_PIP_T_Inspection_StartDateTime') ALTER TABLE dbo.PIP_T_Inspection ADD CONSTRAINT DF_PIP_T_Inspection_StartDateTime DEFAULT ('19000101') FOR StartDateTime;
+IF NOT EXISTS (SELECT 1 FROM sys.default_constraints WHERE parent_object_id=OBJECT_ID('dbo.PIP_T_Inspection') AND name='DF_PIP_T_Inspection_EndDateTime') ALTER TABLE dbo.PIP_T_Inspection ADD CONSTRAINT DF_PIP_T_Inspection_EndDateTime DEFAULT ('19000101') FOR EndDateTime;
+IF NOT EXISTS (SELECT 1 FROM sys.default_constraints WHERE parent_object_id=OBJECT_ID('dbo.PIP_T_Inspection') AND name='DF_PIP_T_Inspection_Summary') ALTER TABLE dbo.PIP_T_Inspection ADD CONSTRAINT DF_PIP_T_Inspection_Summary DEFAULT ('') FOR Summary;
+IF NOT EXISTS (SELECT 1 FROM sys.default_constraints WHERE parent_object_id=OBJECT_ID('dbo.PIP_T_Inspection') AND name='DF_PIP_T_Inspection_FollowUpSection') ALTER TABLE dbo.PIP_T_Inspection ADD CONSTRAINT DF_PIP_T_Inspection_FollowUpSection DEFAULT ('') FOR FollowUpSection;
+IF NOT EXISTS (SELECT 1 FROM sys.default_constraints WHERE parent_object_id=OBJECT_ID('dbo.PIP_T_Inspection') AND name='DF_PIP_T_Inspection_FollowUpRemark') ALTER TABLE dbo.PIP_T_Inspection ADD CONSTRAINT DF_PIP_T_Inspection_FollowUpRemark DEFAULT ('') FOR FollowUpRemark;
+IF NOT EXISTS (SELECT 1 FROM sys.default_constraints WHERE parent_object_id=OBJECT_ID('dbo.PIP_T_Inspection') AND name='DF_PIP_T_Inspection_FollowUpWONo') ALTER TABLE dbo.PIP_T_Inspection ADD CONSTRAINT DF_PIP_T_Inspection_FollowUpWONo DEFAULT ('') FOR FollowUpWONo;
+IF NOT EXISTS (SELECT 1 FROM sys.default_constraints WHERE parent_object_id=OBJECT_ID('dbo.PIP_T_Inspection') AND name='DF_PIP_T_Inspection_ApprovedBy') ALTER TABLE dbo.PIP_T_Inspection ADD CONSTRAINT DF_PIP_T_Inspection_ApprovedBy DEFAULT ('') FOR ApprovedBy;
+IF NOT EXISTS (SELECT 1 FROM sys.default_constraints WHERE parent_object_id=OBJECT_ID('dbo.PIP_T_Inspection') AND name='DF_PIP_T_Inspection_ApprovedDate') ALTER TABLE dbo.PIP_T_Inspection ADD CONSTRAINT DF_PIP_T_Inspection_ApprovedDate DEFAULT ('19000101') FOR ApprovedDate;
+IF NOT EXISTS (SELECT 1 FROM sys.default_constraints WHERE parent_object_id=OBJECT_ID('dbo.PIP_T_Inspection') AND name='DF_PIP_T_Inspection_ApprovalRemark') ALTER TABLE dbo.PIP_T_Inspection ADD CONSTRAINT DF_PIP_T_Inspection_ApprovalRemark DEFAULT ('') FOR ApprovalRemark;
+IF NOT EXISTS (SELECT 1 FROM sys.default_constraints WHERE parent_object_id=OBJECT_ID('dbo.PIP_T_Inspection') AND name='DF_PIP_T_Inspection_ReasonVoid') ALTER TABLE dbo.PIP_T_Inspection ADD CONSTRAINT DF_PIP_T_Inspection_ReasonVoid DEFAULT ('') FOR ReasonVoid;
+
+UPDATE dbo.PIP_T_InspectionResult SET Value=ISNULL(Value,''), Remark1=ISNULL(Remark1,''), Remark2=ISNULL(Remark2,'')
+WHERE Value IS NULL OR Remark1 IS NULL OR Remark2 IS NULL;
+ALTER TABLE dbo.PIP_T_InspectionResult ALTER COLUMN Value VARCHAR(50) NOT NULL;
+ALTER TABLE dbo.PIP_T_InspectionResult ALTER COLUMN Remark1 VARCHAR(500) NOT NULL;
+ALTER TABLE dbo.PIP_T_InspectionResult ALTER COLUMN Remark2 VARCHAR(500) NOT NULL;
+IF NOT EXISTS (SELECT 1 FROM sys.default_constraints WHERE parent_object_id=OBJECT_ID('dbo.PIP_T_InspectionResult') AND name='DF_PIP_T_InspectionResult_Value') ALTER TABLE dbo.PIP_T_InspectionResult ADD CONSTRAINT DF_PIP_T_InspectionResult_Value DEFAULT ('') FOR Value;
+IF NOT EXISTS (SELECT 1 FROM sys.default_constraints WHERE parent_object_id=OBJECT_ID('dbo.PIP_T_InspectionResult') AND name='DF_PIP_T_InspectionResult_Remark1') ALTER TABLE dbo.PIP_T_InspectionResult ADD CONSTRAINT DF_PIP_T_InspectionResult_Remark1 DEFAULT ('') FOR Remark1;
+IF NOT EXISTS (SELECT 1 FROM sys.default_constraints WHERE parent_object_id=OBJECT_ID('dbo.PIP_T_InspectionResult') AND name='DF_PIP_T_InspectionResult_Remark2') ALTER TABLE dbo.PIP_T_InspectionResult ADD CONSTRAINT DF_PIP_T_InspectionResult_Remark2 DEFAULT ('') FOR Remark2;
+
+UPDATE dbo.PIP_T_InspectionResultValue SET Value=ISNULL(Value,'') WHERE Value IS NULL;
+ALTER TABLE dbo.PIP_T_InspectionResultValue ALTER COLUMN Value VARCHAR(500) NOT NULL;
+IF NOT EXISTS (SELECT 1 FROM sys.default_constraints WHERE parent_object_id=OBJECT_ID('dbo.PIP_T_InspectionResultValue') AND name='DF_PIP_T_InspectionResultValue_Value') ALTER TABLE dbo.PIP_T_InspectionResultValue ADD CONSTRAINT DF_PIP_T_InspectionResultValue_Value DEFAULT ('') FOR Value;
+
+UPDATE dbo.PIP_T_Inspection_Delete
+SET ServerInspectionID=ISNULL(ServerInspectionID,0), InspectionNo=ISNULL(InspectionNo,''),
+    ScheduledTime=ISNULL(ScheduledTime,''), OriginalStatus=ISNULL(OriginalStatus,''),
+    OriginalSyncStatus=ISNULL(OriginalSyncStatus,''), ConflictReason=ISNULL(ConflictReason,'')
+WHERE ServerInspectionID IS NULL OR InspectionNo IS NULL OR ScheduledTime IS NULL
+   OR OriginalStatus IS NULL OR OriginalSyncStatus IS NULL OR ConflictReason IS NULL;
+ALTER TABLE dbo.PIP_T_Inspection_Delete ALTER COLUMN ServerInspectionID BIGINT NOT NULL;
+ALTER TABLE dbo.PIP_T_Inspection_Delete ALTER COLUMN InspectionNo VARCHAR(10) NOT NULL;
+ALTER TABLE dbo.PIP_T_Inspection_Delete ALTER COLUMN ScheduledTime VARCHAR(5) NOT NULL;
+ALTER TABLE dbo.PIP_T_Inspection_Delete ALTER COLUMN OriginalStatus VARCHAR(10) NOT NULL;
+ALTER TABLE dbo.PIP_T_Inspection_Delete ALTER COLUMN OriginalSyncStatus VARCHAR(20) NOT NULL;
+ALTER TABLE dbo.PIP_T_Inspection_Delete ALTER COLUMN ConflictReason VARCHAR(1000) NOT NULL;
+IF NOT EXISTS (SELECT 1 FROM sys.default_constraints WHERE parent_object_id=OBJECT_ID('dbo.PIP_T_Inspection_Delete') AND name='DF_PIP_T_Inspection_Delete_ServerInspectionID') ALTER TABLE dbo.PIP_T_Inspection_Delete ADD CONSTRAINT DF_PIP_T_Inspection_Delete_ServerInspectionID DEFAULT (0) FOR ServerInspectionID;
+IF NOT EXISTS (SELECT 1 FROM sys.default_constraints WHERE parent_object_id=OBJECT_ID('dbo.PIP_T_Inspection_Delete') AND name='DF_PIP_T_Inspection_Delete_InspectionNo') ALTER TABLE dbo.PIP_T_Inspection_Delete ADD CONSTRAINT DF_PIP_T_Inspection_Delete_InspectionNo DEFAULT ('') FOR InspectionNo;
+IF NOT EXISTS (SELECT 1 FROM sys.default_constraints WHERE parent_object_id=OBJECT_ID('dbo.PIP_T_Inspection_Delete') AND name='DF_PIP_T_Inspection_Delete_ScheduledTime') ALTER TABLE dbo.PIP_T_Inspection_Delete ADD CONSTRAINT DF_PIP_T_Inspection_Delete_ScheduledTime DEFAULT ('') FOR ScheduledTime;
+IF NOT EXISTS (SELECT 1 FROM sys.default_constraints WHERE parent_object_id=OBJECT_ID('dbo.PIP_T_Inspection_Delete') AND name='DF_PIP_T_Inspection_Delete_OriginalStatus') ALTER TABLE dbo.PIP_T_Inspection_Delete ADD CONSTRAINT DF_PIP_T_Inspection_Delete_OriginalStatus DEFAULT ('') FOR OriginalStatus;
+IF NOT EXISTS (SELECT 1 FROM sys.default_constraints WHERE parent_object_id=OBJECT_ID('dbo.PIP_T_Inspection_Delete') AND name='DF_PIP_T_Inspection_Delete_OriginalSyncStatus') ALTER TABLE dbo.PIP_T_Inspection_Delete ADD CONSTRAINT DF_PIP_T_Inspection_Delete_OriginalSyncStatus DEFAULT ('') FOR OriginalSyncStatus;
+IF NOT EXISTS (SELECT 1 FROM sys.default_constraints WHERE parent_object_id=OBJECT_ID('dbo.PIP_T_Inspection_Delete') AND name='DF_PIP_T_Inspection_Delete_ConflictReason') ALTER TABLE dbo.PIP_T_Inspection_Delete ADD CONSTRAINT DF_PIP_T_Inspection_Delete_ConflictReason DEFAULT ('') FOR ConflictReason;
+GO
+
+
 IF OBJECT_ID('dbo.spUTL_PIP_T_Inspection_Sync', 'P') IS NOT NULL
     DROP PROCEDURE dbo.spUTL_PIP_T_Inspection_Sync;
 GO
@@ -210,8 +285,8 @@ BEGIN
     (
         DeleteArchiveID BIGINT IDENTITY(1,1) NOT NULL,
         ClientInspectionID VARCHAR(36) NOT NULL,
-        ServerInspectionID BIGINT NULL,
-        InspectionNo VARCHAR(10) NULL,
+        ServerInspectionID BIGINT NOT NULL CONSTRAINT DF_PIP_T_Inspection_Delete_ServerInspectionID DEFAULT (0),
+        InspectionNo VARCHAR(10) NOT NULL CONSTRAINT DF_PIP_T_Inspection_Delete_InspectionNo DEFAULT (''),
         CompanyID VARCHAR(10) NOT NULL,
         LocationID VARCHAR(3) NOT NULL,
         SectionID VARCHAR(10) NOT NULL,
@@ -219,10 +294,10 @@ BEGIN
         InspectionTypeDetailCode VARCHAR(20) NOT NULL,
         IDTemplate INT NOT NULL,
         InspectionDate DATETIME NOT NULL,
-        ScheduledTime VARCHAR(5) NULL,
-        OriginalStatus VARCHAR(10) NULL,
-        OriginalSyncStatus VARCHAR(20) NULL,
-        ConflictReason VARCHAR(1000) NULL,
+        ScheduledTime VARCHAR(5) NOT NULL CONSTRAINT DF_PIP_T_Inspection_Delete_ScheduledTime DEFAULT (''),
+        OriginalStatus VARCHAR(10) NOT NULL CONSTRAINT DF_PIP_T_Inspection_Delete_OriginalStatus DEFAULT (''),
+        OriginalSyncStatus VARCHAR(20) NOT NULL CONSTRAINT DF_PIP_T_Inspection_Delete_OriginalSyncStatus DEFAULT (''),
+        ConflictReason VARCHAR(1000) NOT NULL CONSTRAINT DF_PIP_T_Inspection_Delete_ConflictReason DEFAULT (''),
         DeletedBy VARCHAR(50) NOT NULL,
         DeletedAt DATETIME NOT NULL CONSTRAINT DF_PIP_T_Inspection_Delete_DeletedAt DEFAULT (GETDATE()),
         OriginalTransactionJson NVARCHAR(MAX) NOT NULL,
@@ -540,7 +615,7 @@ BEGIN
                 TemplateName=@V_TemplateName, TemplateVersion=@p_TemplateVersion,
                 InspectionDate=@p_InspectionDate, StartDateTime=@p_StartDateTime,
                 EndDateTime=@p_EndDateTime, Status=@p_Status, Summary=@p_Summary,
-                FollowUp=@p_FollowUp, FollowUpSection=NULLIF(@p_FollowUpSection,''), FollowUpRemark=NULLIF(@p_FollowUpRemark,''),
+                FollowUp=@p_FollowUp, FollowUpSection=ISNULL(@p_FollowUpSection,''), FollowUpRemark=ISNULL(@p_FollowUpRemark,''),
                 IsApprove=0, ApprovedBy=NULL, ApprovedDate=NULL, ApprovalRemark=NULL,
                 ReasonVoid=NULL,
                 UpdateUser=@p_UpdateUser, UpdateDate=GETDATE()
@@ -579,7 +654,7 @@ BEGIN
                 @V_InspectionTypeDetailName, @p_ScheduledTime, @p_IDTemplate, @p_IDVersion,
                 @p_TemplateNo, @V_TemplateName, @p_TemplateVersion, @p_InspectionDate,
                 @p_StartDateTime, @p_EndDateTime, @p_Status, @p_Summary, @p_FollowUp,
-                NULLIF(@p_FollowUpSection,''), NULLIF(@p_FollowUpRemark,''), @p_UpdateUser,
+                ISNULL(@p_FollowUpSection,''), ISNULL(@p_FollowUpRemark,''), @p_UpdateUser,
                 @p_UpdateUser, GETDATE(), @p_UpdateUser, GETDATE()
             );
             SET @V_InspectionID=CONVERT(BIGINT, SCOPE_IDENTITY());
@@ -718,7 +793,7 @@ BEGIN
             RAISERROR('Supervisor is not authorized for this inspection section or company/location.', 16, 1);
 
         IF @V_Status <> 'DONE' OR ISNULL(@V_IsApprove,0) <> 0
-           OR @V_ApprovedBy IS NOT NULL OR @V_ApprovedDate IS NOT NULL
+           OR ISNULL(@V_ApprovedBy,'') <> '' OR ISNULL(@V_ApprovedDate,CONVERT(DATETIME,'19000101',112)) > CONVERT(DATETIME,'19000101',112)
            OR ISNULL(@V_ApprovalRemark,'') <> '' OR ISNULL(@V_ReasonVoid,'') <> ''
             RAISERROR('Only inspections awaiting approval can be processed.', 16, 1);
 
@@ -737,10 +812,10 @@ BEGIN
 
             UPDATE dbo.PIP_T_Inspection
             SET IsApprove=1, ApprovedBy=@p_EmployeeID, ApprovedDate=GETDATE(),
-                ApprovalRemark=NULLIF(LTRIM(RTRIM(@p_Remark)), ''),
-                ReasonVoid=NULL, UpdateUser=@p_EmployeeID, UpdateDate=GETDATE()
+                ApprovalRemark=ISNULL(NULLIF(LTRIM(RTRIM(@p_Remark)), ''), ''),
+                ReasonVoid='', UpdateUser=@p_EmployeeID, UpdateDate=GETDATE()
             WHERE InspectionID=@p_InspectionID AND CompanyID=@p_CompanyID AND LocationID=@p_LocationID
-              AND Status='DONE' AND IsApprove=0 AND ApprovedBy IS NULL AND ApprovedDate IS NULL
+              AND Status='DONE' AND IsApprove=0 AND ISNULL(ApprovedBy,'')='' AND ISNULL(ApprovedDate,CONVERT(DATETIME,'19000101',112))<=CONVERT(DATETIME,'19000101',112)
               AND ISNULL(ApprovalRemark,'')='' AND ISNULL(ReasonVoid,'')='';
 
             IF @@ROWCOUNT <> 1
@@ -816,7 +891,7 @@ BEGIN
                 ApprovalRemark=NULL, ReasonVoid=LTRIM(RTRIM(@p_Remark)),
                 UpdateUser=@p_EmployeeID, UpdateDate=GETDATE()
             WHERE InspectionID=@p_InspectionID AND CompanyID=@p_CompanyID AND LocationID=@p_LocationID
-              AND Status='DONE' AND IsApprove=0 AND ApprovedBy IS NULL AND ApprovedDate IS NULL
+              AND Status='DONE' AND IsApprove=0 AND ISNULL(ApprovedBy,'')='' AND ISNULL(ApprovedDate,CONVERT(DATETIME,'19000101',112))<=CONVERT(DATETIME,'19000101',112)
               AND ISNULL(ApprovalRemark,'')='' AND ISNULL(ReasonVoid,'')='';
 
             IF @@ROWCOUNT <> 1
