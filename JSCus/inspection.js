@@ -25,6 +25,7 @@ let inspectionFollowUpSections = [
 ];
 
 document.addEventListener("DOMContentLoaded", async function () {
+    wireInspectionScrollTools();
     try {
         inspectionLogin = getLoginData();
         inspectionTechnicianName = inspectionLogin && (inspectionLogin.name || inspectionLogin.Name || inspectionLogin.employeename || inspectionLogin.employeeName) || "";
@@ -484,7 +485,7 @@ async function startNewInspection() {
         TemplateVersion: String(template.Version || ""),
         TemplateSnapshot: JSON.parse(JSON.stringify(template)),
         InspectionDate: inspectionDate,
-        StartDateTime: new Date().toISOString(),
+        StartDateTime: localDateTimeString(new Date()),
         EndDateTime: "",
         Status: "DRAFT",
         SyncStatus: "PENDING",
@@ -986,7 +987,7 @@ async function saveInspection(status) {
     currentInspectionRecord.Status = status;
     currentInspectionRecord.SyncStatus = "PENDING";
     currentInspectionRecord.UpdatedAt = new Date().toISOString();
-    if (status === "DONE") currentInspectionRecord.EndDateTime = new Date().toISOString();
+    if (status === "DONE") currentInspectionRecord.EndDateTime = localDateTimeString(new Date());
 
     if (inspectionAutoSaveTimer) clearTimeout(inspectionAutoSaveTimer);
     await persistInspectionRecord(currentInspectionRecord);
@@ -1567,6 +1568,67 @@ function localDateString(date) {
     const month = String(date.getMonth() + 1).padStart(2, "0");
     const day = String(date.getDate()).padStart(2, "0");
     return year + "-" + month + "-" + day;
+}
+
+function localDateTimeString(date) {
+    return localDateString(date) + "T" +
+        String(date.getHours()).padStart(2, "0") + ":" +
+        String(date.getMinutes()).padStart(2, "0") + ":" +
+        String(date.getSeconds()).padStart(2, "0");
+}
+
+
+
+function getInspectionScrollTarget() {
+    const detailModal = document.getElementById("inspectionApprovalDetailModal");
+    if (detailModal && detailModal.classList.contains("show")) {
+        const actionModal = document.getElementById("inspectionApprovalActionModal");
+        if (!actionModal || !actionModal.classList.contains("show")) {
+            return detailModal.querySelector(".modal-body");
+        }
+    }
+    return window;
+}
+
+function updateInspectionScrollTools() {
+    const tools = document.getElementById("inspectionScrollTools");
+    const top = document.getElementById("inspectionScrollTop");
+    const bottom = document.getElementById("inspectionScrollBottom");
+    if (!tools || !top || !bottom) return;
+    const target = getInspectionScrollTarget();
+    const modalTarget = target !== window;
+    const scrollTop = modalTarget ? target.scrollTop : (window.pageYOffset || document.documentElement.scrollTop || 0);
+    const clientHeight = modalTarget ? target.clientHeight : window.innerHeight;
+    const scrollHeight = modalTarget ? target.scrollHeight : Math.max(document.body.scrollHeight, document.documentElement.scrollHeight);
+    const canScroll = scrollHeight > clientHeight + 60;
+    const modalShown = !!document.querySelector("#inspectionApprovalDetailModal.show");
+    tools.classList.toggle("d-none", !canScroll || (modalShown && !modalTarget));
+    top.classList.toggle("d-none", scrollTop < 50);
+    bottom.classList.toggle("d-none", scrollTop + clientHeight >= scrollHeight - 50);
+}
+
+function wireInspectionScrollTools() {
+    const top = document.getElementById("inspectionScrollTop");
+    const bottom = document.getElementById("inspectionScrollBottom");
+    if (!top || !bottom) return;
+    const scrollToPosition = position => {
+        const target = getInspectionScrollTarget();
+        if (target === window) {
+            window.scrollTo({ top: position === "top" ? 0 : Math.max(document.body.scrollHeight, document.documentElement.scrollHeight), behavior: "smooth" });
+        } else {
+            target.scrollTo({ top: position === "top" ? 0 : target.scrollHeight, behavior: "smooth" });
+        }
+    };
+    top.addEventListener("click", () => scrollToPosition("top"));
+    bottom.addEventListener("click", () => scrollToPosition("bottom"));
+    window.addEventListener("scroll", updateInspectionScrollTools, { passive: true });
+    document.addEventListener("scroll", event => {
+        if (event.target && event.target.classList && event.target.classList.contains("modal-body")) updateInspectionScrollTools();
+    }, true);
+    document.addEventListener("shown.bs.modal", updateInspectionScrollTools);
+    document.addEventListener("hidden.bs.modal", updateInspectionScrollTools);
+    window.addEventListener("resize", updateInspectionScrollTools);
+    updateInspectionScrollTools();
 }
 
 function escInspection(value) {
