@@ -33,6 +33,10 @@ BEGIN
         EndDateTime DATETIME NULL,
         Status VARCHAR(10) NOT NULL,
         Summary VARCHAR(500) NULL,
+        FollowUp VARCHAR(30) NOT NULL CONSTRAINT DF_PIP_T_Inspection_FollowUp DEFAULT ('No Follow Up'),
+        FollowUpSection VARCHAR(10) NULL,
+        FollowUpRemark VARCHAR(300) NULL,
+        FollowUpWONo VARCHAR(10) NULL,
         OwnerEmployeeID VARCHAR(50) NOT NULL,
         EntryUser VARCHAR(50) NOT NULL,
         EntryDate DATETIME NOT NULL CONSTRAINT DF_PIP_T_Inspection_EntryDate DEFAULT (GETDATE()),
@@ -49,6 +53,16 @@ GO
    Existing inspections remain NULL; new inspections receive a generated number. */
 IF COL_LENGTH('dbo.PIP_T_Inspection', 'InspectionNo') IS NULL
     ALTER TABLE dbo.PIP_T_Inspection ADD InspectionNo VARCHAR(10) NULL;
+GO
+IF COL_LENGTH('dbo.PIP_T_Inspection', 'FollowUp') IS NULL
+    ALTER TABLE dbo.PIP_T_Inspection ADD FollowUp VARCHAR(30) NOT NULL
+        CONSTRAINT DF_PIP_T_Inspection_FollowUp DEFAULT ('No Follow Up');
+IF COL_LENGTH('dbo.PIP_T_Inspection', 'FollowUpSection') IS NULL
+    ALTER TABLE dbo.PIP_T_Inspection ADD FollowUpSection VARCHAR(10) NULL;
+IF COL_LENGTH('dbo.PIP_T_Inspection', 'FollowUpRemark') IS NULL
+    ALTER TABLE dbo.PIP_T_Inspection ADD FollowUpRemark VARCHAR(300) NULL;
+IF COL_LENGTH('dbo.PIP_T_Inspection', 'FollowUpWONo') IS NULL
+    ALTER TABLE dbo.PIP_T_Inspection ADD FollowUpWONo VARCHAR(10) NULL;
 GO
 
 IF OBJECT_ID('dbo.PIP_T_InspectionPhoto', 'U') IS NULL
@@ -234,6 +248,9 @@ CREATE PROCEDURE dbo.spUTL_PIP_T_Inspection_Sync
     @p_EndDateTime DATETIME = NULL,
     @p_Status VARCHAR(10),
     @p_Summary VARCHAR(500),
+    @p_FollowUp VARCHAR(30),
+    @p_FollowUpSection VARCHAR(10),
+    @p_FollowUpRemark VARCHAR(300),
     @p_UpdateUser VARCHAR(50),
     @p_Items dbo.Type_N_Tbl_C13 READONLY,
     @p_ItemValues dbo.Type_N_Tbl_C5 READONLY
@@ -275,6 +292,26 @@ BEGIN
     BEGIN
         RAISERROR('Invalid inspection status.', 16, 1);
         RETURN;
+    END;
+
+    SET @p_FollowUp = LTRIM(RTRIM(ISNULL(@p_FollowUp, 'No Follow Up')));
+    SET @p_FollowUpSection = LTRIM(RTRIM(ISNULL(@p_FollowUpSection, '')));
+    SET @p_FollowUpRemark = LTRIM(RTRIM(ISNULL(@p_FollowUpRemark, '')));
+
+    IF @p_FollowUp NOT IN ('No Follow Up', 'Recommend Follow Up')
+        RAISERROR('Invalid Inspection Follow Up selection.', 16, 1);
+
+    IF @p_FollowUp = 'Recommend Follow Up'
+    BEGIN
+        IF @p_FollowUpSection NOT IN ('ACON','COMM','MECH','ELEC','CIVIL','PFIT','PHKP','PSEC')
+            RAISERROR('A valid Responsible Section is required for Follow Up.', 16, 1);
+        IF @p_FollowUpRemark = ''
+            RAISERROR('Follow Up Work Order Description is required.', 16, 1);
+    END
+    ELSE
+    BEGIN
+        SET @p_FollowUpSection = '';
+        SET @p_FollowUpRemark = '';
     END;
 
     IF NOT EXISTS
@@ -488,6 +525,7 @@ BEGIN
                 TemplateName=@V_TemplateName, TemplateVersion=@p_TemplateVersion,
                 InspectionDate=@p_InspectionDate, StartDateTime=@p_StartDateTime,
                 EndDateTime=@p_EndDateTime, Status=@p_Status, Summary=@p_Summary,
+                FollowUp=@p_FollowUp, FollowUpSection=NULLIF(@p_FollowUpSection,''), FollowUpRemark=NULLIF(@p_FollowUpRemark,''),
                 IsApprove=NULL, ApprovedBy=NULL, ApprovedDate=NULL, ApprovalRemark=NULL,
                 ReasonVoid=NULL,
                 UpdateUser=@p_UpdateUser, UpdateDate=GETDATE()
@@ -516,7 +554,7 @@ BEGIN
                 InspectionTypeCode, InspectionTypeName, InspectionTypeDetailCode,
                 InspectionTypeDetailName, ScheduledTime, IDTemplate, IDVersion,
                 TemplateNo, TemplateName, TemplateVersion, InspectionDate,
-                StartDateTime, EndDateTime, Status, Summary, OwnerEmployeeID,
+                StartDateTime, EndDateTime, Status, Summary, FollowUp, FollowUpSection, FollowUpRemark, OwnerEmployeeID,
                 EntryUser, EntryDate, UpdateUser, UpdateDate
             )
             VALUES
@@ -525,7 +563,8 @@ BEGIN
                 @p_InspectionTypeCode, @V_InspectionTypeName, @p_InspectionTypeDetailCode,
                 @V_InspectionTypeDetailName, @p_ScheduledTime, @p_IDTemplate, @p_IDVersion,
                 @p_TemplateNo, @V_TemplateName, @p_TemplateVersion, @p_InspectionDate,
-                @p_StartDateTime, @p_EndDateTime, @p_Status, @p_Summary, @p_UpdateUser,
+                @p_StartDateTime, @p_EndDateTime, @p_Status, @p_Summary, @p_FollowUp,
+                NULLIF(@p_FollowUpSection,''), NULLIF(@p_FollowUpRemark,''), @p_UpdateUser,
                 @p_UpdateUser, GETDATE(), @p_UpdateUser, GETDATE()
             );
             SET @V_InspectionID=CONVERT(BIGINT, SCOPE_IDENTITY());
