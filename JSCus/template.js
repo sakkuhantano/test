@@ -2873,7 +2873,7 @@ function showVersionProperties(version, isNewTemplate)
                     </div>
                     <div id="versionRemark1TextRow" style="${version.IsRemark1Required ? '' : 'display:none;'}">
                         <label class="form-label text-xs">Default Remark 1 Title</label>
-                        <input id="propVersionRemark1Text" class="form-control form-control-sm" maxlength="100" value="${version.Remark1Text || 'Remark'}" ${isReadonlyMode ? 'disabled' : ''}>
+                        <input id="propVersionRemark1Text" class="form-control form-control-sm" maxlength="100" value="${version.IsRemark1Required ? (version.Remark1Text || 'Remark') : ''}" ${isReadonlyMode ? 'disabled' : ''}>
                     </div>
                     <div class="form-check form-switch mt-3 mb-2">
                         <input id="propVersionRemark2Required" class="form-check-input" type="checkbox" ${version.IsRemark2Required ? 'checked' : ''} ${isReadonlyMode ? 'disabled' : ''}>
@@ -2881,7 +2881,7 @@ function showVersionProperties(version, isNewTemplate)
                     </div>
                     <div id="versionRemark2TextRow" style="${version.IsRemark2Required ? '' : 'display:none;'}">
                         <label class="form-label text-xs">Default Remark 2 Title</label>
-                        <input id="propVersionRemark2Text" class="form-control form-control-sm" maxlength="100" value="${version.Remark2Text || 'Remark'}" ${isReadonlyMode ? 'disabled' : ''}>
+                        <input id="propVersionRemark2Text" class="form-control form-control-sm" maxlength="100" value="${version.IsRemark2Required ? (version.Remark2Text || 'Remark') : ''}" ${isReadonlyMode ? 'disabled' : ''}>
                     </div>
                 </div>
                 <div class="mb-3" id="versionRemarkRequiredGroup">
@@ -3920,7 +3920,7 @@ function showItemProperties(itemData)
                     <div class="mb-2" id="rowRemark1Title" style="${itemData.IsRemark1Required ? '' : 'display:none;'}">
                         <label class="form-label text-xs">Remark 1 Title</label>
                         <input id="propRemark1Text" class="form-control form-control-sm" maxlength="100"
-                            value="${itemData.Remark1Text || 'Remark'}" ${isReadonlyMode ? 'disabled' : ''}>
+                            value="${itemData.IsRemark1Required ? (itemData.Remark1Text || 'Remark') : ''}" ${isReadonlyMode ? 'disabled' : ''}>
                     </div>
                 </div>
                 <div class="form-check form-switch mb-2" style="${currentVersion && currentVersion.IsRemark2Required ? '' : 'display:none;'}">
@@ -3937,7 +3937,7 @@ function showItemProperties(itemData)
                     <div class="mb-2" id="rowRemark2Title" style="${itemData.IsRemark2Required ? '' : 'display:none;'}">
                         <label class="form-label text-xs">Remark 2 Title</label>
                         <input id="propRemark2Text" class="form-control form-control-sm" maxlength="100"
-                            value="${itemData.Remark2Text || 'Remark'}" ${isReadonlyMode ? 'disabled' : ''}>
+                            value="${itemData.IsRemark2Required ? (itemData.Remark2Text || 'Remark') : ''}" ${isReadonlyMode ? 'disabled' : ''}>
                     </div>
                 </div>
                 <div class="form-check form-switch mb-2" id="divUseDefaultOption"
