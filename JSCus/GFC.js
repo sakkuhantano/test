@@ -26,7 +26,7 @@ function inspectionWallClockDateTime(value) {
     if (!value) return "";
     const raw = String(value).trim();
     // Older offline records were saved as UTC ISO strings; convert those to the browser's local wall clock.
-    if (/Z$|[+-]\\d{2}:?\\d{2}$/i.test(raw)) {
+    if (/Z$|[+-]\d{2}:?\d{2}$/i.test(raw)) {
         const date = new Date(raw);
         if (!Number.isNaN(date.getTime())) {
             const pad = n => String(n).padStart(2, "0");
