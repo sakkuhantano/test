@@ -299,14 +299,26 @@ BEGIN
     SET @p_FollowUpRemark = LTRIM(RTRIM(ISNULL(@p_FollowUpRemark, '')));
 
     IF @p_FollowUp NOT IN ('No Follow Up', 'Recommend Follow Up')
+    BEGIN
         RAISERROR('Invalid Inspection Follow Up selection.', 16, 1);
+        RETURN;
+    END;
 
     IF @p_FollowUp = 'Recommend Follow Up'
     BEGIN
-        IF @p_FollowUpSection NOT IN ('ACON','COMM','MECH','ELEC','CIVIL','PFIT','PHKP','PSEC')
-            RAISERROR('A valid Responsible Section is required for Follow Up.', 16, 1);
-        IF @p_FollowUpRemark = ''
-            RAISERROR('Follow Up Work Order Description is required.', 16, 1);
+        IF @p_Status = 'DONE'
+        BEGIN
+            IF @p_FollowUpSection NOT IN ('ACON','COMM','MECH','ELEC','CIVIL','PFIT','PHKP','PSEC')
+            BEGIN
+                RAISERROR('A valid Responsible Section is required for Follow Up.', 16, 1);
+                RETURN;
+            END;
+            IF @p_FollowUpRemark = ''
+            BEGIN
+                RAISERROR('Follow Up Work Order Description is required.', 16, 1);
+                RETURN;
+            END;
+        END;
     END
     ELSE
     BEGIN
