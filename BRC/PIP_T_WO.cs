@@ -227,6 +227,7 @@ FROM PIP_T_WO A WHERE A.KeyHD = @KeyHD AND A.IsDelete = 0
             var originalFilesByFolder = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
             var backupFilesByOriginalPath = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             var touchedPhotoFolders = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var filesWrittenByThisSync = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             bool commitAttempted = false;
 
             try
@@ -404,8 +405,10 @@ FROM PIP_T_WO A WHERE A.KeyHD = @KeyHD AND A.IsDelete = 0
                                 {
                                     base64 = base64.Substring(idx + 1);
                                 }
+                                string targetPhotoPath = System.IO.Path.Combine(pathupload, (item1.FileName + "." + item1.FileType));
+                                filesWrittenByThisSync.Add(targetPhotoPath);
                                 System.IO.File.WriteAllBytes(
-                                    System.IO.Path.Combine(pathupload, (item1.FileName + "." + item1.FileType)),
+                                    targetPhotoPath,
                                     Convert.FromBase64String(base64)
                                 );
 
@@ -478,19 +481,16 @@ FROM PIP_T_WO A WHERE A.KeyHD = @KeyHD AND A.IsDelete = 0
                 {
                     try
                     {
-                        // Remove only files created during this attempt, then restore every original
-                        // file from the snapshot. This repairs deleted and overwritten photos.
-                        foreach (string folder in touchedPhotoFolders)
+                        // Remove only photo paths this request attempted to write (never unrelated
+                        // files created concurrently), then restore originals from the snapshot.
+                        foreach (string writtenPath in filesWrittenByThisSync)
                         {
-                            if (!System.IO.Directory.Exists(folder)) continue;
+                            string folder = System.IO.Path.GetDirectoryName(writtenPath);
                             HashSet<string> originalSet;
-                            if (!originalFilesByFolder.TryGetValue(folder, out originalSet))
-                                originalSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                            foreach (string currentPath in System.IO.Directory.GetFiles(folder))
-                            {
-                                if (!originalSet.Contains(currentPath) && System.IO.File.Exists(currentPath))
-                                    System.IO.File.Delete(currentPath);
-                            }
+                            if (originalFilesByFolder.TryGetValue(folder, out originalSet) && originalSet.Contains(writtenPath))
+                                continue;
+                            if (System.IO.File.Exists(writtenPath))
+                                System.IO.File.Delete(writtenPath);
                         }
                         foreach (KeyValuePair<string, string> backup in backupFilesByOriginalPath)
                         {
