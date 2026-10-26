@@ -99,7 +99,6 @@ namespace UTL1.Secure
                         throw new Exception("Invalid inspection status.");
 
                         syncStage = "parse inspection photos";
-                        DateTime inspectionDate = ParseDate(TokenString(record, "InspectionDate"), DateTime.Today);
                         JArray photoArray = record["Photos"] as JArray ?? new JArray();
                         var incomingPhotos = new List<Tuple<string, int, string, byte[]>>();
                         var usedSeqNos = new HashSet<int>();
