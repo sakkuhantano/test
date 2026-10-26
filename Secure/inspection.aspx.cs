@@ -145,6 +145,9 @@ namespace UTL1.Secure
                             new SqlParameter("@p_EndDateTime", ParseNullableDate(TokenString(record, "EndDateTime"))),
                             new SqlParameter("@p_Status", status),
                             new SqlParameter("@p_Summary", Limit(TokenString(record, "Summary"), 500)),
+                            new SqlParameter("@p_FollowUp", Limit(String.IsNullOrWhiteSpace(TokenString(record, "FollowUp")) ? "No Follow Up" : TokenString(record, "FollowUp"), 30)),
+                            new SqlParameter("@p_FollowUpSection", Limit(TokenString(record, "FollowUpSection"), 10)),
+                            new SqlParameter("@p_FollowUpRemark", Limit(TokenString(record, "FollowUpRemark"), 300)),
                             new SqlParameter("@p_UpdateUser", Limit(userId, 50)),
                             new SqlParameter("@p_Items", items),
                             new SqlParameter("@p_ItemValues", itemValues)
@@ -594,7 +597,8 @@ ORDER BY I.StartDateTime DESC, I.InspectionID DESC",
 SELECT I.InspectionID, I.ClientInspectionID, I.InspectionNo, I.CompanyID, I.LocationID, I.SectionID,
        I.InspectionTypeCode, I.InspectionTypeName, I.InspectionTypeDetailCode, I.InspectionTypeDetailName,
        I.IDTemplate, I.IDVersion, I.ScheduledTime, I.TemplateNo, I.TemplateName, I.TemplateVersion,
-       I.InspectionDate, I.StartDateTime, I.EndDateTime, I.Summary, I.OwnerEmployeeID, I.Status
+       I.InspectionDate, I.StartDateTime, I.EndDateTime, I.Summary, I.OwnerEmployeeID, I.Status,
+       I.FollowUp, I.FollowUpSection, I.FollowUpRemark, I.FollowUpWONo
 FROM dbo.PIP_T_Inspection I
 WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID
   AND I.Status='DONE' AND I.IsApprove IS NULL AND I.ApprovedBy IS NULL AND I.ApprovedDate IS NULL
@@ -734,7 +738,8 @@ ORDER BY P.SeqNo",
                 DataTable header = br.EQueryP(@"
 SELECT I.InspectionID, I.InspectionNo, I.CompanyID, I.LocationID, I.SectionID, I.InspectionTypeName,
        I.InspectionTypeDetailName, I.ScheduledTime, I.TemplateNo, I.TemplateVersion,
-       I.InspectionDate, I.StartDateTime, I.EndDateTime, I.Summary, I.OwnerEmployeeID
+       I.InspectionDate, I.StartDateTime, I.EndDateTime, I.Summary, I.OwnerEmployeeID,
+       I.FollowUp, I.FollowUpSection, I.FollowUpRemark, I.FollowUpWONo
 FROM dbo.PIP_T_Inspection I
 WHERE I.InspectionID=@InspectionID AND I.Status='DONE'
   AND I.IsApprove IS NULL AND I.ApprovedBy IS NULL AND I.ApprovedDate IS NULL
