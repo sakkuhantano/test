@@ -464,33 +464,38 @@ FROM PIP_T_WO A WHERE A.KeyHD = @KeyHD AND A.IsDelete = 0
                 catch (Exception rollbackError) { transactionRollbackError = rollbackError; }
 
                 Exception photoRestoreError = null;
-                try
+                // If SQL rollback itself failed, its commit state is unknown. Do not guess which
+                // version of the photos matches the database: retain current files and backups.
+                if (transactionRollbackError == null)
                 {
-                    // Remove only files created during this attempt, then restore every original
-                    // file from the snapshot. This repairs deleted and overwritten photos.
-                    foreach (string folder in touchedPhotoFolders)
+                    try
                     {
-                        if (!System.IO.Directory.Exists(folder)) continue;
-                        HashSet<string> originalSet;
-                        if (!originalFilesByFolder.TryGetValue(folder, out originalSet))
-                            originalSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                        foreach (string currentPath in System.IO.Directory.GetFiles(folder))
+                        // Remove only files created during this attempt, then restore every original
+                        // file from the snapshot. This repairs deleted and overwritten photos.
+                        foreach (string folder in touchedPhotoFolders)
                         {
-                            if (!originalSet.Contains(currentPath) && System.IO.File.Exists(currentPath))
-                                System.IO.File.Delete(currentPath);
+                            if (!System.IO.Directory.Exists(folder)) continue;
+                            HashSet<string> originalSet;
+                            if (!originalFilesByFolder.TryGetValue(folder, out originalSet))
+                                originalSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                            foreach (string currentPath in System.IO.Directory.GetFiles(folder))
+                            {
+                                if (!originalSet.Contains(currentPath) && System.IO.File.Exists(currentPath))
+                                    System.IO.File.Delete(currentPath);
+                            }
+                        }
+                        foreach (KeyValuePair<string, string> backup in backupFilesByOriginalPath)
+                        {
+                            if (!System.IO.File.Exists(backup.Value))
+                                throw new Exception("Missing temporary backup for " + backup.Key);
+                            System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(backup.Key));
+                            System.IO.File.Copy(backup.Value, backup.Key, true);
                         }
                     }
-                    foreach (KeyValuePair<string, string> backup in backupFilesByOriginalPath)
+                    catch (Exception restoreError)
                     {
-                        if (!System.IO.File.Exists(backup.Value))
-                            throw new Exception("Missing temporary backup for " + backup.Key);
-                        System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(backup.Key));
-                        System.IO.File.Copy(backup.Value, backup.Key, true);
+                        photoRestoreError = restoreError;
                     }
-                }
-                catch (Exception restoreError)
-                {
-                    photoRestoreError = restoreError;
                 }
 
                 if (transactionRollbackError == null && photoRestoreError == null)
