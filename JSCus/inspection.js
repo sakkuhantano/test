@@ -1907,68 +1907,25 @@ async function processInspectionApprovalasync function processInspectionApproval
         document.getElementById("inspectionApprovalNotice").textContent = "Approval tidak dapat diproses offline. Hubungkan internet lalu coba lagi.";
         return;
     }
+    const confirmed = await showConfirmation({
+        title: "Approve Inspeksi",
+        message: "Approve inspeksi ini?",
+        yesText: "Approve"
+    });
+    if (!confirmed) return;
     const remark = document.getElementById("txtInspectionApprovalRemark").value.trim();
     try {
         const approvalResult = await inspectionApprovalPost("ProcessInspectionApproval", {
-            inspectionId: Number(selectedInspectionApproval.InspectionID), action: action,
+            inspectionId: Number(selectedInspectionApproval.InspectionID), action: "APPROVE",
             employeeId: inspectionLogin.employeeid, companyId: inspectionCompanyID,
             locationId: inspectionLocationID, remark: remark
         });
         bootstrap.Modal.getOrCreateInstance(document.getElementById("inspectionApprovalDetailModal")).hide();
         document.getElementById("inspectionApprovalNotice").className = "alert alert-success py-2 small";
         document.getElementById("inspectionApprovalNotice").textContent =
-            action === "APPROVE"
-                ? (approvalResult.followUpWONo ? "Inspection berhasil di-approve. Internal WO " + approvalResult.followUpWONo + " dibuat untuk Follow Up." : "Inspection berhasil di-approve.")
-                : "Inspection di-void dan dikembalikan ke Draft.";
-        await loadInspectionApprovalQueue();
-    } catch (err) {
-        document.getElementById("inspectionApprovalNotice").className = "alert alert-danger py-2 small";
-        document.getElementById("inspectionApprovalNotice").textContent = err.message || "Gagal memproses approval.";
-    }
-}
-async function processInspectionApproval(action) {
-    if (!selectedInspectionApproval) return;
-    if (!navigator.onLine) {
-        document.getElementById("inspectionApprovalNotice").className = "alert alert-warning py-2 small";
-        document.getElementById("inspectionApprovalNotice").textContent = "Approval tidak dapat diproses offline. Hubungkan internet lalu coba lagi.";
-        return;
-    }
-    let remark = "";
-    if (action === "VOID") {
-        remark = window.prompt("Masukkan alasan Void / pengembalian ke teknisi:");
-        if (remark == null) return;
-        remark = remark.trim();
-        if (!remark) {
-            showToast("Alasan Void wajib diisi.", "warning");
-            return;
-        }
-    } else {
-        remark = window.prompt("Catatan approval (opsional):") || "";
-    }
-    const confirmed = await showConfirmation({
-        title: action === "APPROVE" ? "Approve Inspeksi" : "Void Inspeksi",
-        message: action === "APPROVE" ? "Approve inspeksi ini?" : "Void dan kembalikan inspeksi ini sebagai Draft?",
-        yesText: action === "APPROVE" ? "Approve" : "Void"
-    });
-    if (!confirmed) return;
-
-    const inspectionId = Number(selectedInspectionApproval.InspectionID);
-    try {
-        const approvalResult = await inspectionApprovalPost("ProcessInspectionApproval", {
-            inspectionId: inspectionId,
-            action: action,
-            employeeId: inspectionLogin.employeeid,
-            companyId: inspectionCompanyID,
-            locationId: inspectionLocationID,
-            remark: remark
-        });
-        document.getElementById("inspectionApprovalNotice").className = "alert alert-success py-2 small";
-        document.getElementById("inspectionApprovalNotice").textContent =
-            action === "APPROVE"
-                ? (approvalResult.followUpWONo
-                    ? "Inspection berhasil di-approve. Internal WO " + approvalResult.followUpWONo + " dibuat untuk Follow Up."
-                    : "Inspection berhasil di-approve.")
-                : "Inspection di-void dan dikembalikan ke Draft.";
+            approvalResult.followUpWONo
+                ? "Inspection berhasil di-approve. Internal WO " + approvalResult.followUpWONo + " dibuat untuk Follow Up."
+                : "Inspection berhasil di-approve.";
         await loadInspectionApprovalQueue();
     } catch (err) {
         document.getElementById("inspectionApprovalNotice").className = "alert alert-danger py-2 small";
