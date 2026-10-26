@@ -1889,15 +1889,14 @@ async function downloadWorkOrder() {
     }
 }
 async function uploadPendingWO() {
-    const v_login = getLoginData();
-    if (!v_login) return;
+    const login = getLoginData();
+    if (!login || !db) return;
 
-    const companyLocation = (v_login.curcompany || "").split(";");
+    const companyLocation = (login.curcompany || "").split(";");
     const companyId = companyLocation[0] || "";
     const locationId = companyLocation[1] || "";
-    const allowedSections = (v_login.section || "").split(";").filter(Boolean);
+    const allowedSections = (login.section || "").split(";").filter(Boolean);
 
-    // Never upload another technician's offline completion under the current login.
     const allLocal = await new Promise((resolve, reject) => {
         const tx = db.transaction("workorder", "readonly");
         const req = tx.objectStore("workorder").getAll();
@@ -1916,73 +1915,102 @@ async function uploadPendingWO() {
         showToast("Ada WO offline dari section lain di perangkat ini. Data tersebut tetap disimpan dan tidak dikirim oleh login ini.", "warning");
     }
 
-    const list = pending.filter(x => {
+    const eligible = pending.filter(x => {
         if (x.Status === "DONE") {
-            return !!v_login.employeeid &&
-                x.InspectionOwnerID === v_login.employeeid;
+            return !!login.employeeid && x.InspectionOwnerID === login.employeeid;
         }
         if (x.StatusSPV === "PENDING") {
-            return !!v_login.employeeid &&
-                x.SupervisorActionOwnerID === v_login.employeeid;
+            return !!login.employeeid && x.SupervisorActionOwnerID === login.employeeid;
         }
         return false;
     });
 
-    if (pending.length > list.length) {
+    if (pending.length > eligible.length) {
         showToast("Ada WO offline milik teknisi lain atau belum memiliki pemilik. Data tersebut tidak dikirim; login dengan akun pemilik untuk sync.", "warning");
     }
-    if (!list.length) return;
+    if (!eligible.length) return;
 
-    const rawChecklistData = [];
-    for (const wo of list) {
+    /*
+     * spUTL_WO_CheckList determines its mode for the WHOLE request:
+     * an empty checklist table means SPV action; a non-empty one means technician upload.
+     * Never mix these two categories in one request, or a combined-role login could
+     * accidentally submit an SPV action through the technician branch (or vice versa).
+     */
+    const technicianWOs = eligible.filter(x => x.Status === "DONE");
+    const supervisorWOs = eligible.filter(x => x.Status !== "DONE" && x.StatusSPV === "PENDING");
+
+    if (technicianWOs.length) {
+        await uploadWOGroup(technicianWOs, "TECHNICIAN");
+    }
+    if (supervisorWOs.length) {
+        await uploadWOGroup(supervisorWOs, "SUPERVISOR");
+    }
+}
+
+async function uploadWOGroup(workOrders, mode) {
+    const login = getLoginData();
+    if (!login || !workOrders || !workOrders.length) return;
+
+    const rawItems = [];
+    for (const wo of workOrders) {
         const checklist = await new Promise((resolve, reject) => {
             const tx = db.transaction("wo_checklist", "readonly");
             const req = tx.objectStore("wo_checklist").get(wo.KeyHD);
             req.onsuccess = () => resolve(req.result);
             req.onerror = () => reject(req.error);
         });
-        if (checklist && checklist.Items) {
-            rawChecklistData.push({ wo, checklist });
+
+        if (!checklist || !Array.isArray(checklist.Items)) {
+            showToast("WO " + (wo.WONo || wo.KeyHD) + " belum memiliki data checklist lokal. Data tetap tersimpan dan tidak di-upload.", "warning");
+            continue;
         }
+        if (mode === "TECHNICIAN" && checklist.Items.length === 0) {
+            // The stored procedure infers SPV mode when the entire checklist table is empty.
+            // Do not let an empty technician payload be misinterpreted as an SPV action.
+            showToast("WO " + (wo.WONo || wo.KeyHD) + " tidak memiliki item checklist. Data tetap pending untuk diperiksa.", "warning");
+            continue;
+        }
+        rawItems.push({ wo, checklist });
     }
+    if (!rawItems.length) return;
 
-    const submittedWorkOrders = rawChecklistData.map(itemData => itemData.wo);
-    if (!submittedWorkOrders.length) return;
-
-    const checklists = [];
-    const checklistgroups = [];
-    const checklistsummarys = [];
-    const photos = [];
-
-    for (const itemData of rawChecklistData) {
+    const prepared = [];
+    for (const itemData of rawItems) {
         const wo = itemData.wo;
         const data = itemData.checklist;
+        const itemPayload = {
+            wo,
+            checklists: [],
+            checklistgroups: [],
+            checklistsummarys: [{
+                KeyHD: wo.KeyHD,
+                Summary: data.Summary || "",
+                FollowUp: data.FollowUp || "",
+                RemarkSPV: data.RemarkSPV || "",
+                ActionSPV: wo.ActionSPV || "",
+                Reason: wo.ReasonVoid || "",
+                FollowUpSection: data.FollowUpSection || "",
+                FollowUpRemark: data.FollowUpRemark || "",
+                StartTime: data.StartTime || "",
+                EndTime: data.EndTime || ""
+            }],
+            photos: []
+        };
 
-        checklistsummarys.push({
-            KeyHD: wo.KeyHD,
-            Summary: data.Summary || "",
-            FollowUp: data.FollowUp || "",
-            RemarkSPV: data.RemarkSPV || "",
-            ActionSPV: wo.ActionSPV || "",
-            Reason: wo.ReasonVoid || "",
-            FollowUpSection: data.FollowUpSection || "",
-            FollowUpRemark: data.FollowUpRemark || "",
-            StartTime: data.StartTime || "",
-            EndTime: data.EndTime || ""
-        });
-
-        if (wo.Status === "DONE") {
+        if (mode === "TECHNICIAN") {
             for (const item of (data.Items || [])) {
-                checklists.push({
+                itemPayload.checklists.push({
                     KeyHD: data.KeyHD,
                     IDItem: item.IDItem,
                     Value: item.Value || "",
-                    Remark: item.Remark || "",
+                    Remark: item.Remark || item.Remark1 || "",
+                    Remark1: item.Remark1 == null ? (item.Remark || "") : item.Remark1,
+                    Remark2: item.Remark2 || "",
                     IsAnomali: item.IsAnomali || false
                 });
                 if (item.Type === "GROUP" && item.Values) {
                     for (const key in item.Values) {
-                        checklistgroups.push({
+                        itemPayload.checklistgroups.push({
                             KeyHD: data.KeyHD,
                             IDItem: item.IDItem,
                             FieldName: key,
@@ -1996,48 +2024,86 @@ async function uploadPendingWO() {
             let after = await getPhotosByWO(wo.KeyHD, "AFTER");
             before = await convertPhotosToBase64(before);
             after = await convertPhotosToBase64(after);
-            before.forEach(photo => photos.push({
+            before.forEach(photo => itemPayload.photos.push({
                 KeyHD: wo.KeyHD, Type: "WO1", FileName: photo.FileName,
                 OrderNo: photo.OrderNo, Base64: photo.Base64
             }));
-            after.forEach(photo => photos.push({
+            after.forEach(photo => itemPayload.photos.push({
                 KeyHD: wo.KeyHD, Type: "WO2", FileName: photo.FileName,
                 OrderNo: photo.OrderNo, Base64: photo.Base64
             }));
         } else {
             let sampling = await getPhotosByWO(wo.KeyHD, "SAMPLING");
             sampling = await convertPhotosToBase64(sampling);
-            sampling.forEach(photo => photos.push({
+            sampling.forEach(photo => itemPayload.photos.push({
                 KeyHD: wo.KeyHD, Type: "WO3", FileName: photo.FileName,
                 OrderNo: photo.OrderNo, Base64: photo.Base64
             }));
         }
+        prepared.push(itemPayload);
     }
+    if (!prepared.length) return;
 
-    try {
-        const response = await fetch("workorder.aspx/SyncWO", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                checklists,
-                checklistgroups,
-                photos,
-                userid: v_login.employeeid,
-                checklistsummarys
-            })
-        });
-        const resultText = await response.text();
-        const result = JSON.parse(resultText).d;
+    // Keep requests conservatively below common IIS/ASP.NET request-size limits.
+    // Each batch contains whole WOs, so checklist/photo/summary rows never split across requests.
+    const maxRequestChars = 1800000;
+    const batches = [];
+    let batch = [];
+    const payloadFor = items => ({
+        checklists: items.flatMap(x => x.checklists),
+        checklistgroups: items.flatMap(x => x.checklistgroups),
+        photos: items.flatMap(x => x.photos),
+        userid: login.employeeid,
+        checklistsummarys: items.flatMap(x => x.checklistsummarys)
+    });
 
-        if (result.success) {
-            for (const wo of submittedWorkOrders) {
-                await markWOSynced(wo, result.serverTime);
-            }
+    for (const item of prepared) {
+        const candidate = batch.concat([item]);
+        const candidateSize = JSON.stringify(payloadFor(candidate)).length;
+        if (batch.length && candidateSize > maxRequestChars) {
+            batches.push(batch);
+            batch = [item];
         } else {
-            alert(result.message);
+            batch = candidate;
         }
-    } catch (ex) {
-        alert("FETCH ERROR\n\n" + ex.toString());
+    }
+    if (batch.length) batches.push(batch);
+
+    for (const batchItems of batches) {
+        const body = payloadFor(batchItems);
+        const bodyText = JSON.stringify(body);
+        if (bodyText.length > maxRequestChars) {
+            const labels = batchItems.map(x => x.wo.WONo || x.wo.KeyHD).join(", ");
+            showToast("Upload WO ditunda karena ukuran foto/data terlalu besar (" + labels + "). Data lokal tetap pending; kecilkan foto atau tinjau batas request server.", "warning");
+            continue;
+        }
+
+        try {
+            const response = await fetch("workorder.aspx/SyncWO", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: bodyText
+            });
+            const responseText = await response.text();
+            let envelope;
+            try {
+                envelope = JSON.parse(responseText);
+            } catch (_) {
+                throw new Error("Respons server bukan JSON (HTTP " + response.status + ").");
+            }
+            const result = envelope && envelope.d ? envelope.d : envelope;
+            if (!response.ok || !result || result.success !== true) {
+                throw new Error((result && result.message) || ("HTTP " + response.status));
+            }
+
+            // Mark only the WOs in this confirmed-success batch. Failed batches remain retryable.
+            for (const item of batchItems) {
+                await markWOSynced(item.wo, result.serverTime);
+            }
+        } catch (ex) {
+            console.error("WO sync failed; this batch remains pending:", mode, batchItems.map(x => x.wo.KeyHD), ex);
+            showToast("Sync WO " + mode + " gagal. Data lokal tetap pending dan akan dicoba lagi. " + ex.message, "warning");
+        }
     }
 }
 async function markWOSynced(wo, lastUpdate) {
