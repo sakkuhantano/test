@@ -42,6 +42,9 @@ document.addEventListener("DOMContentLoaded", async function () {
                 showInspectionNotice("Akun ini tidak memiliki akses approval Inspection.", "warning");
                 return;
             }
+            // Approval uses the exact same cached, versioned checklist template as technician entry.
+            if (typeof db === "undefined" || !db) await initIndexedDB();
+            if (db.objectStoreNames.contains("inspection_templates")) await loadInspectionCache();
             document.getElementById("inspectionNotice").classList.add("d-none");
             ["inspectionStartPanel", "inspectionFormPanel"].forEach(id => document.getElementById(id).classList.add("d-none"));
             document.querySelectorAll(".inspection-card").forEach(el => {
