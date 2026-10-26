@@ -1100,7 +1100,7 @@ ORDER BY G.DisplayOrder",
                     new SqlParameter("@p_EmployeeID", employeeId),
                     new SqlParameter("@p_CompanyID", companyId),
                     new SqlParameter("@p_LocationID", locationId),
-                    new SqlParameter("@p_Remark", String.IsNullOrEmpty(remark) ? (object)DBNull.Value : remark)
+                    new SqlParameter("@p_Remark", String.IsNullOrEmpty(remark) ? "" : remark)
                 }, true, true);
                 string followUpWONo = saved.Rows.Count > 0 && saved.Columns.Contains("FollowUpWONo") && saved.Rows[0]["FollowUpWONo"] != DBNull.Value
                     ? Convert.ToString(saved.Rows[0]["FollowUpWONo"]) : "";
