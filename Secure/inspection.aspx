@@ -65,17 +65,62 @@
             <button type="button" id="btnRefreshInspectionApproval" class="btn btn-sm btn-outline-primary">Refresh</button>
         </div>
         <div id="inspectionApprovalNotice" class="alert alert-info py-2 small">Memuat antrean approval...</div>
-        <div class="row g-2 mb-3"><div class="col-12 col-md-4"><label for="selApprovalType" class="form-label small mb-1">Inspection Type</label><select id="selApprovalType" class="form-select form-select-sm"><option value="">All types</option></select></div><div class="col-12 col-md-4"><label for="selApprovalDetail" class="form-label small mb-1">Inspection Detail</label><select id="selApprovalDetail" class="form-select form-select-sm"><option value="">All details</option></select></div><div class="col-12 col-md-4"><label for="selApprovalTemplate" class="form-label small mb-1">Template</label><select id="selApprovalTemplate" class="form-select form-select-sm"><option value="">All templates</option></select></div></div><div class="d-flex flex-wrap align-items-center gap-2 mb-3"><button type="button" id="btnApprovalSelectAll" class="btn btn-sm btn-outline-secondary">Select all filtered</button><button type="button" id="btnBatchApproveInspection" class="btn btn-sm btn-success">Approve selected</button><button type="button" id="btnBatchVoidInspection" class="btn btn-sm btn-outline-danger">Void selected</button></div>
-        <div class="row g-3">
-            <div class="col-12 col-lg-5"><div id="inspectionApprovalQueue" class="small">Memuat antrean...</div></div>
-            <div class="col-12 col-lg-7">
-                <div id="inspectionApprovalDetail" class="small text-muted">Pilih inspeksi untuk melihat detail checklist.</div>
-                <div id="inspectionApprovalActions" class="d-flex gap-2 mt-3 d-none">
-                    <button type="button" id="btnApproveInspection" class="btn btn-success flex-fill">Approve</button>
-                    <button type="button" id="btnVoidInspection" class="btn btn-outline-danger flex-fill">Void / Return to Technician</button>
+        <div class="row g-2 mb-3">
+            <div class="col-12 col-md-4"><label for="selApprovalType" class="form-label small mb-1">Inspection Type</label><select id="selApprovalType" class="form-select form-select-sm"><option value="">All types</option></select></div>
+            <div class="col-12 col-md-4"><label for="selApprovalDetail" class="form-label small mb-1">Inspection Type Detail</label><select id="selApprovalDetail" class="form-select form-select-sm"><option value="">All details</option></select></div>
+            <div class="col-12 col-md-4"><label for="selApprovalTemplate" class="form-label small mb-1">Template</label><select id="selApprovalTemplate" class="form-select form-select-sm"><option value="">All templates</option></select></div>
+        </div>
+        <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+            <button type="button" id="btnApprovalSelectAll" class="btn btn-sm btn-outline-secondary">Select all filtered</button>
+            <button type="button" id="btnBatchApproveInspection" class="btn btn-sm btn-success">Approve selected</button>
+            <button type="button" id="btnBatchVoidInspection" class="btn btn-sm btn-outline-danger">Void selected</button>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-sm table-hover align-middle">
+                <thead><tr>
+                    <th><input type="checkbox" id="chkAllInspectionApproval" class="form-check-input" aria-label="Select all filtered inspections"></th>
+                    <th>Transaction No.</th><th>Inspection Type</th><th>Inspection Type Detail</th>
+                    <th>Date</th><th>Scheduled</th><th>Start – End</th><th>Technician</th>
+                </tr></thead>
+                <tbody id="inspectionApprovalQueue"><tr><td colspan="8" class="text-muted py-3">Memuat antrean...</td></tr></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="modal fade" id="inspectionApprovalDetailModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header"><div><h5 class="modal-title mb-0">Inspection Approval</h5><div id="inspectionApprovalModalSubtitle" class="inspection-muted"></div></div><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+                <div class="modal-body">
+                    <ul class="nav nav-tabs mb-3" role="tablist">
+                        <li class="nav-item"><button class="nav-link active" id="inspectionApprovalParamTab" data-bs-toggle="tab" data-bs-target="#inspectionApprovalParamPane" type="button" role="tab">PARAMETERS</button></li>
+                        <li class="nav-item"><button class="nav-link" id="inspectionApprovalChecklistTab" data-bs-toggle="tab" data-bs-target="#inspectionApprovalChecklistPane" type="button" role="tab">CHECKLIST</button></li>
+                    </ul>
+                    <div class="tab-content">
+                        <div class="tab-pane fade show active" id="inspectionApprovalParamPane"><div id="inspectionApprovalParameters"></div></div>
+                        <div class="tab-pane fade" id="inspectionApprovalChecklistPane"><div id="inspectionApprovalDetail" class="small"></div></div>
+                    </div>
+                    <div class="mt-4 border-top pt-3">
+                        <label for="txtInspectionApprovalRemark" class="form-label fw-semibold">Approval Remark (optional)</label>
+                        <textarea id="txtInspectionApprovalRemark" class="form-control" rows="3" maxlength="500" placeholder="Catatan supervisor..."></textarea>
+                    </div>
                 </div>
+                <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button><button type="button" id="btnApproveInspection" class="btn btn-success">Approve</button><button type="button" id="btnVoidInspection" class="btn btn-outline-danger">Void</button></div>
             </div>
         </div>
+    </div>
+
+    <div class="modal fade" id="inspectionApprovalActionModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog"><div class="modal-content">
+            <div class="modal-header"><h5 class="modal-title" id="inspectionApprovalActionTitle">Approval action</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+            <div class="modal-body">
+                <div id="inspectionApprovalActionDescription" class="small text-muted mb-3"></div>
+                <label for="txtInspectionApprovalActionRemark" class="form-label" id="lblInspectionApprovalActionRemark">Remark</label>
+                <textarea id="txtInspectionApprovalActionRemark" class="form-control" rows="4" maxlength="500"></textarea>
+                <div id="inspectionApprovalActionError" class="text-danger small mt-2 d-none"></div>
+            </div>
+            <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button><button type="button" id="btnConfirmInspectionApprovalAction" class="btn btn-primary">Confirm</button></div>
+        </div></div>
     </div>
     <div id="inspectionNotice" class="alert alert-info py-2 small mb-3">
         Pilih Inspection Type, detail inspeksi, lalu template. Data tersimpan di perangkat dan hanya disinkronkan oleh teknisi pemiliknya.
