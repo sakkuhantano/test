@@ -701,8 +701,7 @@ WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID
             SqlParameter[] filterOptionParameters = new SqlParameter[] {
                 new SqlParameter("@EmployeeID", employeeId),
                 new SqlParameter("@CompanyID", companyId),
-                new SqlParameter("@LocationID", locationId),
-                new SqlParameter("@ApprovalTab", approvalTab)
+                new SqlParameter("@LocationID", locationId)
             };
 
             using (var br = new WAL.BR.CF())
@@ -711,10 +710,6 @@ WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID
 SELECT DISTINCT I.InspectionTypeCode, I.InspectionTypeName,
        I.InspectionTypeDetailCode, I.InspectionTypeDetailName,
        I.IDTemplate, I.TemplateNo" + fromWhere + @"
-  AND (
-       (@ApprovalTab='OUTSTANDING' AND ISNULL(I.IsApprove,0)=0 AND ISNULL(I.ApprovedBy,'')='' AND ISNULL(I.ApprovedDate,CONVERT(DATETIME,'19000101',112))<=CONVERT(DATETIME,'19000101',112) AND ISNULL(I.ApprovalRemark,'')='' AND ISNULL(I.ReasonVoid,'')='')
-       OR (@ApprovalTab='APPROVED' AND ISNULL(I.IsApprove,0)=1 AND ISNULL(I.ApprovedBy,'')<>'' AND ISNULL(I.ApprovedDate,CONVERT(DATETIME,'19000101',112))>CONVERT(DATETIME,'19000101',112))
-  )
 ORDER BY I.InspectionTypeName, I.InspectionTypeDetailName, I.TemplateNo",
                     filterOptionParameters);
 
