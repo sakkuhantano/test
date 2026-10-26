@@ -37,8 +37,8 @@ DECLARE @tbl_SubSection TABLE
 INSERT @tbl_SubSection SELECT C1, C2, C3, C4, C5 FROM @p_dt_SubSection
 
 DECLARE @tbl_Item TABLE 
-(IDItem INT, RuntimeItemID INT, RuntimeSectionID INT, ItemLabel VARCHAR(500), ItemType VARCHAR(20), Unit VARCHAR(20), IsRemark1Required BIT, IsRemark2Required BIT, IsValueRequired BIT, ShowUnitInRange BIT, OptionList VARCHAR(200), MinValue DECIMAL, MaxValue DECIMAL, DisplayOrder INT, MinTolerance MONEY, MaxTolerance MONEY, ModelCode VARCHAR(50), IsToleranceRequired BIT, RemarkRequiredOptions VARCHAR(8000), Remark1Text VARCHAR(100), Remark2Text VARCHAR(100), RuntimeSubSectionID INT, IsUseDefaultRemark1 BIT, IsUseDefaultRemark2 BIT)
-INSERT @tbl_Item SELECT C1, C2, C3, C4, C5, C6, C7, C18, C8, C9, C10, C11, C12, ISNULL(NULLIF(C22, 0), ROW_NUMBER() OVER ( PARTITION BY C3 ORDER BY (SELECT NULL))), C13, C14, C15, CAST(C16 AS BIT), C17, CASE WHEN CAST(ISNULL(NULLIF(C7, ''), '0') AS BIT)=1 THEN ISNULL(NULLIF(C19, ''), 'Remark') ELSE '' END, CASE WHEN CAST(ISNULL(NULLIF(C18, ''), '0') AS BIT)=1 THEN ISNULL(NULLIF(C20, ''), 'Remark') ELSE '' END, ISNULL(C21, 0), CAST(ISNULL(NULLIF(C23,''),'0') AS BIT), CAST(ISNULL(NULLIF(C24,''),'0') AS BIT) FROM @p_dt_Item
+(IDItem INT, RuntimeItemID INT, RuntimeSectionID INT, ItemLabel VARCHAR(500), ItemType VARCHAR(20), Unit VARCHAR(20), IsRemark1Required BIT, IsRemark2Required BIT, IsValueRequired BIT, ShowUnitInRange BIT, OptionList VARCHAR(200), MinValue DECIMAL, MaxValue DECIMAL, DisplayOrder INT, MinTolerance MONEY, MaxTolerance MONEY, ModelCode VARCHAR(50), IsToleranceRequired BIT, RemarkRequiredOptions VARCHAR(8000), Remark1Text VARCHAR(100), Remark2Text VARCHAR(100), RuntimeSubSectionID INT, IsUseDefaultRemark1 BIT, IsUseDefaultRemark2 BIT, IsRemark1Mandatory BIT, IsRemark2Mandatory BIT)
+INSERT @tbl_Item SELECT C1, C2, C3, C4, C5, C6, C7, C18, C8, C9, C10, C11, C12, ISNULL(NULLIF(C22, 0), ROW_NUMBER() OVER ( PARTITION BY C3 ORDER BY (SELECT NULL))), C13, C14, C15, CAST(C16 AS BIT), C17, CASE WHEN CAST(ISNULL(NULLIF(C7, ''), '0') AS BIT)=1 THEN ISNULL(NULLIF(C19, ''), 'Remark') ELSE '' END, CASE WHEN CAST(ISNULL(NULLIF(C18, ''), '0') AS BIT)=1 THEN ISNULL(NULLIF(C20, ''), 'Remark') ELSE '' END, ISNULL(C21, 0), CAST(ISNULL(NULLIF(C23,''),'0') AS BIT), CAST(ISNULL(NULLIF(C24,''),'0') AS BIT), CAST(ISNULL(NULLIF(PARSENAME(REPLACE(ISNULL(C25,'0|0'),'|','.'),2),''),'0') AS BIT), CAST(ISNULL(NULLIF(PARSENAME(REPLACE(ISNULL(C25,'0|0'),'|','.'),1),''),'0') AS BIT) FROM @p_dt_Item
 
 DECLARE @tbl_Group TABLE
 (IDGroup INT, RuntimeGroupID INT, RuntimeItemID INT, GroupName VARCHAR(100), FieldList VARCHAR(100), Unit VARCHAR(20), DisplayOrder INT)
@@ -387,6 +387,8 @@ SET
     I.RemarkRequiredOptions=S.RemarkRequiredOptions,
     I.IsUseDefaultRemark1=S.IsUseDefaultRemark1,
     I.IsUseDefaultRemark2=S.IsUseDefaultRemark2,
+    I.IsRemark1Mandatory=S.IsRemark1Mandatory,
+    I.IsRemark2Mandatory=S.IsRemark2Mandatory,
     I.IDSubSection = CASE WHEN ISNULL(S.RuntimeSubSectionID,0)=0 THEN NULL ELSE SubS.IDSubSection END
 FROM PIP_M_CheckListWOPM_item I
 JOIN @tbl_Item S JOIN @tbl_Section SS ON SS.RuntimeSectionID=S.RuntimeSectionID ON I.IDItem = S.IDItem
@@ -412,7 +414,7 @@ USING (
         v.RuntimeSectionID,
         v.ItemLabel, v.ItemType, V.Unit, V.IsRemark1Required, V.IsRemark2Required, V.IsValueRequired, V.ShowUnitInRange,
         v.OptionList, v.MinValue, v.MaxValue, v.DisplayOrder,
-        tmpl.IDSection, subMap.IDSubSection, v.MinTolerance, v.MaxTolerance, v.ModelCode, v.IsToleranceRequired, v.RemarkRequiredOptions, v.Remark1Text, v.Remark2Text, v.IsUseDefaultRemark1, v.IsUseDefaultRemark2,
+        tmpl.IDSection, subMap.IDSubSection, v.MinTolerance, v.MaxTolerance, v.ModelCode, v.IsToleranceRequired, v.RemarkRequiredOptions, v.Remark1Text, v.Remark2Text, v.IsUseDefaultRemark1, v.IsUseDefaultRemark2, v.IsRemark1Mandatory, v.IsRemark2Mandatory,
         (SELECT ISNULL(MAX(IDItem), 0) FROM PIP_M_CheckListWOPM_item) 
         + ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) AS NewIDItem
     FROM @tbl_Item v
@@ -427,10 +429,10 @@ USING (
 ON 1 = 0 -- Trik agar selalu memicu aksi INSERT
 WHEN NOT MATCHED THEN
     INSERT (IDSection,IDSubSection,IDItem,ItemLabel,ItemType,OptionList,MinValue,MaxValue,Unit,
-            ShowUnitInRange,IsValueRequired,IsRemark1Required,IsRemark2Required,Remark1Text,Remark2Text,DisplayOrder,MinTolerance,MaxTolerance,ModelCode,IsToleranceRequired,RemarkRequiredOptions,IsUseDefaultRemark1,IsUseDefaultRemark2)
+            ShowUnitInRange,IsValueRequired,IsRemark1Required,IsRemark2Required,Remark1Text,Remark2Text,DisplayOrder,MinTolerance,MaxTolerance,ModelCode,IsToleranceRequired,RemarkRequiredOptions,IsUseDefaultRemark1,IsUseDefaultRemark2,IsRemark1Mandatory,IsRemark2Mandatory)
     VALUES (source.IDSection, source.IDSubSection, source.NewIDItem, source.ItemLabel, source.ItemType, source.OptionList, source.MinValue, source.MaxValue, source.Unit,
             source.ShowUnitInRange, source.IsValueRequired, source.IsRemark1Required, source.IsRemark2Required, source.Remark1Text, source.Remark2Text, source.DisplayOrder,
-            source.MinTolerance, source.MaxTolerance, source.ModelCode,source.IsToleranceRequired,source.RemarkRequiredOptions,source.IsUseDefaultRemark1,source.IsUseDefaultRemark2)
+            source.MinTolerance, source.MaxTolerance, source.ModelCode,source.IsToleranceRequired,source.RemarkRequiredOptions,source.IsUseDefaultRemark1,source.IsUseDefaultRemark2,source.IsRemark1Mandatory,source.IsRemark2Mandatory)
 OUTPUT
 	'Item' Entity, 
     source.RuntimeItemID,  
