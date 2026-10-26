@@ -186,11 +186,10 @@ SELECT ID FROM @AutoNumResult;",
 
                         string photoFolder = GetInspectionPhotoFolder(companyId, locationId, inspectionDate, inspectionNo);
                         var createdPhotoPaths = new List<string>();
-                        var photoTable = new DataTable();
-                        photoTable.Columns.Add("PhotoType", typeof(string));
-                        photoTable.Columns.Add("FileName", typeof(string));
-                        photoTable.Columns.Add("FileType", typeof(string));
-                        photoTable.Columns.Add("SeqNo", typeof(int));
+                        // dbo.Type_N_Tbl_C5: C1=PhotoType, C2=FileName, C3=FileType, C4=SeqNo; C5 unused.
+                        DataTable photoTable = new DataTable();
+                        for (int i = 1; i <= 5; i++)
+                            photoTable.Columns.Add("C" + i, typeof(string));
 
                         // Keep this flag outside the try so the catch can inspect it.
                         bool sqlCallReturned = false;
@@ -208,7 +207,12 @@ SELECT ID FROM @AutoNumResult;",
                                 string fullPath = Path.Combine(photoFolder, fileName + "." + photo.Item3);
                                 createdPhotoPaths.Add(fullPath);
                                 File.WriteAllBytes(fullPath, photo.Item4);
-                                photoTable.Rows.Add(photo.Item1, fileName, photo.Item3, photo.Item2);
+                                photoTable.Rows.Add(
+                                    photo.Item1,
+                                    fileName,
+                                    photo.Item3,
+                                    photo.Item2.ToString(CultureInfo.InvariantCulture),
+                                    ""); // C5 is intentionally initialized but unused.
                             }
 
                             syncStage = "save header, checklist, and photo metadata atomically";
