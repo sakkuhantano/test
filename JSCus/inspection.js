@@ -1,4 +1,5 @@
 let inspectionLogin = null;
+let inspectionTechnicianName = "";
 let inspectionCompanyID = "";
 let inspectionLocationID = "";
 let inspectionTypes = [];
@@ -26,6 +27,7 @@ let inspectionFollowUpSections = [
 document.addEventListener("DOMContentLoaded", async function () {
     try {
         inspectionLogin = getLoginData();
+        inspectionTechnicianName = inspectionLogin && (inspectionLogin.name || inspectionLogin.Name || inspectionLogin.employeename || inspectionLogin.employeeName) || "";
         if (!inspectionLogin || !inspectionLogin.employeeid) {
             window.location.href = "../Login.aspx";
             return;
@@ -467,7 +469,7 @@ async function startNewInspection() {
         LocationID: inspectionLocationID,
         SectionID: type.SectionID,
         OwnerEmployeeID: inspectionLogin.employeeid,
-        TechnicianName: inspectionLogin.name || inspectionLogin.Name || inspectionLogin.employeename || inspectionLogin.employeeName || inspectionLogin.employeeid,
+        TechnicianName: inspectionTechnicianName || inspectionLogin.employeeid,
         InspectionTypeCode: type.InspectionTypeCode,
         InspectionTypeName: type.InspectionTypeName,
         InspectionTypeDetailCode: detail.InspectionTypeDetailCode,
@@ -538,6 +540,7 @@ async function renderInspectionForm(record, readOnly) {
     updateInspectionFollowUpPanel();
 
     const template = record.TemplateSnapshot || {};
+    document.getElementById("txtInspectionSummary").placeholder = template.SummarySampleText || "";
     const savedItems = record.Items || [];
     const host = document.getElementById("inspectionChecklistHost");
     if (!template.sections || !template.sections.length) {
@@ -568,25 +571,31 @@ async function renderInspectionForm(record, readOnly) {
                     type: "subsection",
                     order: Number(first.subSectionOrder || first.SubSectionOrder || 0),
                     name: first.subSectionName || first.SubSectionName || "Sub-section",
+                    subId: subId,
                     items: groupItems.sort((a, b) =>
                         Number(a.itemOrder || a.DisplayOrder || 0) - Number(b.itemOrder || b.DisplayOrder || 0))
                 });
             });
             elements.sort((a, b) => a.order - b.order);
 
+            const sectionCollapseId = "inspectionSection_" + String(section.idSection || sectionIndex).replace(/[^a-zA-Z0-9_-]/g, "_") + "_" + sectionIndex;
             const contentHtml = elements.map(element => {
                 if (element.type === "subsection") {
-                    return '<div class="inspection-subsection-heading mt-3 mb-2 pb-2 border-bottom fw-semibold text-secondary">' +
-                        '<i class="bi bi-folder2-open me-2"></i>' + escInspection(element.name) + '</div>' +
-                        element.items.map(item => renderInspectionItem(item, savedItems, currentInspectionReadOnly)).join("");
+                    const subsectionCollapseId = sectionCollapseId + "_sub_" + String(element.subId).replace(/[^a-zA-Z0-9_-]/g, "_");
+                    return '<div class="inspection-subsection-heading border rounded mb-2">' +
+                        '<button type="button" class="btn btn-light text-start w-100 fw-semibold text-secondary" data-bs-toggle="collapse" data-bs-target="#' + subsectionCollapseId + '" aria-expanded="true" aria-controls="' + subsectionCollapseId + '">' +
+                        '<i class="bi bi-folder2-open me-2"></i>' + escInspection(element.name) + '<i class="bi bi-chevron-down float-end"></i></button>' +
+                        '<div id="' + subsectionCollapseId + '" class="collapse show px-2 pb-2">' +
+                        element.items.map(item => renderInspectionItem(item, savedItems, currentInspectionReadOnly)).join("") +
+                        '</div></div>';
                 }
                 return renderInspectionItem(element.item, savedItems, currentInspectionReadOnly);
             }).join("");
 
-            return '<section class="mb-4">' +
-                '<div class="fw-bold border-bottom pb-2 mb-3">' +
-                (sectionIndex + 1) + '. ' + escInspection(section.sectionName || "Checklist") +
-                '</div>' + contentHtml + '</section>';
+            return '<section class="mb-4 border rounded p-2">' +
+                '<button type="button" class="btn btn-light text-start w-100 fw-bold mb-2" data-bs-toggle="collapse" data-bs-target="#' + sectionCollapseId + '" aria-expanded="true" aria-controls="' + sectionCollapseId + '">' +
+                (sectionIndex + 1) + '. ' + escInspection(section.sectionName || "Checklist") + '<i class="bi bi-chevron-down float-end"></i></button>' +
+                '<div id="' + sectionCollapseId + '" class="collapse show">' + contentHtml + '</div></section>';
         }).join("");
     }
 
@@ -979,6 +988,12 @@ async function refreshSavedInspectionList() {
             const payload = await response.json();
             if (!response.ok) throw new Error((payload && payload.Message) || "Gagal memuat daftar submitted.");
             const result = payload && Object.prototype.hasOwnProperty.call(payload, "d") ? payload.d : payload;
+            if (result.technicianName) {
+                inspectionTechnicianName = result.technicianName;
+                inspectionRecords.forEach(record => {
+                    if (!record.TechnicianName || record.TechnicianName === record.OwnerEmployeeID) record.TechnicianName = inspectionTechnicianName;
+                });
+            }
             serverSubmittedInspectionRecords = result.data || [];
         } catch (err) {
             console.warn("Unable to refresh submitted inspections from server:", err);
@@ -1017,8 +1032,8 @@ function renderInspectionRecordTable(records, host, submitted) {
             '</div>';
         return;
     }
-    const columns = ["Inspection No.", "Date", "Schedule Time", "Start Time", "End Time",
-        "Inspection Type", "Location/Area", "Technician"];
+    const columns = ["Inspection No.", "Inspection Date/Time", "Start/End",
+        "Inspection Type", "Location/Area", "Technician"]
     const header = '<thead><tr>' + columns.map(column => '<th class="text-nowrap">' + column + '</th>').join("") + '</tr></thead>';
     const rows = records.slice().sort((a, b) =>
         String(b.StartDateTime || b.InspectionDate || "").localeCompare(String(a.StartDateTime || a.InspectionDate || ""))
@@ -1026,9 +1041,11 @@ function renderInspectionRecordTable(records, host, submitted) {
         const localId = record.LocalInspectionID || record.ClientInspectionID || "";
         const number = record.InspectionNo ||
             (localId ? "TEMP-" + String(localId).substring(0, 8).toUpperCase() : "—");
-        const start = formatInspectionDateTime(record.StartDateTime);
-        const end = formatInspectionDateTime(record.EndDateTime);
+        const start = formatInspectionClockTime(record.StartDateTime);
+        const end = formatInspectionClockTime(record.EndDateTime);
         const date = parseInspectionDate(record.InspectionDate);
+        const inspectionDateTime = date ? date + (record.ScheduledTime ? " " + record.ScheduledTime : "") : (record.ScheduledTime || "—");
+        const startEnd = (start || "—") + " - " + end;
         const localExists = !!inspectionRecords.find(item => item.LocalInspectionID === localId);
         const numberHtml = localExists
             ? '<button type="button" class="btn btn-link btn-sm p-0 text-nowrap" data-open-inspection="' + escInspection(localId) + '">' + escInspection(number) + '</button>'
@@ -1041,15 +1058,16 @@ function renderInspectionRecordTable(records, host, submitted) {
         const deleteHtml = record.SyncStatus === "CONFLICT"
             ? '<button type="button" class="btn btn-sm btn-outline-danger mt-1" data-delete-conflict="' + escInspection(localId) + '">Delete Local Transaction</button>'
             : "";
+        const technicianName = record.TechnicianName && record.TechnicianName !== record.OwnerEmployeeID
+            ? record.TechnicianName
+            : (record.OwnerEmployeeID === inspectionLogin.employeeid ? inspectionTechnicianName : "");
         return '<tr>' +
             '<td class="text-nowrap">' + numberHtml + conflictHtml + '</td>' +
-            '<td class="text-nowrap">' + escInspection(date || "—") + '</td>' +
-            '<td class="text-nowrap">' + escInspection(record.ScheduledTime || "—") + '</td>' +
-            '<td class="text-nowrap">' + escInspection(start || "—") + '</td>' +
-            '<td class="text-nowrap">' + escInspection(end || "—") + '</td>' +
+            '<td class="text-nowrap">' + escInspection(inspectionDateTime) + '</td>' +
+            '<td class="text-nowrap">' + escInspection(startEnd) + '</td>' +
             '<td>' + escInspection(record.InspectionTypeName || "—") + '</td>' +
             '<td>' + escInspection(record.InspectionTypeDetailName || "—") + '</td>' +
-            '<td>' + escInspection(record.TechnicianName || record.OwnerEmployeeID || "—") + deleteHtml + '</td>' +
+            '<td>' + escInspection(technicianName || "—") + deleteHtml + '</td>' +
             '</tr>';
     }).join("");
     host.innerHTML = '<div class="table-responsive"><table class="table table-sm table-hover align-middle mb-0">' +
@@ -1066,13 +1084,12 @@ function parseInspectionDate(value) {
     return Number.isNaN(date.getTime()) ? "" : localDateString(date);
 }
 
-function formatInspectionDateTime(value) {
+function formatInspectionClockTime(value) {
     if (!value) return "";
     const asp = String(value).match(/\/Date\((\d+)/);
     const date = asp ? new Date(Number(asp[1])) : new Date(value);
     if (Number.isNaN(date.getTime())) return "";
-    return localDateString(date) + " " +
-        String(date.getHours()).padStart(2, "0") + ":" +
+    return String(date.getHours()).padStart(2, "0") + ":" +
         String(date.getMinutes()).padStart(2, "0");
 }
 
