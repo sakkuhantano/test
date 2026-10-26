@@ -772,13 +772,21 @@ function updateWorkOrderRemarkPanels(template) {
         const itemRemark1Text = item.remark1Text || item.Remark1Text || "Remark";
         const itemRemark2Text = item.remark2Text || item.Remark2Text || "Remark";
         if (panel) panel.style.display = (show1 || show2) ? "" : "none";
+        const remark1Mandatory = show1 && ((!!item.isRemark1Mandatory && baseRemark1Required) || optionRequires);
+        const remark2Mandatory = show2 && ((!!item.isRemark2Mandatory && baseRemark2Required) || optionRequires);
         if (remark1) {
             remark1.style.display = show1 ? "" : "none";
-            remark1.placeholder = optionRequires && !baseRemark1Required ? versionRemark1Text : itemRemark1Text;
+            const remark1Label = optionRequires && !baseRemark1Required ? versionRemark1Text : itemRemark1Text;
+            remark1.placeholder = remark1Label + (remark1Mandatory ? " (wajib)" : "");
+            remark1.required = remark1Mandatory;
+            remark1.setAttribute("aria-required", remark1Mandatory ? "true" : "false");
         }
         if (remark2) {
             remark2.style.display = show2 ? "" : "none";
-            remark2.placeholder = optionRequires && !baseRemark2Required ? versionRemark2Text : itemRemark2Text;
+            const remark2Label = optionRequires && !baseRemark2Required ? versionRemark2Text : itemRemark2Text;
+            remark2.placeholder = remark2Label + (remark2Mandatory ? " (wajib)" : "");
+            remark2.required = remark2Mandatory;
+            remark2.setAttribute("aria-required", remark2Mandatory ? "true" : "false");
         }
     });
 }
