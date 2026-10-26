@@ -708,10 +708,10 @@ function renderInspectionSections(template, savedItems, readOnly, idPrefix) {
                     '<button type="button" class="btn btn-light text-start w-100 fw-semibold text-secondary" data-bs-toggle="collapse" data-bs-target="#' + subsectionCollapseId + '" aria-expanded="true" aria-controls="' + subsectionCollapseId + '">' +
                     '<i class="bi bi-folder2-open me-2"></i>' + escInspection(element.name) + '<i class="bi bi-chevron-down float-end"></i></button>' +
                     '<div id="' + subsectionCollapseId + '" class="collapse show px-2 pb-2">' +
-                    element.items.map(item => renderInspectionItem(item, savedItems, readOnly)).join("") +
+                    element.items.map(item => renderInspectionItem(item, savedItems, readOnly, prefix === "inspectionApprovalSection" ? "approval" : "inspection")).join("") +
                     '</div></div>';
             }
-            return renderInspectionItem(element.item, savedItems, readOnly);
+            return renderInspectionItem(element.item, savedItems, readOnly, prefix === "inspectionApprovalSection" ? "approval" : "inspection");
         }).join("");
         return '<section class="mb-4 border rounded p-2">' +
             '<button type="button" class="btn btn-light text-start w-100 fw-bold mb-2" data-bs-toggle="collapse" data-bs-target="#' + sectionCollapseId + '" aria-expanded="true" aria-controls="' + sectionCollapseId + '">' +
@@ -720,10 +720,11 @@ function renderInspectionSections(template, savedItems, readOnly, idPrefix) {
     }).join("");
 }
 
-function renderInspectionItem(item, savedItems, readOnly) {
+function renderInspectionItem(item, savedItems, readOnly, idPrefix) {
     const saved = savedItems.find(x => Number(x.IDItem) === Number(item.idItem)) || {};
     const type = String(item.type || "").toUpperCase();
     const id = Number(item.idItem);
+    const controlPrefix = idPrefix || "inspection";
     const disabled = readOnly ? " disabled" : "";
     const required = item.isValueRequired ? " required" : "";
     let control = "";
@@ -731,8 +732,8 @@ function renderInspectionItem(item, savedItems, readOnly) {
     if (type === "OPTION") {
         const options = String(item.optionList || "").split(";").map(x => x.trim()).filter(Boolean);
         control = '<div class="inspection-option-list d-flex flex-wrap gap-2" data-role="option-list">' + options.map((option, index) => {
-            const optionId = "inspection_opt_" + id + "_" + index;
-            return '<input class="btn-check" type="radio" data-role="value" name="inspection_opt_' + id + '" id="' + optionId + '" value="' + escInspection(option) + '"' +
+            const optionId = controlPrefix + "_opt_" + id + "_" + index;
+            return '<input class="btn-check" type="radio" data-role="value" name="' + controlPrefix + "_opt_" + id + '" id="' + optionId + '" value="' + escInspection(option) + '"' +
                 (String(saved.Value || "") === option ? " checked" : "") + disabled + '><label class="btn btn-outline-primary inspection-option-choice" for="' + optionId + '">' + escInspection(option) + '</label>';
         }).join("") + '</div>';
     } else if (type === "GROUP") {
@@ -794,7 +795,7 @@ function renderInspectionItem(item, savedItems, readOnly) {
           escInspection(saved.Remark2 || "") + '"' + disabled + (showRemark2 && (!!item.isRemark2Mandatory || selectedOptionRequiresRemark) ? ' required' : '') + '></div>'
         : "";
 
-    return '<div class="inspection-item" data-item-id="' + id + '" data-item-type="' + escInspection(type) +
+    return '<div class="inspection-item' + (saved.IsAnomali ? ' anomaly' : '') + '" data-item-id="' + id + '" data-item-type="' + escInspection(type) +
         '" data-min="' + escInspection(item.min == null ? "" : item.min) +
         '" data-max="' + escInspection(item.max == null ? "" : item.max) +
         '" data-required="' + (item.isValueRequired ? "1" : "0") +
