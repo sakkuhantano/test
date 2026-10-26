@@ -22,6 +22,21 @@ document.addEventListener('gesturestart', function (event) {
     event.preventDefault(); // Khusus untuk browser Safari/iOS
 });
 
+function inspectionWallClockDateTime(value) {
+    if (!value) return "";
+    const raw = String(value).trim();
+    // Older offline records were saved as UTC ISO strings; convert those to the browser's local wall clock.
+    if (/Z$|[+-]\\d{2}:?\\d{2}$/i.test(raw)) {
+        const date = new Date(raw);
+        if (!Number.isNaN(date.getTime())) {
+            const pad = n => String(n).padStart(2, "0");
+            return date.getFullYear() + "-" + pad(date.getMonth() + 1) + "-" + pad(date.getDate()) +
+                "T" + pad(date.getHours()) + ":" + pad(date.getMinutes()) + ":" + pad(date.getSeconds());
+        }
+    }
+    return raw;
+}
+
 function formatMsDate(rawDate) {
     if (!rawDate) return '-';
     
@@ -1107,8 +1122,8 @@ async function uploadPendingInspections() {
         TemplateNo: record.TemplateNo,
         TemplateVersion: record.TemplateVersion || "",
         InspectionDate: record.InspectionDate || "",
-        StartDateTime: record.StartDateTime || "",
-        EndDateTime: record.EndDateTime || "",
+        StartDateTime: inspectionWallClockDateTime(record.StartDateTime),
+        EndDateTime: inspectionWallClockDateTime(record.EndDateTime),
         Status: record.Status,
         Summary: record.Summary || "",
         FollowUp: record.FollowUp === "Recommend Follow Up" ? "Recommend Follow Up" : "No Follow Up",
