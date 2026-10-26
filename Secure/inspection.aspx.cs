@@ -38,6 +38,7 @@ namespace UTL1.Secure
             foreach (JObject record in records.OfType<JObject>())
             {
                 string clientId = TokenString(record, "ClientInspectionID");
+                string syncStage = "validate request";
                 try
                 {
                     if (String.IsNullOrWhiteSpace(clientId))
@@ -52,6 +53,7 @@ namespace UTL1.Secure
                         !String.Equals(recordOwner, userId, StringComparison.OrdinalIgnoreCase))
                         throw new Exception("This offline inspection belongs to another employee. No data was uploaded.");
 
+                    syncStage = "build checklist data";
                     // dbo.Type_N_Tbl_C13: C1=IDItem, C2=ItemLabel, C3=ItemType,
                     // C4=Value, C5=Remark1, C6=IsAnomali, C7=DisplayOrder, C8=Remark2; C9-C13 unused.
                     DataTable items = new DataTable();
@@ -96,6 +98,7 @@ namespace UTL1.Secure
                     if (status != "DONE")
                         throw new Exception("Invalid inspection status.");
 
+                        syncStage = "parse inspection photos";
                         DateTime inspectionDate = ParseDate(TokenString(record, "InspectionDate"), DateTime.Today);
                         JArray photoArray = record["Photos"] as JArray ?? new JArray();
                         var incomingPhotos = new List<Tuple<string, int, string, byte[]>>();
@@ -128,6 +131,7 @@ namespace UTL1.Secure
                             incomingPhotos.Add(Tuple.Create(type, seqNo, extension, bytes));
                         }
 
+                    syncStage = "save inspection header and checklist in SQL";
                     using (var br = new WAL.BR.CF())
                     {
                         DataTable saved = br.EQueryP("spUTL_PIP_T_Inspection_Sync", new SqlParameter[]
@@ -159,10 +163,12 @@ namespace UTL1.Secure
                         if (saved == null || saved.Rows.Count == 0 || !saved.Columns.Contains("InspectionID") || saved.Rows[0]["InspectionID"] == DBNull.Value)
                             throw new Exception("Inspection sync procedure returned no saved header. Photo upload was stopped.");
 
+                        syncStage = "read saved inspection ID";
                         long inspectionId = Convert.ToInt64(saved.Rows[0]["InspectionID"]);
                         if (inspectionId <= 0)
                             throw new Exception("Inspection header was not saved; photo upload was stopped.");
 
+                        syncStage = "reload permanent inspection number";
                         string companyId = Limit(TokenString(record, "CompanyID"), 10);
                         string locationId = Limit(TokenString(record, "LocationID"), 3);
                         DataTable inspectionNoRows = br.EQueryP("SELECT InspectionNo FROM dbo.PIP_T_Inspection WHERE InspectionID=@InspectionID", new SqlParameter[] { new SqlParameter("@InspectionID", inspectionId) });
@@ -171,7 +177,9 @@ namespace UTL1.Secure
                         string inspectionNo = Convert.ToString(inspectionNoRows.Rows[0]["InspectionNo"]);
                         if (String.IsNullOrWhiteSpace(inspectionNo))
                             throw new Exception("InspectionNo is required before saving Inspection photos.");
+                        syncStage = "resolve photo storage folder";
                         string photoFolder = GetInspectionPhotoFolder(companyId, locationId, inspectionDate, inspectionNo);
+                        syncStage = "load existing photo records";
                         DataTable oldPhotoRows = br.EQueryP(@"
 SELECT FileName, FileType
 FROM dbo.PIP_T_InspectionPhoto
@@ -184,6 +192,7 @@ WHERE InspectionID=@InspectionID",
                         var createdPhotoPaths = new List<string>();
                         try
                         {
+                            syncStage = "write photo files";
                             if (incomingPhotos.Count > 0 && !Directory.Exists(photoFolder))
                                 Directory.CreateDirectory(photoFolder);
 
@@ -198,6 +207,7 @@ WHERE InspectionID=@InspectionID",
                                 savedPhotoRows.Add(Tuple.Create(photo.Item1, fileName, photo.Item3, photo.Item2, fullPath));
                             }
 
+                            syncStage = "save photo records in SQL";
                             var sql = new System.Text.StringBuilder();
                             var sqlParams = new List<SqlParameter>();
                             sql.Append("SET XACT_ABORT ON; BEGIN TRY BEGIN TRANSACTION; ");
@@ -256,15 +266,15 @@ WHERE InspectionID=@InspectionID",
                 }
                 catch (Exception ex)
                 {
-                    System.Diagnostics.Trace.TraceError("SyncInspections failed for ClientInspectionID={0}, userId={1}: {2}",
-                        clientId, userId, ex.ToString());
+                    System.Diagnostics.Trace.TraceError("SyncInspections failed at stage '{0}' for ClientInspectionID={1}, userId={2}: {3}",
+                        syncStage, clientId, userId, ex.ToString());
                     outcomes.Add(new
                     {
                         ClientInspectionID = clientId,
                         success = false,
                         InspectionID = 0,
                         InspectionNo = "",
-                        message = ex.Message
+                        message = "Stage [" + syncStage + "]: " + ex.Message
                     });
                 }
             }
@@ -281,8 +291,16 @@ WHERE InspectionID=@InspectionID",
                 !String.Equals(Path.GetFileName(inspectionNo), inspectionNo, StringComparison.Ordinal))
                 throw new Exception("Invalid Inspection photo folder identity.");
 
-            string root = HttpContext.Current.Request.ApplicationPath.Replace("/", "").Replace(PB.AppID, "PIP");
-            return Path.Combine(PB.Path_WebFolder1, root, "PIP_T_Inspection",
+            HttpContext context = HttpContext.Current;
+            if (context == null || context.Request == null)
+                throw new InvalidOperationException("HTTP request context is unavailable while preparing Inspection photo storage.");
+            string appPath = context.Request.ApplicationPath ?? "";
+            string appId = PB.AppID ?? "";
+            string root = appPath.Replace("/", "").Replace(appId, "PIP");
+            string webFolder = PB.Path_WebFolder1;
+            if (String.IsNullOrWhiteSpace(webFolder))
+                throw new InvalidOperationException("PB.Path_WebFolder1 is empty; Inspection photo storage root is not configured.");
+            return Path.Combine(webFolder, root, "PIP_T_Inspection",
                 companyId + "_" + locationId,
                 inspectionDate.ToString("yyyyMM", CultureInfo.InvariantCulture),
                 inspectionNo);
@@ -617,7 +635,7 @@ SELECT I.InspectionID, I.ClientInspectionID, I.InspectionNo, I.CompanyID, I.Loca
        I.FollowUp, I.FollowUpSection, I.FollowUpRemark, I.FollowUpWONo
 FROM dbo.PIP_T_Inspection I
 WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID
-  AND I.Status='DONE' AND I.IsApprove=0 AND I.ApprovedBy IS NULL AND I.ApprovedDate IS NULL AND ISNULL(I.ApprovalRemark,'')='' AND ISNULL(I.ReasonVoid,'')=''
+  AND I.Status='DONE' AND I.IsApprove=0 AND ISNULL(I.ApprovedBy,'')='' AND ISNULL(I.ApprovedDate,CONVERT(DATETIME,'19000101',112))<=CONVERT(DATETIME,'19000101',112) AND ISNULL(I.ApprovalRemark,'')='' AND ISNULL(I.ReasonVoid,'')=''
   AND EXISTS (
       SELECT 1 FROM dbo.UTL_User U
       WHERE U.EmployeeID=@EmployeeID AND ISNULL(U.IsSPV,0)=1
@@ -657,7 +675,7 @@ ORDER BY I.InspectionDate DESC, I.InspectionID DESC",
             {
                 DataTable rows = br.EQueryP(@"
 SELECT
-    SUM(CASE WHEN I.Status='DONE' AND I.IsApprove=0 AND I.ApprovedBy IS NULL AND I.ApprovedDate IS NULL AND ISNULL(I.ApprovalRemark,'')='' AND ISNULL(I.ReasonVoid,'')='' THEN 1 ELSE 0 END) PendingApproval,
+    SUM(CASE WHEN I.Status='DONE' AND I.IsApprove=0 AND ISNULL(I.ApprovedBy,'')='' AND ISNULL(I.ApprovedDate,CONVERT(DATETIME,'19000101',112))<=CONVERT(DATETIME,'19000101',112) AND ISNULL(I.ApprovalRemark,'')='' AND ISNULL(I.ReasonVoid,'')='' THEN 1 ELSE 0 END) PendingApproval,
     SUM(CASE WHEN ISNULL(I.IsApprove,0)=1 AND I.ApprovedDate>=CONVERT(DATETIME, CONVERT(VARCHAR(10), GETDATE(), 120), 120) THEN 1 ELSE 0 END) ApprovedToday,
     SUM(CASE WHEN I.IsApprove=0 AND I.ApprovedBy IS NOT NULL AND I.ApprovedDate IS NOT NULL THEN 1 ELSE 0 END) VoidCount
 FROM dbo.PIP_T_Inspection I
@@ -758,7 +776,7 @@ SELECT I.InspectionID, I.InspectionNo, I.CompanyID, I.LocationID, I.SectionID, I
        I.FollowUp, I.FollowUpSection, I.FollowUpRemark, I.FollowUpWONo
 FROM dbo.PIP_T_Inspection I
 WHERE I.InspectionID=@InspectionID AND I.Status='DONE'
-  AND I.IsApprove=0 AND I.ApprovedBy IS NULL AND I.ApprovedDate IS NULL AND ISNULL(I.ApprovalRemark,'')='' AND ISNULL(I.ReasonVoid,'')=''
+  AND I.IsApprove=0 AND ISNULL(I.ApprovedBy,'')='' AND ISNULL(I.ApprovedDate,CONVERT(DATETIME,'19000101',112))<=CONVERT(DATETIME,'19000101',112) AND ISNULL(I.ApprovalRemark,'')='' AND ISNULL(I.ReasonVoid,'')=''
   AND EXISTS (
       SELECT 1 FROM dbo.UTL_User U
       WHERE U.EmployeeID=@EmployeeID AND ISNULL(U.IsSPV,0)=1
@@ -1081,7 +1099,7 @@ ORDER BY G.DisplayOrder",
 
         private static object DbString(string value)
         {
-            return String.IsNullOrEmpty(value) ? (object)DBNull.Value : value;
+            return value ?? "";
         }
 
         private static string Limit(string value, int maxLength)
@@ -1099,10 +1117,10 @@ ORDER BY G.DisplayOrder",
 
         private static object ParseNullableDate(string value)
         {
-            if (String.IsNullOrWhiteSpace(value)) return DBNull.Value;
+            if (String.IsNullOrWhiteSpace(value)) return new DateTime(1900, 1, 1);
             DateTime parsed;
             if (!DateTime.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out parsed))
-                return DBNull.Value;
+                return new DateTime(1900, 1, 1);
             return parsed;
         }
     }
