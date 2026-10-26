@@ -652,21 +652,25 @@ ORDER BY I.StartDateTime DESC, I.InspectionID DESC",
         }
 
         [WebMethod]
-        public static object GetInspectionApprovalQueue(string employeeId, string companyId, string locationId)
+        public static object GetInspectionApprovalQueue(string employeeId, string companyId, string locationId,
+            string approvalTab, string dateFrom, string dateThru, string inspectionTypeCode,
+            string inspectionTypeDetailCode, string templateId)
         {
             if (String.IsNullOrWhiteSpace(employeeId))
                 throw new HttpException(403, "Supervisor identity is required.");
 
-            using (var br = new WAL.BR.CF())
-            {
-                DataTable rows = br.EQueryP(@"
-SELECT I.InspectionID, I.ClientInspectionID, I.InspectionNo, I.CompanyID, I.LocationID, I.SectionID,
-       I.InspectionTypeCode, I.InspectionTypeName, I.InspectionTypeDetailCode, I.InspectionTypeDetailName,
-       I.IDTemplate, I.IDVersion, I.ScheduledTime, I.TemplateNo, I.TemplateName, I.TemplateVersion,
-       I.InspectionDate, I.StartDateTime, I.EndDateTime, I.Summary, I.OwnerEmployeeID,
-       ISNULL(E.Name, I.OwnerEmployeeID) AS TechnicianName, I.Status, I.IsApprove,
-       I.ApprovedBy, I.ApprovedDate, I.ApprovalRemark, I.ReasonVoid,
-       I.FollowUp, I.FollowUpSection, I.FollowUpRemark, I.FollowUpWONo
+            approvalTab = String.Equals(approvalTab, "APPROVED", StringComparison.OrdinalIgnoreCase)
+                ? "APPROVED" : "OUTSTANDING";
+            DateTime fromDate;
+            DateTime thruDate;
+            if (!DateTime.TryParseExact(dateFrom, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out fromDate))
+                fromDate = DateTime.Today;
+            if (!DateTime.TryParseExact(dateThru, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out thruDate))
+                thruDate = fromDate;
+            if (fromDate > thruDate)
+                throw new HttpException(400, "Approved From tidak boleh melewati Approved Thru.");
+
+            string fromWhere = @"
 FROM dbo.PIP_T_Inspection I
 LEFT JOIN dbo.M_HRD_Employee E ON E.EmployeeID=I.OwnerEmployeeID
 WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID
@@ -686,13 +690,65 @@ WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID
           OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', U.EmployeeID, '') L
                      WHERE L.CompanyID=I.CompanyID AND L.LocationID=I.LocationID)
         )
+  )";
+
+            SqlParameter[] filterOptionParameters = new SqlParameter[] {
+                new SqlParameter("@EmployeeID", employeeId),
+                new SqlParameter("@CompanyID", companyId),
+                new SqlParameter("@LocationID", locationId),
+                new SqlParameter("@ApprovalTab", approvalTab)
+            };
+
+            using (var br = new WAL.BR.CF())
+            {
+                DataTable filterRows = br.EQueryP(@"
+SELECT DISTINCT I.InspectionTypeCode, I.InspectionTypeName,
+       I.InspectionTypeDetailCode, I.InspectionTypeDetailName,
+       I.IDTemplate, I.TemplateNo" + fromWhere + @"
+  AND (
+       (@ApprovalTab='OUTSTANDING' AND ISNULL(I.IsApprove,0)=0 AND ISNULL(I.ApprovedBy,'')='' AND ISNULL(I.ApprovedDate,CONVERT(DATETIME,'19000101',112))<=CONVERT(DATETIME,'19000101',112) AND ISNULL(I.ApprovalRemark,'')='' AND ISNULL(I.ReasonVoid,'')='')
+       OR (@ApprovalTab='APPROVED' AND ISNULL(I.IsApprove,0)=1 AND ISNULL(I.ApprovedBy,'')<>'' AND ISNULL(I.ApprovedDate,CONVERT(DATETIME,'19000101',112))>CONVERT(DATETIME,'19000101',112))
   )
+ORDER BY I.InspectionTypeName, I.InspectionTypeDetailName, I.TemplateNo",
+                    filterOptionParameters);
+
+                var filters = new List<Dictionary<string, object>>();
+                foreach (DataRow row in filterRows.Rows)
+                {
+                    var item = new Dictionary<string, object>();
+                    foreach (DataColumn col in filterRows.Columns)
+                        item[col.ColumnName] = row[col] == DBNull.Value ? null : row[col];
+                    filters.Add(item);
+                }
+
+                DataTable rows = br.EQueryP(@"
+SELECT I.InspectionID, I.ClientInspectionID, I.InspectionNo, I.CompanyID, I.LocationID, I.SectionID,
+       I.InspectionTypeCode, I.InspectionTypeName, I.InspectionTypeDetailCode, I.InspectionTypeDetailName,
+       I.IDTemplate, I.IDVersion, I.ScheduledTime, I.TemplateNo, I.TemplateName, I.TemplateVersion,
+       I.InspectionDate, I.StartDateTime, I.EndDateTime, I.Summary, I.OwnerEmployeeID,
+       ISNULL(E.Name, I.OwnerEmployeeID) AS TechnicianName, I.Status, I.IsApprove,
+       I.ApprovedBy, I.ApprovedDate, I.ApprovalRemark, I.ReasonVoid,
+       I.FollowUp, I.FollowUpSection, I.FollowUpRemark, I.FollowUpWONo" + fromWhere + @"
+  AND (
+       (ISNULL(I.IsApprove,0)=0 AND ISNULL(I.ApprovedBy,'')='' AND ISNULL(I.ApprovedDate,CONVERT(DATETIME,'19000101',112))<=CONVERT(DATETIME,'19000101',112) AND ISNULL(I.ApprovalRemark,'')='' AND ISNULL(I.ReasonVoid,'')='')
+       OR (ISNULL(I.IsApprove,0)=1 AND ISNULL(I.ApprovedBy,'')<>'' AND ISNULL(I.ApprovedDate,CONVERT(DATETIME,'19000101',112))>CONVERT(DATETIME,'19000101',112)
+           AND I.ApprovedDate>=@DateFrom AND I.ApprovedDate<DATEADD(DAY,1,@DateThru))
+  )
+  AND (@InspectionTypeCode='' OR I.InspectionTypeCode=@InspectionTypeCode)
+  AND (@InspectionTypeDetailCode='' OR I.InspectionTypeDetailCode=@InspectionTypeDetailCode)
+  AND (@TemplateId='' OR CONVERT(VARCHAR(20),I.IDTemplate)=@TemplateId)
 ORDER BY I.InspectionDate DESC, I.InspectionID DESC",
                     new SqlParameter[] {
                         new SqlParameter("@EmployeeID", employeeId),
                         new SqlParameter("@CompanyID", companyId),
-                        new SqlParameter("@LocationID", locationId)
+                        new SqlParameter("@LocationID", locationId),
+                        new SqlParameter("@DateFrom", fromDate),
+                        new SqlParameter("@DateThru", thruDate),
+                        new SqlParameter("@InspectionTypeCode", inspectionTypeCode ?? ""),
+                        new SqlParameter("@InspectionTypeDetailCode", inspectionTypeDetailCode ?? ""),
+                        new SqlParameter("@TemplateId", templateId ?? "")
                     });
+
                 var result = new List<Dictionary<string, object>>();
                 foreach (DataRow row in rows.Rows)
                 {
@@ -701,7 +757,7 @@ ORDER BY I.InspectionDate DESC, I.InspectionID DESC",
                         item[col.ColumnName] = row[col] == DBNull.Value ? null : row[col];
                     result.Add(item);
                 }
-                return new { success = true, data = result };
+                return new { success = true, data = result, filters = filters };
             }
         }
 
