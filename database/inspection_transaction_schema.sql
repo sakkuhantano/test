@@ -12,7 +12,7 @@ IF OBJECT_ID('dbo.PIP_T_Inspection', 'U') IS NULL
 BEGIN
     CREATE TABLE dbo.PIP_T_Inspection
     (
-        InspectionID BIGINT IDENTITY(1,1) NOT NULL,
+        InspectionID BIGINT NOT NULL,
         ClientInspectionID VARCHAR(36) NOT NULL,
         InspectionNo VARCHAR(10) NOT NULL CONSTRAINT DF_PIP_T_Inspection_InspectionNo DEFAULT (''),
         CompanyID VARCHAR(10) NOT NULL,
@@ -69,7 +69,7 @@ IF OBJECT_ID('dbo.PIP_T_InspectionPhoto', 'U') IS NULL
 BEGIN
  CREATE TABLE dbo.PIP_T_InspectionPhoto
  (
-  InspectionPhotoID BIGINT IDENTITY(1,1) NOT NULL,
+  InspectionPhotoID BIGINT NOT NULL,
   InspectionID BIGINT NOT NULL,
   PhotoType VARCHAR(10) NOT NULL,
   FileName VARCHAR(255) NOT NULL,
@@ -90,7 +90,7 @@ IF OBJECT_ID('dbo.PIP_T_InspectionResult', 'U') IS NULL
 BEGIN
     CREATE TABLE dbo.PIP_T_InspectionResult
     (
-        InspectionResultID BIGINT IDENTITY(1,1) NOT NULL,
+        InspectionResultID BIGINT NOT NULL,
         InspectionID BIGINT NOT NULL,
         IDItem INT NOT NULL,
         ItemLabel VARCHAR(500) NOT NULL,
@@ -263,7 +263,7 @@ IF OBJECT_ID('dbo.PIP_T_Inspection_Delete', 'U') IS NULL
 BEGIN
     CREATE TABLE dbo.PIP_T_Inspection_Delete
     (
-        DeleteArchiveID BIGINT IDENTITY(1,1) NOT NULL,
+        DeleteArchiveID BIGINT NOT NULL,
         ClientInspectionID VARCHAR(36) NOT NULL,
         ServerInspectionID BIGINT NOT NULL CONSTRAINT DF_PIP_T_Inspection_Delete_ServerInspectionID DEFAULT (0),
         InspectionNo VARCHAR(10) NOT NULL CONSTRAINT DF_PIP_T_Inspection_Delete_InspectionNo DEFAULT (''),
@@ -661,9 +661,12 @@ BEGIN
                 RAISERROR('Failed to generate InspectionNo.', 16, 1);
             END;
 
+            SELECT @V_InspectionID=ISNULL(MAX(InspectionID),0)+1
+            FROM dbo.PIP_T_Inspection WITH (UPDLOCK, HOLDLOCK);
+
             INSERT dbo.PIP_T_Inspection
             (
-                ClientInspectionID, InspectionNo, CompanyID, LocationID, SectionID,
+                InspectionID, ClientInspectionID, InspectionNo, CompanyID, LocationID, SectionID,
                 InspectionTypeCode, InspectionTypeName, InspectionTypeDetailCode,
                 InspectionTypeDetailName, ScheduledTime, IDTemplate, IDVersion,
                 TemplateNo, TemplateName, TemplateVersion, InspectionDate,
@@ -672,7 +675,7 @@ BEGIN
             )
             VALUES
             (
-                @p_ClientInspectionID, @V_InspectionNo, @p_CompanyID, @p_LocationID, @p_SectionID,
+                @V_InspectionID, @p_ClientInspectionID, @V_InspectionNo, @p_CompanyID, @p_LocationID, @p_SectionID,
                 @p_InspectionTypeCode, @V_InspectionTypeName, @p_InspectionTypeDetailCode,
                 @V_InspectionTypeDetailName, @p_ScheduledTime, @p_IDTemplate, @p_IDVersion,
                 @p_TemplateNo, @V_TemplateName, @p_TemplateVersion, @p_InspectionDate,
@@ -680,7 +683,6 @@ BEGIN
                 ISNULL(@p_FollowUpSection,''), ISNULL(@p_FollowUpRemark,''), @p_UpdateUser,
                 @p_UpdateUser, GETDATE(), @p_UpdateUser, GETDATE()
             );
-            SET @V_InspectionID=CONVERT(BIGINT, SCOPE_IDENTITY());
         END;
 
         DELETE V
@@ -691,16 +693,25 @@ BEGIN
         DELETE FROM dbo.PIP_T_InspectionResult WHERE InspectionID=@V_InspectionID;
 
         DECLARE @V_ResultMap TABLE (IDItem INT NOT NULL, InspectionResultID BIGINT NOT NULL);
+        DECLARE @V_NextResultID BIGINT;
+        SELECT @V_NextResultID=ISNULL(MAX(InspectionResultID),0)
+        FROM dbo.PIP_T_InspectionResult WITH (UPDLOCK, HOLDLOCK);
+        ;WITH ResultRows AS
+        (
+            SELECT I.*,
+                   @V_NextResultID + ROW_NUMBER() OVER (ORDER BY I.IDItem) AS NewInspectionResultID
+            FROM @tbl_Items I
+        )
         INSERT dbo.PIP_T_InspectionResult
         (
-            InspectionID, IDItem, ItemLabel, ItemType, Value, Remark1, Remark2, IsAnomali,
+            InspectionResultID, InspectionID, IDItem, ItemLabel, ItemType, Value, Remark1, Remark2, IsAnomali,
             DisplayOrder, EntryUser, EntryDate, UpdateUser, UpdateDate
         )
         OUTPUT inserted.IDItem, inserted.InspectionResultID
             INTO @V_ResultMap (IDItem, InspectionResultID)
-        SELECT @V_InspectionID, I.IDItem, I.ItemLabel, I.ItemType, I.Value, I.Remark1, I.Remark2,
+        SELECT I.NewInspectionResultID, @V_InspectionID, I.IDItem, I.ItemLabel, I.ItemType, I.Value, I.Remark1, I.Remark2,
                I.IsAnomali, I.DisplayOrder, @p_UpdateUser, GETDATE(), @p_UpdateUser, GETDATE()
-        FROM @tbl_Items I;
+        FROM ResultRows I;
 
         INSERT dbo.PIP_T_InspectionResultValue
         (
@@ -713,11 +724,20 @@ BEGIN
 
         /* Header, checklist, and photo metadata commit or roll back together. */
         DELETE FROM dbo.PIP_T_InspectionPhoto WHERE InspectionID=@V_InspectionID;
+        DECLARE @V_NextPhotoID BIGINT;
+        SELECT @V_NextPhotoID=ISNULL(MAX(InspectionPhotoID),0)
+        FROM dbo.PIP_T_InspectionPhoto WITH (UPDLOCK, HOLDLOCK);
+        ;WITH PhotoRows AS
+        (
+            SELECT P.C1, P.C2, P.C3, P.C4,
+                   @V_NextPhotoID + ROW_NUMBER() OVER (ORDER BY CAST(ISNULL(NULLIF(P.C4,''),'0') AS INT), P.C2) AS NewInspectionPhotoID
+            FROM @p_Photos P
+        )
         INSERT dbo.PIP_T_InspectionPhoto
-            (InspectionID, PhotoType, FileName, FileType, SeqNo, EntryUser, EntryDate)
-        SELECT @V_InspectionID, ISNULL(P.C1,''), ISNULL(P.C2,''), ISNULL(P.C3,''),
+            (InspectionPhotoID, InspectionID, PhotoType, FileName, FileType, SeqNo, EntryUser, EntryDate)
+        SELECT P.NewInspectionPhotoID, @V_InspectionID, ISNULL(P.C1,''), ISNULL(P.C2,''), ISNULL(P.C3,''),
                CAST(ISNULL(NULLIF(P.C4,''),'0') AS INT), @p_UpdateUser, GETDATE()
-        FROM @p_Photos P;
+        FROM PhotoRows P;
 
         COMMIT TRANSACTION;
         SELECT @V_InspectionID AS InspectionID,
