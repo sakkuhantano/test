@@ -46,6 +46,10 @@ BEGIN
         DECLARE @V_SectionID VARCHAR(10);
         DECLARE @V_Status VARCHAR(10);
         DECLARE @V_IsApprove BIT;
+        DECLARE @V_ApprovedBy VARCHAR(50);
+        DECLARE @V_ApprovedDate DATETIME;
+        DECLARE @V_ApprovalRemark VARCHAR(500);
+        DECLARE @V_ReasonVoid VARCHAR(500);
         DECLARE @V_FollowUp VARCHAR(30);
         DECLARE @V_FollowUpSection VARCHAR(10);
         DECLARE @V_FollowUpRemark VARCHAR(300);
@@ -54,6 +58,8 @@ BEGIN
         DECLARE @V_OwnerEmployeeID VARCHAR(50);
 
         SELECT @V_SectionID=SectionID, @V_Status=Status, @V_IsApprove=IsApprove,
+               @V_ApprovedBy=ApprovedBy, @V_ApprovedDate=ApprovedDate,
+               @V_ApprovalRemark=ApprovalRemark, @V_ReasonVoid=ReasonVoid,
                @V_FollowUp=ISNULL(FollowUp,'No Follow Up'),
                @V_FollowUpSection=ISNULL(FollowUpSection,''),
                @V_FollowUpRemark=ISNULL(FollowUpRemark,''),
@@ -85,7 +91,9 @@ BEGIN
         )
             RAISERROR('Supervisor is not authorized for this inspection section or company/location.', 16, 1);
 
-        IF @V_Status <> 'DONE' OR @V_IsApprove IS NOT NULL
+        IF @V_Status <> 'DONE' OR ISNULL(@V_IsApprove,0) <> 0
+           OR @V_ApprovedBy IS NOT NULL OR @V_ApprovedDate IS NOT NULL
+           OR ISNULL(@V_ApprovalRemark,'') <> '' OR ISNULL(@V_ReasonVoid,'') <> ''
             RAISERROR('Only inspections awaiting approval can be processed.', 16, 1);
 
         IF @p_Action = 'APPROVE'
@@ -106,7 +114,8 @@ BEGIN
                 ApprovalRemark=NULLIF(LTRIM(RTRIM(@p_Remark)), ''),
                 ReasonVoid=NULL, UpdateUser=@p_EmployeeID, UpdateDate=GETDATE()
             WHERE InspectionID=@p_InspectionID AND CompanyID=@p_CompanyID AND LocationID=@p_LocationID
-              AND Status='DONE' AND IsApprove IS NULL AND ApprovedBy IS NULL AND ApprovedDate IS NULL;
+              AND Status='DONE' AND IsApprove=0 AND ApprovedBy IS NULL AND ApprovedDate IS NULL
+              AND ISNULL(ApprovalRemark,'')='' AND ISNULL(ReasonVoid,'')='';
 
             IF @@ROWCOUNT <> 1
                 RAISERROR('Inspection approval state changed before this action completed. Refresh the queue.', 16, 1);
@@ -181,7 +190,8 @@ BEGIN
                 ApprovalRemark=NULL, ReasonVoid=LTRIM(RTRIM(@p_Remark)),
                 UpdateUser=@p_EmployeeID, UpdateDate=GETDATE()
             WHERE InspectionID=@p_InspectionID AND CompanyID=@p_CompanyID AND LocationID=@p_LocationID
-              AND Status='DONE' AND IsApprove IS NULL AND ApprovedBy IS NULL AND ApprovedDate IS NULL;
+              AND Status='DONE' AND IsApprove=0 AND ApprovedBy IS NULL AND ApprovedDate IS NULL
+              AND ISNULL(ApprovalRemark,'')='' AND ISNULL(ReasonVoid,'')='';
 
             IF @@ROWCOUNT <> 1
                 RAISERROR('Inspection approval state changed before this action completed. Refresh the queue.', 16, 1);
