@@ -1763,6 +1763,8 @@ async function confirmInspectionApprovalAction() {
 }
 
 async function executeInspectionApprovalAction(ids, action, remark) {
+    const isSingleVoid = action === "VOID" && ids.length === 1 &&
+        selectedInspectionApproval && Number(selectedInspectionApproval.InspectionID) === Number(ids[0]);
     const failures = [];
     let succeeded = 0;
     for (const inspectionId of ids) {
@@ -1776,6 +1778,9 @@ async function executeInspectionApprovalAction(ids, action, remark) {
         } catch (err) {
             failures.push("Inspection #" + inspectionId + ": " + (err.message || "gagal"));
         }
+    }
+    if (isSingleVoid && succeeded === 1) {
+        bootstrap.Modal.getOrCreateInstance(document.getElementById("inspectionApprovalDetailModal")).hide();
     }
     await loadInspectionApprovalQueue();
     const notice = document.getElementById("inspectionApprovalNotice");
