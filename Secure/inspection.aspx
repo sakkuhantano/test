@@ -3,6 +3,22 @@
 <asp:Content ID="Content1" ContentPlaceHolderID="head" runat="server">
 <style>
     .inspection-card { border: 1px solid var(--bs-border-color); border-radius: .75rem; background: var(--bs-body-bg); }
+    .inspection-approval-toolbar { width: 100%; }
+    .inspection-filter-control { flex: 1 1 145px; min-width: 125px; }
+    .inspection-date-control { flex: 0 1 135px; min-width: 120px; }
+    .inspection-approval-tabs { flex: 0 0 auto; white-space: nowrap; }
+    #inspectionApprovalDateFilters:not(.d-none) { display: flex !important; }
+    #inspectionScrollTools { position: fixed; right: 1rem; bottom: 1.25rem; z-index: 2070; display: flex; flex-direction: column; gap: .5rem; }
+    #inspectionScrollTools .btn { width: 42px; height: 42px; border-radius: 50%; opacity: .72; box-shadow: 0 .2rem .6rem rgba(0,0,0,.18); }
+    #inspectionScrollTools .btn:hover, #inspectionScrollTools .btn:focus { opacity: 1; }
+    @media (min-width: 1200px) {
+        .inspection-filter-control { flex-basis: 145px; }
+    }
+    @media (max-width: 767.98px) {
+        .inspection-filter-control { flex: 1 1 130px; }
+        .inspection-date-control { flex: 1 1 120px; }
+        .inspection-approval-tabs { flex: 1 1 auto; }
+    }
     .inspection-step { border-left: 3px solid var(--bs-primary); padding-left: .75rem; }
     .inspection-item { border: 1px solid var(--bs-border-color); border-radius: .65rem; padding: .85rem; margin-bottom: .75rem; }
     .inspection-item.anomaly { border-color: var(--bs-danger); }
@@ -65,31 +81,40 @@
             <button type="button" id="btnRefreshInspectionApproval" class="btn btn-sm btn-outline-primary">Refresh</button>
         </div>
         <div id="inspectionApprovalNotice" class="alert alert-info py-2 small">Memuat antrean approval...</div>
-        <div class="row g-2 mb-3">
-            <div class="col-12 col-md-4"><label for="selApprovalType" class="form-label small mb-1">Inspection Type</label><select id="selApprovalType" class="form-select form-select-sm"><option value="">All types</option></select></div>
-            <div class="col-12 col-md-4"><label for="selApprovalDetail" class="form-label small mb-1">Inspection Type Detail</label><select id="selApprovalDetail" class="form-select form-select-sm"><option value="">All details</option></select></div>
-            <div class="col-12 col-md-4"><label for="selApprovalTemplate" class="form-label small mb-1">Template</label><select id="selApprovalTemplate" class="form-select form-select-sm"><option value="">All templates</option></select></div>
-        </div>
-        <div id="inspectionApprovalDateFilters" class="row g-2 mb-3 d-none">
-            <div class="col-6 col-md-3"><label for="txtApprovalDateFrom" class="form-label small mb-1">Approved From</label><input type="date" id="txtApprovalDateFrom" class="form-control form-control-sm" /></div>
-            <div class="col-6 col-md-3"><label for="txtApprovalDateThru" class="form-label small mb-1">Approved Thru</label><input type="date" id="txtApprovalDateThru" class="form-control form-control-sm" /></div>
-        </div>
-        <ul class="nav nav-tabs mb-3" id="inspectionApprovalQueueTabs" role="tablist">
-            <li class="nav-item" role="presentation">
-                <button type="button" class="nav-link active" id="btnInspectionApprovalOutstanding" role="tab" aria-selected="true">
-                    Outstanding <span id="inspectionApprovalOutstandingCount" class="badge text-bg-secondary ms-1">0</span>
-                </button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button type="button" class="nav-link" id="btnInspectionApprovalApproved" role="tab" aria-selected="false">
-                    Approved <span id="inspectionApprovalApprovedCount" class="badge text-bg-secondary ms-1">0</span>
-                </button>
-            </li>
-        </ul>
-        <div id="inspectionApprovalBatchActions" class="d-flex flex-wrap align-items-center gap-2 mb-3">
-            <button type="button" id="btnApprovalSelectAll" class="btn btn-sm btn-outline-secondary">Select all filtered</button>
-            <button type="button" id="btnBatchApproveInspection" class="btn btn-sm btn-success">Approve selected</button>
-            <button type="button" id="btnBatchVoidInspection" class="btn btn-sm btn-outline-danger">Void selected</button>
+        <div class="inspection-approval-toolbar d-flex flex-wrap align-items-end gap-2 mb-3">
+            <div class="inspection-filter-control">
+                <label for="selApprovalType" class="form-label small mb-1">Type</label>
+                <select id="selApprovalType" class="form-select form-select-sm"><option value="">All types</option></select>
+            </div>
+            <div class="inspection-filter-control">
+                <label for="selApprovalDetail" class="form-label small mb-1">Detail</label>
+                <select id="selApprovalDetail" class="form-select form-select-sm"><option value="">All details</option></select>
+            </div>
+            <div class="inspection-filter-control">
+                <label for="selApprovalTemplate" class="form-label small mb-1">Template</label>
+                <select id="selApprovalTemplate" class="form-select form-select-sm"><option value="">All templates</option></select>
+            </div>
+            <div id="inspectionApprovalDateFilters" class="d-none align-items-end gap-2">
+                <div class="inspection-date-control"><label for="txtApprovalDateFrom" class="form-label small mb-1">From</label><input type="date" id="txtApprovalDateFrom" class="form-control form-control-sm" aria-label="Approved date from" /></div>
+                <div class="inspection-date-control"><label for="txtApprovalDateThru" class="form-label small mb-1">Thru</label><input type="date" id="txtApprovalDateThru" class="form-control form-control-sm" aria-label="Approved date thru" /></div>
+            </div>
+            <ul class="nav nav-tabs inspection-approval-tabs mb-0" id="inspectionApprovalQueueTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button type="button" class="nav-link active" id="btnInspectionApprovalOutstanding" role="tab" aria-selected="true">
+                        Outstanding <span id="inspectionApprovalOutstandingCount" class="badge text-bg-secondary ms-1">0</span>
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button type="button" class="nav-link" id="btnInspectionApprovalApproved" role="tab" aria-selected="false">
+                        Approved <span id="inspectionApprovalApprovedCount" class="badge text-bg-secondary ms-1">0</span>
+                    </button>
+                </li>
+            </ul>
+            <div id="inspectionApprovalBatchActions" class="d-flex flex-wrap align-items-center gap-1">
+                <button type="button" id="btnApprovalSelectAll" class="btn btn-sm btn-outline-secondary" title="Select all filtered" aria-label="Select all filtered">Select</button>
+                <button type="button" id="btnBatchApproveInspection" class="btn btn-sm btn-success" title="Approve selected" aria-label="Approve selected">Approve</button>
+                <button type="button" id="btnBatchVoidInspection" class="btn btn-sm btn-outline-danger" title="Void selected" aria-label="Void selected">Void</button>
+            </div>
         </div>
         <div class="table-responsive">
             <table class="table table-sm table-hover align-middle">
@@ -137,6 +162,10 @@
             </div>
             <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button><button type="button" id="btnConfirmInspectionApprovalAction" class="btn btn-primary">Confirm</button></div>
         </div></div>
+    </div>
+    <div id="inspectionScrollTools" class="d-none" aria-label="Quick scroll controls">
+        <button type="button" id="inspectionScrollTop" class="btn btn-light border d-none" title="Scroll to top" aria-label="Scroll to top"><i class="bi bi-chevron-up"></i></button>
+        <button type="button" id="inspectionScrollBottom" class="btn btn-light border" title="Scroll to bottom" aria-label="Scroll to bottom"><i class="bi bi-chevron-down"></i></button>
     </div>
     <div id="inspectionNotice" class="alert alert-info py-2 small mb-3">
         Pilih Inspection Type, detail inspeksi, lalu template. Data tersimpan di perangkat dan hanya disinkronkan oleh teknisi pemiliknya.
