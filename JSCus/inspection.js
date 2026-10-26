@@ -141,7 +141,7 @@ function wireInspectionEvents() {
             badge.textContent = "!";
             badge.classList.remove("d-none");
         }
-        window.alert(count + " inspeksi mengalami konflik saat sync. Buka daftar inspeksi untuk melihat alasan dan pilih Delete Local Transaction bila record lokal memang harus dibuang.");
+        showInspectionNotice(count + " inspeksi mengalami konflik saat sync. Buka daftar inspeksi untuk melihat alasan dan pilih Delete Local Transaction bila record lokal memang harus dibuang.", "warning");
     });
     document.getElementById("inspectionChecklistHost").addEventListener("input", function () { scheduleInspectionAutosave(); updateInspectionChecklistGate(); });
     document.getElementById("inspectionChecklistHost").addEventListener("change", function (event) {
@@ -394,7 +394,11 @@ async function startNewInspection() {
         ? new Date(loginData.lastInspectionScheduleSyncAt) : null;
     const today = localDateString(new Date());
     if (!navigator.onLine && (!lastScheduleSync || localDateString(lastScheduleSync) !== today)) {
-        const proceedOffline = window.confirm("Jadwal server hari ini belum pernah berhasil disinkronkan di perangkat ini. Pemeriksaan lokal saja tidak dapat memastikan slot belum dipakai teknisi lain. Tetap mulai inspeksi secara offline?");
+        const proceedOffline = await showConfirmation({
+            title: "Mulai Inspeksi Offline",
+            message: "Jadwal server hari ini belum pernah berhasil disinkronkan di perangkat ini. Pemeriksaan lokal saja tidak dapat memastikan slot belum dipakai teknisi lain. Tetap mulai inspeksi secara offline?",
+            yesText: "Lanjutkan"
+        });
         if (!proceedOffline) return;
     }
 
@@ -1200,9 +1204,13 @@ async function applyInspectionParameters() {
         showInspectionNotice("Versi template inspeksi sudah terikat pada transaksi ini. Buat inspeksi baru untuk menggunakan versi aktif yang berbeda.", "warning");
         return false;
     }
-    if (changed && (currentInspectionRecord.Items || []).length &&
-        !confirm("Template berubah. Semua jawaban checklist lama akan dikosongkan. Lanjutkan?")) {
-        return false;
+    if (changed && (currentInspectionRecord.Items || []).length) {
+        const confirmed = await showConfirmation({
+            title: "Ganti Template",
+            message: "Template berubah. Semua jawaban checklist lama akan dikosongkan. Lanjutkan?",
+            yesText: "Lanjutkan"
+        });
+        if (!confirmed) return false;
     }
 
     Object.assign(currentInspectionRecord, {
@@ -1230,8 +1238,13 @@ async function deleteLocalInspectionDraft(localId) {
         showInspectionNotice("Hanya draft lokal yang belum tersinkron yang bisa dihapus di dalam form draft.", "warning");
         return;
     }
-    if (!confirm("Hapus draft " + (record.InspectionNo || ("TEMP-" + String(localId).substring(0, 8).toUpperCase())) +
-        " beserta foto BEFORE/AFTER dari perangkat? Tindakan ini tidak bisa dibatalkan.")) return;
+    const confirmed = await showConfirmation({
+        title: "Hapus Draft Inspeksi",
+        message: "Hapus draft " + (record.InspectionNo || ("TEMP-" + String(localId).substring(0, 8).toUpperCase())) +
+            " beserta foto BEFORE/AFTER dari perangkat? Tindakan ini tidak bisa dibatalkan.",
+        yesText: "Hapus"
+    });
+    if (!confirmed) return;
 
     await new Promise((resolve, reject) => {
         const tx = db.transaction(["inspection_records", "inspection_photos"], "readwrite");
@@ -1378,7 +1391,7 @@ function handleInspectionPhotoViewerKeydown(event) {
 }
 
 async function handleInspectionPhotoInput(event,type){const input=event.target,files=Array.from(input.files||[]);input.value="";if(!currentInspectionRecord||currentInspectionReadOnly||!files.length)return;const existing=await getInspectionPhotos(currentInspectionRecord.LocalInspectionID);let nextSeq=Math.max(Number(currentInspectionRecord.NextPhotoSeqNo||1),existing.reduce((max,p)=>Math.max(max,Number(p.SeqNo||p.OrderNo||0)),0)+1);let added=0;for(const file of files){if(!file.type.startsWith("image/")){showInspectionNotice("File harus berupa gambar.","warning");continue;}try{const blob=typeof compressImage==="function"?await compressImage(file,{maxWidth:1280,maxHeight:1280,maxSize:300*1024,quality:.75,minQuality:.30}):file;await new Promise((resolve,reject)=>{const tx=db.transaction("inspection_photos","readwrite");tx.objectStore("inspection_photos").add({LocalInspectionID:currentInspectionRecord.LocalInspectionID,Type:type,FileName:file.name||("inspection-"+type.toLowerCase()+".jpg"),Blob:blob,SeqNo:nextSeq,CreatedAt:new Date().toISOString()});tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error||new Error("Gagal menyimpan foto."));});nextSeq++;added++;}catch(err){console.error(err);showInspectionNotice("Foto gagal disimpan: "+(err.message||err),"danger");}}if(added){currentInspectionRecord.NextPhotoSeqNo=nextSeq;currentInspectionRecord.SyncStatus="PENDING";currentInspectionRecord.UpdatedAt=new Date().toISOString();}await renderInspectionPhotos();await updateInspectionChecklistGate();scheduleInspectionAutosave();}
-async function handleInspectionPhotoDelete(event){const b=event.target.closest("[data-delete-inspection-photo]");if(!b||!currentInspectionRecord||currentInspectionReadOnly||!confirm("Hapus foto ini?"))return;const existing=await getInspectionPhotos(currentInspectionRecord.LocalInspectionID);const nextSeq=Math.max(Number(currentInspectionRecord.NextPhotoSeqNo||1),existing.reduce((max,p)=>Math.max(max,Number(p.SeqNo||p.OrderNo||0)),0)+1);currentInspectionRecord.NextPhotoSeqNo=nextSeq;currentInspectionRecord.SyncStatus="PENDING";currentInspectionRecord.UpdatedAt=new Date().toISOString();await new Promise((resolve,reject)=>{const tx=db.transaction("inspection_photos","readwrite");tx.objectStore("inspection_photos").delete(Number(b.dataset.deleteInspectionPhoto));tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error||new Error("Hapus foto gagal."));});await renderInspectionPhotos();await updateInspectionChecklistGate();scheduleInspectionAutosave();}
+async function handleInspectionPhotoDelete(event){const b=event.target.closest("[data-delete-inspection-photo]");if(!b||!currentInspectionRecord||currentInspectionReadOnly)return;const confirmed=await showConfirmation({title:"Hapus Foto",message:"Hapus foto ini?",yesText:"Hapus"});if(!confirmed)return;const existing=await getInspectionPhotos(currentInspectionRecord.LocalInspectionID);const nextSeq=Math.max(Number(currentInspectionRecord.NextPhotoSeqNo||1),existing.reduce((max,p)=>Math.max(max,Number(p.SeqNo||p.OrderNo||0)),0)+1);currentInspectionRecord.NextPhotoSeqNo=nextSeq;currentInspectionRecord.SyncStatus="PENDING";currentInspectionRecord.UpdatedAt=new Date().toISOString();await new Promise((resolve,reject)=>{const tx=db.transaction("inspection_photos","readwrite");tx.objectStore("inspection_photos").delete(Number(b.dataset.deleteInspectionPhoto));tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error||new Error("Hapus foto gagal."));});await renderInspectionPhotos();await updateInspectionChecklistGate();scheduleInspectionAutosave();}
 async function updateInspectionChecklistGate() {
     if (!currentInspectionRecord) return;
     const photos = await getInspectionPhotos(currentInspectionRecord.LocalInspectionID);
@@ -1461,7 +1474,11 @@ async function queueConflictInspectionDelete(localId) {
         showInspectionNotice("Record konflik tidak ditemukan atau sudah berubah.", "warning");
         return;
     }
-    const ok = window.confirm("Hapus transaksi konflik ini dari daftar lokal? Snapshot transaksi dan checklist akan diarsipkan ke server terlebih dahulu. Record server yang menyebabkan konflik tidak akan dihapus.");
+    const ok = await showConfirmation({
+        title: "Hapus Transaksi Konflik Lokal",
+        message: "Hapus transaksi konflik ini dari daftar lokal? Snapshot transaksi dan checklist akan diarsipkan ke server terlebih dahulu. Record server yang menyebabkan konflik tidak akan dihapus.",
+        yesText: "Lanjutkan"
+    });
     if (!ok) return;
     record.DeleteOriginalSyncStatus = record.SyncStatus;
     record.DeleteOriginalConflictReason = record.ConflictReason || "";
@@ -1664,7 +1681,7 @@ async function processBatchInspectionApproval(action) {
     const ids = Array.from(document.querySelectorAll("#inspectionApprovalQueue [data-approval-select]:checked"))
         .map(box => Number(box.value)).filter(id => id > 0);
     if (!ids.length) {
-        window.alert("Pilih minimal satu inspeksi terlebih dahulu.");
+        showToast("Pilih minimal satu inspeksi terlebih dahulu.", "warning");
         return;
     }
     let remark = "";
@@ -1673,13 +1690,18 @@ async function processBatchInspectionApproval(action) {
         if (remark == null) return;
         remark = remark.trim();
         if (!remark) {
-            window.alert("Alasan Void wajib diisi.");
+            showToast("Alasan Void wajib diisi.", "warning");
             return;
         }
     } else {
         remark = window.prompt("Catatan approval untuk semua inspeksi terpilih (opsional):") || "";
     }
-    if (!window.confirm((action === "APPROVE" ? "Approve " : "Void ") + ids.length + " inspeksi terpilih?")) return;
+    const confirmed = await showConfirmation({
+        title: action === "APPROVE" ? "Approve Inspeksi" : "Void Inspeksi",
+        message: (action === "APPROVE" ? "Approve " : "Void ") + ids.length + " inspeksi terpilih?",
+        yesText: action === "APPROVE" ? "Approve" : "Void"
+    });
+    if (!confirmed) return;
 
     let succeeded = 0;
     const failures = [];
@@ -1771,13 +1793,18 @@ async function processInspectionApproval(action) {
         if (remark == null) return;
         remark = remark.trim();
         if (!remark) {
-            window.alert("Alasan Void wajib diisi.");
+            showToast("Alasan Void wajib diisi.", "warning");
             return;
         }
     } else {
         remark = window.prompt("Catatan approval (opsional):") || "";
     }
-    if (!window.confirm(action === "APPROVE" ? "Approve inspeksi ini?" : "Void dan kembalikan inspeksi ini sebagai Draft?")) return;
+    const confirmed = await showConfirmation({
+        title: action === "APPROVE" ? "Approve Inspeksi" : "Void Inspeksi",
+        message: action === "APPROVE" ? "Approve inspeksi ini?" : "Void dan kembalikan inspeksi ini sebagai Draft?",
+        yesText: action === "APPROVE" ? "Approve" : "Void"
+    });
+    if (!confirmed) return;
 
     const inspectionId = Number(selectedInspectionApproval.InspectionID);
     try {
