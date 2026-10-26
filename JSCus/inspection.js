@@ -11,6 +11,7 @@ let currentInspectionRecord = null;
 let currentInspectionReadOnly = false;
 let inspectionAutoSaveTimer = null;
 let inspectionPhotoViewerState = { type: "", photos: [], index: 0, objectUrl: null, touchStartX: null };
+let inspectionPhotoBaseline = null;
 let inspectionFollowUpSections = [
     { Code: "ACON", Name: "Air Cond." },
     { Code: "COMM", Name: "Comm." },
@@ -491,6 +492,8 @@ async function startNewInspection() {
 
 async function renderInspectionForm(record, readOnly) {
     currentInspectionRecord = record;
+    const photosAtOpen = await getInspectionPhotos(record.LocalInspectionID);
+    inspectionPhotoBaseline = photosAtOpen.map(photo => Object.assign({}, photo));
     showInspectionInputScreen();
     currentInspectionReadOnly = !!readOnly || record.Status === "DONE";
     document.getElementById("inspectionEditorTabs").classList.remove("d-none");
@@ -906,6 +909,7 @@ async function saveInspection(status) {
 
     if (inspectionAutoSaveTimer) clearTimeout(inspectionAutoSaveTimer);
     await persistInspectionRecord(currentInspectionRecord);
+    inspectionPhotoBaseline = null;
 
     showInspectionNotice(status === "DONE"
         ? "Inspeksi selesai dan tersimpan offline. Tekan Sync untuk mengirimnya."
@@ -1090,10 +1094,29 @@ function resetInspectionSelection() {
 async function closeInspectionForm() {
     if (inspectionAutoSaveTimer) await flushInspectionAutosave();
     const closingRecord = currentInspectionRecord;
-    const recordAlreadySaved = closingRecord && inspectionRecords.some(r =>
+    if (closingRecord && inspectionPhotoBaseline !== null && !currentInspectionReadOnly) {
+        const baseline = inspectionPhotoBaseline;
+        await new Promise((resolve, reject) => {
+            const tx = db.transaction("inspection_photos", "readwrite");
+            const store = tx.objectStore("inspection_photos");
+            const req = store.index("LocalInspectionID")
+                .openCursor(IDBKeyRange.only(closingRecord.LocalInspectionID));
+            req.onsuccess = () => {
+                const cursor = req.result;
+                if (cursor) {
+                    cursor.delete();
+                    cursor.continue();
+                    return;
+                }
+                baseline.forEach(photo => store.add(photo));
+            };
+            tx.oncomplete = () => resolve();
+            tx.onerror = () => reject(tx.error);
+            tx.onabort = () => reject(tx.error || new Error("Gagal membatalkan perubahan foto inspeksi."));
+        });
+    } else if (closingRecord && !inspectionRecords.some(r =>
         r.LocalInspectionID === closingRecord.LocalInspectionID
-    );
-    if (closingRecord && !recordAlreadySaved) {
+    )) {
         await new Promise((resolve, reject) => {
             const tx = db.transaction("inspection_photos", "readwrite");
             const req = tx.objectStore("inspection_photos").index("LocalInspectionID")
@@ -1109,6 +1132,7 @@ async function closeInspectionForm() {
             tx.onabort = () => reject(tx.error || new Error("Gagal membatalkan foto inspeksi."));
         });
     }
+    inspectionPhotoBaseline = null;
     currentInspectionRecord=null; currentInspectionReadOnly=false;
     document.getElementById("inspectionEditorTabs").classList.add("d-none"); document.getElementById("inspectionFormPanel").classList.add("d-none");
     document.getElementById("inspectionStartPanel").classList.remove("d-none"); document.getElementById("inspectionStartButtonRow").classList.remove("d-none");
