@@ -131,105 +131,148 @@ namespace UTL1.Secure
                             incomingPhotos.Add(Tuple.Create(type, seqNo, extension, bytes));
                         }
 
-                    syncStage = "save inspection header and checklist in SQL";
+                    string companyId = Limit(TokenString(record, "CompanyID"), 10);
+                    string locationId = Limit(TokenString(record, "LocationID"), 3);
+                    string sectionId = Limit(TokenString(record, "SectionID"), 10);
+                    string inspectionTypeCode = Limit(TokenString(record, "InspectionTypeCode"), 2);
+                    string inspectionTypeDetailCode = Limit(TokenString(record, "InspectionTypeDetailCode"), 20);
+                    DateTime inspectionDate = ParseDate(TokenString(record, "InspectionDate"), DateTime.Today);
+                    string inspectionNo = "";
+                    long existingInspectionId = 0;
+                    DateTime oldInspectionDate = inspectionDate;
+                    string oldCompanyId = companyId;
+                    string oldLocationId = locationId;
+                    string oldInspectionNo = "";
+                    DataTable oldPhotoRows = null;
+
                     using (var br = new WAL.BR.CF())
                     {
-                        DataTable saved = br.EQueryP("spUTL_PIP_T_Inspection_Sync", new SqlParameter[]
+                        syncStage = "preflight existing inspection";
+                        DataTable existingRows = br.EQueryP(@"
+SELECT InspectionID, InspectionNo, InspectionDate, CompanyID, LocationID
+FROM dbo.PIP_T_Inspection
+WHERE ClientInspectionID=@ClientInspectionID",
+                            new SqlParameter[] { new SqlParameter("@ClientInspectionID", Limit(clientId, 36)) });
+                        if (existingRows != null && existingRows.Rows.Count > 0)
                         {
-                            new SqlParameter("@p_ClientInspectionID", Limit(clientId, 36)),
-                            new SqlParameter("@p_CompanyID", Limit(TokenString(record, "CompanyID"), 10)),
-                            new SqlParameter("@p_LocationID", Limit(TokenString(record, "LocationID"), 3)),
-                            new SqlParameter("@p_SectionID", Limit(TokenString(record, "SectionID"), 10)),
-                            new SqlParameter("@p_InspectionTypeCode", Limit(TokenString(record, "InspectionTypeCode"), 2)),
-                            new SqlParameter("@p_InspectionTypeDetailCode", Limit(TokenString(record, "InspectionTypeDetailCode"), 20)),
-                            new SqlParameter("@p_ScheduledTime", Limit(TokenString(record, "ScheduledTime"), 5)),
-                            new SqlParameter("@p_IDTemplate", TokenInt(record, "IDTemplate")),
-                            new SqlParameter("@p_IDVersion", TokenInt(record, "IDVersion")),
-                            new SqlParameter("@p_TemplateNo", Limit(TokenString(record, "TemplateNo"), 50)),
-                            new SqlParameter("@p_TemplateVersion", Limit(TokenString(record, "TemplateVersion"), 10)),
-                            new SqlParameter("@p_InspectionDate", ParseDate(TokenString(record, "InspectionDate"), DateTime.Today)),
-                            new SqlParameter("@p_StartDateTime", ParseNullableDate(TokenString(record, "StartDateTime"))),
-                            new SqlParameter("@p_EndDateTime", ParseNullableDate(TokenString(record, "EndDateTime"))),
-                            new SqlParameter("@p_Status", status),
-                            new SqlParameter("@p_Summary", Limit(TokenString(record, "Summary"), 500)),
-                            new SqlParameter("@p_FollowUp", Limit(String.IsNullOrWhiteSpace(TokenString(record, "FollowUp")) ? "No Follow Up" : TokenString(record, "FollowUp"), 30)),
-                            new SqlParameter("@p_FollowUpSection", Limit(TokenString(record, "FollowUpSection"), 10)),
-                            new SqlParameter("@p_FollowUpRemark", Limit(TokenString(record, "FollowUpRemark"), 300)),
-                            new SqlParameter("@p_UpdateUser", Limit(userId, 50)),
-                            new SqlParameter("@p_Items", items),
-                            new SqlParameter("@p_ItemValues", itemValues)
-                        }, true, true);
-
-                        if (saved == null || saved.Rows.Count == 0 || !saved.Columns.Contains("InspectionID") || saved.Rows[0]["InspectionID"] == DBNull.Value)
-                            throw new Exception("Inspection sync procedure returned no saved header. Photo upload was stopped.");
-
-                        syncStage = "read saved inspection ID";
-                        long inspectionId = Convert.ToInt64(saved.Rows[0]["InspectionID"]);
-                        if (inspectionId <= 0)
-                            throw new Exception("Inspection header was not saved; photo upload was stopped.");
-
-                        syncStage = "reload permanent inspection number";
-                        string companyId = Limit(TokenString(record, "CompanyID"), 10);
-                        string locationId = Limit(TokenString(record, "LocationID"), 3);
-                        DataTable inspectionNoRows = br.EQueryP("SELECT InspectionNo FROM dbo.PIP_T_Inspection WHERE InspectionID=@InspectionID", new SqlParameter[] { new SqlParameter("@InspectionID", inspectionId) });
-                        if (inspectionNoRows == null || inspectionNoRows.Rows.Count == 0 || inspectionNoRows.Rows[0]["InspectionNo"] == DBNull.Value)
-                            throw new Exception("Inspection header was saved but InspectionNo could not be reloaded. InspectionID=" + inspectionId.ToString(CultureInfo.InvariantCulture));
-                        string inspectionNo = Convert.ToString(inspectionNoRows.Rows[0]["InspectionNo"]);
-                        if (String.IsNullOrWhiteSpace(inspectionNo))
-                            throw new Exception("InspectionNo is required before saving Inspection photos.");
-                        syncStage = "resolve photo storage folder";
-                        string photoFolder = GetInspectionPhotoFolder(companyId, locationId, inspectionDate, inspectionNo);
-                        syncStage = "load existing photo records";
-                        DataTable oldPhotoRows = br.EQueryP(@"
-SELECT FileName, FileType
+                            DataRow existing = existingRows.Rows[0];
+                            existingInspectionId = Convert.ToInt64(existing["InspectionID"]);
+                            oldInspectionNo = Convert.ToString(existing["InspectionNo"]);
+                            if (existing["InspectionDate"] != DBNull.Value) oldInspectionDate = Convert.ToDateTime(existing["InspectionDate"]);
+                            oldCompanyId = Convert.ToString(existing["CompanyID"]);
+                            oldLocationId = Convert.ToString(existing["LocationID"]);
+                            inspectionNo = oldInspectionNo;
+                            oldPhotoRows = br.EQueryP(@"
+SELECT FileName, FileType, PhotoType, SeqNo
 FROM dbo.PIP_T_InspectionPhoto
 WHERE InspectionID=@InspectionID",
-                            new SqlParameter[] { new SqlParameter("@InspectionID", inspectionId) });
-                        if (oldPhotoRows == null)
-                            throw new Exception("Could not load existing Inspection photo records. InspectionID=" + inspectionId.ToString(CultureInfo.InvariantCulture));
+                                new SqlParameter[] { new SqlParameter("@InspectionID", existingInspectionId) });
+                            if (oldPhotoRows == null)
+                                throw new Exception("Could not load existing Inspection photo records before sync.");
+                        }
 
-                        var savedPhotoRows = new List<Tuple<string, string, string, int, string>>();
+                        if (String.IsNullOrWhiteSpace(inspectionNo))
+                        {
+                            syncStage = "reserve inspection number";
+                            DataTable generatedNo = br.EQueryP(@"
+DECLARE @AutoNumResult TABLE (ID VARCHAR(10), SeqNo INT);
+INSERT INTO @AutoNumResult EXECUTE dbo.sp_GetGenerateAutoNumID 'pip', @AutoNum, 1;
+SELECT ID FROM @AutoNumResult;",
+                                new SqlParameter[] { new SqlParameter("@AutoNum", "PIPINS" + companyId + locationId) });
+                            if (generatedNo == null || generatedNo.Rows.Count == 0 || generatedNo.Rows[0]["ID"] == DBNull.Value ||
+                                String.IsNullOrWhiteSpace(Convert.ToString(generatedNo.Rows[0]["ID"])))
+                                throw new Exception("Failed to reserve InspectionNo before saving transaction data.");
+                            inspectionNo = Convert.ToString(generatedNo.Rows[0]["ID"]);
+                        }
+
+                        string photoFolder = GetInspectionPhotoFolder(companyId, locationId, inspectionDate, inspectionNo);
                         var createdPhotoPaths = new List<string>();
+                        var photoTable = new DataTable();
+                        photoTable.Columns.Add("PhotoType", typeof(string));
+                        photoTable.Columns.Add("FileName", typeof(string));
+                        photoTable.Columns.Add("FileType", typeof(string));
+                        photoTable.Columns.Add("SeqNo", typeof(int));
+
                         try
                         {
-                            syncStage = "write photo files";
+                            syncStage = "stage photo files before SQL transaction";
                             if (incomingPhotos.Count > 0 && !Directory.Exists(photoFolder))
                                 Directory.CreateDirectory(photoFolder);
 
                             foreach (var photo in incomingPhotos)
                             {
-                                string fileName = "INS" + inspectionId.ToString(CultureInfo.InvariantCulture) +
+                                string fileName = "INS" + clientId.Replace("-", "").Substring(0, Math.Min(12, clientId.Replace("-", "").Length)) +
                                     "_" + photo.Item2.ToString(CultureInfo.InvariantCulture) +
                                     "_" + Guid.NewGuid().ToString("N").Substring(0, 8);
                                 string fullPath = Path.Combine(photoFolder, fileName + "." + photo.Item3);
                                 createdPhotoPaths.Add(fullPath);
                                 File.WriteAllBytes(fullPath, photo.Item4);
-                                savedPhotoRows.Add(Tuple.Create(photo.Item1, fileName, photo.Item3, photo.Item2, fullPath));
+                                photoTable.Rows.Add(photo.Item1, fileName, photo.Item3, photo.Item2);
                             }
 
-                            syncStage = "save photo records in SQL";
-                            var sql = new System.Text.StringBuilder();
-                            var sqlParams = new List<SqlParameter>();
-                            sql.Append("SET XACT_ABORT ON; BEGIN TRY BEGIN TRANSACTION; ");
-                            sql.Append("DELETE FROM dbo.PIP_T_InspectionPhoto WHERE InspectionID=@InspectionID; ");
-                            sqlParams.Add(new SqlParameter("@InspectionID", inspectionId));
-                            for (int photoIndex = 0; photoIndex < savedPhotoRows.Count; photoIndex++)
+                            syncStage = "save header, checklist, and photo metadata atomically";
+                            DataTable saved = br.EQueryP("spUTL_PIP_T_Inspection_Sync", new SqlParameter[]
                             {
-                                var photo = savedPhotoRows[photoIndex];
-                                string suffix = photoIndex.ToString(CultureInfo.InvariantCulture);
-                                sql.Append("INSERT dbo.PIP_T_InspectionPhoto (InspectionID,PhotoType,FileName,FileType,SeqNo,EntryUser,EntryDate) ");
-                                sql.Append("VALUES (@InspectionID,@PhotoType" + suffix + ",@FileName" + suffix + ",@FileType" + suffix + ",@SeqNo" + suffix + ",@EntryUser,GETDATE()); ");
-                                sqlParams.Add(new SqlParameter("@PhotoType" + suffix, photo.Item1));
-                                sqlParams.Add(new SqlParameter("@FileName" + suffix, photo.Item2));
-                                sqlParams.Add(new SqlParameter("@FileType" + suffix, photo.Item3));
-                                sqlParams.Add(new SqlParameter("@SeqNo" + suffix, photo.Item4));
+                                new SqlParameter("@p_ClientInspectionID", Limit(clientId, 36)),
+                                new SqlParameter("@p_CompanyID", companyId),
+                                new SqlParameter("@p_LocationID", locationId),
+                                new SqlParameter("@p_SectionID", sectionId),
+                                new SqlParameter("@p_InspectionTypeCode", inspectionTypeCode),
+                                new SqlParameter("@p_InspectionTypeDetailCode", inspectionTypeDetailCode),
+                                new SqlParameter("@p_ScheduledTime", Limit(TokenString(record, "ScheduledTime"), 5)),
+                                new SqlParameter("@p_IDTemplate", TokenInt(record, "IDTemplate")),
+                                new SqlParameter("@p_IDVersion", TokenInt(record, "IDVersion")),
+                                new SqlParameter("@p_TemplateNo", Limit(TokenString(record, "TemplateNo"), 50)),
+                                new SqlParameter("@p_TemplateVersion", Limit(TokenString(record, "TemplateVersion"), 10)),
+                                new SqlParameter("@p_InspectionDate", inspectionDate),
+                                new SqlParameter("@p_StartDateTime", ParseNullableDate(TokenString(record, "StartDateTime"))),
+                                new SqlParameter("@p_EndDateTime", ParseNullableDate(TokenString(record, "EndDateTime"))),
+                                new SqlParameter("@p_Status", status),
+                                new SqlParameter("@p_Summary", Limit(TokenString(record, "Summary"), 500)),
+                                new SqlParameter("@p_FollowUp", Limit(String.IsNullOrWhiteSpace(TokenString(record, "FollowUp")) ? "No Follow Up" : TokenString(record, "FollowUp"), 30)),
+                                new SqlParameter("@p_FollowUpSection", Limit(TokenString(record, "FollowUpSection"), 10)),
+                                new SqlParameter("@p_FollowUpRemark", Limit(TokenString(record, "FollowUpRemark"), 300)),
+                                new SqlParameter("@p_UpdateUser", Limit(userId, 50)),
+                                new SqlParameter("@p_InspectionNo", Limit(inspectionNo, 10)),
+                                new SqlParameter("@p_Photos", photoTable),
+                                new SqlParameter("@p_Items", items),
+                                new SqlParameter("@p_ItemValues", itemValues)
+                            }, true, true);
+
+                            if (saved == null || saved.Rows.Count == 0 || !saved.Columns.Contains("InspectionID") || saved.Rows[0]["InspectionID"] == DBNull.Value)
+                                throw new Exception("Inspection sync procedure returned no saved header.");
+                            long inspectionId = Convert.ToInt64(saved.Rows[0]["InspectionID"]);
+                            if (inspectionId <= 0)
+                                throw new Exception("Inspection header was not saved.");
+
+                            /* SQL metadata has committed successfully. Old photo files can now be cleaned up safely. */
+                            if (oldPhotoRows != null && !String.IsNullOrWhiteSpace(oldInspectionNo))
+                            {
+                                foreach (DataRow oldPhoto in oldPhotoRows.Rows)
+                                {
+                                    string oldName = Convert.ToString(oldPhoto["FileName"]);
+                                    string oldType = Convert.ToString(oldPhoto["FileType"]);
+                                    if (String.IsNullOrWhiteSpace(oldName) || String.IsNullOrWhiteSpace(oldType)) continue;
+                                    try
+                                    {
+                                        string oldPath = GetInspectionPhotoPath(oldCompanyId, oldLocationId, oldInspectionDate, oldInspectionNo, oldName, oldType);
+                                        if (!createdPhotoPaths.Contains(oldPath) && File.Exists(oldPath)) File.Delete(oldPath);
+                                    }
+                                    catch (Exception cleanupError)
+                                    {
+                                        System.Diagnostics.Trace.TraceWarning("Could not remove superseded Inspection photo file {0}: {1}", oldName, cleanupError.Message);
+                                    }
+                                }
                             }
-                            sqlParams.Add(new SqlParameter("@EntryUser", Limit(userId, 50)));
-                            sql.Append("COMMIT TRANSACTION; END TRY BEGIN CATCH IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION; ");
-                            sql.Append("DECLARE @PhotoError NVARCHAR(4000), @PhotoSeverity INT, @PhotoState INT; ");
-                            sql.Append("SELECT @PhotoError=ERROR_MESSAGE(), @PhotoSeverity=ERROR_SEVERITY(), @PhotoState=ERROR_STATE(); ");
-                            sql.Append("RAISERROR(@PhotoError,@PhotoSeverity,@PhotoState); END CATCH;");
-                            br.EQueryP(sql.ToString(), sqlParams.ToArray());
+
+                            outcomes.Add(new
+                            {
+                                ClientInspectionID = clientId,
+                                success = true,
+                                InspectionID = inspectionId,
+                                InspectionNo = saved.Rows[0]["InspectionNo"] == DBNull.Value ? inspectionNo : Convert.ToString(saved.Rows[0]["InspectionNo"]),
+                                message = ""
+                            });
                         }
                         catch
                         {
@@ -239,29 +282,6 @@ WHERE InspectionID=@InspectionID",
                             }
                             throw;
                         }
-
-                        foreach (DataRow oldPhoto in oldPhotoRows.Rows)
-                        {
-                            string oldName = Convert.ToString(oldPhoto["FileName"]);
-                            string oldType = Convert.ToString(oldPhoto["FileType"]);
-                            if (String.IsNullOrWhiteSpace(oldName) || String.IsNullOrWhiteSpace(oldType)) continue;
-                            try
-                            {
-                                string oldPath = GetInspectionPhotoPath(companyId, locationId, inspectionDate, inspectionNo, oldName, oldType);
-                                if (!createdPhotoPaths.Contains(oldPath) && File.Exists(oldPath)) File.Delete(oldPath);
-                            }
-                            catch { }
-                        }
-                        outcomes.Add(new
-                        {
-                            ClientInspectionID = clientId,
-                            success = true,
-                            InspectionID = inspectionId,
-                            InspectionNo = saved.Rows.Count > 0 && saved.Columns.Contains("InspectionNo") && saved.Rows[0]["InspectionNo"] != DBNull.Value
-                                ? Convert.ToString(saved.Rows[0]["InspectionNo"])
-                                : "",
-                            message = ""
-                        });
                     }
                 }
                 catch (Exception ex)
