@@ -49,6 +49,61 @@
     .inspection-saved-row:last-child { border-bottom: 0; }
     #inspectionChecklistHost input, #inspectionChecklistHost select, #inspectionChecklistHost textarea { min-height: 38px; }
     #inspectionFormSubtitle { white-space: pre-line; }
+
+    /* Keep inspection entry and supervisor approval usable on narrow phones. */
+    .inspection-card, .inspection-item, .inspection-photo-panel { min-width: 0; }
+    .inspection-item-label, .inspection-muted { overflow-wrap: anywhere; }
+    .inspection-option-list { min-width: 0; }
+    .inspection-option-choice { max-width: 100%; white-space: normal; }
+    #inspectionApprovalDetailModal .modal-body,
+    #inspectionApprovalParameters,
+    #inspectionApprovalDetail { min-width: 0; overflow-wrap: anywhere; }
+    #inspectionApprovalDetailModal .table-responsive { max-width: 100%; }
+
+    @media (max-width: 575.98px) {
+        .inspection-card { padding: .75rem !important; }
+        .inspection-approval-toolbar > .inspection-filter-control {
+            flex: 1 1 calc(50% - .5rem);
+            min-width: 0;
+        }
+        #inspectionApprovalDateFilters {
+            flex: 1 1 100%;
+            flex-wrap: wrap;
+            min-width: 0;
+        }
+        #inspectionApprovalDateFilters .inspection-date-control {
+            flex: 1 1 120px;
+            min-width: 0;
+        }
+        .inspection-approval-tabs { flex: 1 1 100%; }
+        #inspectionApprovalBatchActions { flex: 1 1 100%; }
+        #inspectionApprovalBatchActions .btn { flex: 1 1 auto; }
+        .inspection-photo-panel .d-flex.align-items-center.justify-content-between {
+            flex-wrap: wrap;
+        }
+        #inspectionFollowUpPanel .btn-group.w-100 {
+            flex-direction: column;
+            gap: .35rem;
+        }
+        #inspectionFollowUpPanel .btn-group.w-100 > .btn {
+            width: 100%;
+            border-radius: .375rem !important;
+        }
+        #inspectionFormPanel > .d-flex.flex-wrap.gap-2 > .btn {
+            flex: 1 1 100%;
+        }
+        #inspectionApprovalDetailModal .modal-dialog {
+            margin: .35rem;
+        }
+        #inspectionApprovalDetailModal .modal-footer {
+            gap: .35rem;
+        }
+        #inspectionApprovalDetailModal .modal-footer .btn {
+            flex: 1 1 auto;
+        }
+        #inspectionScrollTools { right: .5rem; bottom: .75rem; }
+        #inspectionScrollTools .btn { width: 38px; height: 38px; }
+    }
 </style>
 </asp:Content>
 
