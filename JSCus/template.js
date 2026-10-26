@@ -3287,10 +3287,10 @@ function normalizeVersionStructure(data)
             item.IsUseDefaultRemark2 = !!item.IsUseDefaultRemark2;
             if (item.IsUseDefaultRemark1) item.Remark1Text = item.Remark1Text == null ? "" : item.Remark1Text;
             else if (!item.IsRemark1Required) item.Remark1Text = "";
-            else item.Remark1Text = item.Remark1Text || "Remark";
+            else item.Remark1Text = item.Remark1Text || data.VersionInfo.Remark1Text || "Remark";
             if (item.IsUseDefaultRemark2) item.Remark2Text = item.Remark2Text == null ? "" : item.Remark2Text;
             else if (!item.IsRemark2Required) item.Remark2Text = "";
-            else item.Remark2Text = item.Remark2Text || "Remark";
+            else item.Remark2Text = item.Remark2Text || data.VersionInfo.Remark2Text || "Remark";
 
         });
 
@@ -3924,7 +3924,7 @@ function showItemProperties(itemData)
                     <div class="mb-2" id="rowRemark1Title" style="${itemData.IsRemark1Required ? '' : 'display:none;'}">
                         <label class="form-label text-xs">Remark 1 Title</label>
                         <input id="propRemark1Text" class="form-control form-control-sm" maxlength="100"
-                            value="${itemData.IsRemark1Required ? (itemData.Remark1Text || 'Remark') : ''}" ${isReadonlyMode ? 'disabled' : ''}>
+                            value="${itemData.IsRemark1Required ? (itemData.Remark1Text || (currentVersion && currentVersion.Remark1Text) || 'Remark') : ''}" ${isReadonlyMode ? 'disabled' : ''}>
                     </div>
                 </div>
                 <div class="form-check form-switch mb-2" id="rowRemark1Mandatory" style="${currentVersion && currentVersion.IsRemark1Required && (itemData.IsUseDefaultRemark1 || itemData.IsRemark1Required) ? '' : 'display:none;'}">
@@ -3945,7 +3945,7 @@ function showItemProperties(itemData)
                     <div class="mb-2" id="rowRemark2Title" style="${itemData.IsRemark2Required ? '' : 'display:none;'}">
                         <label class="form-label text-xs">Remark 2 Title</label>
                         <input id="propRemark2Text" class="form-control form-control-sm" maxlength="100"
-                            value="${itemData.IsRemark2Required ? (itemData.Remark2Text || 'Remark') : ''}" ${isReadonlyMode ? 'disabled' : ''}>
+                            value="${itemData.IsRemark2Required ? (itemData.Remark2Text || (currentVersion && currentVersion.Remark2Text) || 'Remark') : ''}" ${isReadonlyMode ? 'disabled' : ''}>
                     </div>
                 </div>
                 <div class="form-check form-switch mb-2" id="rowRemark2Mandatory" style="${currentVersion && currentVersion.IsRemark2Required && (itemData.IsUseDefaultRemark2 || itemData.IsRemark2Required) ? '' : 'display:none;'}">
@@ -4615,7 +4615,7 @@ function showItemProperties(itemData)
                 const input = document.getElementById("propRemark1Text");
                 if (row) row.style.display = this.checked ? "" : "none";
                 if (input) {
-                    itemData.Remark1Text = this.checked ? (itemData.Remark1Text || "Remark") : "";
+                    itemData.Remark1Text = this.checked ? (itemData.Remark1Text || (currentVersion && currentVersion.Remark1Text) || "Remark") : "";
                     input.value = itemData.Remark1Text;
                 } else if (!this.checked) {
                     itemData.Remark1Text = "";
@@ -4635,7 +4635,7 @@ function showItemProperties(itemData)
             const input = document.getElementById("propRemark2Text");
             if (row) row.style.display = this.checked ? "" : "none";
             if (input) {
-                itemData.Remark2Text = this.checked ? (itemData.Remark2Text || "Remark") : "";
+                itemData.Remark2Text = this.checked ? (itemData.Remark2Text || (currentVersion && currentVersion.Remark2Text) || "Remark") : "";
                 input.value = itemData.Remark2Text;
             } else if (!this.checked) {
                 itemData.Remark2Text = "";
