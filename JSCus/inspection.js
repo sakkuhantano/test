@@ -1563,6 +1563,7 @@ function escInspection(value) {
 let selectedInspectionApproval = null;
 let inspectionApprovalRows = [];
 let currentInspectionApprovalTab = "OUTSTANDING";
+let inspectionApprovalLoadSequence = 0;
 
 function addInspectionApprovalListener(id, eventName, handler) {
     const element = document.getElementById(id);
@@ -1585,8 +1586,9 @@ function wireInspectionApprovalEvents() {
     addInspectionApprovalListener("inspectionApprovalQueue", "change", function (event) {
         if (event.target.matches("[data-approval-select]")) updateInspectionApprovalSelectAll();
     });
-    ["selApprovalType", "selApprovalDetail", "selApprovalTemplate"].forEach(id =>
-        addInspectionApprovalListener(id, "change", renderInspectionApprovalQueue));
+    ["selApprovalType", "selApprovalDetail", "selApprovalTemplate",
+        "txtApprovalDateFrom", "txtApprovalDateThru"].forEach(id =>
+        addInspectionApprovalListener(id, "change", loadInspectionApprovalQueue));
     addInspectionApprovalListener("btnApprovalSelectAll", "click", function () {
         document.querySelectorAll("#inspectionApprovalQueue [data-approval-select]").forEach(box => { box.checked = true; });
         updateInspectionApprovalSelectAll();
@@ -1599,9 +1601,16 @@ function wireInspectionApprovalEvents() {
     addInspectionApprovalListener("btnApproveInspection", "click", () => processInspectionApproval("APPROVE"));
     addInspectionApprovalListener("btnVoidInspection", "click", () => openInspectionApprovalAction("VOID", false));
     addInspectionApprovalListener("btnConfirmInspectionApprovalAction", "click", confirmInspectionApprovalAction);
+
+    const today = localDateString(new Date());
+    ["txtApprovalDateFrom", "txtApprovalDateThru"].forEach(id => {
+        const input = document.getElementById(id);
+        if (input && !input.value) input.value = today;
+    });
+    setInspectionApprovalTab(currentInspectionApprovalTab, false);
 }
 
-function setInspectionApprovalTab(tab) {
+function setInspectionApprovalTab(tab, reload) {
     currentInspectionApprovalTab = tab === "APPROVED" ? "APPROVED" : "OUTSTANDING";
     const outstanding = currentInspectionApprovalTab === "OUTSTANDING";
     const outstandingButton = document.getElementById("btnInspectionApprovalOutstanding");
@@ -1618,8 +1627,10 @@ function setInspectionApprovalTab(tab) {
     if (batchActions) batchActions.classList.toggle("d-none", !outstanding);
     const selectAllHeader = document.getElementById("thInspectionApprovalSelectAll");
     if (selectAllHeader) selectAllHeader.classList.toggle("d-none", !outstanding);
-    updateInspectionApprovalCounts();
-    renderInspectionApprovalQueue();
+    const dateFilters = document.getElementById("inspectionApprovalDateFilters");
+    if (dateFilters) dateFilters.classList.toggle("d-none", outstanding);
+    if (reload === false) renderInspectionApprovalQueue();
+    else loadInspectionApprovalQueue();
 }
 
 function updateInspectionApprovalCounts() {
@@ -1652,11 +1663,13 @@ async function inspectionApprovalPost(method, args) {
 }
 
 async function loadInspectionApprovalQueue() {
+    const requestSequence = ++inspectionApprovalLoadSequence;
     const notice = document.getElementById("inspectionApprovalNotice");
     const host = document.getElementById("inspectionApprovalQueue");
+    if (!notice || !host) return;
     notice.className = "alert alert-info py-2 small";
-    notice.textContent = "Memuat antrean approval...";
-    host.innerHTML = '<tr><td colspan="8" class="text-muted py-2">Memuat...</td></tr>';
+    notice.textContent = "Memuat data approval terbaru dari SQL Server...";
+    host.innerHTML = '<tr><td colspan="8" class="text-muted py-2">Memuat dari server...</td></tr>';
     selectedInspectionApproval = null;
     if (!navigator.onLine) {
         notice.className = "alert alert-warning py-2 small";
@@ -1667,36 +1680,50 @@ async function loadInspectionApprovalQueue() {
     }
     document.getElementById("inspectionApprovalDetail").innerHTML = '<div class="text-muted">Pilih inspeksi untuk melihat detail checklist.</div>';
     try {
+        const approvedTab = currentInspectionApprovalTab === "APPROVED";
+        const dateFrom = document.getElementById("txtApprovalDateFrom");
+        const dateThru = document.getElementById("txtApprovalDateThru");
         const result = await inspectionApprovalPost("GetInspectionApprovalQueue", {
             employeeId: inspectionLogin.employeeid,
             companyId: inspectionCompanyID,
-            locationId: inspectionLocationID
+            locationId: inspectionLocationID,
+            approvalTab: currentInspectionApprovalTab,
+            dateFrom: approvedTab && dateFrom ? dateFrom.value : "",
+            dateThru: approvedTab && dateThru ? dateThru.value : "",
+            inspectionTypeCode: document.getElementById("selApprovalType").value,
+            inspectionTypeDetailCode: document.getElementById("selApprovalDetail").value,
+            templateId: document.getElementById("selApprovalTemplate").value
         });
+        if (requestSequence !== inspectionApprovalLoadSequence) return;
         inspectionApprovalRows = result.data || [];
-        populateInspectionApprovalFilters();
+        populateInspectionApprovalFilters(result.filters || []);
         updateInspectionApprovalCounts();
-        setInspectionApprovalTab(currentInspectionApprovalTab);
+        renderInspectionApprovalQueue();
         notice.className = "alert alert-success py-2 small";
         notice.textContent = inspectionApprovalRows.filter(row => !isInspectionApprovalApproved(row)).length +
-            " outstanding • " + inspectionApprovalRows.filter(isInspectionApprovalApproved).length + " approved.";
+            " outstanding • " + inspectionApprovalRows.filter(isInspectionApprovalApproved).length +
+            " approved dalam cakupan filter. Data berhasil dimuat dari SQL Server.";
     } catch (err) {
+        if (requestSequence !== inspectionApprovalLoadSequence) return;
         host.innerHTML = '<tr><td colspan="8" class="text-danger py-2">' + escInspection(err.message || "Gagal memuat antrean approval.") + '</td></tr>';
         notice.className = "alert alert-danger py-2 small";
         notice.textContent = err.message || "Gagal memuat antrean approval.";
     }
 }
 
-function populateInspectionApprovalFilters() {
+function populateInspectionApprovalFilters(filterRows) {
     const specs = [
         { id: "selApprovalType", key: "InspectionTypeCode", label: "InspectionTypeName", all: "All types" },
         { id: "selApprovalDetail", key: "InspectionTypeDetailCode", label: "InspectionTypeDetailName", all: "All details" },
         { id: "selApprovalTemplate", key: "IDTemplate", label: "TemplateNo", all: "All templates" }
     ];
+    const rows = Array.isArray(filterRows) ? filterRows : [];
     specs.forEach(spec => {
         const select = document.getElementById(spec.id);
+        if (!select) return;
         const previous = select.value;
         const values = new Map();
-        inspectionApprovalRows.forEach(row => {
+        rows.forEach(row => {
             const key = String(row[spec.key] == null ? "" : row[spec.key]);
             if (key && !values.has(key)) values.set(key, String(row[spec.label] || key));
         });
@@ -1705,20 +1732,15 @@ function populateInspectionApprovalFilters() {
                 '<option value="' + escInspection(pair[0]) + '">' + escInspection(pair[1]) + '</option>'
             ).join("");
         if (values.has(previous)) select.value = previous;
+        else select.value = "";
     });
 }
 
 function renderInspectionApprovalQueue() {
     const host = document.getElementById("inspectionApprovalQueue");
     if (!host) return;
-    const typeCode = document.getElementById("selApprovalType").value;
-    const detailCode = document.getElementById("selApprovalDetail").value;
-    const templateId = document.getElementById("selApprovalTemplate").value;
     const rows = inspectionApprovalRows.filter(row =>
-        (currentInspectionApprovalTab === "APPROVED" ? isInspectionApprovalApproved(row) : !isInspectionApprovalApproved(row)) &&
-        (!typeCode || String(row.InspectionTypeCode) === typeCode) &&
-        (!detailCode || String(row.InspectionTypeDetailCode) === detailCode) &&
-        (!templateId || String(row.IDTemplate) === templateId)
+        currentInspectionApprovalTab === "APPROVED" ? isInspectionApprovalApproved(row) : !isInspectionApprovalApproved(row)
     );
     if (!rows.length) {
         host.innerHTML = '<tr><td colspan="' + (currentInspectionApprovalTab === "OUTSTANDING" ? "8" : "7") + '" class="text-muted py-3 text-center">Tidak ada inspeksi untuk filter ini.</td></tr>';
