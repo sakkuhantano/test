@@ -157,7 +157,6 @@
             <input id="txtInspectionDate" type="date" class="form-control form-control-sm" disabled readonly aria-readonly="true" />
         </div>
         <div id="inspectionStartButtonRow"><button type="button" id="btnStartInspection" class="btn btn-primary w-100" disabled><i class="bi bi-clipboard-check"></i> Start Checklist</button></div>
-        <button type="button" id="btnSaveInspectionParams" class="btn btn-outline-primary w-100 mt-2 d-none"><i class="bi bi-save"></i> Save Parameters</button>
     </div>
     </div>
     <div id="inspectionChecklistPane" class="d-none">
@@ -168,7 +167,6 @@
                 <h6 id="inspectionFormTitle" class="mb-1">Checklist</h6>
                 <div id="inspectionFormSubtitle" class="inspection-muted"></div>
             </div>
-            <button type="button" id="btnInspectionBackToList" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left"></i> Back to list</button>
         </div>
         <div class="inspection-photo-panel mb-3"><div class="fw-bold mb-2"><i class="bi bi-camera-fill me-2"></i>FIELD DOCUMENTATION BEFORE</div><div id="inspectionPhotoBeforeList" class="d-flex flex-wrap gap-2 mb-2"></div><div class="d-flex align-items-center justify-content-between gap-2"><label class="inspection-muted mb-0">Ambil foto sebelum inspeksi</label><button type="button" id="btnAddInspectionBeforePhoto" class="btn btn-sm btn-outline-primary" onclick="document.getElementById('inspectionPhotoBeforeInput').click()"><i class="bi bi-camera"></i> Take Picture</button><input id="inspectionPhotoBeforeInput" type="file" accept="image/*" capture="environment" multiple hidden /></div><div id="inspectionBeforePhotoCount" class="inspection-muted mt-1">0 foto</div></div>
         <div id="inspectionChecklistGateMessage" class="alert alert-warning py-2 small"></div><div id="inspectionChecklistHost"></div>
