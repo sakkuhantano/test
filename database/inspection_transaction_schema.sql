@@ -616,8 +616,8 @@ BEGIN
                 InspectionDate=@p_InspectionDate, StartDateTime=@p_StartDateTime,
                 EndDateTime=@p_EndDateTime, Status=@p_Status, Summary=@p_Summary,
                 FollowUp=@p_FollowUp, FollowUpSection=ISNULL(@p_FollowUpSection,''), FollowUpRemark=ISNULL(@p_FollowUpRemark,''),
-                IsApprove=0, ApprovedBy=NULL, ApprovedDate=NULL, ApprovalRemark=NULL,
-                ReasonVoid=NULL,
+                IsApprove=0, ApprovedBy='', ApprovedDate=CONVERT(DATETIME,'19000101',112), ApprovalRemark='',
+                ReasonVoid='',
                 UpdateUser=@p_UpdateUser, UpdateDate=GETDATE()
             WHERE InspectionID=@V_InspectionID;
         END
@@ -888,7 +888,7 @@ BEGIN
         BEGIN
             UPDATE dbo.PIP_T_Inspection
             SET Status='DRAFT', IsApprove=0, ApprovedBy=@p_EmployeeID, ApprovedDate=GETDATE(),
-                ApprovalRemark=NULL, ReasonVoid=LTRIM(RTRIM(@p_Remark)),
+                ApprovalRemark=LTRIM(RTRIM(ISNULL(@p_Remark,''))), ReasonVoid=LTRIM(RTRIM(ISNULL(@p_Remark,''))),
                 UpdateUser=@p_EmployeeID, UpdateDate=GETDATE()
             WHERE InspectionID=@p_InspectionID AND CompanyID=@p_CompanyID AND LocationID=@p_LocationID
               AND Status='DONE' AND IsApprove=0 AND ISNULL(ApprovedBy,'')='' AND ISNULL(ApprovedDate,CONVERT(DATETIME,'19000101',112))<=CONVERT(DATETIME,'19000101',112)
