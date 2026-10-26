@@ -140,7 +140,7 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id=OBJECT_ID('dbo.PIP_T_In
         ON dbo.PIP_T_Inspection (OwnerEmployeeID, Status, InspectionDate);
 GO
 
-/* Approval fields use NULL to mean not yet processed by a supervisor.
+/* IsApprove=0 with empty supervisor fields means not yet processed.
    A voided record is IsApprove=0 with ApprovedBy/ApprovedDate populated. */
 IF COL_LENGTH('dbo.PIP_T_Inspection', 'IsApprove') IS NULL
     ALTER TABLE dbo.PIP_T_Inspection ADD IsApprove BIT NULL;
@@ -162,7 +162,7 @@ BEGIN
               ApprovedDate=ISNULL(VoidDate, ApprovedDate)
           WHERE IsVoid=1');
     EXEC('UPDATE dbo.PIP_T_Inspection
-          SET IsApprove=NULL
+          SET IsApprove=0
           WHERE IsVoid=0 AND ApprovedBy IS NULL AND ApprovedDate IS NULL');
     DECLARE @V_IsVoidDefault sysname;
     SELECT @V_IsVoidDefault=dc.name
@@ -184,8 +184,10 @@ JOIN sys.columns c ON c.object_id=dc.parent_object_id AND c.column_id=dc.parent_
 WHERE dc.parent_object_id=OBJECT_ID('dbo.PIP_T_Inspection') AND c.name='IsApprove';
 IF @V_IsApproveDefault IS NOT NULL
     EXEC('ALTER TABLE dbo.PIP_T_Inspection DROP CONSTRAINT ' + QUOTENAME(@V_IsApproveDefault));
-IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id=OBJECT_ID('dbo.PIP_T_Inspection') AND name='IsApprove' AND is_nullable=0)
-    ALTER TABLE dbo.PIP_T_Inspection ALTER COLUMN IsApprove BIT NULL;
+UPDATE dbo.PIP_T_Inspection SET IsApprove=0 WHERE IsApprove IS NULL;
+IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id=OBJECT_ID('dbo.PIP_T_Inspection') AND name='IsApprove' AND is_nullable=1)
+    ALTER TABLE dbo.PIP_T_Inspection ALTER COLUMN IsApprove BIT NOT NULL;
+ALTER TABLE dbo.PIP_T_Inspection ADD CONSTRAINT DF_PIP_T_Inspection_IsApprove DEFAULT (0) FOR IsApprove;
 GO
 
 IF OBJECT_ID('dbo.spUTL_PIP_T_Inspection_Sync', 'P') IS NOT NULL
@@ -538,7 +540,7 @@ BEGIN
                 InspectionDate=@p_InspectionDate, StartDateTime=@p_StartDateTime,
                 EndDateTime=@p_EndDateTime, Status=@p_Status, Summary=@p_Summary,
                 FollowUp=@p_FollowUp, FollowUpSection=NULLIF(@p_FollowUpSection,''), FollowUpRemark=NULLIF(@p_FollowUpRemark,''),
-                IsApprove=NULL, ApprovedBy=NULL, ApprovedDate=NULL, ApprovalRemark=NULL,
+                IsApprove=0, ApprovedBy=NULL, ApprovedDate=NULL, ApprovalRemark=NULL,
                 ReasonVoid=NULL,
                 UpdateUser=@p_UpdateUser, UpdateDate=GETDATE()
             WHERE InspectionID=@V_InspectionID;
@@ -669,6 +671,10 @@ BEGIN
         DECLARE @V_SectionID VARCHAR(10);
         DECLARE @V_Status VARCHAR(10);
         DECLARE @V_IsApprove BIT;
+        DECLARE @V_ApprovedBy VARCHAR(50);
+        DECLARE @V_ApprovedDate DATETIME;
+        DECLARE @V_ApprovalRemark VARCHAR(500);
+        DECLARE @V_ReasonVoid VARCHAR(500);
         DECLARE @V_FollowUp VARCHAR(30);
         DECLARE @V_FollowUpSection VARCHAR(10);
         DECLARE @V_FollowUpRemark VARCHAR(300);
@@ -677,6 +683,8 @@ BEGIN
         DECLARE @V_OwnerEmployeeID VARCHAR(50);
 
         SELECT @V_SectionID=SectionID, @V_Status=Status, @V_IsApprove=IsApprove,
+               @V_ApprovedBy=ApprovedBy, @V_ApprovedDate=ApprovedDate,
+               @V_ApprovalRemark=ApprovalRemark, @V_ReasonVoid=ReasonVoid,
                @V_FollowUp=ISNULL(FollowUp,'No Follow Up'),
                @V_FollowUpSection=ISNULL(FollowUpSection,''),
                @V_FollowUpRemark=ISNULL(FollowUpRemark,''),
@@ -708,7 +716,9 @@ BEGIN
         )
             RAISERROR('Supervisor is not authorized for this inspection section or company/location.', 16, 1);
 
-        IF @V_Status <> 'DONE' OR @V_IsApprove IS NOT NULL
+        IF @V_Status <> 'DONE' OR ISNULL(@V_IsApprove,0) <> 0
+           OR @V_ApprovedBy IS NOT NULL OR @V_ApprovedDate IS NOT NULL
+           OR ISNULL(@V_ApprovalRemark,'') <> '' OR ISNULL(@V_ReasonVoid,'') <> ''
             RAISERROR('Only inspections awaiting approval can be processed.', 16, 1);
 
         IF @p_Action = 'APPROVE'
@@ -729,7 +739,8 @@ BEGIN
                 ApprovalRemark=NULLIF(LTRIM(RTRIM(@p_Remark)), ''),
                 ReasonVoid=NULL, UpdateUser=@p_EmployeeID, UpdateDate=GETDATE()
             WHERE InspectionID=@p_InspectionID AND CompanyID=@p_CompanyID AND LocationID=@p_LocationID
-              AND Status='DONE' AND IsApprove IS NULL AND ApprovedBy IS NULL AND ApprovedDate IS NULL;
+              AND Status='DONE' AND IsApprove=0 AND ApprovedBy IS NULL AND ApprovedDate IS NULL
+              AND ISNULL(ApprovalRemark,'')='' AND ISNULL(ReasonVoid,'')='';
 
             IF @@ROWCOUNT <> 1
                 RAISERROR('Inspection approval state changed before this action completed. Refresh the queue.', 16, 1);
@@ -804,7 +815,8 @@ BEGIN
                 ApprovalRemark=NULL, ReasonVoid=LTRIM(RTRIM(@p_Remark)),
                 UpdateUser=@p_EmployeeID, UpdateDate=GETDATE()
             WHERE InspectionID=@p_InspectionID AND CompanyID=@p_CompanyID AND LocationID=@p_LocationID
-              AND Status='DONE' AND IsApprove IS NULL AND ApprovedBy IS NULL AND ApprovedDate IS NULL;
+              AND Status='DONE' AND IsApprove=0 AND ApprovedBy IS NULL AND ApprovedDate IS NULL
+              AND ISNULL(ApprovalRemark,'')='' AND ISNULL(ReasonVoid,'')='';
 
             IF @@ROWCOUNT <> 1
                 RAISERROR('Inspection approval state changed before this action completed. Refresh the queue.', 16, 1);
