@@ -6334,10 +6334,15 @@ async function renderTemplateEmployeeAssignments(template)
         assignAll.addEventListener('click', async function() {
             const pending = employeeRows.filter(function(item) { return !item.row.IsAssigned; });
             if (!pending.length) {
-                alert('All eligible employees are already assigned.');
+                showToast('All eligible employees are already assigned.', 'info');
                 return;
             }
-            if (!confirm('Assign this template to all ' + pending.length + ' eligible active employees in the selected company/location scope?')) return;
+            const confirmed = await showConfirmation({
+                title: 'Assign Template',
+                message: 'Assign this template to all ' + pending.length + ' eligible active employees in the selected company/location scope?',
+                yesText: 'Assign'
+            });
+            if (!confirmed) return;
             let assigned = 0;
             const failed = [];
             assignAll.disabled = true;
@@ -6365,8 +6370,11 @@ async function renderTemplateEmployeeAssignments(template)
                 hideLoading();
                 assignAll.disabled = false;
             }
-            alert('Assigned ' + assigned + ' of ' + pending.length + ' employees.' +
-                (failed.length ? '\nFailed: ' + failed.join('\n') : ''));
+            if (failed.length) {
+                showToast('Assigned ' + assigned + ' of ' + pending.length + ' employees. Failed: ' + failed.join('; '), 'warning');
+            } else {
+                showToast('Assigned ' + assigned + ' of ' + pending.length + ' employees.', 'success');
+            }
         });
         host.appendChild(table);
     } catch (ex) {
@@ -7770,9 +7778,11 @@ async function confirmDiscardChanges() {
     if (!isDirty)
         return true;
 
-    return confirm(
-        'You have unsaved changes.\n\nDiscard changes?'
-    );
+    return await showConfirmation({
+        title: 'Unsaved Changes',
+        message: 'You have unsaved changes. Discard changes?',
+        yesText: 'Discard'
+    });
 }
 
 async function deleteDraftVersion(idVersion)
@@ -7791,9 +7801,7 @@ async function deleteDraftVersion(idVersion)
             versionNode.VersionInfo;
         if(version.Status!="Draft")
         {
-            alert(
-                "Only draft version can be deleted."
-            );
+            showToast("Only draft version can be deleted.", "warning");
             return;
         }
         const ok =
