@@ -43,6 +43,10 @@ namespace UTL1.Secure
                     if (String.IsNullOrWhiteSpace(clientId))
                         throw new Exception("ClientInspectionID is required.");
 
+                    string status = TokenString(record, "Status").ToUpperInvariant();
+                    if (status != "DONE")
+                        throw new Exception("Only completed inspections (DONE) can be synced to SQL Server.");
+
                     string recordOwner = TokenString(record, "OwnerEmployeeID");
                     if (String.IsNullOrWhiteSpace(recordOwner) ||
                         !String.Equals(recordOwner, userId, StringComparison.OrdinalIgnoreCase))
@@ -89,8 +93,7 @@ namespace UTL1.Secure
                         }
                     }
 
-                    string status = TokenString(record, "Status").ToUpperInvariant();
-                    if (status != "DRAFT" && status != "DONE")
+                    if (status != "DONE")
                         throw new Exception("Invalid inspection status.");
 
                         DateTime inspectionDate = ParseDate(TokenString(record, "InspectionDate"), DateTime.Today);
@@ -153,13 +156,19 @@ namespace UTL1.Secure
                             new SqlParameter("@p_ItemValues", itemValues)
                         }, true, true);
 
-                        long inspectionId = saved.Rows.Count > 0 ? Convert.ToInt64(saved.Rows[0]["InspectionID"]) : 0;
+                        if (saved == null || saved.Rows.Count == 0 || !saved.Columns.Contains("InspectionID") || saved.Rows[0]["InspectionID"] == DBNull.Value)
+                            throw new Exception("Inspection sync procedure returned no saved header. Photo upload was stopped.");
+
+                        long inspectionId = Convert.ToInt64(saved.Rows[0]["InspectionID"]);
                         if (inspectionId <= 0)
                             throw new Exception("Inspection header was not saved; photo upload was stopped.");
 
                         string companyId = Limit(TokenString(record, "CompanyID"), 10);
                         string locationId = Limit(TokenString(record, "LocationID"), 3);
-                        string inspectionNo = Convert.ToString(br.EQueryP("SELECT InspectionNo FROM dbo.PIP_T_Inspection WHERE InspectionID=@InspectionID", new SqlParameter[] { new SqlParameter("@InspectionID", inspectionId) }).Rows[0]["InspectionNo"]);
+                        DataTable inspectionNoRows = br.EQueryP("SELECT InspectionNo FROM dbo.PIP_T_Inspection WHERE InspectionID=@InspectionID", new SqlParameter[] { new SqlParameter("@InspectionID", inspectionId) });
+                        if (inspectionNoRows == null || inspectionNoRows.Rows.Count == 0 || inspectionNoRows.Rows[0]["InspectionNo"] == DBNull.Value)
+                            throw new Exception("Inspection header was saved but InspectionNo could not be reloaded. InspectionID=" + inspectionId.ToString(CultureInfo.InvariantCulture));
+                        string inspectionNo = Convert.ToString(inspectionNoRows.Rows[0]["InspectionNo"]);
                         if (String.IsNullOrWhiteSpace(inspectionNo))
                             throw new Exception("InspectionNo is required before saving Inspection photos.");
                         string photoFolder = GetInspectionPhotoFolder(companyId, locationId, inspectionDate, inspectionNo);
@@ -168,6 +177,8 @@ SELECT FileName, FileType
 FROM dbo.PIP_T_InspectionPhoto
 WHERE InspectionID=@InspectionID",
                             new SqlParameter[] { new SqlParameter("@InspectionID", inspectionId) });
+                        if (oldPhotoRows == null)
+                            throw new Exception("Could not load existing Inspection photo records. InspectionID=" + inspectionId.ToString(CultureInfo.InvariantCulture));
 
                         var savedPhotoRows = new List<Tuple<string, string, string, int, string>>();
                         var createdPhotoPaths = new List<string>();
@@ -245,6 +256,8 @@ WHERE InspectionID=@InspectionID",
                 }
                 catch (Exception ex)
                 {
+                    System.Diagnostics.Trace.TraceError("SyncInspections failed for ClientInspectionID={0}, userId={1}: {2}",
+                        clientId, userId, ex.ToString());
                     outcomes.Add(new
                     {
                         ClientInspectionID = clientId,
@@ -604,7 +617,7 @@ SELECT I.InspectionID, I.ClientInspectionID, I.InspectionNo, I.CompanyID, I.Loca
        I.FollowUp, I.FollowUpSection, I.FollowUpRemark, I.FollowUpWONo
 FROM dbo.PIP_T_Inspection I
 WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID
-  AND I.Status='DONE' AND I.IsApprove IS NULL AND I.ApprovedBy IS NULL AND I.ApprovedDate IS NULL
+  AND I.Status='DONE' AND I.IsApprove=0 AND I.ApprovedBy IS NULL AND I.ApprovedDate IS NULL AND ISNULL(I.ApprovalRemark,'')='' AND ISNULL(I.ReasonVoid,'')=''
   AND EXISTS (
       SELECT 1 FROM dbo.UTL_User U
       WHERE U.EmployeeID=@EmployeeID AND ISNULL(U.IsSPV,0)=1
@@ -644,7 +657,7 @@ ORDER BY I.InspectionDate DESC, I.InspectionID DESC",
             {
                 DataTable rows = br.EQueryP(@"
 SELECT
-    SUM(CASE WHEN I.Status='DONE' AND I.IsApprove IS NULL AND I.ApprovedBy IS NULL AND I.ApprovedDate IS NULL THEN 1 ELSE 0 END) PendingApproval,
+    SUM(CASE WHEN I.Status='DONE' AND I.IsApprove=0 AND I.ApprovedBy IS NULL AND I.ApprovedDate IS NULL AND ISNULL(I.ApprovalRemark,'')='' AND ISNULL(I.ReasonVoid,'')='' THEN 1 ELSE 0 END) PendingApproval,
     SUM(CASE WHEN ISNULL(I.IsApprove,0)=1 AND I.ApprovedDate>=CONVERT(DATETIME, CONVERT(VARCHAR(10), GETDATE(), 120), 120) THEN 1 ELSE 0 END) ApprovedToday,
     SUM(CASE WHEN I.IsApprove=0 AND I.ApprovedBy IS NOT NULL AND I.ApprovedDate IS NOT NULL THEN 1 ELSE 0 END) VoidCount
 FROM dbo.PIP_T_Inspection I
@@ -745,7 +758,7 @@ SELECT I.InspectionID, I.InspectionNo, I.CompanyID, I.LocationID, I.SectionID, I
        I.FollowUp, I.FollowUpSection, I.FollowUpRemark, I.FollowUpWONo
 FROM dbo.PIP_T_Inspection I
 WHERE I.InspectionID=@InspectionID AND I.Status='DONE'
-  AND I.IsApprove IS NULL AND I.ApprovedBy IS NULL AND I.ApprovedDate IS NULL
+  AND I.IsApprove=0 AND I.ApprovedBy IS NULL AND I.ApprovedDate IS NULL AND ISNULL(I.ApprovalRemark,'')='' AND ISNULL(I.ReasonVoid,'')=''
   AND EXISTS (
       SELECT 1 FROM dbo.UTL_User U
       WHERE U.EmployeeID=@EmployeeID AND ISNULL(U.IsSPV,0)=1
