@@ -193,12 +193,15 @@
                 <textarea id="txtInspectionFollowUpRemark" class="form-control form-control-sm" rows="3" maxlength="300" placeholder="Jelaskan pekerjaan lanjutan yang direkomendasikan..."></textarea>
             </div>
         </div>
-        <div class="d-flex gap-2 mt-3">
+        <div class="d-flex flex-wrap gap-2 mt-3">
             <button type="button" id="btnSaveInspectionDraft" class="btn btn-outline-secondary flex-fill">
                 <i class="bi bi-save"></i> Save Draft
             </button>
+            <button type="button" id="btnDeleteInspectionDraft" class="btn btn-outline-danger flex-fill d-none">
+                <i class="bi bi-trash"></i> Delete Draft
+            </button>
             <button type="button" id="btnCompleteInspection" class="btn btn-primary flex-fill">
-                <i class="bi bi-check-circle"></i> Complete
+                <i class="bi bi-check-circle"></i> Complete / Submit
             </button>
         </div>
         <div id="inspectionFormMessage" class="inspection-muted mt-2"></div>
