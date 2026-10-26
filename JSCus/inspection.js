@@ -1724,7 +1724,7 @@ function openInspectionApprovalAction(action, batch) {
         : (action === "VOID" ? "Masukkan alasan void. Alasan ini akan ditampilkan kepada teknisi." : "Remark approval bersifat opsional.");
     document.getElementById("lblInspectionApprovalActionRemark").textContent = action === "VOID" ? "Reason Void (wajib)" : "Approval Remark (opsional)";
     const input = document.getElementById("txtInspectionApprovalActionRemark");
-    input.value = batch ? "" : (document.getElementById("txtInspectionApprovalRemark").value || "");
+    input.value = (batch || action === "VOID") ? "" : (document.getElementById("txtInspectionApprovalRemark").value || "");
     input.maxLength = action === "VOID" ? 255 : 500;
     document.getElementById("inspectionApprovalActionError").classList.add("d-none");
     document.getElementById("btnConfirmInspectionApprovalAction").textContent = action === "APPROVE" ? "Approve" : "Void";
