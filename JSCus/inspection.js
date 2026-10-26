@@ -94,6 +94,9 @@ function wireInspectionEvents() {
     document.getElementById("btnInspectionParamTab").addEventListener("click", () => showInspectionEditorTab("param"));
     document.getElementById("btnInspectionChecklistTab").addEventListener("click", () => showInspectionEditorTab("checklist"));
     document.getElementById("btnSaveInspectionDraft").addEventListener("click", () => saveInspection("DRAFT"));
+    document.getElementById("btnDeleteInspectionDraft").addEventListener("click", async () => {
+        if (currentInspectionRecord) await deleteLocalInspectionDraft(currentInspectionRecord.LocalInspectionID);
+    });
     document.getElementById("btnCompleteInspection").addEventListener("click", () => saveInspection("DONE"));
     document.getElementById("inspectionPhotoBeforeInput").addEventListener("change", e => handleInspectionPhotoInput(e, "BEFORE"));
     document.getElementById("inspectionPhotoAfterInput").addEventListener("change", e => handleInspectionPhotoInput(e, "AFTER"));
@@ -120,8 +123,6 @@ function wireInspectionEvents() {
     document.getElementById("btnInspectionSync").addEventListener("click", syncInspectionNow);
     ["inspectionDraftList", "inspectionSubmittedList"].forEach(function (listId) {
         document.getElementById(listId).addEventListener("click", async function (event) {
-            const deleteDraftButton = event.target.closest("[data-delete-draft]");
-            if (deleteDraftButton) { await deleteLocalInspectionDraft(deleteDraftButton.dataset.deleteDraft); return; }
             const deleteButton = event.target.closest("[data-delete-conflict]");
             if (deleteButton) {
                 await queueConflictInspectionDelete(deleteButton.dataset.deleteConflict);
@@ -502,6 +503,15 @@ async function renderInspectionForm(record, readOnly) {
     document.getElementById("inspectionFormPanel").classList.remove("d-none");
     populateInspectionParameters(record);
     showInspectionEditorTab("checklist");
+    const canDeleteDraft = !currentInspectionReadOnly &&
+        record.Status === "DRAFT" &&
+        record.SyncStatus !== "SYNCED" &&
+        record.SyncStatus !== "CONFLICT" &&
+        record.SyncStatus !== "DELETE_PENDING" &&
+        inspectionRecords.some(item => item.LocalInspectionID === record.LocalInspectionID);
+    document.getElementById("btnDeleteInspectionDraft").classList.toggle("d-none", !canDeleteDraft);
+    document.getElementById("btnSaveInspectionDraft").classList.toggle("d-none", currentInspectionReadOnly);
+    document.getElementById("btnCompleteInspection").classList.toggle("d-none", currentInspectionReadOnly);
     document.getElementById("inspectionFormTitle").textContent =
         record.InspectionTypeName + " — " + record.InspectionTypeDetailName;
     document.getElementById("inspectionFormSubtitle").textContent =
@@ -1026,7 +1036,7 @@ function renderInspectionRecordTable(records, host, submitted) {
                 : "";
         const deleteHtml = record.SyncStatus === "CONFLICT"
             ? '<button type="button" class="btn btn-sm btn-outline-danger mt-1" data-delete-conflict="' + escInspection(localId) + '">Delete Local Transaction</button>'
-            : (!submitted && record.Status === "DRAFT" && record.SyncStatus !== "SYNCED" && record.SyncStatus !== "DELETE_PENDING" ? '<button type="button" class="btn btn-sm btn-outline-danger mt-1 ms-1" data-delete-draft="' + escInspection(localId) + '"><i class="bi bi-trash"></i> Hapus Draft</button>' : "");
+            : "";
         return '<tr>' +
             '<td class="text-nowrap">' + numberHtml + conflictHtml + '</td>' +
             '<td class="text-nowrap">' + escInspection(date || "—") + '</td>' +
@@ -1213,7 +1223,45 @@ async function applyInspectionParameters() {
     return true;
 }
 
-async function deleteLocalInspectionDraft(localId){const record=inspectionRecords.find(r=>r.LocalInspectionID===localId);if(!record||record.Status!=="DRAFT"||record.SyncStatus==="SYNCED"||record.SyncStatus==="CONFLICT"||record.SyncStatus==="DELETE_PENDING"){showInspectionNotice("Hanya draft lokal yang belum tersinkron yang bisa dihapus di sini.","warning");return;}if(!confirm("Hapus draft ini beserta foto BEFORE/AFTER dari perangkat? Transaksi yang sudah tersimpan di server tidak akan dihapus."))return;await new Promise((resolve,reject)=>{const tx=db.transaction(["inspection_records","inspection_photos"],"readwrite");tx.objectStore("inspection_records").delete(localId);const req=tx.objectStore("inspection_photos").index("LocalInspectionID").openCursor(IDBKeyRange.only(localId));req.onsuccess=()=>{const c=req.result;if(!c)return;c.delete();c.continue();};tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error||new Error("Hapus draft gagal."));});if(currentInspectionRecord&&currentInspectionRecord.LocalInspectionID===localId){currentInspectionRecord=null;showInspectionRecordsScreen();}await refreshSavedInspectionList();showInspectionNotice("Draft lokal beserta fotonya sudah dihapus.","success");}
+async function deleteLocalInspectionDraft(localId) {
+    const record = inspectionRecords.find(item => item.LocalInspectionID === localId);
+    if (!record || record.Status !== "DRAFT" || record.SyncStatus === "SYNCED" ||
+        record.SyncStatus === "CONFLICT" || record.SyncStatus === "DELETE_PENDING") {
+        showInspectionNotice("Hanya draft lokal yang belum tersinkron yang bisa dihapus di dalam form draft.", "warning");
+        return;
+    }
+    if (!confirm("Hapus draft " + (record.InspectionNo || ("TEMP-" + String(localId).substring(0, 8).toUpperCase())) +
+        " beserta foto BEFORE/AFTER dari perangkat? Tindakan ini tidak bisa dibatalkan.")) return;
+
+    await new Promise((resolve, reject) => {
+        const tx = db.transaction(["inspection_records", "inspection_photos"], "readwrite");
+        tx.objectStore("inspection_records").delete(localId);
+        const req = tx.objectStore("inspection_photos").index("LocalInspectionID")
+            .openCursor(IDBKeyRange.only(localId));
+        req.onsuccess = () => {
+            const cursor = req.result;
+            if (!cursor) return;
+            cursor.delete();
+            cursor.continue();
+        };
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+        tx.onabort = () => reject(tx.error || new Error("Hapus draft gagal."));
+    });
+
+    if (currentInspectionRecord && currentInspectionRecord.LocalInspectionID === localId) {
+        currentInspectionRecord = null;
+        currentInspectionReadOnly = false;
+        inspectionPhotoBaseline = null;
+        document.getElementById("inspectionEditorTabs").classList.add("d-none");
+        document.getElementById("inspectionFormPanel").classList.add("d-none");
+        document.getElementById("inspectionStartPanel").classList.remove("d-none");
+        document.getElementById("inspectionStartButtonRow").classList.remove("d-none");
+        showInspectionRecordsScreen();
+    }
+    await refreshSavedInspectionList();
+    showInspectionNotice("Draft lokal beserta fotonya sudah dihapus.", "success");
+}
 async function getInspectionPhotos(localId){return new Promise((resolve,reject)=>{const tx=db.transaction("inspection_photos","readonly"),req=tx.objectStore("inspection_photos").index("LocalInspectionID").getAll(IDBKeyRange.only(localId));req.onsuccess=()=>resolve((req.result||[]).sort((a,b)=>String(a.Type).localeCompare(String(b.Type))||Number(a.SeqNo||a.OrderNo||0)-Number(b.SeqNo||b.OrderNo||0)));req.onerror=()=>reject(req.error);});}
 async function renderInspectionPhotos() {
     if (!currentInspectionRecord) return;
