@@ -527,8 +527,10 @@ END",
             using (var br = new WAL.BR.CF())
             {
                 DataTable auth = br.EQueryP(@"
-SELECT ISNULL(U.Section,'') Section, ISNULL(U.IsWO,0) IsWO
+SELECT ISNULL(U.Section,'') Section, ISNULL(U.IsWO,0) IsWO,
+       ISNULL(E.Name, U.EmployeeID) TechnicianName
 FROM dbo.UTL_User U
+LEFT JOIN dbo.M_HRD_Employee E ON E.EmployeeID=U.EmployeeID
 WHERE U.EmployeeID=@EmployeeID
   AND (
       EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
@@ -549,8 +551,9 @@ WHERE U.EmployeeID=@EmployeeID
                 var sections = auth.Rows[0]["Section"].ToString()
                     .Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries)
                     .Select(s => s.Trim()).Where(s => s.Length > 0).ToList();
+                string technicianName = Convert.ToString(auth.Rows[0]["TechnicianName"]);
                 if (sections.Count == 0)
-                    return new { success = true, data = new List<Dictionary<string, object>>() };
+                    return new { success = true, technicianName = technicianName, data = new List<Dictionary<string, object>>() };
 
                 DataTable rows = br.EQueryP(@"
 SELECT I.InspectionID, I.ClientInspectionID, I.InspectionNo,
@@ -581,7 +584,7 @@ ORDER BY I.StartDateTime DESC, I.InspectionID DESC",
                         item[col.ColumnName] = row[col] == DBNull.Value ? null : row[col];
                     result.Add(item);
                 }
-                return new { success = true, data = result };
+                return new { success = true, technicianName = technicianName, data = result };
             }
         }
 
@@ -900,7 +903,7 @@ ORDER BY R.DisplayOrder, V.FieldName",
 
                     DataTable meta = br.EQueryP(@"
 SELECT T.IDTemplate, T.TemplateNo, T.TemplateName, T.SectionID, T.InspectionTypeCode,
-       V.IDVersion, V.Version, V.StatusOption, V.IsRemark1Required VersionIsRemark1Required, V.Remark1Text VersionRemark1Text, V.IsRemark2Required VersionIsRemark2Required, V.Remark2Text VersionRemark2Text, V.RemarkRequiredOptions VersionRemarkRequiredOptions
+       V.IDVersion, V.Version, V.StatusOption, ISNULL(V.SummarySampleText,'') SummarySampleText, V.IsRemark1Required VersionIsRemark1Required, V.Remark1Text VersionRemark1Text, V.IsRemark2Required VersionIsRemark2Required, V.Remark2Text VersionRemark2Text, V.RemarkRequiredOptions VersionRemarkRequiredOptions
 FROM dbo.PIP_M_CheckListWOPM T
 JOIN dbo.PIP_M_CheckListWOPM_Version V ON V.IDTemplate=T.IDTemplate
 WHERE T.IDTemplate=@IDTemplate AND V.IDVersion=@IDVersion AND ISNULL(T.TemplateType,'W')='I'",
@@ -1001,6 +1004,7 @@ ORDER BY G.DisplayOrder",
                             TemplateNo = m["TemplateNo"].ToString(),
                             TemplateName = m["TemplateName"].ToString(),
                             StatusOption = m["StatusOption"].ToString(),
+                            SummarySampleText = GF.GetString(m["SummarySampleText"]),
                             IsRemark1Required = Convert.ToBoolean(m["VersionIsRemark1Required"]),
                             Remark1Text = GF.GetString(m["VersionRemark1Text"]),
                             IsRemark2Required = Convert.ToBoolean(m["VersionIsRemark2Required"]),
