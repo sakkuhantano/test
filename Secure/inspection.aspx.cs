@@ -296,7 +296,8 @@ WHERE InspectionID=@InspectionID",
                 throw new InvalidOperationException("HTTP request context is unavailable while preparing Inspection photo storage.");
             string appPath = context.Request.ApplicationPath ?? "";
             string appId = PB.AppID ?? "";
-            string root = appPath.Replace("/", "").Replace(appId, "PIP");
+            string root = appPath.Replace("/", "");
+            if (!String.IsNullOrEmpty(appId)) root = root.Replace(appId, "PIP");
             string webFolder = PB.Path_WebFolder1;
             if (String.IsNullOrWhiteSpace(webFolder))
                 throw new InvalidOperationException("PB.Path_WebFolder1 is empty; Inspection photo storage root is not configured.");
