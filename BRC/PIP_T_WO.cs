@@ -220,6 +220,14 @@ FROM PIP_T_WO A WHERE A.KeyHD = @KeyHD AND A.IsDelete = 0
             _mainConnection.Open();
             Begintrans();
 
+            // SQL transactions cannot roll back filesystem changes. Keep byte-for-byte copies
+            // of each affected WO photo folder outside the web-served upload tree until commit.
+            string photoRollbackRoot = System.IO.Path.Combine(
+                System.IO.Path.GetTempPath(), "UTL_WO_SYNC_ROLLBACK_" + Guid.NewGuid().ToString("N"));
+            var originalFilesByFolder = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
+            var backupFilesByOriginalPath = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            var touchedPhotoFolders = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
             try
             {
                 DataTable V_tblTmp_1 = new DataTable();
@@ -315,7 +323,24 @@ FROM PIP_T_WO A WHERE A.KeyHD = @KeyHD AND A.IsDelete = 0
                         if (!System.IO.Directory.Exists(pathupload))
                             //System.IO.Directory.Delete(pathupload, true);
                             System.IO.Directory.CreateDirectory(pathupload);
-                        
+
+                        // Snapshot the complete original folder before any physical photo is deleted/replaced.
+                        touchedPhotoFolders.Add(pathupload);
+                        if (!originalFilesByFolder.ContainsKey(pathupload))
+                        {
+                            string[] originalFiles = System.IO.Directory.GetFiles(pathupload);
+                            var originalSet = new HashSet<string>(originalFiles, StringComparer.OrdinalIgnoreCase);
+                            originalFilesByFolder[pathupload] = originalSet;
+                            string backupFolder = System.IO.Path.Combine(photoRollbackRoot, originalFilesByFolder.Count.ToString());
+                            foreach (string originalPath in originalFiles)
+                            {
+                                System.IO.Directory.CreateDirectory(backupFolder);
+                                string backupPath = System.IO.Path.Combine(backupFolder, System.IO.Path.GetFileName(originalPath));
+                                System.IO.File.Copy(originalPath, backupPath, true);
+                                backupFilesByOriginalPath[originalPath] = backupPath;
+                            }
+                        }
+
                         // cleanup files
                         var validFiles = new HashSet<string>(
                             v_dt.AsEnumerable()
@@ -418,13 +443,83 @@ FROM PIP_T_WO A WHERE A.KeyHD = @KeyHD AND A.IsDelete = 0
 
                 }
                 CommitTrans();
+
+                // Once SQL and photo writes are committed, backup cleanup is best-effort only.
+                try
+                {
+                    if (System.IO.Directory.Exists(photoRollbackRoot))
+                        System.IO.Directory.Delete(photoRollbackRoot, true);
+                }
+                catch (Exception cleanupError)
+                {
+                    Trace.TraceWarning("WO sync committed, but temporary photo backups remain at {0}: {1}",
+                        photoRollbackRoot, cleanupError.Message);
+                }
                 return true;
             }
             catch (Exception ex)
             {
-                // // Rollback all changes                
-                RollBackTrans();
-                // // some error occured. Bubble it to caller and encapsulate Exception object                
+                Exception transactionRollbackError = null;
+                try { RollBackTrans(); }
+                catch (Exception rollbackError) { transactionRollbackError = rollbackError; }
+
+                Exception photoRestoreError = null;
+                try
+                {
+                    // Remove only files created during this attempt, then restore every original
+                    // file from the snapshot. This repairs deleted and overwritten photos.
+                    foreach (string folder in touchedPhotoFolders)
+                    {
+                        if (!System.IO.Directory.Exists(folder)) continue;
+                        HashSet<string> originalSet;
+                        if (!originalFilesByFolder.TryGetValue(folder, out originalSet))
+                            originalSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                        foreach (string currentPath in System.IO.Directory.GetFiles(folder))
+                        {
+                            if (!originalSet.Contains(currentPath) && System.IO.File.Exists(currentPath))
+                                System.IO.File.Delete(currentPath);
+                        }
+                    }
+                    foreach (KeyValuePair<string, string> backup in backupFilesByOriginalPath)
+                    {
+                        if (!System.IO.File.Exists(backup.Value))
+                            throw new Exception("Missing temporary backup for " + backup.Key);
+                        System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(backup.Key));
+                        System.IO.File.Copy(backup.Value, backup.Key, true);
+                    }
+                }
+                catch (Exception restoreError)
+                {
+                    photoRestoreError = restoreError;
+                }
+
+                if (transactionRollbackError == null && photoRestoreError == null)
+                {
+                    try
+                    {
+                        if (System.IO.Directory.Exists(photoRollbackRoot))
+                            System.IO.Directory.Delete(photoRollbackRoot, true);
+                    }
+                    catch (Exception cleanupError)
+                    {
+                        Trace.TraceWarning("WO rollback completed, but temporary photo backups remain at {0}: {1}",
+                            photoRollbackRoot, cleanupError.Message);
+                    }
+                }
+
+                if (transactionRollbackError != null || photoRestoreError != null)
+                {
+                    string backupNote = System.IO.Directory.Exists(photoRollbackRoot)
+                        ? " Temporary photo backups retained at: " + photoRollbackRoot
+                        : "";
+                    throw new Exception(
+                        "WO sync failed and rollback/restore needs manual verification." + backupNote +
+                        " Original error: " + ex.Message,
+                        new AggregateException(
+                            new Exception("SQL rollback", transactionRollbackError ?? new Exception("SQL rollback completed.")),
+                            new Exception("Photo restore", photoRestoreError ?? new Exception("Photo restore completed."))));
+                }
+
                 throw;
             }
             finally
