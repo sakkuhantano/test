@@ -319,7 +319,11 @@ IF TYPE_ID('dbo.Type_N_Tbl_InspectionPhoto') IS NULL
     )');
 GO
 
-CREATE PROCEDURE dbo.spUTL_PIP_T_Inspection_Sync
+IF OBJECT_ID('dbo.spUTL_PIP_T_Inspection_Sync', 'P') IS NULL
+    EXEC('CREATE PROCEDURE dbo.spUTL_PIP_T_Inspection_Sync AS RETURN 0;');
+GO
+
+ALTER PROCEDURE dbo.spUTL_PIP_T_Inspection_Sync
 (
     @p_ClientInspectionID VARCHAR(36),
     @p_CompanyID VARCHAR(10),
