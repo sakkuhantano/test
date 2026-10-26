@@ -309,6 +309,16 @@ GO
 
 
 
+IF TYPE_ID('dbo.Type_N_Tbl_InspectionPhoto') IS NULL
+    EXEC('CREATE TYPE dbo.Type_N_Tbl_InspectionPhoto AS TABLE
+    (
+        PhotoType VARCHAR(10) NOT NULL,
+        FileName VARCHAR(255) NOT NULL,
+        FileType VARCHAR(10) NOT NULL,
+        SeqNo INT NOT NULL
+    )');
+GO
+
 CREATE PROCEDURE dbo.spUTL_PIP_T_Inspection_Sync
 (
     @p_ClientInspectionID VARCHAR(36),
@@ -331,6 +341,8 @@ CREATE PROCEDURE dbo.spUTL_PIP_T_Inspection_Sync
     @p_FollowUpSection VARCHAR(10),
     @p_FollowUpRemark VARCHAR(300),
     @p_UpdateUser VARCHAR(50),
+    @p_InspectionNo VARCHAR(10),
+    @p_Photos dbo.Type_N_Tbl_InspectionPhoto READONLY,
     @p_Items dbo.Type_N_Tbl_C13 READONLY,
     @p_ItemValues dbo.Type_N_Tbl_C5 READONLY
 )
@@ -617,7 +629,8 @@ BEGIN
             END;
 
             UPDATE dbo.PIP_T_Inspection
-            SET CompanyID=@p_CompanyID, LocationID=@p_LocationID, SectionID=@p_SectionID,
+            SET InspectionNo=CASE WHEN ISNULL(@p_InspectionNo,'')<>'' THEN @p_InspectionNo ELSE InspectionNo END,
+                CompanyID=@p_CompanyID, LocationID=@p_LocationID, SectionID=@p_SectionID,
                 InspectionTypeCode=@p_InspectionTypeCode, InspectionTypeName=@V_InspectionTypeName,
                 InspectionTypeDetailCode=@p_InspectionTypeDetailCode,
                 InspectionTypeDetailName=@V_InspectionTypeDetailName, ScheduledTime=@p_ScheduledTime,
@@ -637,11 +650,14 @@ BEGIN
             DECLARE @V_AutoNum VARCHAR(30);
             DECLARE @V_AutoNumResult TABLE (ID VARCHAR(10), SeqNo INT);
 
-            SET @V_AutoNum = 'PIPINS' + @p_CompanyID + @p_LocationID;
-            INSERT INTO @V_AutoNumResult
-            EXECUTE dbo.sp_GetGenerateAutoNumID 'pip', @V_AutoNum, 1;
-
-            SELECT @V_InspectionNo = ID FROM @V_AutoNumResult;
+            SET @V_InspectionNo = NULLIF(LTRIM(RTRIM(@p_InspectionNo)), '');
+            IF @V_InspectionNo IS NULL
+            BEGIN
+                SET @V_AutoNum = 'PIPINS' + @p_CompanyID + @p_LocationID;
+                INSERT INTO @V_AutoNumResult
+                EXECUTE dbo.sp_GetGenerateAutoNumID 'pip', @V_AutoNum, 1;
+                SELECT @V_InspectionNo = ID FROM @V_AutoNumResult;
+            END;
 
             IF ISNULL(@V_InspectionNo, '') = ''
             BEGIN
@@ -697,6 +713,13 @@ BEGIN
                @p_UpdateUser, GETDATE(), @p_UpdateUser, GETDATE()
         FROM @tbl_ItemValues V
         JOIN @V_ResultMap M ON M.IDItem=V.IDItem;
+
+        /* Header, checklist, and photo metadata commit or roll back together. */
+        DELETE FROM dbo.PIP_T_InspectionPhoto WHERE InspectionID=@V_InspectionID;
+        INSERT dbo.PIP_T_InspectionPhoto
+            (InspectionID, PhotoType, FileName, FileType, SeqNo, EntryUser, EntryDate)
+        SELECT @V_InspectionID, P.PhotoType, P.FileName, P.FileType, P.SeqNo, @p_UpdateUser, GETDATE()
+        FROM @p_Photos P;
 
         COMMIT TRANSACTION;
         SELECT @V_InspectionID AS InspectionID,
