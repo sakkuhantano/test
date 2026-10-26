@@ -501,3 +501,20 @@ END
 SELECT * FROM @tbl_Identity    
 
 --- end processsing
+
+
+GO
+/* Clean legacy default labels from rows where the remark fields are disabled. */
+UPDATE dbo.PIP_M_CheckListWOPM_version
+SET Remark1Text=''
+WHERE ISNULL(IsRemark1Required,0)=0 AND ISNULL(Remark1Text,'')<>'';
+UPDATE dbo.PIP_M_CheckListWOPM_version
+SET Remark2Text=''
+WHERE ISNULL(IsRemark2Required,0)=0 AND ISNULL(Remark2Text,'')<>'';
+UPDATE dbo.PIP_M_CheckListWOPM_item
+SET Remark1Text=''
+WHERE ISNULL(IsRemark1Required,0)=0 AND ISNULL(Remark1Text,'')<>'';
+UPDATE dbo.PIP_M_CheckListWOPM_item
+SET Remark2Text=''
+WHERE ISNULL(IsRemark2Required,0)=0 AND ISNULL(Remark2Text,'')<>'';
+GO
