@@ -227,6 +227,7 @@ FROM PIP_T_WO A WHERE A.KeyHD = @KeyHD AND A.IsDelete = 0
             var originalFilesByFolder = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
             var backupFilesByOriginalPath = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             var touchedPhotoFolders = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            bool commitAttempted = false;
 
             try
             {
@@ -442,6 +443,7 @@ FROM PIP_T_WO A WHERE A.KeyHD = @KeyHD AND A.IsDelete = 0
                     }
 
                 }
+                commitAttempted = true;
                 CommitTrans();
 
                 // Once SQL and photo writes are committed, backup cleanup is best-effort only.
@@ -464,9 +466,15 @@ FROM PIP_T_WO A WHERE A.KeyHD = @KeyHD AND A.IsDelete = 0
                 catch (Exception rollbackError) { transactionRollbackError = rollbackError; }
 
                 Exception photoRestoreError = null;
+                // If CommitTrans was attempted but threw, the commit outcome is uncertain even if
+                // RollBackTrans returns. Preserve both current files and backups for manual reconciliation.
+                if (commitAttempted && transactionRollbackError == null)
+                {
+                    photoRestoreError = new Exception("SQL commit outcome is uncertain; photo files were left unchanged.");
+                }
                 // If SQL rollback itself failed, its commit state is unknown. Do not guess which
                 // version of the photos matches the database: retain current files and backups.
-                if (transactionRollbackError == null)
+                else if (transactionRollbackError == null)
                 {
                     try
                     {
