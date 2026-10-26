@@ -590,61 +590,8 @@ async function renderInspectionForm(record, readOnly) {
     document.getElementById("txtInspectionSummary").placeholder = summarySampleText;
     const savedItems = record.Items || [];
     const host = document.getElementById("inspectionChecklistHost");
-    if (!template.sections || !template.sections.length) {
-        host.innerHTML = '<div class="alert alert-warning small">Struktur checklist template tidak tersedia pada record ini.</div>';
-    } else {
-        host.innerHTML = template.sections.map((section, sectionIndex) => {
-            const items = section.items || [];
-            const subsectionGroups = new Map();
-            items.forEach(item => {
-                const subId = Number(item.idSubSection || item.IDSubSection || 0);
-                if (subId > 0) {
-                    if (!subsectionGroups.has(subId)) subsectionGroups.set(subId, []);
-                    subsectionGroups.get(subId).push(item);
-                }
-            });
+    host.innerHTML = renderInspectionSections(template, savedItems, currentInspectionReadOnly, "inspectionSection");
 
-            // Keep direct Section items and Sub-sections in their configured order.
-            const elements = [];
-            items.filter(item => !Number(item.idSubSection || item.IDSubSection || 0))
-                .forEach(item => elements.push({
-                    type: "item",
-                    order: Number(item.itemOrder || item.DisplayOrder || 0),
-                    item
-                }));
-            subsectionGroups.forEach((groupItems, subId) => {
-                const first = groupItems[0];
-                elements.push({
-                    type: "subsection",
-                    order: Number(first.subSectionOrder || first.SubSectionOrder || 0),
-                    name: first.subSectionName || first.SubSectionName || "Sub-section",
-                    subId: subId,
-                    items: groupItems.sort((a, b) =>
-                        Number(a.itemOrder || a.DisplayOrder || 0) - Number(b.itemOrder || b.DisplayOrder || 0))
-                });
-            });
-            elements.sort((a, b) => a.order - b.order);
-
-            const sectionCollapseId = "inspectionSection_" + String(section.idSection || sectionIndex).replace(/[^a-zA-Z0-9_-]/g, "_") + "_" + sectionIndex;
-            const contentHtml = elements.map(element => {
-                if (element.type === "subsection") {
-                    const subsectionCollapseId = sectionCollapseId + "_sub_" + String(element.subId).replace(/[^a-zA-Z0-9_-]/g, "_");
-                    return '<div class="inspection-subsection-heading border rounded mb-2">' +
-                        '<button type="button" class="btn btn-light text-start w-100 fw-semibold text-secondary" data-bs-toggle="collapse" data-bs-target="#' + subsectionCollapseId + '" aria-expanded="true" aria-controls="' + subsectionCollapseId + '">' +
-                        '<i class="bi bi-folder2-open me-2"></i>' + escInspection(element.name) + '<i class="bi bi-chevron-down float-end"></i></button>' +
-                        '<div id="' + subsectionCollapseId + '" class="collapse show px-2 pb-2">' +
-                        element.items.map(item => renderInspectionItem(item, savedItems, currentInspectionReadOnly)).join("") +
-                        '</div></div>';
-                }
-                return renderInspectionItem(element.item, savedItems, currentInspectionReadOnly);
-            }).join("");
-
-            return '<section class="mb-4 border rounded p-2">' +
-                '<button type="button" class="btn btn-light text-start w-100 fw-bold mb-2" data-bs-toggle="collapse" data-bs-target="#' + sectionCollapseId + '" aria-expanded="true" aria-controls="' + sectionCollapseId + '">' +
-                (sectionIndex + 1) + '. ' + escInspection(section.sectionName || "Checklist") + '<i class="bi bi-chevron-down float-end"></i></button>' +
-                '<div id="' + sectionCollapseId + '" class="collapse show">' + contentHtml + '</div></section>';
-        }).join("");
-    }
 
     document.getElementById("btnSaveInspectionDraft").classList.toggle("d-none", currentInspectionReadOnly);
     document.getElementById("btnCompleteInspection").classList.toggle("d-none", currentInspectionReadOnly);
@@ -714,6 +661,60 @@ function updateInspectionRemarkPanels() {
         }
         if (input2) input2.required = showRemark2 && (container.dataset.remark2Mandatory === "1" || optionRequires);
     });
+}
+
+function renderInspectionSections(template, savedItems, readOnly, idPrefix) {
+    if (!template || !Array.isArray(template.sections) || !template.sections.length) {
+        return '<div class="alert alert-warning small">Struktur checklist template tidak tersedia pada record ini.</div>';
+    }
+    const prefix = idPrefix || "inspectionSection";
+    return template.sections.map((section, sectionIndex) => {
+        const items = section.items || [];
+        const subsectionGroups = new Map();
+        items.forEach(item => {
+            const subId = Number(item.idSubSection || item.IDSubSection || 0);
+            if (subId > 0) {
+                if (!subsectionGroups.has(subId)) subsectionGroups.set(subId, []);
+                subsectionGroups.get(subId).push(item);
+            }
+        });
+        const elements = [];
+        items.filter(item => !Number(item.idSubSection || item.IDSubSection || 0))
+            .forEach(item => elements.push({
+                type: "item",
+                order: Number(item.itemOrder || item.DisplayOrder || 0),
+                item
+            }));
+        subsectionGroups.forEach((groupItems, subId) => {
+            const first = groupItems[0];
+            elements.push({
+                type: "subsection",
+                order: Number(first.subSectionOrder || first.SubSectionOrder || 0),
+                name: first.subSectionName || first.SubSectionName || "Sub-section",
+                subId: subId,
+                items: groupItems.sort((a, b) =>
+                    Number(a.itemOrder || a.DisplayOrder || 0) - Number(b.itemOrder || b.DisplayOrder || 0))
+            });
+        });
+        elements.sort((a, b) => a.order - b.order);
+        const sectionCollapseId = prefix + "_" + String(section.idSection || section.IDSection || sectionIndex).replace(/[^a-zA-Z0-9_-]/g, "_") + "_" + sectionIndex;
+        const contentHtml = elements.map(element => {
+            if (element.type === "subsection") {
+                const subsectionCollapseId = sectionCollapseId + "_sub_" + String(element.subId).replace(/[^a-zA-Z0-9_-]/g, "_");
+                return '<div class="inspection-subsection-heading border rounded mb-2">' +
+                    '<button type="button" class="btn btn-light text-start w-100 fw-semibold text-secondary" data-bs-toggle="collapse" data-bs-target="#' + subsectionCollapseId + '" aria-expanded="true" aria-controls="' + subsectionCollapseId + '">' +
+                    '<i class="bi bi-folder2-open me-2"></i>' + escInspection(element.name) + '<i class="bi bi-chevron-down float-end"></i></button>' +
+                    '<div id="' + subsectionCollapseId + '" class="collapse show px-2 pb-2">' +
+                    element.items.map(item => renderInspectionItem(item, savedItems, readOnly)).join("") +
+                    '</div></div>';
+            }
+            return renderInspectionItem(element.item, savedItems, readOnly);
+        }).join("");
+        return '<section class="mb-4 border rounded p-2">' +
+            '<button type="button" class="btn btn-light text-start w-100 fw-bold mb-2" data-bs-toggle="collapse" data-bs-target="#' + sectionCollapseId + '" aria-expanded="true" aria-controls="' + sectionCollapseId + '">' +
+            (sectionIndex + 1) + '. ' + escInspection(section.sectionName || section.SectionName || "Checklist") + '<i class="bi bi-chevron-down float-end"></i></button>' +
+            '<div id="' + sectionCollapseId + '" class="collapse show">' + contentHtml + '</div></section>';
+    }).join("");
 }
 
 function renderInspectionItem(item, savedItems, readOnly) {
@@ -1937,14 +1938,21 @@ async function loadInspectionApprovalDetail(inspectionId) {
                     escInspection(photo.Data || "") + '" alt="Inspection ' + type + '" style="width:112px;height:112px;object-fit:cover" class="border rounded"></a>').join("") +
                 '</div></div>';
         }).join("");
-        checklistHost.innerHTML = photoHtml + (items.length ? items.map(item =>
-            '<div class="border rounded p-3 mb-3"><div class="fw-semibold mb-2">' + escInspection(item.ItemLabel || ("Item " + item.IDItem)) +
-            (item.IsAnomali ? ' <span class="badge text-bg-danger">Anomali</span>' : '') + '</div>' +
-            '<div><strong>Hasil:</strong> ' + escInspection(item.Value || "-") + '</div>' +
-            Object.keys(item.Values || {}).map(field => '<div><strong>' + escInspection(field) + ':</strong> ' + escInspection(item.Values[field] || "-") + '</div>').join("") +
-            '<div class="small text-muted mt-1"><strong>Remark 1:</strong> ' + escInspection(item.Remark1 || item.Remark || "-") + '</div>' +
-            (item.Remark2 ? '<div class="small text-muted"><strong>Remark 2:</strong> ' + escInspection(item.Remark2) + '</div>' : '') + '</div>'
-        ).join("") : '<div class="text-muted">Tidak ada hasil checklist.</div>');
+        const template = inspectionTemplates.find(x =>
+            Number(x.IDTemplate) === Number(h.IDTemplate) &&
+            Number(x.IDVersion) === Number(h.IDVersion)
+        );
+        const checklistHtml = template
+            ? renderInspectionSections(template, items, true, "inspectionApprovalSection")
+            : (items.length ? items.map(item =>
+                '<div class="border rounded p-3 mb-3"><div class="fw-semibold mb-2">' + escInspection(item.ItemLabel || ("Item " + item.IDItem)) +
+                (item.IsAnomali ? ' <span class="badge text-bg-danger">Anomali</span>' : '') + '</div>' +
+                '<div><strong>Hasil:</strong> ' + escInspection(item.Value || "-") + '</div>' +
+                Object.keys(item.Values || {}).map(field => '<div><strong>' + escInspection(field) + ':</strong> ' + escInspection(item.Values[field] || "-") + '</div>').join("") +
+                '<div class="small text-muted mt-1"><strong>Remark 1:</strong> ' + escInspection(item.Remark1 || item.Remark || "-") + '</div>' +
+                (item.Remark2 ? '<div class="small text-muted"><strong>Remark 2:</strong> ' + escInspection(item.Remark2) + '</div>' : '') + '</div>'
+            ).join("") : '<div class="text-muted">Tidak ada hasil checklist.</div>');
+        checklistHost.innerHTML = photoHtml + checklistHtml;
         document.getElementById("btnApproveInspection").disabled = isApproved;
         document.getElementById("btnVoidInspection").disabled = isApproved;
     } catch (err) {
