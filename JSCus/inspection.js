@@ -1586,7 +1586,7 @@ function wireInspectionApprovalEvents() {
     document.getElementById("btnConfirmInspectionApprovalAction").addEventListener("click", confirmInspectionApprovalAction);
 }
 
-async function inspectionApprovalPostasync function inspectionApprovalPost(method, args) {
+async function inspectionApprovalPost(method, args) {
     const response = await fetch("inspection.aspx/" + method, {
         method: "POST",
         headers: { "Content-Type": "application/json; charset=utf-8" },
@@ -1854,7 +1854,7 @@ async function loadInspectionApprovalDetail(inspectionId) {
     }
 }
 
-async function processInspectionApprovalasync function processInspectionApproval(action) {
+async function processInspectionApproval(action) {
     if (!selectedInspectionApproval) return;
     if (!navigator.onLine) {
         document.getElementById("inspectionApprovalNotice").className = "alert alert-warning py-2 small";
