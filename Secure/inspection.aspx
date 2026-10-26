@@ -177,6 +177,24 @@
             <label for="txtInspectionSummary" class="form-label small fw-semibold">Summary / Remark</label>
             <textarea id="txtInspectionSummary" class="form-control form-control-sm" rows="3" maxlength="500" placeholder="Catatan inspeksi..."></textarea>
         </div>
+        <div class="inspection-photo-panel mt-3" id="inspectionFollowUpPanel">
+            <div class="fw-bold mb-2"><i class="bi bi-arrow-left-right me-2"></i>FOLLOW UP WORK ORDER</div>
+            <div class="small text-muted mb-2">Pilih apakah temuan inspeksi memerlukan pekerjaan lanjutan di section/divisi lain.</div>
+            <div class="btn-group w-100 mb-3" role="group" aria-label="Follow Up recommendation">
+                <input type="radio" class="btn-check" name="inspectionFollowUp" id="inspectionFollowUpNo" value="No Follow Up" checked>
+                <label class="btn btn-outline-primary" for="inspectionFollowUpNo">No Follow Up</label>
+                <input type="radio" class="btn-check" name="inspectionFollowUp" id="inspectionFollowUpYes" value="Recommend Follow Up">
+                <label class="btn btn-outline-primary" for="inspectionFollowUpYes">Recommend Follow Up</label>
+            </div>
+            <div id="inspectionFollowUpDetails" class="d-none">
+                <label class="form-label small fw-semibold" for="inspectionFollowUpSection">Responsible Section</label>
+                <select id="inspectionFollowUpSection" class="form-select form-select-sm mb-3">
+                    <option value="">Pilih section tujuan...</option>
+                </select>
+                <label class="form-label small fw-semibold" for="txtInspectionFollowUpRemark">Follow Up Work Order Description</label>
+                <textarea id="txtInspectionFollowUpRemark" class="form-control form-control-sm" rows="3" maxlength="300" placeholder="Jelaskan pekerjaan lanjutan yang direkomendasikan..."></textarea>
+            </div>
+        </div>
         <div class="d-flex gap-2 mt-3">
             <button type="button" id="btnSaveInspectionDraft" class="btn btn-outline-secondary flex-fill">
                 <i class="bi bi-save"></i> Save Draft
