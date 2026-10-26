@@ -540,7 +540,14 @@ async function renderInspectionForm(record, readOnly) {
     updateInspectionFollowUpPanel();
 
     const template = record.TemplateSnapshot || {};
-    document.getElementById("txtInspectionSummary").placeholder = template.SummarySampleText || "";
+    const summaryTemplate = inspectionTemplates.find(x =>
+        Number(x.IDTemplate) === Number(record.IDTemplate) &&
+        Number(x.IDVersion) === Number(record.IDVersion)
+    ) || {};
+    const summarySampleText = template.SummarySampleText || template.summarySampleText ||
+        (template.VersionInfo && template.VersionInfo.SummarySampleText) ||
+        summaryTemplate.SummarySampleText || summaryTemplate.summarySampleText || "";
+    document.getElementById("txtInspectionSummary").placeholder = summarySampleText;
     const savedItems = record.Items || [];
     const host = document.getElementById("inspectionChecklistHost");
     if (!template.sections || !template.sections.length) {
@@ -907,6 +914,11 @@ async function saveInspection(status) {
     const photos = await getInspectionPhotos(currentInspectionRecord.LocalInspectionID);
     if (!photos.some(p => p.Type === "BEFORE")) { showInspectionNotice("Foto BEFORE wajib diambil sebelum checklist dapat disimpan.", "warning"); showInspectionEditorTab("checklist"); return; }
     if (status === "DONE") {
+        if (!photos.some(p => p.Type === "AFTER")) {
+            showInspectionNotice("Foto AFTER wajib diambil sebelum inspeksi dapat di-Done.", "warning");
+            showInspectionEditorTab("checklist");
+            return;
+        }
         const followUp = collectInspectionFollowUp();
         if (followUp.FollowUp === "Recommend Follow Up" &&
             (!followUp.FollowUpSection || !followUp.FollowUpRemark)) {
@@ -1296,6 +1308,7 @@ async function getInspectionPhotos(localId){return new Promise((resolve,reject)=
 async function renderInspectionPhotos() {
     if (!currentInspectionRecord) return;
     const photos = await getInspectionPhotos(currentInspectionRecord.LocalInspectionID);
+    const hasBeforePhoto = photos.some(p => p.Type === "BEFORE");
     for (const type of ["BEFORE", "AFTER"]) {
         const host = document.getElementById(type === "BEFORE" ? "inspectionPhotoBeforeList" : "inspectionPhotoAfterList");
         host.innerHTML = "";
@@ -1317,6 +1330,7 @@ async function renderInspectionPhotos() {
                 b.type = "button";
                 b.className = "btn btn-sm btn-danger inspection-photo-delete";
                 b.dataset.deleteInspectionPhoto = p.ID;
+                b.disabled = currentInspectionReadOnly || (type === "AFTER" && !hasBeforePhoto);
                 b.setAttribute("aria-label", "Hapus foto");
                 b.textContent = "×";
                 w.appendChild(b);
@@ -1421,7 +1435,7 @@ async function updateInspectionChecklistGate() {
     document.getElementById("btnAddInspectionAfterPhoto").disabled = afterInput.disabled;
     document.getElementById("inspectionChecklistGateMessage").textContent = !before
         ? "Ambil minimal satu foto BEFORE untuk membuka checklist dan foto AFTER."
-        : "Foto AFTER dan Summary bersifat opsional. Lengkapi item wajib sebelum Complete.";
+        : "Foto BEFORE dan AFTER wajib tersedia sebelum Done. Lengkapi item wajib sebelum Done.";
 }
 
 function showInspectionInputScreen() {
