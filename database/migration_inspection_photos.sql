@@ -12,7 +12,7 @@ GO
 
 CREATE TABLE dbo.PIP_T_InspectionPhoto
     (
-        InspectionPhotoID BIGINT IDENTITY(1,1) NOT NULL,
+        InspectionPhotoID BIGINT NOT NULL,
         InspectionID BIGINT NOT NULL,
         PhotoType VARCHAR(10) NOT NULL,
         FileName VARCHAR(255) NOT NULL,
