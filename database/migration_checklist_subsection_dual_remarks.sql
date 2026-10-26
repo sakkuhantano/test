@@ -11,7 +11,7 @@ IF OBJECT_ID('dbo.PIP_M_CheckListWOPM_SubSection', 'U') IS NULL
 BEGIN
     CREATE TABLE dbo.PIP_M_CheckListWOPM_SubSection
     (
-        IDSubSection INT IDENTITY(1,1) NOT NULL,
+        IDSubSection INT NOT NULL,
         IDSection INT NOT NULL,
         SubSectionName VARCHAR(200) NOT NULL,
         DisplayOrder INT NOT NULL CONSTRAINT DF_PIP_M_CheckListWOPM_SubSection_DisplayOrder DEFAULT (0),
