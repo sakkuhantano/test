@@ -2871,7 +2871,7 @@ function showVersionProperties(version, isNewTemplate)
                 <div class="mb-3 border rounded p-2">
                     <div class="form-check form-switch mb-2">
                         <input id="propVersionRemark1Required" class="form-check-input" type="checkbox" ${version.IsRemark1Required ? 'checked' : ''} ${isReadonlyMode ? 'disabled' : ''}>
-                        <label class="form-check-label text-xs">Version: Remark 1 Required</label>
+                        <label class="form-check-label text-xs">Version: Enable Remark 1</label>
                     </div>
                     <div id="versionRemark1TextRow" style="${version.IsRemark1Required ? '' : 'display:none;'}">
                         <label class="form-label text-xs">Default Remark 1 Title</label>
@@ -2879,7 +2879,7 @@ function showVersionProperties(version, isNewTemplate)
                     </div>
                     <div class="form-check form-switch mt-3 mb-2">
                         <input id="propVersionRemark2Required" class="form-check-input" type="checkbox" ${version.IsRemark2Required ? 'checked' : ''} ${isReadonlyMode ? 'disabled' : ''}>
-                        <label class="form-check-label text-xs">Version: Remark 2 Required</label>
+                        <label class="form-check-label text-xs">Version: Enable Remark 2</label>
                     </div>
                     <div id="versionRemark2TextRow" style="${version.IsRemark2Required ? '' : 'display:none;'}">
                         <label class="form-label text-xs">Default Remark 2 Title</label>
