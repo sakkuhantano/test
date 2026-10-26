@@ -192,9 +192,10 @@ SELECT ID FROM @AutoNumResult;",
                         photoTable.Columns.Add("FileType", typeof(string));
                         photoTable.Columns.Add("SeqNo", typeof(int));
 
+                        // Keep this flag outside the try so the catch can inspect it.
+                        bool sqlCallReturned = false;
                         try
                         {
-                            bool sqlCallReturned = false;
                             syncStage = "stage photo files before SQL transaction";
                             if (incomingPhotos.Count > 0 && !Directory.Exists(photoFolder))
                                 Directory.CreateDirectory(photoFolder);
