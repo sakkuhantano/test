@@ -290,9 +290,10 @@ BEGIN
     SELECT CAST(C1 AS INT), C2, C3
     FROM @p_ItemValues;
 
-    IF @p_Status NOT IN ('DRAFT', 'DONE')
+    /* Drafts are device-local only. SQL may persist completed inspections only. */
+    IF ISNULL(@p_Status, '') <> 'DONE'
     BEGIN
-        RAISERROR('Invalid inspection status.', 16, 1);
+        RAISERROR('Only completed inspections (DONE) can be saved to SQL Server.', 16, 1);
         RETURN;
     END;
 
