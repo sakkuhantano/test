@@ -35,6 +35,11 @@
     .inspection-photo-delete { position: absolute; top: .25rem; right: .25rem; line-height: 1; padding: .1rem .35rem; }
     .inspection-photo-item { cursor: zoom-in; }
     .inspection-photo-item:focus-visible { outline: 3px solid var(--bs-primary); outline-offset: 2px; }
+    .inspection-approval-photo-item { display: block; padding: 0; background: transparent; }
+    .inspection-followup-section-btn { min-width: 92px; text-align: center; }
+    .inspection-followup-section-btn i { font-size: 1.25rem; display: block; margin-bottom: .25rem; }
+    #inspectionFollowUpPanel .accordion-button::after,
+    #inspectionSummaryPanel .accordion-button::after { display: none; }
     .inspection-photo-viewer-open { overflow: hidden; }
     .inspection-photo-viewer { position: fixed; inset: 0; z-index: 2050; display: flex; flex-direction: column; background: rgba(0,0,0,.94); color: #fff; padding: max(.75rem, env(safe-area-inset-top)) .75rem max(.75rem, env(safe-area-inset-bottom)); }
     .inspection-photo-viewer.d-none { display: none !important; }
@@ -341,27 +346,51 @@
         </div>
         <div class="inspection-photo-panel mb-3"><div class="fw-bold mb-2"><i class="bi bi-camera-fill me-2"></i>FIELD DOCUMENTATION BEFORE</div><div id="inspectionPhotoBeforeList" class="d-flex flex-wrap gap-2 mb-2"></div><div class="d-flex align-items-center justify-content-between gap-2"><label class="inspection-muted mb-0">Ambil foto sebelum inspeksi</label><button type="button" id="btnAddInspectionBeforePhoto" class="btn btn-sm btn-outline-primary" onclick="document.getElementById('inspectionPhotoBeforeInput').click()"><i class="bi bi-camera"></i> Take Picture</button><input id="inspectionPhotoBeforeInput" type="file" accept="image/*" capture="environment" multiple hidden /></div><div id="inspectionBeforePhotoCount" class="inspection-muted mt-1">0 foto</div></div>
         <div id="inspectionChecklistGateMessage" class="alert alert-warning py-2 small"></div><div id="inspectionChecklistHost"></div>
-        <div class="inspection-photo-panel mt-3"><div class="fw-bold mb-2"><i class="bi bi-camera-fill me-2"></i>FIELD DOCUMENTATION AFTER</div><div id="inspectionPhotoAfterList" class="d-flex flex-wrap gap-2 mb-2"></div><div class="d-flex align-items-center justify-content-between gap-2"><label class="inspection-muted mb-0">Ambil foto setelah inspeksi</label><button type="button" id="btnAddInspectionAfterPhoto" class="btn btn-sm btn-outline-primary" onclick="document.getElementById('inspectionPhotoAfterInput').click()" disabled><i class="bi bi-camera"></i> Take Picture</button><input id="inspectionPhotoAfterInput" type="file" accept="image/*" capture="environment" multiple hidden /></div><div id="inspectionAfterPhotoCount" class="inspection-muted mt-1">0 foto</div></div>
-        <div class="mt-3">
-            <label for="txtInspectionSummary" class="form-label small fw-semibold">Summary / Remark</label>
-            <textarea id="txtInspectionSummary" class="form-control form-control-sm" rows="3" maxlength="500" placeholder="Catatan inspeksi..."></textarea>
-        </div>
-        <div class="inspection-photo-panel mt-3" id="inspectionFollowUpPanel">
-            <div class="fw-bold mb-2"><i class="bi bi-arrow-left-right me-2"></i>FOLLOW UP WORK ORDER</div>
-            <div class="small text-muted mb-2">Pilih apakah temuan inspeksi memerlukan pekerjaan lanjutan di section/divisi lain.</div>
-            <div class="btn-group w-100 mb-3" role="group" aria-label="Follow Up recommendation">
-                <input type="radio" class="btn-check" name="inspectionFollowUp" id="inspectionFollowUpNo" value="No Follow Up" checked>
-                <label class="btn btn-outline-primary" for="inspectionFollowUpNo">No Follow Up</label>
-                <input type="radio" class="btn-check" name="inspectionFollowUp" id="inspectionFollowUpYes" value="Recommend Follow Up">
-                <label class="btn btn-outline-primary" for="inspectionFollowUpYes">Recommend Follow Up</label>
+        <div class="inspection-photo-panel mt-3" id="inspectionAfterPhotoPanel"><div class="fw-bold mb-2"><i class="bi bi-camera-fill me-2"></i>FIELD DOCUMENTATION AFTER</div><div id="inspectionPhotoAfterList" class="d-flex flex-wrap gap-2 mb-2"></div><div class="d-flex align-items-center justify-content-between gap-2"><label class="inspection-muted mb-0">Ambil foto setelah inspeksi</label><button type="button" id="btnAddInspectionAfterPhoto" class="btn btn-sm btn-outline-primary" onclick="document.getElementById('inspectionPhotoAfterInput').click()" disabled><i class="bi bi-camera"></i> Take Picture</button><input id="inspectionPhotoAfterInput" type="file" accept="image/*" capture="environment" multiple hidden /></div><div id="inspectionAfterPhotoCount" class="inspection-muted mt-1">0 foto</div></div>
+        <div class="accordion-item border-warning shadow-sm mt-3" id="inspectionFollowUpPanel">
+            <div class="accordion-header"><div class="accordion-button bg-warning-subtle text-dark fw-bold">
+                <i class="bi bi-lightbulb-fill fs-5 me-2 text-warning"></i><div class="d-flex flex-column">
+                    <span>FOLLOW UP WORK ORDER RECOMMENDATION</span><small class="text-muted fw-normal">Tentukan apakah diperlukan Work Order lanjutan.</small>
+                </div>
+            </div></div>
+            <div class="accordion-body p-3">
+                <div class="alert alert-warning py-2 px-3 mb-3 small"><i class="bi bi-info-circle-fill me-1"></i>
+                    Bila ditemukan kerusakan yang memerlukan pekerjaan lanjutan, pilih <strong>Recommend Follow Up</strong>, kemudian tentukan section yang bertanggung jawab dan isi WO Remark.
+                </div>
+                <div class="mb-3" data-role="followup">
+                    <div class="btn-group w-100 shadow-sm" role="group" aria-label="Follow Up recommendation">
+                        <input class="btn-check" type="radio" name="inspectionFollowUp" id="inspectionFollowUpNo" value="No Follow Up" checked>
+                        <label class="btn btn-outline-primary" for="inspectionFollowUpNo">No Follow Up</label>
+                        <input class="btn-check" type="radio" name="inspectionFollowUp" id="inspectionFollowUpYes" value="Recommend Follow Up">
+                        <label class="btn btn-outline-primary" for="inspectionFollowUpYes">Recommend Follow Up</label>
+                    </div>
+                </div>
+                <div id="inspectionFollowUpDetails" class="d-none">
+                    <div class="card border-warning-subtle bg-light mb-3"><div class="card-body">
+                        <label class="form-label small fw-semibold mb-2"><i class="bi bi-diagram-3-fill me-1"></i>Responsible Section</label>
+                        <div id="inspectionFollowUpSectionGroup" class="d-flex flex-wrap gap-2"></div>
+                        <select id="inspectionFollowUpSection" class="d-none" aria-hidden="true" tabindex="-1"><option value="">Pilih section tujuan...</option></select>
+                    </div></div>
+                    <div class="card border-warning-subtle bg-light"><div class="card-body">
+                        <label class="form-label small fw-semibold mb-2" for="txtInspectionFollowUpRemark"><i class="bi bi-card-text me-1"></i>Follow Up Work Order Description</label>
+                        <textarea id="txtInspectionFollowUpRemark" class="form-control" rows="3" maxlength="300" placeholder="Jelaskan pekerjaan lanjutan yang direkomendasikan..."></textarea>
+                        <div class="d-flex justify-content-between align-items-center mt-2"><small class="text-muted">Maksimum 300 karakter.</small><small id="inspectionFollowUpRemarkCounter" class="text-muted">0 / 300</small></div>
+                    </div></div>
+                </div>
             </div>
-            <div id="inspectionFollowUpDetails" class="d-none">
-                <label class="form-label small fw-semibold" for="inspectionFollowUpSection">Responsible Section</label>
-                <select id="inspectionFollowUpSection" class="form-select form-select-sm mb-3">
-                    <option value="">Pilih section tujuan...</option>
-                </select>
-                <label class="form-label small fw-semibold" for="txtInspectionFollowUpRemark">Follow Up Work Order Description</label>
-                <textarea id="txtInspectionFollowUpRemark" class="form-control form-control-sm" rows="3" maxlength="300" placeholder="Jelaskan pekerjaan lanjutan yang direkomendasikan..."></textarea>
+        </div>
+        <div class="accordion-item border-info shadow-sm mt-3" id="inspectionSummaryPanel">
+            <div class="accordion-header"><div class="accordion-button bg-info-subtle text-dark fw-bold">
+                <i class="bi bi-clipboard2-check-fill fs-5 me-2 text-info"></i><div class="d-flex flex-column">
+                    <span>FINAL INSPECTION SUMMARY</span><small class="text-muted fw-normal">Ringkasan hasil inspeksi dan pekerjaan yang telah dilakukan.</small>
+                </div>
+            </div></div>
+            <div class="accordion-body p-3">
+                <div class="alert alert-info py-2 px-3 mb-3 small"><i class="bi bi-info-circle-fill me-1"></i>
+                    Jelaskan secara singkat hasil pemeriksaan, tindakan yang dilakukan, serta kondisi akhir unit setelah pekerjaan selesai.
+                </div>
+                <textarea id="txtInspectionSummary" class="form-control" rows="5" maxlength="500" placeholder=""></textarea>
+                <div class="d-flex justify-content-between align-items-center mt-2"><small class="text-muted">Maksimum 500 karakter.</small><small id="inspectionSummaryCounter" class="text-muted">0 / 500</small></div>
             </div>
         </div>
         <div class="d-flex flex-wrap gap-2 mt-3">
