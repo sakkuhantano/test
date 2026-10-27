@@ -935,3 +935,40 @@ body {
     border-color: #0d6efd !important;
     box-shadow: 0 0 0 2px rgba(13, 110, 253, .22);
 }
+
+
+/* Clear visual affordance for copying an Active version to another Template. */
+.template-version-item.active-version-draggable {
+    border-left: 3px solid #198754;
+}
+.version-drag-handle {
+    display: inline-flex;
+    align-items: center;
+    gap: .15rem;
+    padding: .08rem .3rem;
+    border: 1px dashed #198754;
+    border-radius: .25rem;
+    color: #198754;
+    background: rgba(25, 135, 84, .08);
+    font-size: .58rem;
+    font-weight: 700;
+    letter-spacing: .035em;
+    vertical-align: middle;
+    cursor: grab;
+    white-space: nowrap;
+}
+.version-drag-handle .bi {
+    font-size: .85rem;
+}
+.template-version-item.active-version-draggable:active .version-drag-handle {
+    cursor: grabbing;
+    background: rgba(25, 135, 84, .18);
+}
+[data-bs-theme="dark"] .version-drag-handle {
+    color: #75d7a8;
+    border-color: #388e63;
+    background: rgba(25, 135, 84, .18);
+}
+[data-bs-theme="dark"] .template-version-item.active-version-draggable {
+    border-left-color: #75d7a8;
+}
