@@ -163,24 +163,26 @@ async function renderInspectionDashboardCards() {
     const cards = [];
     if (role.IsWO) {
         cards.push(
-            '<div class="col-6 col-md-4 col-xl-3"><a href="inspection.aspx" class="inspection-dashboard-card text-decoration-none text-dark card-custom air-shadow">' +
-            '<span class="inspection-dashboard-label">Technician</span>' +
-            '<span class="inspection-dashboard-value text-primary" id="inspectionPendingSync">0</span>' +
-            '<span class="inspection-dashboard-caption">Pending Sync</span></a></div>'
+            '<div class="col"><a href="inspection.aspx" class="dashboard-card text-reset text-decoration-none h-100">' +
+            '<div class="dashboard-icon"><i class="bi bi-arrow-repeat"></i></div>' +
+            '<div class="dashboard-content"><div class="dashboard-title">Pending Sync</div>' +
+            '<div class="dashboard-value" id="inspectionPendingSync">0</div></div></a></div>'
         );
     }
     if (role.IsSPV) {
         cards.push(
-            '<div class="col-6 col-md-4 col-xl-3"><a href="inspection.aspx?mode=approval" class="inspection-dashboard-card text-decoration-none text-dark card-custom air-shadow">' +
-            '<span class="inspection-dashboard-label">Approval</span>' +
-            '<span class="inspection-dashboard-value text-warning" id="inspectionPendingApproval">0</span>' +
-            '<span class="inspection-dashboard-caption">Outstanding</span></a></div>' +
-            '<div class="col-6 col-md-4 col-xl-3"><div class="inspection-dashboard-card card-custom air-shadow">' +
-            '<span class="inspection-dashboard-label">Approved Today</span>' +
-            '<span id="inspectionApprovedToday" class="inspection-dashboard-value text-success">0</span></div></div>' +
-            '<div class="col-6 col-md-4 col-xl-3"><div class="inspection-dashboard-card card-custom air-shadow">' +
-            '<span class="inspection-dashboard-label">Void / Returned</span>' +
-            '<span id="inspectionVoidCount" class="inspection-dashboard-value text-danger">0</span></div></div>'
+            '<div class="col"><a href="inspection.aspx?mode=approval" class="dashboard-card card-pending text-reset text-decoration-none h-100">' +
+            '<div class="dashboard-icon"><i class="bi bi-hourglass-split"></i></div>' +
+            '<div class="dashboard-content"><div class="dashboard-title">Pending Approval</div>' +
+            '<div class="dashboard-value" id="inspectionPendingApproval">0</div></div></a></div>' +
+            '<div class="col"><div class="dashboard-card card-approved h-100">' +
+            '<div class="dashboard-icon"><i class="bi bi-check-circle-fill"></i></div>' +
+            '<div class="dashboard-content"><div class="dashboard-title">Approved Today</div>' +
+            '<div class="dashboard-value" id="inspectionApprovedToday">0</div></div></div></div>' +
+            '<div class="col"><div class="dashboard-card card-void h-100">' +
+            '<div class="dashboard-icon"><i class="bi bi-x-octagon-fill"></i></div>' +
+            '<div class="dashboard-content"><div class="dashboard-title">Void / Returned</div>' +
+            '<div class="dashboard-value" id="inspectionVoidCount">0</div></div></div></div>'
         );
     }
     if (!cards.length) {
