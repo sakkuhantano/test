@@ -148,7 +148,8 @@ namespace UTL1.Secure
                     {
                         syncStage = "preflight existing inspection";
                         DataTable existingRows = br.EQueryP(@"
-SELECT InspectionID, InspectionNo, InspectionDate, CompanyID, LocationID
+SELECT InspectionID, InspectionNo, InspectionDate, CompanyID, LocationID,
+       StartDateTime, EndDateTime, ReasonVoid
 FROM dbo.PIP_T_Inspection
 WHERE ClientInspectionID=@ClientInspectionID",
                             new SqlParameter[] { new SqlParameter("@ClientInspectionID", Limit(clientId, 36)) });
@@ -161,6 +162,16 @@ WHERE ClientInspectionID=@ClientInspectionID",
                             oldCompanyId = Convert.ToString(existing["CompanyID"]);
                             oldLocationId = Convert.ToString(existing["LocationID"]);
                             inspectionNo = oldInspectionNo;
+
+                            // A voided inspection returns to DRAFT for correction, but its original
+                            // work timestamps are historical data and must not be reset/overwritten.
+                            if (!String.IsNullOrWhiteSpace(Convert.ToString(existing["ReasonVoid"])))
+                            {
+                                if (existing["StartDateTime"] != DBNull.Value)
+                                    record["StartDateTime"] = JToken.FromObject(Convert.ToDateTime(existing["StartDateTime"]));
+                                if (existing["EndDateTime"] != DBNull.Value)
+                                    record["EndDateTime"] = JToken.FromObject(Convert.ToDateTime(existing["EndDateTime"]));
+                            }
                             oldPhotoRows = br.EQueryP(@"
 SELECT FileName, FileType, PhotoType, SeqNo
 FROM dbo.PIP_T_InspectionPhoto
