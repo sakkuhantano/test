@@ -251,6 +251,21 @@
                 </div>
             </div>
             <div class="tab-pane fade" id="inspectionSubmittedPane" role="tabpanel">
+                <div class="row g-2 align-items-end mb-3">
+                    <div class="col-6 col-md-3">
+                        <label for="txtSubmittedFrom" class="form-label small mb-1">From</label>
+                        <input type="date" id="txtSubmittedFrom" class="form-control form-control-sm" />
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label for="txtSubmittedThru" class="form-label small mb-1">Thru</label>
+                        <input type="date" id="txtSubmittedThru" class="form-control form-control-sm" />
+                    </div>
+                    <div class="col-12 col-md-auto">
+                        <button type="button" id="btnFilterSubmitted" class="btn btn-sm btn-primary w-100">
+                            <i class="bi bi-search"></i> Filter
+                        </button>
+                    </div>
+                </div>
                 <div id="inspectionSubmittedList" class="small">
                     <div class="text-muted py-2">Memuat inspeksi submitted...</div>
                 </div>
