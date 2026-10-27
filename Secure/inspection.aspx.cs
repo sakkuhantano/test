@@ -640,6 +640,7 @@ WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID
   AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@SectionList,';') S WHERE S.val=I.SectionID)
 ORDER BY I.InspectionDate DESC, I.StartDateTime DESC, I.InspectionID DESC",
                     new SqlParameter[] {
+                        new SqlParameter("@EmployeeID", employeeId),
                         new SqlParameter("@CompanyID", companyId),
                         new SqlParameter("@LocationID", locationId),
                         new SqlParameter("@SectionList", String.Join(";", sections))
