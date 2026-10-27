@@ -46,7 +46,7 @@ document.addEventListener("DOMContentLoaded", async function () {
             }
             // Approval uses the exact same cached, versioned checklist template as technician entry.
             if (typeof db === "undefined" || !db) await initIndexedDB();
-            if (db.objectStoreNames.contains("inspection_templates")) await loadInspectionCache();
+            if (db.objectStoreNames.contains("inspection_templates")) await loadInspectionCache(true);
             document.getElementById("inspectionNotice").classList.add("d-none");
             ["inspectionStartPanel", "inspectionFormPanel"].forEach(id => document.getElementById(id).classList.add("d-none"));
             document.querySelectorAll(".inspection-card").forEach(el => {
@@ -223,7 +223,7 @@ function wireInspectionEvents() {
     document.getElementById("txtInspectionFollowUpRemark").addEventListener("input", scheduleInspectionAutosave);
 }
 
-async function loadInspectionCache() {
+async function loadInspectionCache(includeAllTemplates) {
     inspectionTypes = await readInspectionStore("inspection_types");
     inspectionDetails = await readInspectionStore("inspection_type_details");
     inspectionTemplates = await readInspectionStore("inspection_templates");
@@ -234,7 +234,7 @@ async function loadInspectionCache() {
         x.CompanyID === inspectionCompanyID && x.LocationID === inspectionLocationID
     );
     inspectionTemplates = inspectionTemplates.filter(x =>
-        sections.includes(x.SectionID) &&
+        (includeAllTemplates || sections.includes(x.SectionID)) &&
         x.TemplateType === "I" &&
         !!x.InspectionTypeCode
     );
@@ -2141,10 +2141,15 @@ async function loadInspectionApprovalDetail(inspectionId) {
         };
         const beforePhotoHtml = renderApprovalPhotoStage("BEFORE");
         const afterPhotoHtml = renderApprovalPhotoStage("AFTER");
-        const template = inspectionTemplates.find(x =>
+        const templateCandidates = inspectionTemplates.filter(x =>
             Number(x.IDTemplate) === Number(h.IDTemplate) &&
-            Number(x.IDVersion) === Number(h.IDVersion)
+            Array.isArray(x.sections) && x.sections.length
         );
+        const template = templateCandidates.find(x =>
+            Number(x.IDVersion || x.VersionID || (x.VersionInfo && x.VersionInfo.IDVersion)) === Number(h.IDVersion)
+        ) || templateCandidates.find(x =>
+            Number(x.Version || x.TemplateVersion) === Number(h.TemplateVersion)
+        ) || templateCandidates[0] || null;
         const checklistHtml = template
             ? renderInspectionSections(template, items, true, "inspectionApprovalSection")
             : (items.length ? items.map(item =>
@@ -2164,8 +2169,11 @@ async function loadInspectionApprovalDetail(inspectionId) {
             '<div class="mb-3"><div class="btn-group w-100 shadow-sm" role="group"><input class="btn-check" type="radio" disabled ' + (followUpValue !== "Recommend Follow Up" ? 'checked' : '') + '><label class="btn btn-outline-primary">No Follow Up</label><input class="btn-check" type="radio" disabled ' + (followUpValue === "Recommend Follow Up" ? 'checked' : '') + '><label class="btn btn-outline-primary">Recommend Follow Up</label></div></div>' +
             '<div class="' + (followUpValue === "Recommend Follow Up" ? '' : 'd-none') + '" id="inspectionApprovalFollowUpDetails">' +
             '<div class="card border-warning-subtle bg-light mb-3"><div class="card-body"><label class="form-label small fw-semibold mb-2"><i class="bi bi-diagram-3-fill me-1"></i>Responsible Section</label><div class="d-flex flex-wrap gap-2">' +
-            inspectionFollowUpSections.map(section => '<span class="btn btn-outline-primary rounded-3 inspection-followup-section-btn disabled ' + (String(h.FollowUpSection || "") === section.Code ? 'active' : '') + '"><i class="bi ' + sectionIcons[section.Code] + '"></i><span class="fw-semibold">' + escInspection(section.Code) + '</span><small class="text-muted d-block">' + escInspection(sectionLabels[section.Code]) + '</small></span>').join("") +
-            '</div><div class="small mt-2"><strong>Selected:</strong> ' + escInspection(h.FollowUpSection || "-") + '</div></div></div>' +
+            inspectionFollowUpSections.map(section => {
+                const selectedSection = String(h.FollowUpSection || "") === section.Code;
+                return '<span class="btn ' + (selectedSection ? 'btn-primary' : 'btn-outline-primary') + ' rounded-3 inspection-followup-section-btn disabled" aria-pressed="' + selectedSection + '"><i class="bi ' + sectionIcons[section.Code] + '"></i><span class="fw-semibold">' + escInspection(section.Code) + '</span><small class="d-block">' + escInspection(sectionLabels[section.Code]) + '</small></span>';
+            }).join("") +
+            '</div></div></div>' +
             '<div class="card border-warning-subtle bg-light"><div class="card-body"><label class="form-label small fw-semibold mb-2"><i class="bi bi-card-text me-1"></i>Follow Up Work Order Description</label><div class="form-control bg-body-secondary" style="min-height:5rem;white-space:pre-wrap">' + escInspection(h.FollowUpRemark || "-") + '</div><div class="d-flex justify-content-end mt-2"><small class="text-muted">' + String((h.FollowUpRemark || "").length) + ' / 300</small></div></div></div></div></div></div>';
         const templateSummaryText = template && (template.SummarySampleText || template.summarySampleText || (template.VersionInfo && template.VersionInfo.SummarySampleText)) || "";
         const summaryHtml = '<div class="accordion-item border-info shadow-sm mt-3" id="inspectionApprovalSummaryPanel"><div class="accordion-header"><div class="accordion-button bg-info-subtle text-dark fw-bold"><i class="bi bi-clipboard2-check-fill fs-5 me-2 text-info"></i><div class="d-flex flex-column"><span>FINAL INSPECTION SUMMARY</span><small class="text-muted fw-normal">Ringkasan hasil inspeksi dan pekerjaan yang telah dilakukan.</small></div></div></div><div class="accordion-body p-3"><div class="alert alert-info py-2 px-3 mb-3 small"><i class="bi bi-info-circle-fill me-1"></i>Jelaskan secara singkat hasil pemeriksaan, tindakan yang dilakukan, serta kondisi akhir unit setelah pekerjaan selesai.</div><textarea class="form-control" rows="5" maxlength="500" disabled placeholder="' + escInspection(templateSummaryText) + '">' + escInspection(h.Summary || "") + '</textarea><div class="d-flex justify-content-between align-items-center mt-2"><small class="text-muted">Maksimum 500 karakter.</small><small class="text-muted">' + String((h.Summary || "").length) + ' / 500</small></div></div></div>';
