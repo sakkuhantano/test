@@ -219,7 +219,7 @@ class="fw-bold">
             <h5 class="fw-bold mb-0">Inspections</h5>
         </div>
     </div>
-    <div id="inspectionDashboardCards" class="row g-3"></div>
+    <div id="inspectionDashboardCards" class="row g-3 flex-nowrap overflow-auto pb-2"></div>
 </section>
 
 <!-- WORK ORDER -->
