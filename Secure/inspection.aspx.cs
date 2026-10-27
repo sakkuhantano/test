@@ -167,12 +167,15 @@ WHERE ClientInspectionID=@ClientInspectionID",
                             // work timestamps are historical data and must not be reset/overwritten.
                             if (!String.IsNullOrWhiteSpace(Convert.ToString(existing["ReasonVoid"])))
                             {
-                                record["StartDateTime"] = existing["StartDateTime"] == DBNull.Value
-                                    ? JValue.CreateNull()
-                                    : JToken.FromObject(Convert.ToDateTime(existing["StartDateTime"]));
-                                record["EndDateTime"] = existing["EndDateTime"] == DBNull.Value
-                                    ? JValue.CreateNull()
-                                    : JToken.FromObject(Convert.ToDateTime(existing["EndDateTime"]));
+                                if (existing["StartDateTime"] == DBNull.Value)
+                                    record["StartDateTime"] = null;
+                                else
+                                    record["StartDateTime"] = JToken.FromObject(Convert.ToDateTime(existing["StartDateTime"]));
+
+                                if (existing["EndDateTime"] == DBNull.Value)
+                                    record["EndDateTime"] = null;
+                                else
+                                    record["EndDateTime"] = JToken.FromObject(Convert.ToDateTime(existing["EndDateTime"]));
                             }
                             oldPhotoRows = br.EQueryP(@"
 SELECT FileName, FileType, PhotoType, SeqNo
