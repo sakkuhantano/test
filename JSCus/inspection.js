@@ -1108,7 +1108,10 @@ async function saveInspection(status) {
     currentInspectionRecord.Status = status;
     currentInspectionRecord.SyncStatus = "PENDING";
     currentInspectionRecord.UpdatedAt = new Date().toISOString();
-    if (status === "DONE") currentInspectionRecord.EndDateTime = localDateTimeString(new Date());
+    // A voided inspection is being corrected, not restarted; preserve its original timestamps.
+    if (status === "DONE" && !String(currentInspectionRecord.ReasonVoid || "").trim()) {
+        currentInspectionRecord.EndDateTime = localDateTimeString(new Date());
+    }
 
     if (inspectionAutoSaveTimer) clearTimeout(inspectionAutoSaveTimer);
     await persistInspectionRecord(currentInspectionRecord);
