@@ -92,6 +92,12 @@ document.addEventListener("DOMContentLoaded", async function () {
 });
 
 function wireInspectionEvents() {
+    document.getElementById("btnBackToInspectionRecords").addEventListener("click", function () {
+        closeInspectionForm().catch(err => {
+            console.error("Unable to return to inspection list:", err);
+            showInspectionNotice(err.message || "Gagal kembali ke daftar inspeksi.", "warning");
+        });
+    });
     document.getElementById("selInspectionType").addEventListener("change", onInspectionTypeChanged);
     document.getElementById("selInspectionDetail").addEventListener("change", onInspectionDetailChanged);
     document.getElementById("selInspectionTemplate").addEventListener("change", function () {
