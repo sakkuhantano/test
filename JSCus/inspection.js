@@ -702,8 +702,9 @@ async function renderInspectionForm(record, readOnly) {
             '</div>' +
           '</div>'
         : "";
-    host.innerHTML = reasonVoidPanel +
-        renderInspectionSections(template, savedItems, currentInspectionReadOnly, "inspectionSection");
+    host.innerHTML =
+        renderInspectionSections(template, savedItems, currentInspectionReadOnly, "inspectionSection") +
+        reasonVoidPanel;
 
 
     document.getElementById("btnSaveInspectionDraft").classList.toggle("d-none", currentInspectionReadOnly);
