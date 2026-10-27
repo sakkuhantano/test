@@ -78,11 +78,11 @@ document.addEventListener("DOMContentLoaded", async function () {
         document.getElementById("txtInspectionDate").setAttribute("aria-readonly", "true");
         wireInspectionEvents();
         await loadInspectionCache();
-        await refreshSavedInspectionList();
         // Sync may pull a supervisor-voided transaction back into the technician's Draft list.
         window.addEventListener("syncCompleted", function () {
             refreshSavedInspectionList().catch(err => console.error("Unable to refresh inspections after sync:", err));
         });
+        await refreshSavedInspectionList();
 
         document.getElementById("inspectionConnectionLabel").textContent =
             navigator.onLine ? "Online • offline data ready" : "Offline • data tersimpan di perangkat";
