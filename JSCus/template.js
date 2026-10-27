@@ -1537,12 +1537,14 @@ function renderTemplates(data, container, sectionId)
         });
         root.addEventListener("drop", async function(event) {
             root.classList.remove("border", "border-primary");
-            const raw = event.dataTransfer && event.dataTransfer.getData("application/x-pip-version");
+            const raw = event.dataTransfer &&
+                (event.dataTransfer.getData("application/x-pip-version") || event.dataTransfer.getData("text/plain"));
             if (!raw) return;
             event.preventDefault();
             event.stopPropagation();
             let source;
             try { source = JSON.parse(raw); } catch (_) { return; }
+            if (!source || !source.templateRuntimeId || !source.versionRuntimeId || !source.sectionId) return;
             if (String(source.templateRuntimeId) === String(versionContainer.dataset.templateId) &&
                 String(source.sectionId) === String(versionContainer.dataset.sectionId)) {
                 showToast("Pilih Template tujuan yang berbeda.", "warning");
@@ -3098,8 +3100,8 @@ function renderTemplateVersions(data,container)
             `
             <div
             class="
-            template-version-item ${isCurrent ? "active" : ""}
-            " data-version-id="${version.RuntimeVersionID}"
+            template-version-item ${isCurrent ? "active" : ""} ${String(version.Status).trim().toLowerCase() === "active" ? "active-version-draggable" : ""}
+            " data-version-id="${version.RuntimeVersionID}" ${String(version.Status).trim().toLowerCase() === "active" ? 'draggable="true"' : ""}
             onclick="
             loadVersionStructure(
             ${templateRuntimeID},
@@ -3118,6 +3120,7 @@ function renderTemplateVersions(data,container)
             " id="versionNode_${sectionId}_${templateRuntimeID}_${version.RuntimeVersionID}">
             Version
             ${version.Version}
+            ${String(version.Status).trim().toLowerCase() === "active" ? '<span class="version-drag-handle ms-1" title="Drag Active Version onto another Template"><i class="bi bi-grip-vertical"></i><span>DRAG</span></span>' : ""}
             <span class="dirty-placeholder"></span>
             </div>
             <div class="
@@ -3179,11 +3182,14 @@ function renderTemplateVersions(data,container)
                         return;
                     }
                     event.dataTransfer.effectAllowed = "copy";
-                    event.dataTransfer.setData("application/x-pip-version", JSON.stringify({
+                    const dragPayload = JSON.stringify({
                         sectionId: sectionId,
                         templateRuntimeId: templateRuntimeID,
                         versionRuntimeId: version.RuntimeVersionID
-                    }));
+                    });
+                    event.dataTransfer.setData("application/x-pip-version", dragPayload);
+                    // Firefox requires a plain-text payload to reliably start native drag operations.
+                    event.dataTransfer.setData("text/plain", dragPayload);
                     node.classList.add("opacity-50");
                     console.debug("[Template Builder] Active version drag started", {
                         sectionId: sectionId,
