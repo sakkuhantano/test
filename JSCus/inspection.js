@@ -1066,7 +1066,6 @@ async function refreshSavedInspectionList() {
         record.Status === "DRAFT" || record.SyncStatus === "CONFLICT" || record.SyncStatus === "DELETE_PENDING");
     const submittedById = new Map();
     inspectionRecords.filter(record => record.Status === "DONE" &&
-        parseInspectionDate(record.InspectionDate) === today &&
         record.SyncStatus !== "CONFLICT" && record.SyncStatus !== "DELETE_PENDING")
         .forEach(record => submittedById.set(record.LocalInspectionID, record));
     serverSubmittedInspectionRecords.forEach(record => {
@@ -1087,7 +1086,7 @@ async function refreshSavedInspectionList() {
 function renderInspectionRecordTable(records, host, submitted) {
     if (!records.length) {
         host.innerHTML = '<div class="text-muted py-2">' +
-            (submitted ? "Belum ada inspeksi submitted untuk hari ini." : "Belum ada draft inspeksi.") +
+            (submitted ? "Belum ada inspeksi submitted." : "Belum ada draft inspeksi.") +
             '</div>';
         return;
     }
