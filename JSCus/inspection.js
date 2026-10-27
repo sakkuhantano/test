@@ -1202,11 +1202,10 @@ async function refreshSavedInspectionList() {
         record.SyncStatus !== "CONFLICT" &&
         record.SyncStatus !== "DELETE_PENDING" &&
         (record.SyncStatus !== "SYNCED" ||
-            (parseInspectionDate(record.InspectionDate) >= fromDate && parseInspectionDate(record.InspectionDate) <= thruDate)));
+            isInspectionWithinSubmittedRange(record, fromDate, thruDate)));
 
     serverSubmittedInspectionRecords.forEach(record => {
-        const recordDate = parseInspectionDate(record.InspectionDate);
-        if (!recordDate || recordDate < fromDate || recordDate > thruDate) return;
+        if (!isInspectionWithinSubmittedRange(record, fromDate, thruDate)) return;
 
         // Match server rows to local counterparts using stable IDs first, then transaction number.
         const local = inspectionRecords.find(item =>
@@ -1296,6 +1295,14 @@ function renderInspectionRecordTable(records, host, submitted) {
     }).join("");
     host.innerHTML = '<div class="table-responsive"><table class="table table-sm table-hover align-middle mb-0">' +
         header + '<tbody>' + rows + '</tbody></table></div>';
+}
+
+function isInspectionWithinSubmittedRange(record, fromDate, thruDate) {
+    // Submitted date range includes either the planned inspection date or the actual completion date.
+    // This keeps an inspection completed today visible even when its InspectionDate is older.
+    const inspectionDate = parseInspectionDate(record && record.InspectionDate);
+    const completedDate = parseInspectionDate(record && record.EndDateTime);
+    return [inspectionDate, completedDate].some(date => date && date >= fromDate && date <= thruDate);
 }
 
 function parseInspectionDate(value) {
