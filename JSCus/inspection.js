@@ -79,6 +79,10 @@ document.addEventListener("DOMContentLoaded", async function () {
         wireInspectionEvents();
         await loadInspectionCache();
         await refreshSavedInspectionList();
+        // Sync may pull a supervisor-voided transaction back into the technician's Draft list.
+        window.addEventListener("syncCompleted", function () {
+            refreshSavedInspectionList().catch(err => console.error("Unable to refresh inspections after sync:", err));
+        });
 
         document.getElementById("inspectionConnectionLabel").textContent =
             navigator.onLine ? "Online • offline data ready" : "Offline • data tersimpan di perangkat";
@@ -1785,6 +1789,7 @@ function wireInspectionApprovalEvents() {
     addInspectionApprovalListener("btnBackToInspectionApprovalList", "click", showInspectionApprovalQueueView);
     addInspectionApprovalListener("btnInspectionApprovalOutstanding", "click", () => setInspectionApprovalTab("OUTSTANDING"));
     addInspectionApprovalListener("btnInspectionApprovalApproved", "click", () => setInspectionApprovalTab("APPROVED"));
+    addInspectionApprovalListener("btnInspectionApprovalVoid", "click", () => setInspectionApprovalTab("VOID"));
     addInspectionApprovalListener("inspectionApprovalQueue", "click", function (event) {
         const link = event.target.closest("[data-approval-id]");
         if (link) openInspectionApprovalDetail(Number(link.dataset.approvalId));
@@ -1817,39 +1822,54 @@ function wireInspectionApprovalEvents() {
 }
 
 function setInspectionApprovalTab(tab, reload) {
-    currentInspectionApprovalTab = tab === "APPROVED" ? "APPROVED" : "OUTSTANDING";
+    currentInspectionApprovalTab = ["APPROVED", "VOID"].includes(tab) ? tab : "OUTSTANDING";
     const outstanding = currentInspectionApprovalTab === "OUTSTANDING";
-    const outstandingButton = document.getElementById("btnInspectionApprovalOutstanding");
-    const approvedButton = document.getElementById("btnInspectionApprovalApproved");
-    if (outstandingButton) {
-        outstandingButton.classList.toggle("active", outstanding);
-        outstandingButton.setAttribute("aria-selected", outstanding ? "true" : "false");
-    }
-    if (approvedButton) {
-        approvedButton.classList.toggle("active", !outstanding);
-        approvedButton.setAttribute("aria-selected", outstanding ? "false" : "true");
-    }
+    const approved = currentInspectionApprovalTab === "APPROVED";
+    const voided = currentInspectionApprovalTab === "VOID";
+    [
+        ["btnInspectionApprovalOutstanding", outstanding],
+        ["btnInspectionApprovalApproved", approved],
+        ["btnInspectionApprovalVoid", voided]
+    ].forEach(pair => {
+        const button = document.getElementById(pair[0]);
+        if (button) {
+            button.classList.toggle("active", pair[1]);
+            button.setAttribute("aria-selected", pair[1] ? "true" : "false");
+        }
+    });
     const batchActions = document.getElementById("inspectionApprovalBatchActions");
     if (batchActions) batchActions.classList.toggle("d-none", !outstanding);
     const selectAllHeader = document.getElementById("thInspectionApprovalSelectAll");
     if (selectAllHeader) selectAllHeader.classList.toggle("d-none", !outstanding);
     const dateFilters = document.getElementById("inspectionApprovalDateFilters");
-    if (dateFilters) dateFilters.classList.toggle("d-none", outstanding);
+    if (dateFilters) dateFilters.classList.toggle("d-none", !approved);
     if (reload === false) renderInspectionApprovalQueue();
     else loadInspectionApprovalQueue();
 }
 
 function updateInspectionApprovalCounts() {
-    const outstandingCount = inspectionApprovalRows.filter(row => !isInspectionApprovalApproved(row)).length;
+    const outstandingCount = inspectionApprovalRows.filter(row => !isInspectionApprovalApproved(row) && !isInspectionApprovalVoided(row)).length;
     const approvedCount = inspectionApprovalRows.filter(isInspectionApprovalApproved).length;
+    const voidCount = inspectionApprovalRows.filter(isInspectionApprovalVoided).length;
     const outstandingElement = document.getElementById("inspectionApprovalOutstandingCount");
     const approvedElement = document.getElementById("inspectionApprovalApprovedCount");
+    const voidElement = document.getElementById("inspectionApprovalVoidCount");
     if (outstandingElement) outstandingElement.textContent = String(outstandingCount);
     if (approvedElement) approvedElement.textContent = String(approvedCount);
+    if (voidElement) voidElement.textContent = String(voidCount);
 }
 
 function isInspectionApprovalApproved(row) {
-    return row && (row.IsApprove === true || row.IsApprove === 1 || String(row.IsApprove).toLowerCase() === "true" || String(row.IsApprove) === "1");
+    return !!row && (row.IsApprove === true || row.IsApprove === 1 || String(row.IsApprove).toLowerCase() === "true" || String(row.IsApprove) === "1");
+}
+
+function isInspectionApprovalVoided(row) {
+    return !!row &&
+        !isInspectionApprovalApproved(row) &&
+        !!String(row.ReasonVoid || "").trim() &&
+        !!String(row.ApprovedBy || "").trim() &&
+        !!row.ApprovedDate &&
+        String(row.ApprovedDate).indexOf("1900") !== 0;
 }
 
 async function inspectionApprovalPost(method, args) {
@@ -1938,11 +1958,14 @@ function populateInspectionApprovalFilters(filterRows) {
 function renderInspectionApprovalQueue() {
     const host = document.getElementById("inspectionApprovalQueue");
     if (!host) return;
-    const rows = inspectionApprovalRows.filter(row =>
-        currentInspectionApprovalTab === "APPROVED" ? isInspectionApprovalApproved(row) : !isInspectionApprovalApproved(row)
-    );
+    const rows = inspectionApprovalRows.filter(row => {
+        if (currentInspectionApprovalTab === "APPROVED") return isInspectionApprovalApproved(row);
+        if (currentInspectionApprovalTab === "VOID") return isInspectionApprovalVoided(row);
+        return !isInspectionApprovalApproved(row) && !isInspectionApprovalVoided(row);
+    });
+    const hasSelectionColumn = currentInspectionApprovalTab === "OUTSTANDING";
     if (!rows.length) {
-        host.innerHTML = '<tr><td colspan="' + (currentInspectionApprovalTab === "OUTSTANDING" ? "8" : "7") + '" class="text-muted py-3 text-center">Tidak ada inspeksi untuk filter ini.</td></tr>';
+        host.innerHTML = '<tr><td colspan="' + (hasSelectionColumn ? "8" : "7") + '" class="text-muted py-3 text-center">Tidak ada inspeksi untuk filter ini.</td></tr>';
         const selectAll = document.getElementById("chkAllInspectionApproval");
         if (selectAll) selectAll.checked = false;
         return;
@@ -1952,7 +1975,7 @@ function renderInspectionApprovalQueue() {
         const start = formatInspectionClock(row.StartDateTime);
         const end = formatInspectionClock(row.EndDateTime);
         const range = (start && start !== "-" ? start : "-") + " – " + (end && end !== "-" ? end : "-");
-        const selectCell = currentInspectionApprovalTab === "OUTSTANDING"
+        const selectCell = hasSelectionColumn
             ? '<td><input type="checkbox" class="form-check-input" data-approval-select value="' + id + '" aria-label="Select inspection ' + escInspection(row.InspectionNo || id) + '"></td>'
             : '';
         return '<tr>' +
@@ -2103,12 +2126,14 @@ async function loadInspectionApprovalDetail(inspectionId) {
         selectedInspectionApproval = result.header;
         const h = result.header || {};
         const isApproved = isInspectionApprovalApproved(h);
+        const isVoided = isInspectionApprovalVoided(h);
+        const isFinalized = isApproved || isVoided;
         const remarkInput = document.getElementById("txtInspectionApprovalRemark");
         remarkInput.value = h.ApprovalRemark || h.ReasonVoid || "";
-        remarkInput.readOnly = isApproved;
-        document.getElementById("inspectionApprovalRemarkPanel").classList.toggle("d-none", isApproved && !remarkInput.value);
-        document.getElementById("btnApproveInspection").classList.toggle("d-none", isApproved);
-        document.getElementById("btnVoidInspection").classList.toggle("d-none", isApproved);
+        remarkInput.readOnly = isFinalized;
+        document.getElementById("inspectionApprovalRemarkPanel").classList.toggle("d-none", isFinalized && !remarkInput.value);
+        document.getElementById("btnApproveInspection").classList.toggle("d-none", isFinalized);
+        document.getElementById("btnVoidInspection").classList.toggle("d-none", isFinalized);
         const items = result.items || [];
         const photos = result.photos || [];
         window.currentInspectionApprovalPhotos = photos;
