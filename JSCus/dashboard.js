@@ -163,18 +163,24 @@ async function renderInspectionDashboardCards() {
     const cards = [];
     if (role.IsWO) {
         cards.push(
-            '<div class="col-12 col-md-6 col-xl-3"><a href="inspection.aspx" class="text-decoration-none text-dark card-custom air-shadow p-3 d-flex justify-content-between align-items-center">' +
-            '<div><div class="fw-bold">Technician Inspection</div><div class="text-muted small">Start checklist or continue saved inspection</div></div>' +
-            '<div class="text-end"><span id="inspectionPendingSync" class="h3 fw-bold text-primary mb-0 d-block">0</span><span class="text-muted small">Pending Sync</span></div></a></div>'
+            '<div class="col-6 col-md-4 col-xl-3"><a href="inspection.aspx" class="inspection-dashboard-card text-decoration-none text-dark card-custom air-shadow">' +
+            '<span class="inspection-dashboard-label">Technician</span>' +
+            '<span class="inspection-dashboard-value text-primary" id="inspectionPendingSync">0</span>' +
+            '<span class="inspection-dashboard-caption">Pending Sync</span></a></div>'
         );
     }
     if (role.IsSPV) {
         cards.push(
-            '<div class="col-12 col-md-6 col-xl-3"><a href="inspection.aspx?mode=approval" class="text-decoration-none text-dark card-custom air-shadow p-3 d-flex justify-content-between align-items-center">' +
-            '<div><div class="fw-bold">Inspection Approval</div><div class="text-muted small">Review completed inspections</div></div>' +
-            '<div class="text-end"><span id="inspectionPendingApproval" class="h3 fw-bold text-warning mb-0 d-block">0</span><span class="text-muted small">Pending</span></div></a></div>' +
-            '<div class="col-12 col-md-6 col-xl-3"><div class="card-custom air-shadow p-3"><div class="fw-bold">Approved Today</div><div id="inspectionApprovedToday" class="h3 fw-bold text-success mb-0">0</div></div></div>' +
-            '<div class="col-12 col-md-6 col-xl-3"><div class="card-custom air-shadow p-3"><div class="fw-bold">Void / Returned</div><div id="inspectionVoidCount" class="h3 fw-bold text-danger mb-0">0</div></div></div>'
+            '<div class="col-6 col-md-4 col-xl-3"><a href="inspection.aspx?mode=approval" class="inspection-dashboard-card text-decoration-none text-dark card-custom air-shadow">' +
+            '<span class="inspection-dashboard-label">Approval</span>' +
+            '<span class="inspection-dashboard-value text-warning" id="inspectionPendingApproval">0</span>' +
+            '<span class="inspection-dashboard-caption">Outstanding</span></a></div>' +
+            '<div class="col-6 col-md-4 col-xl-3"><div class="inspection-dashboard-card card-custom air-shadow">' +
+            '<span class="inspection-dashboard-label">Approved Today</span>' +
+            '<span id="inspectionApprovedToday" class="inspection-dashboard-value text-success">0</span></div></div>' +
+            '<div class="col-6 col-md-4 col-xl-3"><div class="inspection-dashboard-card card-custom air-shadow">' +
+            '<span class="inspection-dashboard-label">Void / Returned</span>' +
+            '<span id="inspectionVoidCount" class="inspection-dashboard-value text-danger">0</span></div></div>'
         );
     }
     if (!cards.length) {
