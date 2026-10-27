@@ -642,10 +642,12 @@ LEFT JOIN dbo.M_HRD_Employee E ON E.EmployeeID=I.OwnerEmployeeID
 WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID
   AND I.OwnerEmployeeID=@EmployeeID
   AND I.Status='DONE'
-  AND I.InspectionDate >= @FromDate
-  AND I.InspectionDate < DATEADD(DAY, 1, @ThruDate)
+  AND (
+      (I.InspectionDate >= @FromDate AND I.InspectionDate < DATEADD(DAY, 1, @ThruDate))
+      OR (I.EndDateTime >= @FromDate AND I.EndDateTime < DATEADD(DAY, 1, @ThruDate))
+  )
   AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@SectionList,';') S WHERE S.val=I.SectionID)
-ORDER BY I.InspectionDate DESC, I.StartDateTime DESC, I.InspectionID DESC",
+ORDER BY I.EndDateTime DESC, I.StartDateTime DESC, I.InspectionID DESC",
                     new SqlParameter[] {
                         new SqlParameter("@EmployeeID", employeeId),
                         new SqlParameter("@CompanyID", companyId),
