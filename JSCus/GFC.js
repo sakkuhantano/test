@@ -935,8 +935,8 @@ async function downloadReturnedInspections() {
             local.Items = serverRecord.Items || [];
             local.Summary = serverRecord.Summary || "";
             local.InspectionDate = parseDateOnly(serverRecord.InspectionDate);
-            local.StartDateTime = serverRecord.StartDateTime || "";
-            local.EndDateTime = "";
+            local.StartDateTime = serverRecord.StartDateTime || local.StartDateTime || "";
+            local.EndDateTime = serverRecord.EndDateTime || local.EndDateTime || "";
             local.ReasonVoid = serverRecord.ReasonVoid || "";
             local.UpdatedAt = new Date().toISOString();
             updates.push(local);
