@@ -1566,6 +1566,9 @@ async function updateInspectionChecklistGate() {
     document.getElementById("txtInspectionSummary").disabled = currentInspectionReadOnly || !before;
     document.getElementById("txtInspectionFollowUpRemark").disabled = currentInspectionReadOnly || !before;
     document.getElementById("inspectionFollowUpSection").disabled = currentInspectionReadOnly || !before;
+    document.querySelectorAll('input[name="inspectionFollowUpSectionChoice"]').forEach(el => {
+        el.disabled = currentInspectionReadOnly || !before;
+    });
     document.querySelectorAll('input[name="inspectionFollowUp"]').forEach(el => {
         el.disabled = currentInspectionReadOnly || !before;
     });
@@ -2135,11 +2138,6 @@ async function loadInspectionApprovalDetail(inspectionId) {
         const templateSummaryText = template && (template.SummarySampleText || template.summarySampleText || (template.VersionInfo && template.VersionInfo.SummarySampleText)) || "";
         const summaryHtml = '<div class="accordion-item border-info shadow-sm mt-3" id="inspectionApprovalSummaryPanel"><div class="accordion-header"><div class="accordion-button bg-info-subtle text-dark fw-bold"><i class="bi bi-clipboard2-check-fill fs-5 me-2 text-info"></i><div class="d-flex flex-column"><span>FINAL INSPECTION SUMMARY</span><small class="text-muted fw-normal">Ringkasan hasil inspeksi dan pekerjaan yang telah dilakukan.</small></div></div></div><div class="accordion-body p-3"><div class="alert alert-info py-2 px-3 mb-3 small"><i class="bi bi-info-circle-fill me-1"></i>Jelaskan secara singkat hasil pemeriksaan, tindakan yang dilakukan, serta kondisi akhir unit setelah pekerjaan selesai.</div><textarea class="form-control" rows="5" maxlength="500" disabled placeholder="' + escInspection(templateSummaryText) + '">' + escInspection(h.Summary || "") + '</textarea><div class="d-flex justify-content-between align-items-center mt-2"><small class="text-muted">Maksimum 500 karakter.</small><small class="text-muted">' + String((h.Summary || "").length) + ' / 500</small></div></div></div>';
         checklistHost.innerHTML = beforePhotoHtml + checklistHtml + afterPhotoHtml + followUpHtml + summaryHtml;
-        checklistHost.querySelectorAll("[data-approval-photo-type]").forEach(button => button.addEventListener("click", () => {
-            const type = button.dataset.approvalPhotoType;
-            const stagePhotos = photos.filter(photo => String(photo.Type || "").toUpperCase() === type);
-            openInspectionPhotoViewerFromData(type, stagePhotos, Number(button.dataset.approvalPhotoIndex));
-        }));
         document.getElementById("btnApproveInspection").disabled = isApproved;
         document.getElementById("btnVoidInspection").disabled = isApproved;
     } catch (err) {
