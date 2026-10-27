@@ -1,17 +1,28 @@
-﻿document.addEventListener(
-    "dbReady",
-    async function () {
-        var data = getLoginData();
-        if (data)
-            document.getElementById("lblUserNameDashboard").innerText = data.username;
-		renderCards();
-        await renderInspectionDashboardCards();
-        setInterval(function () {
-            refreshDashboardCounts();
-            renderInspectionDashboardCards();
-        }, 15000);
+﻿var inspectionDashboardInitialized = false;
+
+async function initializeDashboardPage() {
+    if (inspectionDashboardInitialized) return;
+    inspectionDashboardInitialized = true;
+    var data = getLoginData();
+    if (data) {
+        var userLabel = document.getElementById("lblUserNameDashboard");
+        if (userLabel) userLabel.innerText = data.username;
     }
-);
+    renderCards();
+    await renderInspectionDashboardCards();
+    setInterval(function () {
+        refreshDashboardCounts();
+        renderInspectionDashboardCards();
+    }, 15000);
+}
+
+document.addEventListener("dbReady", initializeDashboardPage);
+document.addEventListener("DOMContentLoaded", function () {
+    if (typeof db !== "undefined" && db && db.objectStoreNames) initializeDashboardPage();
+});
+if (document.readyState !== "loading" && typeof db !== "undefined" && db && db.objectStoreNames) {
+    initializeDashboardPage();
+}
 // document.addEventListener(
     // "DOMContentLoaded",
     // async function () {
