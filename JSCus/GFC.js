@@ -722,14 +722,33 @@ async function getInspectionData() {
             return Object.assign({}, detail, { ScheduleTime: times.join(";") });
         });
 
+        // Shared browser IndexedDB is used by multiple employee logins.
+        // Merge master rows instead of clearing another section's offline cache.
         const replaceStore = (name, rows) => new Promise((resolve, reject) => {
-            const tx = db.transaction(name, "readwrite");
-            const store = tx.objectStore(name);
-            store.clear();
-            (rows || []).forEach(row => store.put(row));
-            tx.oncomplete = () => resolve();
-            tx.onerror = () => reject(tx.error);
-            tx.onabort = () => reject(tx.error || new Error("IndexedDB transaction aborted"));
+            const readTx = db.transaction(name, "readonly");
+            const readReq = readTx.objectStore(name).getAll();
+            readReq.onsuccess = () => {
+                const existing = readReq.result || [];
+                const merged = new Map();
+                const keyOf = row => {
+                    if (name === "inspection_type_details") {
+                        return [row.CompanyID, row.LocationID, row.InspectionTypeCode, row.InspectionTypeDetailCode].join("|");
+                    }
+                    if (name === "inspection_templates") {
+                        return String(row.IDTemplate);
+                    }
+                    return String(row.InspectionTypeCode);
+                };
+                existing.forEach(row => merged.set(keyOf(row), row));
+                (rows || []).forEach(row => merged.set(keyOf(row), row));
+                const writeTx = db.transaction(name, "readwrite");
+                const store = writeTx.objectStore(name);
+                merged.forEach(row => store.put(row));
+                writeTx.oncomplete = () => resolve();
+                writeTx.onerror = () => reject(writeTx.error);
+                writeTx.onabort = () => reject(writeTx.error || new Error("IndexedDB master merge aborted"));
+            };
+            readReq.onerror = () => reject(readReq.error);
         });
 
         await replaceStore("inspection_types", masters.types || []);
@@ -809,7 +828,14 @@ async function downloadTodayInspectionSlots() {
         req.onsuccess = function () {
             const cursor = req.result;
             if (!cursor) return;
-            if (cursor.value && cursor.value.ServerOnly) cursor.delete();
+            const row = cursor.value || {};
+            const rowSection = String(row.SectionID || "");
+            const loginSections = String(login.section || "").split(";").filter(Boolean);
+            const inCurrentScope = String(row.CompanyID || "") === String(scope[0] || "") &&
+                String(row.LocationID || "") === String(scope[1] || "") &&
+                loginSections.includes(rowSection) &&
+                String(row.OwnerEmployeeID || "") === String(login.employeeid || "");
+            if (row.ServerOnly && inCurrentScope) cursor.delete();
             cursor.continue();
         };
         tx.oncomplete = () => resolve();
