@@ -230,9 +230,6 @@ class="fw-bold">
 <span class="text-uppercase fw-bold text-primary d-block mb-1" style="font-size: 10px; letter-spacing: 0.2em;">Execution Pipeline</span>
 <h5 class="fw-bold mb-0">Work Orders</h5>
 </div>
-<a id="btnDashboardInspection" href="inspection.aspx" class="btn btn-sm btn-outline-primary text-nowrap">
-    <i class="bi bi-clipboard-check"></i> Start Inspection
-</a>
 <%--<a class="text-decoration-none fw-bold small text-primary d-flex align-items-center gap-1" href="#" style="font-size: 12px;">
                         Manage Full Schedule <i class="bi bi-arrow-right"></i>
 </a>--%>
