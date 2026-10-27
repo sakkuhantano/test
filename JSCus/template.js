@@ -33,6 +33,9 @@ let isDirty = false;
 
 let isReadonlyMode = false;
 
+// Prevent slower, earlier version loads from overwriting a more recent selection.
+let versionStructureLoadRequestId = 0;
+
 let groupData = [];
 
 let itemOptionTagManager = null;
@@ -3120,7 +3123,7 @@ function renderTemplateVersions(data,container)
             " id="versionNode_${sectionId}_${templateRuntimeID}_${version.RuntimeVersionID}">
             Version
             ${version.Version}
-            ${String(version.Status).trim().toLowerCase() === "active" ? '<span class="version-drag-handle ms-1" draggable="true" title="Drag Active Version onto another Template"><i class="bi bi-grip-vertical"></i></span>' : ""}
+            
             <span class="dirty-placeholder"></span>
             </div>
             <div class="
@@ -3322,6 +3325,7 @@ function normalizeVersionStructure(data)
 }
 async function loadVersionStructure(templateId, versionId, el)
 {
+    const loadRequestId = ++versionStructureLoadRequestId;
     try
     {
         if(el) {
@@ -3446,6 +3450,7 @@ async function loadVersionStructure(templateId, versionId, el)
                 currentVersion
             );
 
+            if (loadRequestId !== versionStructureLoadRequestId) return;
             renderVersionStructure(currentVersionData);
             switchMobileTab('builder');
             return;
@@ -3471,6 +3476,7 @@ async function loadVersionStructure(templateId, versionId, el)
                 currentVersion
             );
 
+            if (loadRequestId !== versionStructureLoadRequestId) return;
             renderVersionStructure(currentVersionData, true);
             switchMobileTab('builder');
             return;
@@ -3487,6 +3493,9 @@ async function loadVersionStructure(templateId, versionId, el)
                 PageMethods.GetVersionStructure,
                 versionNode.VersionInfo.IDVersion
             );
+
+        // A later click takes priority; ignore this stale response.
+        if (loadRequestId !== versionStructureLoadRequestId) return;
 
         const res = JSON.parse(result);
         normalizeVersionStructure(res);
@@ -3523,17 +3532,19 @@ async function loadVersionStructure(templateId, versionId, el)
             currentVersion
         );
 
+        if (loadRequestId !== versionStructureLoadRequestId) return;
         renderVersionStructure(res);
         switchMobileTab('builder');
     }
     catch(ex)
     {
+        if (loadRequestId !== versionStructureLoadRequestId) return;
         console.error("loadVersionStructure error:", ex);
         alert('Failed load version structure');
     }
     finally
     {
-        hideLoading();
+        if (loadRequestId === versionStructureLoadRequestId) hideLoading();
     }
 }
 
