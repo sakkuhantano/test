@@ -170,6 +170,11 @@
                         Approved <span id="inspectionApprovalApprovedCount" class="badge text-bg-secondary ms-1">0</span>
                     </button>
                 </li>
+                <li class="nav-item" role="presentation">
+                    <button type="button" class="nav-link" id="btnInspectionApprovalVoid" role="tab" aria-selected="false">
+                        Void <span id="inspectionApprovalVoidCount" class="badge text-bg-secondary ms-1">0</span>
+                    </button>
+                </li>
             </ul>
             <div id="inspectionApprovalBatchActions" class="d-flex flex-wrap align-items-center gap-1">
                 <button type="button" id="btnApprovalSelectAll" class="btn btn-sm btn-outline-secondary" title="Select all filtered inspections" aria-label="Select all filtered inspections">Select All</button>
