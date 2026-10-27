@@ -106,6 +106,14 @@ function wireInspectionEvents() {
             showInspectionNotice(err.message || "Gagal memfilter inspeksi submitted.", "warning");
         });
     });
+    const submittedFilters = document.getElementById("inspectionSubmittedFilters");
+    const updateSubmittedFiltersVisibility = () => {
+        const submittedActive = document.getElementById("inspectionSubmittedTab").classList.contains("active");
+        if (submittedFilters) submittedFilters.classList.toggle("d-none", !submittedActive);
+    };
+    document.getElementById("inspectionDraftTab").addEventListener("shown.bs.tab", updateSubmittedFiltersVisibility);
+    document.getElementById("inspectionSubmittedTab").addEventListener("shown.bs.tab", updateSubmittedFiltersVisibility);
+    updateSubmittedFiltersVisibility();
     document.getElementById("btnInspectionParamTab").addEventListener("click", () => showInspectionEditorTab("param"));
     document.getElementById("btnInspectionChecklistTab").addEventListener("click", () => showInspectionEditorTab("checklist"));
     document.getElementById("btnSaveInspectionDraft").addEventListener("click", () => saveInspection("DRAFT"));
@@ -1610,13 +1618,6 @@ function localDateTimeString(date) {
 
 
 function getInspectionScrollTarget() {
-    const detailModal = document.getElementById("inspectionApprovalDetailModal");
-    if (detailModal && detailModal.classList.contains("show")) {
-        const actionModal = document.getElementById("inspectionApprovalActionModal");
-        if (!actionModal || !actionModal.classList.contains("show")) {
-            return detailModal.querySelector(".modal-body");
-        }
-    }
     return window;
 }
 
@@ -1631,11 +1632,12 @@ function updateInspectionScrollTools() {
     const clientHeight = modalTarget ? target.clientHeight : window.innerHeight;
     const scrollHeight = modalTarget ? target.scrollHeight : Math.max(document.body.scrollHeight, document.documentElement.scrollHeight);
     const canScroll = scrollHeight > clientHeight + 60;
-    const modalShown = !!document.querySelector("#inspectionApprovalDetailModal.show");
+    const modalShown = !!document.querySelector("#inspectionApprovalActionModal.show");
+    const maxScroll = Math.max(0, scrollHeight - clientHeight);
+    const atBottom = scrollTop >= maxScroll - 40;
     tools.classList.toggle("d-none", !canScroll || (modalShown && !modalTarget));
     top.classList.toggle("d-none", scrollTop < 50);
-    // Keep the down control in its fixed lower slot; the up control appears above it.
-    bottom.classList.remove("d-none");
+    bottom.classList.toggle("d-none", !canScroll || atBottom);
 }
 
 function wireInspectionScrollTools() {
@@ -1689,6 +1691,7 @@ function addInspectionApprovalListener(id, eventName, handler) {
 
 function wireInspectionApprovalEvents() {
     addInspectionApprovalListener("btnRefreshInspectionApproval", "click", loadInspectionApprovalQueue);
+    addInspectionApprovalListener("btnBackInspectionApprovalQueue", "click", showInspectionApprovalQueueView);
     addInspectionApprovalListener("btnInspectionApprovalOutstanding", "click", () => setInspectionApprovalTab("OUTSTANDING"));
     addInspectionApprovalListener("btnInspectionApprovalApproved", "click", () => setInspectionApprovalTab("APPROVED"));
     addInspectionApprovalListener("inspectionApprovalQueue", "click", function (event) {
@@ -1775,6 +1778,7 @@ async function inspectionApprovalPost(method, args) {
 }
 
 async function loadInspectionApprovalQueue() {
+    showInspectionApprovalQueueView();
     const requestSequence = ++inspectionApprovalLoadSequence;
     const notice = document.getElementById("inspectionApprovalNotice");
     const host = document.getElementById("inspectionApprovalQueue");
@@ -1891,9 +1895,29 @@ function updateInspectionApprovalSelectAll() {
 }
 
 function openInspectionApprovalDetail(inspectionId) {
+    const listView = document.getElementById("inspectionApprovalListView");
+    const detailPanel = document.getElementById("inspectionApprovalDetailPanel");
+    if (!listView || !detailPanel || !inspectionId) return;
+    listView.classList.add("d-none");
+    detailPanel.classList.remove("d-none");
+    selectedInspectionApproval = null;
+    document.getElementById("inspectionApprovalDetailSubtitle").textContent = "";
+    document.getElementById("inspectionApprovalParameters").innerHTML = "";
+    document.getElementById("inspectionApprovalDetail").innerHTML = '<div class="text-muted">Memuat checklist...</div>';
+    document.getElementById("btnApproveInspection").disabled = true;
+    document.getElementById("btnVoidInspection").disabled = true;
     loadInspectionApprovalDetail(inspectionId);
-    const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById("inspectionApprovalDetailModal"));
-    modal.show();
+    detailPanel.scrollIntoView({ behavior: "smooth", block: "start" });
+    updateInspectionScrollTools();
+}
+
+function showInspectionApprovalQueueView() {
+    const listView = document.getElementById("inspectionApprovalListView");
+    const detailPanel = document.getElementById("inspectionApprovalDetailPanel");
+    if (listView) listView.classList.remove("d-none");
+    if (detailPanel) detailPanel.classList.add("d-none");
+    selectedInspectionApproval = null;
+    updateInspectionScrollTools();
 }
 
 function openInspectionApprovalAction(action, batch) {
@@ -1971,9 +1995,7 @@ async function executeInspectionApprovalAction(ids, action, remark) {
             failures.push("Inspection #" + inspectionId + ": " + (err.message || "gagal"));
         }
     }
-    if (isSingleVoid && succeeded === 1) {
-        bootstrap.Modal.getOrCreateInstance(document.getElementById("inspectionApprovalDetailModal")).hide();
-    }
+    if (isSingleVoid && succeeded === 1) showInspectionApprovalQueueView();
     await loadInspectionApprovalQueue();
     const notice = document.getElementById("inspectionApprovalNotice");
     notice.className = "alert alert-" + (failures.length ? "warning" : "success") + " py-2 small";
@@ -2007,7 +2029,7 @@ async function loadInspectionApprovalDetail(inspectionId) {
         const photos = result.photos || [];
         const start = formatInspectionClock(h.StartDateTime);
         const end = formatInspectionClock(h.EndDateTime);
-        document.getElementById("inspectionApprovalModalSubtitle").textContent =
+        document.getElementById("inspectionApprovalDetailSubtitle").textContent =
             (h.InspectionNo || ("Inspection #" + h.InspectionID)) + " • " +
             formatInspectionDateDMY(h.InspectionDate) + " • " + (h.ScheduledTime || "-") + " • " + start + " – " + end;
         document.getElementById("inspectionApprovalParameters").innerHTML =
@@ -2084,7 +2106,7 @@ async function processInspectionApproval(action) {
             employeeId: inspectionLogin.employeeid, companyId: inspectionCompanyID,
             locationId: inspectionLocationID, remark: remark
         });
-        bootstrap.Modal.getOrCreateInstance(document.getElementById("inspectionApprovalDetailModal")).hide();
+        showInspectionApprovalQueueView();
         document.getElementById("inspectionApprovalNotice").className = "alert alert-success py-2 small";
         document.getElementById("inspectionApprovalNotice").textContent =
             approvalResult.followUpWONo
