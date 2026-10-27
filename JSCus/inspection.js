@@ -717,10 +717,11 @@ async function renderInspectionForm(record, readOnly) {
     if (summaryCounter) summaryCounter.textContent = String((record.Summary || "").length) + " / 500";
     const followUpCounter = document.getElementById("inspectionFollowUpRemarkCounter");
     if (followUpCounter) followUpCounter.textContent = String((record.FollowUpRemark || "").length) + " / 300";
-    const formHost = document.getElementById("inspectionChecklistHost");
-    if (formHost && reasonVoidPanel) formHost.insertAdjacentHTML("beforeend", reasonVoidPanel);
     await renderInspectionPhotos();
     await updateInspectionChecklistGate();
+    const summaryField = document.getElementById("txtInspectionSummary");
+    const summaryPanel = summaryField ? summaryField.closest(".accordion-item") : null;
+    if (summaryPanel && reasonVoidPanel) summaryPanel.insertAdjacentHTML("afterend", reasonVoidPanel);
 }
 
 function updateInspectionFollowUpPanel() {
