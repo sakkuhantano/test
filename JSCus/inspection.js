@@ -1059,7 +1059,6 @@ async function refreshSavedInspectionList() {
         }
     }
 
-    const today = localDateString(new Date());
     // Conflicts must remain visible even when the rejected transaction was completed
     // for a prior date; otherwise technicians would have no way to resolve it.
     const drafts = inspectionRecords.filter(record =>
@@ -1078,8 +1077,8 @@ async function refreshSavedInspectionList() {
         }) : record);
     });
     renderInspectionRecordTable(drafts, document.getElementById("inspectionDraftList"), false);
-    // The server already filters its submitted rows using the server's system date.
-    // Local-only submitted records are filtered using the device's current date above.
+    // SUBMITTED shows all completed records for the current technician, including records
+    // already synced to SQL Server; it is not restricted to today's date.
     renderInspectionRecordTable(Array.from(submittedById.values()), document.getElementById("inspectionSubmittedList"), true);
 }
 
