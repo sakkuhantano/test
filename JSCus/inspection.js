@@ -719,9 +719,19 @@ async function renderInspectionForm(record, readOnly) {
     if (followUpCounter) followUpCounter.textContent = String((record.FollowUpRemark || "").length) + " / 300";
     await renderInspectionPhotos();
     await updateInspectionChecklistGate();
-    const summaryField = document.getElementById("txtInspectionSummary");
-    const summaryPanel = summaryField ? summaryField.closest(".accordion-item") : null;
-    if (summaryPanel && reasonVoidPanel) summaryPanel.insertAdjacentHTML("afterend", reasonVoidPanel);
+    // Keep REASON VOID outside inspectionChecklistHost and place it after the full Summary panel.
+    const summaryPanel = document.getElementById("inspectionSummaryPanel");
+    if (summaryPanel && reasonVoidPanel) {
+        const existingReasonVoid = document.getElementById("inspectionReasonVoidPanel");
+        if (existingReasonVoid) existingReasonVoid.remove();
+        const reasonVoidElement = document.createElement("div");
+        reasonVoidElement.innerHTML = reasonVoidPanel;
+        const reasonVoidNode = reasonVoidElement.firstElementChild;
+        if (reasonVoidNode) {
+            reasonVoidNode.id = "inspectionReasonVoidPanel";
+            summaryPanel.insertAdjacentElement("afterend", reasonVoidNode);
+        }
+    }
 }
 
 function updateInspectionFollowUpPanel() {
