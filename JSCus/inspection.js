@@ -1635,15 +1635,17 @@ function updateInspectionScrollTools() {
     if (!tools || !top || !bottom) return;
     const target = getInspectionScrollTarget();
     const modalTarget = target !== window;
-    const scrollTop = modalTarget ? target.scrollTop : (window.pageYOffset || document.documentElement.scrollTop || 0);
+    const scrollingElement = document.scrollingElement || document.documentElement;
+    const scrollTop = modalTarget ? target.scrollTop : Math.max(window.scrollY || 0, scrollingElement.scrollTop || 0);
     const clientHeight = modalTarget ? target.clientHeight : window.innerHeight;
-    const scrollHeight = modalTarget ? target.scrollHeight : Math.max(document.body.scrollHeight, document.documentElement.scrollHeight);
-    const canScroll = scrollHeight > clientHeight + 60;
-    const modalShown = !!document.querySelector("#inspectionApprovalActionModal.show");
+    const scrollHeight = modalTarget ? target.scrollHeight : scrollingElement.scrollHeight;
     const maxScroll = Math.max(0, scrollHeight - clientHeight);
-    const atBottom = scrollTop >= maxScroll - 40;
+    const canScroll = maxScroll > 4;
+    const atTop = scrollTop <= 4;
+    const atBottom = maxScroll - scrollTop <= 4;
+    const modalShown = !!document.querySelector("#inspectionApprovalActionModal.show");
     tools.classList.toggle("d-none", !canScroll || (modalShown && !modalTarget));
-    top.classList.toggle("d-none", scrollTop < 50);
+    top.classList.toggle("d-none", !canScroll || atTop);
     bottom.classList.toggle("d-none", !canScroll || atBottom);
 }
 
@@ -1698,7 +1700,6 @@ function addInspectionApprovalListener(id, eventName, handler) {
 
 function wireInspectionApprovalEvents() {
     addInspectionApprovalListener("btnRefreshInspectionApproval", "click", loadInspectionApprovalQueue);
-    addInspectionApprovalListener("btnBackInspectionApprovalQueue", "click", showInspectionApprovalQueueView);
     addInspectionApprovalListener("btnInspectionApprovalOutstanding", "click", () => setInspectionApprovalTab("OUTSTANDING"));
     addInspectionApprovalListener("btnInspectionApprovalApproved", "click", () => setInspectionApprovalTab("APPROVED"));
     addInspectionApprovalListener("inspectionApprovalQueue", "click", function (event) {
@@ -1892,10 +1893,8 @@ function updateInspectionApprovalSelectAll() {
 }
 
 function openInspectionApprovalDetail(inspectionId) {
-    const listView = document.getElementById("inspectionApprovalListView");
     const detailPanel = document.getElementById("inspectionApprovalDetailPanel");
-    if (!listView || !detailPanel || !inspectionId) return;
-    listView.classList.add("d-none");
+    if (!detailPanel || !inspectionId) return;
     detailPanel.classList.remove("d-none");
     selectedInspectionApproval = null;
     document.getElementById("inspectionApprovalDetailSubtitle").textContent = "";
@@ -1909,9 +1908,7 @@ function openInspectionApprovalDetail(inspectionId) {
 }
 
 function showInspectionApprovalQueueView() {
-    const listView = document.getElementById("inspectionApprovalListView");
     const detailPanel = document.getElementById("inspectionApprovalDetailPanel");
-    if (listView) listView.classList.remove("d-none");
     if (detailPanel) detailPanel.classList.add("d-none");
     selectedInspectionApproval = null;
     updateInspectionScrollTools();
