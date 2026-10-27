@@ -1226,8 +1226,8 @@ async function refreshSavedInspectionList() {
 
     serverSubmittedInspectionRecords.forEach(record => {
         // Server rows appear in Submitted by the server-side approval/void date range.
-        const approvedDate = parseInspectionDate(record && record.ApprovedDate);
-        if (!approvedDate || approvedDate < fromDate || approvedDate > thruDate) return;
+        const syncDate = parseInspectionDate(record && record.SyncDate);
+        if (!syncDate || syncDate < fromDate || syncDate > thruDate) return;
 
         // Match server rows to local counterparts using stable IDs first, then transaction number.
         const local = inspectionRecords.find(item =>
@@ -2069,7 +2069,7 @@ function setInspectionApprovalTab(tab, reload) {
     const selectAllHeader = document.getElementById("thInspectionApprovalSelectAll");
     if (selectAllHeader) selectAllHeader.classList.toggle("d-none", !outstanding);
     const dateFilters = document.getElementById("inspectionApprovalDateFilters");
-    if (dateFilters) dateFilters.classList.toggle("d-none", !(approved || voided));
+    if (dateFilters) dateFilters.classList.toggle("d-none", !approved);
     if (reload === false) renderInspectionApprovalQueue();
     else loadInspectionApprovalQueue();
 }
