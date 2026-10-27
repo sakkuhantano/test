@@ -702,9 +702,7 @@ async function renderInspectionForm(record, readOnly) {
             '</div>' +
           '</div>'
         : "";
-    host.innerHTML =
-        renderInspectionSections(template, savedItems, currentInspectionReadOnly, "inspectionSection") +
-        reasonVoidPanel;
+    host.innerHTML = renderInspectionSections(template, savedItems, currentInspectionReadOnly, "inspectionSection");
 
 
     document.getElementById("btnSaveInspectionDraft").classList.toggle("d-none", currentInspectionReadOnly);
@@ -719,6 +717,8 @@ async function renderInspectionForm(record, readOnly) {
     if (summaryCounter) summaryCounter.textContent = String((record.Summary || "").length) + " / 500";
     const followUpCounter = document.getElementById("inspectionFollowUpRemarkCounter");
     if (followUpCounter) followUpCounter.textContent = String((record.FollowUpRemark || "").length) + " / 300";
+    const formHost = document.getElementById("inspectionChecklistHost");
+    if (formHost && reasonVoidPanel) formHost.insertAdjacentHTML("beforeend", reasonVoidPanel);
     await renderInspectionPhotos();
     await updateInspectionChecklistGate();
 }
