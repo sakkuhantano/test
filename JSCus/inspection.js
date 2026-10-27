@@ -13,6 +13,7 @@ let currentInspectionReadOnly = false;
 let inspectionAutoSaveTimer = null;
 let inspectionPhotoViewerState = { type: "", photos: [], index: 0, objectUrl: null, touchStartX: null };
 let inspectionPhotoBaseline = null;
+let inspectionNoticeEnabled = false;
 let inspectionFollowUpSections = [
     { Code: "ACON", Name: "Air Cond." },
     { Code: "COMM", Name: "Comm." },
@@ -1204,7 +1205,8 @@ async function openSavedInspection(localId) {
 }
 
 function resetInspectionSelection() {
-    showInspectionInputScreen();
+    showInspectionInputScreen(true);
+    showInspectionNotice("Pilih Inspection Type, detail inspeksi, lalu template. Data tersimpan di perangkat dan hanya disinkronkan oleh teknisi pemiliknya.", "info");
     currentInspectionRecord = null;
     currentInspectionReadOnly = false;
     document.getElementById("inspectionEditorTabs").classList.add("d-none");
@@ -1528,12 +1530,16 @@ async function updateInspectionChecklistGate() {
         : "Foto BEFORE dan AFTER wajib tersedia sebelum Done. Lengkapi item wajib sebelum Done.";
 }
 
-function showInspectionInputScreen() {
+function showInspectionInputScreen(showNotice) {
     document.getElementById("inspectionRecordsPanel").classList.add("d-none");
     document.getElementById("inspectionInputPanel").classList.remove("d-none");
+    inspectionNoticeEnabled = showNotice === true;
+    const notice = document.getElementById("inspectionNotice");
+    if (notice) notice.classList.toggle("d-none", !inspectionNoticeEnabled);
 }
 
 function showInspectionRecordsScreen() {
+    inspectionNoticeEnabled = false;
     document.getElementById("inspectionInputPanel").classList.add("d-none");
     document.getElementById("inspectionRecordsPanel").classList.remove("d-none");
 }
@@ -1589,6 +1595,7 @@ function showInspectionNotice(message, type) {
     const notice = document.getElementById("inspectionNotice");
     if (!notice) return;
     notice.className = "alert alert-" + (type || "info") + " py-2 small mb-3";
+    notice.classList.toggle("d-none", !inspectionNoticeEnabled);
     notice.textContent = message;
 }
 
