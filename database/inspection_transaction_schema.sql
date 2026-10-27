@@ -42,6 +42,7 @@ BEGIN
         EntryDate DATETIME NOT NULL CONSTRAINT DF_PIP_T_Inspection_EntryDate DEFAULT (GETDATE()),
         UpdateUser VARCHAR(50) NOT NULL,
         UpdateDate DATETIME NOT NULL CONSTRAINT DF_PIP_T_Inspection_UpdateDate DEFAULT (GETDATE()),
+        SyncDate DATETIME NULL,
         CONSTRAINT PK_PIP_T_Inspection PRIMARY KEY CLUSTERED (InspectionID),
         CONSTRAINT UQ_PIP_T_Inspection_ClientInspectionID UNIQUE (ClientInspectionID),
         CONSTRAINT CK_PIP_T_Inspection_Status CHECK (Status IN ('DRAFT', 'DONE'))
@@ -53,6 +54,8 @@ GO
    Existing empty numbers are normalized to ''; new inspections receive a generated number. */
 IF COL_LENGTH('dbo.PIP_T_Inspection', 'InspectionNo') IS NULL
     ALTER TABLE dbo.PIP_T_Inspection ADD InspectionNo VARCHAR(10) NULL;
+IF COL_LENGTH('dbo.PIP_T_Inspection', 'SyncDate') IS NULL
+    ALTER TABLE dbo.PIP_T_Inspection ADD SyncDate DATETIME NULL;
 GO
 IF COL_LENGTH('dbo.PIP_T_Inspection', 'FollowUp') IS NULL
     ALTER TABLE dbo.PIP_T_Inspection ADD FollowUp VARCHAR(30) NOT NULL
@@ -628,7 +631,7 @@ BEGIN
                 FollowUp=@p_FollowUp, FollowUpSection=ISNULL(@p_FollowUpSection,''), FollowUpRemark=ISNULL(@p_FollowUpRemark,''),
                 IsApprove=0, ApprovedBy='', ApprovedDate=CONVERT(DATETIME,'19000101',112), ApprovalRemark='',
                 ReasonVoid='',
-                UpdateUser=@p_UpdateUser, UpdateDate=GETDATE()
+                UpdateUser=@p_UpdateUser, UpdateDate=GETDATE(), SyncDate=GETDATE()
             WHERE InspectionID=@V_InspectionID;
         END
         ELSE
@@ -661,7 +664,7 @@ BEGIN
                 InspectionTypeDetailName, ScheduledTime, IDTemplate, IDVersion,
                 TemplateNo, TemplateName, TemplateVersion, InspectionDate,
                 StartDateTime, EndDateTime, Status, Summary, FollowUp, FollowUpSection, FollowUpRemark, OwnerEmployeeID,
-                EntryUser, EntryDate, UpdateUser, UpdateDate
+                EntryUser, EntryDate, UpdateUser, UpdateDate, SyncDate
             )
             VALUES
             (
@@ -671,7 +674,7 @@ BEGIN
                 @p_TemplateNo, @V_TemplateName, @p_TemplateVersion, @p_InspectionDate,
                 @p_StartDateTime, @p_EndDateTime, @p_Status, @p_Summary, @p_FollowUp,
                 ISNULL(@p_FollowUpSection,''), ISNULL(@p_FollowUpRemark,''), @p_UpdateUser,
-                @p_UpdateUser, GETDATE(), @p_UpdateUser, GETDATE()
+                @p_UpdateUser, GETDATE(), @p_UpdateUser, GETDATE(), GETDATE()
             );
         END;
 
