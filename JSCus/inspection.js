@@ -91,7 +91,52 @@ document.addEventListener("DOMContentLoaded", async function () {
     }
 });
 
+function wireInspectionPhotoViewerEvents() {
+    const close = document.getElementById("inspectionPhotoViewerClose");
+    const prev = document.getElementById("inspectionPhotoViewerPrev");
+    const next = document.getElementById("inspectionPhotoViewerNext");
+    const viewer = document.getElementById("inspectionPhotoViewer");
+    const stage = document.getElementById("inspectionPhotoViewerStage");
+    if (close && !close.dataset.viewerWired) {
+        close.dataset.viewerWired = "1";
+        close.addEventListener("click", closeInspectionPhotoViewer);
+    }
+    if (prev && !prev.dataset.viewerWired) {
+        prev.dataset.viewerWired = "1";
+        prev.addEventListener("click", () => stepInspectionPhotoViewer(-1));
+    }
+    if (next && !next.dataset.viewerWired) {
+        next.dataset.viewerWired = "1";
+        next.addEventListener("click", () => stepInspectionPhotoViewer(1));
+    }
+    if (viewer && !viewer.dataset.viewerWired) {
+        viewer.dataset.viewerWired = "1";
+        viewer.addEventListener("click", event => {
+            if (event.target.id === "inspectionPhotoViewer") closeInspectionPhotoViewer();
+        });
+    }
+    if (stage && !stage.dataset.viewerWired) {
+        stage.dataset.viewerWired = "1";
+        stage.addEventListener("touchstart", event => {
+            inspectionPhotoViewerState.touchStartX = event.changedTouches && event.changedTouches.length
+                ? event.changedTouches[0].clientX : null;
+        }, { passive: true });
+        stage.addEventListener("touchend", event => {
+            const startX = inspectionPhotoViewerState.touchStartX;
+            const endX = event.changedTouches && event.changedTouches.length ? event.changedTouches[0].clientX : null;
+            inspectionPhotoViewerState.touchStartX = null;
+            if (startX == null || endX == null || Math.abs(endX - startX) < 45) return;
+            stepInspectionPhotoViewer(endX < startX ? 1 : -1);
+        }, { passive: true });
+    }
+    if (!document.documentElement.dataset.inspectionViewerKeysWired) {
+        document.documentElement.dataset.inspectionViewerKeysWired = "1";
+        document.addEventListener("keydown", handleInspectionPhotoViewerKeydown);
+    }
+}
+
 function wireInspectionEvents() {
+    wireInspectionPhotoViewerEvents();
     document.getElementById("btnBackToInspectionRecords").addEventListener("click", function () {
         closeInspectionForm().catch(err => {
             console.error("Unable to return to inspection list:", err);
@@ -132,24 +177,6 @@ function wireInspectionEvents() {
     document.getElementById("inspectionPhotoAfterInput").addEventListener("change", e => handleInspectionPhotoInput(e, "AFTER"));
     document.getElementById("inspectionPhotoBeforeList").addEventListener("click", handleInspectionPhotoListClick);
     document.getElementById("inspectionPhotoAfterList").addEventListener("click", handleInspectionPhotoListClick);
-    document.getElementById("inspectionPhotoViewerClose").addEventListener("click", closeInspectionPhotoViewer);
-    document.getElementById("inspectionPhotoViewerPrev").addEventListener("click", () => stepInspectionPhotoViewer(-1));
-    document.getElementById("inspectionPhotoViewerNext").addEventListener("click", () => stepInspectionPhotoViewer(1));
-    document.getElementById("inspectionPhotoViewer").addEventListener("click", event => {
-        if (event.target.id === "inspectionPhotoViewer") closeInspectionPhotoViewer();
-    });
-    document.getElementById("inspectionPhotoViewerStage").addEventListener("touchstart", event => {
-        inspectionPhotoViewerState.touchStartX = event.changedTouches && event.changedTouches.length
-            ? event.changedTouches[0].clientX : null;
-    }, { passive: true });
-    document.getElementById("inspectionPhotoViewerStage").addEventListener("touchend", event => {
-        const startX = inspectionPhotoViewerState.touchStartX;
-        const endX = event.changedTouches && event.changedTouches.length ? event.changedTouches[0].clientX : null;
-        inspectionPhotoViewerState.touchStartX = null;
-        if (startX == null || endX == null || Math.abs(endX - startX) < 45) return;
-        stepInspectionPhotoViewer(endX < startX ? 1 : -1);
-    }, { passive: true });
-    document.addEventListener("keydown", handleInspectionPhotoViewerKeydown);
     ["inspectionDraftList", "inspectionSubmittedList"].forEach(function (listId) {
         document.getElementById(listId).addEventListener("click", async function (event) {
             const deleteButton = event.target.closest("[data-delete-conflict]");
@@ -181,14 +208,6 @@ function wireInspectionEvents() {
     });
     document.getElementById("txtInspectionFollowUpRemark").addEventListener("input", function () {
         document.getElementById("inspectionFollowUpRemarkCounter").textContent = this.value.length + " / 300";
-    });
-    document.getElementById("inspectionApprovalDetail").addEventListener("click", function (event) {
-        const button = event.target.closest("[data-approval-photo-type]");
-        if (!button) return;
-        const type = button.dataset.approvalPhotoType;
-        const index = Number(button.dataset.approvalPhotoIndex);
-        const stagePhotos = (window.currentInspectionApprovalPhotos || []).filter(photo => String(photo.Type || "").toUpperCase() === type);
-        openInspectionPhotoViewerFromData(type, stagePhotos, index);
     });
     document.getElementById("inspectionChecklistHost").addEventListener("change", function (event) {
         if (event.target && event.target.matches('[data-role="value"][type="radio"]')) updateInspectionRemarkPanels();
@@ -1749,6 +1768,19 @@ function addInspectionApprovalListener(id, eventName, handler) {
 }
 
 function wireInspectionApprovalEvents() {
+    wireInspectionPhotoViewerEvents();
+    const approvalDetail = document.getElementById("inspectionApprovalDetail");
+    if (approvalDetail && !approvalDetail.dataset.approvalPhotoWired) {
+        approvalDetail.dataset.approvalPhotoWired = "1";
+        approvalDetail.addEventListener("click", function (event) {
+            const button = event.target.closest("[data-approval-photo-type]");
+            if (!button) return;
+            const type = button.dataset.approvalPhotoType;
+            const index = Number(button.dataset.approvalPhotoIndex);
+            const stagePhotos = (window.currentInspectionApprovalPhotos || []).filter(photo => String(photo.Type || "").toUpperCase() === type);
+            openInspectionPhotoViewerFromData(type, stagePhotos, index);
+        });
+    }
     addInspectionApprovalListener("btnRefreshInspectionApproval", "click", loadInspectionApprovalQueue);
     addInspectionApprovalListener("btnBackToInspectionApprovalList", "click", showInspectionApprovalQueueView);
     addInspectionApprovalListener("btnInspectionApprovalOutstanding", "click", () => setInspectionApprovalTab("OUTSTANDING"));
