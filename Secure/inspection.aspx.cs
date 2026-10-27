@@ -653,13 +653,12 @@ SELECT I.InspectionID, I.ClientInspectionID, I.InspectionNo,
        I.ScheduledTime, I.IDTemplate, I.IDVersion, I.TemplateNo, I.TemplateName,
        I.TemplateVersion, I.InspectionDate, I.StartDateTime, I.EndDateTime,
        I.OwnerEmployeeID, ISNULL(E.Name, I.OwnerEmployeeID) TechnicianName, I.Status,
-       I.IsApprove, I.ApprovedDate, I.ReasonVoid
+       I.IsApprove, I.ApprovedDate, I.SyncDate, I.ReasonVoid
 FROM dbo.PIP_T_Inspection I
 LEFT JOIN dbo.M_HRD_Employee E ON E.EmployeeID=I.OwnerEmployeeID
 WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID
   AND I.OwnerEmployeeID=@EmployeeID
-  AND ISNULL(I.ApprovedDate,CONVERT(DATETIME,'19000101',112)) > CONVERT(DATETIME,'19000101',112)
-  AND I.ApprovedDate >= @FromDate AND I.ApprovedDate < DATEADD(DAY, 1, @ThruDate)
+  AND I.SyncDate >= @FromDate AND I.SyncDate < DATEADD(DAY, 1, @ThruDate)
   AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@SectionList,';') S WHERE S.val=I.SectionID)
 ORDER BY I.ApprovedDate DESC, I.EndDateTime DESC, I.StartDateTime DESC, I.InspectionID DESC",
                     new SqlParameter[] {
@@ -725,7 +724,6 @@ WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID
         AND ISNULL(I.IsApprove,0)=0
         AND ISNULL(I.ApprovedBy,'')<>''
         AND ISNULL(I.ApprovedDate,CONVERT(DATETIME,'19000101',112))>CONVERT(DATETIME,'19000101',112)
-        AND I.ApprovedDate>=@DateFrom AND I.ApprovedDate<DATEADD(DAY,1,@DateThru)
         AND ISNULL(I.ReasonVoid,'')<>'')
   )
   AND EXISTS (
