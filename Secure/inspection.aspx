@@ -125,6 +125,7 @@
 <asp:Content ID="Content2" ContentPlaceHolderID="ContentPlaceHolder1" runat="server">
 <div class="container-fluid px-2 px-md-3 pb-4">
     <div id="inspectionApprovalPanel" class="inspection-card p-3 mb-3 d-none">
+        <div id="inspectionApprovalListView">
         <div class="d-flex justify-content-between align-items-center mb-3">
             <div>
                 <div class="text-uppercase text-primary fw-bold inspection-muted">Supervisor</div>
@@ -133,7 +134,6 @@
             </div>
             <button type="button" id="btnRefreshInspectionApproval" class="btn btn-sm btn-outline-primary">Refresh</button>
         </div>
-        <div id="inspectionApprovalListView">
             <div class="inspection-approval-toolbar mb-3">
                 <div class="d-flex flex-wrap align-items-end gap-2 mb-3">
             <div class="inspection-filter-control">
@@ -279,6 +279,11 @@
     </div>
 
     <div id="inspectionInputPanel" class="d-none">
+    <div class="d-flex justify-content-end mb-2">
+        <button type="button" id="btnBackToInspectionRecords" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Back to List
+        </button>
+    </div>
     <div id="inspectionNotice" class="alert alert-info py-2 small mb-3">
         Pilih Inspection Type, detail inspeksi, lalu template. Data tersimpan di perangkat dan hanya disinkronkan oleh teknisi pemiliknya.
     </div>
