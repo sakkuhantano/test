@@ -1172,35 +1172,58 @@ async function refreshSavedInspectionList() {
     // for a prior date; otherwise technicians would have no way to resolve it.
     const drafts = inspectionRecords.filter(record =>
         record.Status === "DRAFT" || record.SyncStatus === "CONFLICT" || record.SyncStatus === "DELETE_PENDING");
-    const submittedById = new Map();
-    inspectionRecords.filter(record => record.Status === "DONE" &&
-        record.SyncStatus !== "CONFLICT" && record.SyncStatus !== "DELETE_PENDING" &&
-        parseInspectionDate(record.InspectionDate) >= fromDate && parseInspectionDate(record.InspectionDate) <= thruDate)
-        .forEach(record => submittedById.set(record.LocalInspectionID || record.InspectionNo, record));
+
+    // Keep completed local transactions visible until sync succeeds, regardless of InspectionDate.
+    // Synced local copies follow the selected date range; the server remains the source for synced rows.
+    const submittedCandidates = inspectionRecords.filter(record =>
+        record.Status === "DONE" &&
+        record.SyncStatus !== "CONFLICT" &&
+        record.SyncStatus !== "DELETE_PENDING" &&
+        (record.SyncStatus !== "SYNCED" ||
+            (parseInspectionDate(record.InspectionDate) >= fromDate && parseInspectionDate(record.InspectionDate) <= thruDate)));
+
     serverSubmittedInspectionRecords.forEach(record => {
         const recordDate = parseInspectionDate(record.InspectionDate);
         if (!recordDate || recordDate < fromDate || recordDate > thruDate) return;
 
-        // Match server rows to local counterparts using stable IDs first, then InspectionNo.
+        // Match server rows to local counterparts using stable IDs first, then transaction number.
         const local = inspectionRecords.find(item =>
             (record.ClientInspectionID && item.LocalInspectionID === record.ClientInspectionID) ||
             (record.InspectionID != null && item.ServerInspectionID != null &&
                 String(item.ServerInspectionID) === String(record.InspectionID)) ||
-            (record.InspectionNo && item.InspectionNo && item.InspectionNo === record.InspectionNo)
+            (record.InspectionNo && item.InspectionNo &&
+                String(item.InspectionNo).trim().toLowerCase() === String(record.InspectionNo).trim().toLowerCase())
         );
         if (local && (local.SyncStatus === "CONFLICT" || local.SyncStatus === "DELETE_PENDING")) return;
-        const key = local
-            ? (local.LocalInspectionID || local.InspectionNo)
-            : (record.ClientInspectionID || (record.InspectionNo ? "NO:" + record.InspectionNo : "ID:" + record.InspectionID));
-        submittedById.set(key, local ? Object.assign({}, local, record, {
+
+        // A local pending version must win over the stale server copy for the same transaction.
+        if (local && local.Status === "DONE" && local.SyncStatus !== "SYNCED") {
+            if (!local.InspectionNo && record.InspectionNo) local.InspectionNo = record.InspectionNo;
+            if (!local.ServerInspectionID && record.InspectionID) local.ServerInspectionID = Number(record.InspectionID);
+            return;
+        }
+        submittedCandidates.push(local ? Object.assign({}, local, record, {
             LocalInspectionID: local.LocalInspectionID,
             InspectionNo: record.InspectionNo || local.InspectionNo || "",
             TechnicianName: record.TechnicianName || local.TechnicianName || ""
         }) : record);
     });
+
+    // One row per transaction number. Prefer pending local data; otherwise prefer the server row.
+    const submittedById = new Map();
+    submittedCandidates.forEach(record => {
+        const number = String(record.InspectionNo || "").trim().toLowerCase();
+        const key = number
+            ? "NO:" + number
+            : "ID:" + String(record.LocalInspectionID || record.ClientInspectionID || record.ServerInspectionID || record.InspectionID || "");
+        const existing = submittedById.get(key);
+        const isPendingLocal = record.LocalInspectionID && record.SyncStatus !== "SYNCED" && !record.ServerOnly;
+        const existingIsPendingLocal = existing && existing.LocalInspectionID &&
+            existing.SyncStatus !== "SYNCED" && !existing.ServerOnly;
+        if (!existing || isPendingLocal || !existingIsPendingLocal) submittedById.set(key, record);
+    });
+
     renderInspectionRecordTable(drafts, document.getElementById("inspectionDraftList"), false);
-    // SUBMITTED shows all completed records for the current technician, including records
-    // already synced to SQL Server; it is not restricted to today's date.
     renderInspectionRecordTable(Array.from(submittedById.values()), document.getElementById("inspectionSubmittedList"), true);
 }
 
