@@ -652,6 +652,8 @@ ORDER BY I.InspectionDate DESC, I.StartDateTime DESC, I.InspectionID DESC",
                         new SqlParameter("@EmployeeID", employeeId),
                         new SqlParameter("@CompanyID", companyId),
                         new SqlParameter("@LocationID", locationId),
+                        new SqlParameter("@FromDate", submittedFrom),
+                        new SqlParameter("@ThruDate", submittedThru),
                         new SqlParameter("@SectionList", String.Join(";", sections))
                     });
 
