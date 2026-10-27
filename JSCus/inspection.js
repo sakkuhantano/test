@@ -688,7 +688,22 @@ async function renderInspectionForm(record, readOnly) {
     document.getElementById("txtInspectionSummary").placeholder = summarySampleText;
     const savedItems = record.Items || [];
     const host = document.getElementById("inspectionChecklistHost");
-    host.innerHTML = renderInspectionSections(template, savedItems, currentInspectionReadOnly, "inspectionSection");
+    const reasonVoidPanel = String(record.ReasonVoid || "").trim()
+        ? '<div class="accordion-item mt-3 border-danger">' +
+            '<div class="accordion-header">' +
+                '<div class="accordion-button bg-danger text-white">' +
+                    '<i class="bi bi-x-circle-fill me-2"></i> REASON VOID' +
+                '</div>' +
+            '</div>' +
+            '<div class="accordion-body p-3">' +
+                '<textarea class="form-control form-control-sm" disabled rows="4">' +
+                    escInspection(record.ReasonVoid) +
+                '</textarea>' +
+            '</div>' +
+          '</div>'
+        : "";
+    host.innerHTML = reasonVoidPanel +
+        renderInspectionSections(template, savedItems, currentInspectionReadOnly, "inspectionSection");
 
 
     document.getElementById("btnSaveInspectionDraft").classList.toggle("d-none", currentInspectionReadOnly);
