@@ -3161,7 +3161,10 @@ function renderTemplateVersions(data,container)
             //------------------------------------
             const node =
                 container.lastElementChild;
-            if (version.Status === "Active" && !isReadonlyMode) {
+            // Dragging an Active version only copies it into another Template as a Draft.
+            // It does not edit the source version, so it must remain draggable even
+            // when the currently selected version is read-only.
+            if (String(version.Status).toLowerCase() === "active") {
                 node.draggable = true;
                 node.title = "Drag this Active Version onto another Template to clone it as a Draft";
                 node.addEventListener("dragstart", function(event) {
