@@ -252,7 +252,7 @@
             </div>
             <div class="tab-pane fade" id="inspectionSubmittedPane" role="tabpanel">
                 <div id="inspectionSubmittedList" class="small">
-                    <div class="text-muted py-2">Memuat inspeksi submitted hari ini...</div>
+                    <div class="text-muted py-2">Memuat inspeksi submitted...</div>
                 </div>
             </div>
         </div>
