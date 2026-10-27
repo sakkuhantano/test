@@ -65,7 +65,6 @@ document.addEventListener(
             return;
         await checkLogin();
         loadSidebarMenu();
-        setActiveMenu();
         initSidebarState();
 		// INIT DB
 		await initIndexedDB();
@@ -271,8 +270,12 @@ function loadSidebarMenu() {
             var href = (link.getAttribute("href") || "").toLowerCase();
             var path = href.split("?")[0];
             var query = href.indexOf("?") >= 0 ? href.substring(href.indexOf("?")) : "";
-            var isMatch = currentUrl.indexOf(path) >= 0 &&
-                (!query || currentUrl.indexOf(query) >= 0);
+            var currentPath = window.location.pathname.toLowerCase();
+            var currentQuery = window.location.search.toLowerCase();
+            var currentPage = currentPath.substring(currentPath.lastIndexOf("/") + 1);
+            var linkPage = path.substring(path.lastIndexOf("/") + 1);
+            var isMatch = currentPage === linkPage &&
+                (query ? currentQuery === query : currentQuery === "");
             if (isMatch) {
                 link.classList.add("active");
                 var parent = link.closest(".nav-submenu");
@@ -287,6 +290,7 @@ function loadSidebarMenu() {
             }
         });
 
+        setActiveMenu();
         attachLogoutEvent();
     } catch (ex) {
         console.error("Failed to load sidebar menu:", ex);
@@ -307,26 +311,28 @@ function attachLogoutEvent() {
     });
 }
 function setActiveMenu() {
+    // Match page and query parameters exactly; "inspection.aspx" must not
+    // also match "inspection.aspx?mode=approval".
+    const currentPath = window.location.pathname.toLowerCase();
+    const currentPage = currentPath.substring(currentPath.lastIndexOf("/") + 1);
+    const currentQuery = window.location.search.toLowerCase();
 
-    const currentUrl =
-        window.location.pathname.toLowerCase() +
-        window.location.search.toLowerCase();
-
-    document.querySelectorAll("#sidebarMenu a").forEach(function(link){
-
-        link.classList.remove("active");
-
-        const href =
-            link.getAttribute("href").toLowerCase();
-
-        if(currentUrl.includes(href)){
-
-            link.classList.add("active");
-
+    document.querySelectorAll("#sidebarMenu a:not(.nav-parent)").forEach(function (link) {
+        const href = (link.getAttribute("href") || "").toLowerCase();
+        if (!href || href === "#" || href.charAt(0) === "#") {
+            link.classList.remove("active");
+            return;
         }
 
-    });
+        const parts = href.split("?");
+        const linkPage = parts[0].substring(parts[0].lastIndexOf("/") + 1);
+        const linkQuery = parts.length > 1 ? "?" + parts.slice(1).join("?") : "";
 
+        const isMatch = currentPage === linkPage &&
+            (linkQuery ? currentQuery === linkQuery : currentQuery === "");
+
+        link.classList.toggle("active", isMatch);
+    });
 }
 
 /* Company */
