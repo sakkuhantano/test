@@ -7,6 +7,8 @@
     .inspection-filter-control { flex: 1 1 145px; min-width: 125px; }
     .inspection-date-control { flex: 0 1 135px; min-width: 120px; }
     .inspection-approval-tabs { flex: 0 0 auto; white-space: nowrap; }
+    #inspectionSubmittedFilters:not(.d-none) { display: flex !important; }
+    #inspectionSubmittedFilters .inspection-date-control { flex: 0 1 145px; min-width: 120px; }
     #inspectionApprovalDateFilters:not(.d-none) { display: flex !important; }
     #inspectionScrollTools { position: fixed; right: 1rem; bottom: 1.25rem; z-index: 2070; display: flex; flex-direction: column; gap: .5rem; }
     #inspectionScrollTools .btn { width: 42px; height: 42px; border-radius: 50%; opacity: .72; box-shadow: 0 .2rem .6rem rgba(0,0,0,.18); }
@@ -55,10 +57,10 @@
     .inspection-item-label, .inspection-muted { overflow-wrap: anywhere; }
     .inspection-option-list { min-width: 0; }
     .inspection-option-choice { max-width: 100%; white-space: normal; }
-    #inspectionApprovalDetailModal .modal-body,
+    #inspectionApprovalDetailPanel,
     #inspectionApprovalParameters,
     #inspectionApprovalDetail { min-width: 0; overflow-wrap: anywhere; }
-    #inspectionApprovalDetailModal .table-responsive { max-width: 100%; }
+    #inspectionApprovalDetailPanel .table-responsive { max-width: 100%; }
 
     @media (max-width: 575.98px) {
         .inspection-card { padding: .75rem !important; }
@@ -75,7 +77,9 @@
             flex: 1 1 120px;
             min-width: 0;
         }
-        .inspection-approval-tabs { flex: 1 1 100%; }
+        .inspection-approval-tabs { flex: 0 0 auto; }
+        #inspectionSubmittedFilters { flex: 1 1 100%; }
+        #inspectionSubmittedFilters .inspection-date-control { flex: 1 1 120px; min-width: 0; }
         #inspectionApprovalBatchActions { flex: 1 1 100%; }
         #inspectionApprovalBatchActions .btn { flex: 1 1 auto; }
         .inspection-photo-panel .d-flex.align-items-center.justify-content-between {
@@ -92,13 +96,7 @@
         #inspectionFormPanel > .d-flex.flex-wrap.gap-2 > .btn {
             flex: 1 1 100%;
         }
-        #inspectionApprovalDetailModal .modal-dialog {
-            margin: .35rem;
-        }
-        #inspectionApprovalDetailModal .modal-footer {
-            gap: .35rem;
-        }
-        #inspectionApprovalDetailModal .modal-footer .btn {
+        #inspectionApprovalDetailPanel .d-flex.justify-content-end .btn {
             flex: 1 1 auto;
         }
         #inspectionScrollTools { right: .5rem; bottom: .75rem; }
@@ -136,7 +134,9 @@
             <button type="button" id="btnRefreshInspectionApproval" class="btn btn-sm btn-outline-primary">Refresh</button>
         </div>
         <div id="inspectionApprovalNotice" class="alert alert-info py-2 small">Memuat antrean approval...</div>
-        <div class="inspection-approval-toolbar d-flex flex-wrap align-items-end gap-2 mb-3">
+        <div id="inspectionApprovalListView">
+            <div class="inspection-approval-toolbar mb-3">
+                <div class="d-flex flex-wrap align-items-end gap-2 mb-3">
             <div class="inspection-filter-control">
                 <label for="selApprovalType" class="form-label small mb-1">Type</label>
                 <select id="selApprovalType" class="form-select form-select-sm"><option value="">All types</option></select>
@@ -152,7 +152,8 @@
             <div id="inspectionApprovalDateFilters" class="d-none align-items-end gap-2">
                 <div class="inspection-date-control"><label for="txtApprovalDateFrom" class="form-label small mb-1">From</label><input type="date" id="txtApprovalDateFrom" class="form-control form-control-sm" aria-label="Approved date from" /></div>
                 <div class="inspection-date-control"><label for="txtApprovalDateThru" class="form-label small mb-1">Thru</label><input type="date" id="txtApprovalDateThru" class="form-control form-control-sm" aria-label="Approved date thru" /></div>
-            </div>
+                </div>
+                <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
             <ul class="nav nav-tabs inspection-approval-tabs mb-0" id="inspectionApprovalQueueTabs" role="tablist">
                 <li class="nav-item" role="presentation">
                     <button type="button" class="nav-link active" id="btnInspectionApprovalOutstanding" role="tab" aria-selected="true">
@@ -170,7 +171,8 @@
                 <button type="button" id="btnBatchApproveInspection" class="btn btn-sm btn-success" title="Approve selected" aria-label="Approve selected">Approve</button>
                 <button type="button" id="btnBatchVoidInspection" class="btn btn-sm btn-outline-danger" title="Void selected" aria-label="Void selected">Void</button>
             </div>
-        </div>
+                </div>
+            </div>
         <div class="table-responsive">
             <table class="table table-sm table-hover align-middle">
                 <thead><tr>
@@ -183,28 +185,34 @@
         </div>
     </div>
 
-    <div class="modal fade" id="inspectionApprovalDetailModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-xl modal-dialog-scrollable">
-            <div class="modal-content">
-                <div class="modal-header"><div><h5 class="modal-title mb-0">Inspection Approval</h5><div id="inspectionApprovalModalSubtitle" class="inspection-muted"></div></div><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
-                <div class="modal-body">
-                    <ul class="nav nav-tabs mb-3" role="tablist">
-                        <li class="nav-item"><button class="nav-link active" id="inspectionApprovalParamTab" data-bs-toggle="tab" data-bs-target="#inspectionApprovalParamPane" type="button" role="tab">PARAMETERS</button></li>
-                        <li class="nav-item"><button class="nav-link" id="inspectionApprovalChecklistTab" data-bs-toggle="tab" data-bs-target="#inspectionApprovalChecklistPane" type="button" role="tab">CHECKLIST</button></li>
-                    </ul>
-                    <div class="tab-content">
-                        <div class="tab-pane fade show active" id="inspectionApprovalParamPane"><div id="inspectionApprovalParameters"></div></div>
-                        <div class="tab-pane fade" id="inspectionApprovalChecklistPane"><div id="inspectionApprovalDetail" class="small"></div></div>
-                    </div>
-                    <div class="mt-4 border-top pt-3" id="inspectionApprovalRemarkPanel">
-                        <label for="txtInspectionApprovalRemark" class="form-label fw-semibold">Approval Remark (optional)</label>
-                        <textarea id="txtInspectionApprovalRemark" class="form-control" rows="3" maxlength="500" placeholder="Catatan supervisor..."></textarea>
-                    </div>
-                </div>
-                <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button><button type="button" id="btnApproveInspection" class="btn btn-success">Approve</button><button type="button" id="btnVoidInspection" class="btn btn-outline-danger">Void</button></div>
+    <div id="inspectionApprovalDetailPanel" class="border-top pt-3 d-none">
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
+            <div>
+                <h5 class="mb-1">Inspection Detail</h5>
+                <div id="inspectionApprovalDetailSubtitle" class="inspection-muted"></div>
             </div>
+            <button type="button" id="btnBackInspectionApprovalQueue" class="btn btn-sm btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> Back to list
+            </button>
+        </div>
+        <ul class="nav nav-tabs mb-3" role="tablist">
+            <li class="nav-item"><button class="nav-link active" id="inspectionApprovalParamTab" data-bs-toggle="tab" data-bs-target="#inspectionApprovalParamPane" type="button" role="tab">PARAMETERS</button></li>
+            <li class="nav-item"><button class="nav-link" id="inspectionApprovalChecklistTab" data-bs-toggle="tab" data-bs-target="#inspectionApprovalChecklistPane" type="button" role="tab">CHECKLIST</button></li>
+        </ul>
+        <div class="tab-content">
+            <div class="tab-pane fade show active" id="inspectionApprovalParamPane"><div id="inspectionApprovalParameters"></div></div>
+            <div class="tab-pane fade" id="inspectionApprovalChecklistPane"><div id="inspectionApprovalDetail" class="small"></div></div>
+        </div>
+        <div class="mt-4 border-top pt-3" id="inspectionApprovalRemarkPanel">
+            <label for="txtInspectionApprovalRemark" class="form-label fw-semibold">Approval Remark (optional)</label>
+            <textarea id="txtInspectionApprovalRemark" class="form-control" rows="3" maxlength="500" placeholder="Catatan supervisor..."></textarea>
+        </div>
+        <div class="d-flex flex-wrap justify-content-end gap-2 mt-3">
+            <button type="button" id="btnApproveInspection" class="btn btn-success">Approve</button>
+            <button type="button" id="btnVoidInspection" class="btn btn-outline-danger">Void</button>
         </div>
     </div>
+</div>
 
     <div class="modal fade" id="inspectionApprovalActionModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog"><div class="modal-content">
@@ -222,9 +230,6 @@
         <button type="button" id="inspectionScrollTop" class="btn btn-light border d-none" title="Scroll to top" aria-label="Scroll to top"><i class="bi bi-chevron-up"></i></button>
         <button type="button" id="inspectionScrollBottom" class="btn btn-light border" title="Scroll to bottom" aria-label="Scroll to bottom"><i class="bi bi-chevron-down"></i></button>
     </div>
-    <div id="inspectionNotice" class="alert alert-info py-2 small mb-3">
-        Pilih Inspection Type, detail inspeksi, lalu template. Data tersimpan di perangkat dan hanya disinkronkan oleh teknisi pemiliknya.
-    </div>
 
     <div id="inspectionRecordsPanel" class="inspection-card p-3 mb-3">
         <div class="d-flex justify-content-between align-items-center mb-2">
@@ -236,14 +241,29 @@
                 <i class="bi bi-plus-circle"></i> New
             </button>
         </div>
-        <ul class="nav nav-tabs mb-3" id="inspectionRecordTabs" role="tablist">
-            <li class="nav-item" role="presentation">
-                <button class="nav-link active" id="inspectionDraftTab" data-bs-toggle="tab" data-bs-target="#inspectionDraftPane" type="button" role="tab">DRAFT</button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link" id="inspectionSubmittedTab" data-bs-toggle="tab" data-bs-target="#inspectionSubmittedPane" type="button" role="tab">SUBMITTED</button>
-            </li>
-        </ul>
+        <div class="inspection-record-tabbar d-flex flex-wrap justify-content-between align-items-end gap-2 mb-3">
+            <ul class="nav nav-tabs mb-0" id="inspectionRecordTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="inspectionDraftTab" data-bs-toggle="tab" data-bs-target="#inspectionDraftPane" type="button" role="tab">DRAFT</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="inspectionSubmittedTab" data-bs-toggle="tab" data-bs-target="#inspectionSubmittedPane" type="button" role="tab">SUBMITTED</button>
+                </li>
+            </ul>
+            <div id="inspectionSubmittedFilters" class="d-none align-items-end gap-2 flex-wrap">
+                <div class="inspection-date-control">
+                    <label for="txtSubmittedFrom" class="form-label small mb-1">From</label>
+                    <input type="date" id="txtSubmittedFrom" class="form-control form-control-sm" />
+                </div>
+                <div class="inspection-date-control">
+                    <label for="txtSubmittedThru" class="form-label small mb-1">Thru</label>
+                    <input type="date" id="txtSubmittedThru" class="form-control form-control-sm" />
+                </div>
+                <button type="button" id="btnFilterSubmitted" class="btn btn-sm btn-primary">
+                    <i class="bi bi-search"></i> Filter
+                </button>
+            </div>
+        </div>
         <div class="tab-content">
             <div class="tab-pane fade show active" id="inspectionDraftPane" role="tabpanel">
                 <div id="inspectionDraftList" class="small">
@@ -251,21 +271,6 @@
                 </div>
             </div>
             <div class="tab-pane fade" id="inspectionSubmittedPane" role="tabpanel">
-                <div class="row g-2 align-items-end mb-3">
-                    <div class="col-6 col-md-3">
-                        <label for="txtSubmittedFrom" class="form-label small mb-1">From</label>
-                        <input type="date" id="txtSubmittedFrom" class="form-control form-control-sm" />
-                    </div>
-                    <div class="col-6 col-md-3">
-                        <label for="txtSubmittedThru" class="form-label small mb-1">Thru</label>
-                        <input type="date" id="txtSubmittedThru" class="form-control form-control-sm" />
-                    </div>
-                    <div class="col-12 col-md-auto">
-                        <button type="button" id="btnFilterSubmitted" class="btn btn-sm btn-primary w-100">
-                            <i class="bi bi-search"></i> Filter
-                        </button>
-                    </div>
-                </div>
                 <div id="inspectionSubmittedList" class="small">
                     <div class="text-muted py-2">Memuat inspeksi submitted...</div>
                 </div>
@@ -274,6 +279,9 @@
     </div>
 
     <div id="inspectionInputPanel" class="d-none">
+    <div id="inspectionNotice" class="alert alert-info py-2 small mb-3">
+        Pilih Inspection Type, detail inspeksi, lalu template. Data tersimpan di perangkat dan hanya disinkronkan oleh teknisi pemiliknya.
+    </div>
     <ul id="inspectionEditorTabs" class="nav nav-tabs mb-3 d-none" role="tablist"><li class="nav-item"><button type="button" id="btnInspectionParamTab" class="nav-link" role="tab">PARAM</button></li><li class="nav-item"><button type="button" id="btnInspectionChecklistTab" class="nav-link active" role="tab">CHECKLIST</button></li></ul>
     <div id="inspectionParamsPane">
     <div id="inspectionStartPanel" class="inspection-card p-3 mb-3">
