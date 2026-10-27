@@ -1903,7 +1903,9 @@ function openInspectionApprovalDetail(inspectionId) {
     const detailPanel = document.getElementById("inspectionApprovalDetailPanel");
     if (!detailPanel || !inspectionId) return;
     const listView = document.getElementById("inspectionApprovalListView");
+    const listHeader = document.getElementById("inspectionApprovalListHeader");
     if (listView) listView.classList.add("d-none");
+    if (listHeader) listHeader.classList.add("d-none");
     detailPanel.classList.remove("d-none");
     selectedInspectionApproval = null;
     document.getElementById("inspectionApprovalDetailSubtitle").textContent = "";
@@ -1920,7 +1922,9 @@ function showInspectionApprovalQueueView() {
     const detailPanel = document.getElementById("inspectionApprovalDetailPanel");
     if (detailPanel) detailPanel.classList.add("d-none");
     const listView = document.getElementById("inspectionApprovalListView");
+    const listHeader = document.getElementById("inspectionApprovalListHeader");
     if (listView) listView.classList.remove("d-none");
+    if (listHeader) listHeader.classList.remove("d-none");
     selectedInspectionApproval = null;
     updateInspectionScrollTools();
 }
