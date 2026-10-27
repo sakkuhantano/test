@@ -2303,10 +2303,36 @@ async function loadInspectionApprovalDetail(inspectionId) {
         const isApproved = isInspectionApprovalApproved(h);
         const isVoided = isInspectionApprovalVoided(h);
         const isFinalized = isApproved || isVoided;
+        const remarkPanel = document.getElementById("inspectionApprovalRemarkPanel");
+        const initialRemark = h.ApprovalRemark || h.ReasonVoid || "";
+        remarkPanel.innerHTML =
+            '<div class="accordion-item border-success shadow-sm rounded-3 overflow-hidden" id="inspectionApprovalSupervisorRemarkCard">' +
+                '<div class="accordion-header">' +
+                    '<div class="accordion-button bg-success-subtle text-dark fw-bold">' +
+                        '<i class="bi bi-person-check-fill fs-5 me-2 text-success"></i>' +
+                        '<div class="d-flex flex-column"><span>SUPERVISOR REMARK</span>' +
+                        '<small class="text-muted fw-normal">Catatan hasil review Supervisor.</small></div>' +
+                    '</div>' +
+                '</div>' +
+                '<div class="accordion-body p-3">' +
+                    '<div class="alert alert-success py-2 px-3 mb-3 small"><i class="bi bi-chat-left-text-fill me-1"></i>' +
+                    'Tuliskan hasil pemeriksaan, alasan Approval / Void, atau catatan penting lainnya.</div>' +
+                    '<textarea id="txtInspectionApprovalRemark" class="form-control" data-role="remarkspv" maxlength="500" rows="5" placeholder="Supervisor Remark...">' +
+                    escInspection(initialRemark) +
+                    '</textarea>' +
+                    '<div class="d-flex justify-content-between align-items-center mt-2">' +
+                        '<small class="text-muted"><i class="bi bi-info-circle me-1"></i>Maksimum 500 karakter.</small>' +
+                        '<small class="char-counter text-muted" id="inspectionApprovalRemarkCounter">' + String(initialRemark.length) + ' / 500</small>' +
+                    '</div>' +
+                '</div>' +
+            '</div>';
         const remarkInput = document.getElementById("txtInspectionApprovalRemark");
-        remarkInput.value = h.ApprovalRemark || h.ReasonVoid || "";
         remarkInput.readOnly = isFinalized;
-        document.getElementById("inspectionApprovalRemarkPanel").classList.toggle("d-none", isFinalized && !remarkInput.value);
+        remarkInput.addEventListener("input", () => {
+            const counter = document.getElementById("inspectionApprovalRemarkCounter");
+            if (counter) counter.textContent = String(remarkInput.value.length) + " / 500";
+        });
+        remarkPanel.classList.toggle("d-none", isFinalized && !initialRemark);
         document.getElementById("btnApproveInspection").classList.toggle("d-none", isFinalized);
         document.getElementById("btnVoidInspection").classList.toggle("d-none", isFinalized);
         const items = result.items || [];
