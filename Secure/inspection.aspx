@@ -12,7 +12,8 @@
     #inspectionSubmittedFilters:not(.d-none) { display: flex !important; flex: 0 0 auto; flex-wrap: nowrap !important; margin-left: .5rem; white-space: nowrap; }
     #inspectionSubmittedFilters .inspection-date-control { flex: 0 0 135px; min-width: 135px; }
     #inspectionApprovalDateFilters:not(.d-none) { display: flex !important; }
-    #inspectionScrollTools { position: fixed; right: 1rem; bottom: 1.25rem; z-index: 2070; display: flex; flex-direction: column; gap: .5rem; }
+    #inspectionScrollTools { position: fixed; right: 1rem; bottom: 1.25rem; z-index: 2070; flex-direction: column; gap: .5rem; }
+    #inspectionScrollTools:not(.d-none) { display: flex; }
     #inspectionScrollTools .btn { width: 42px; height: 42px; border-radius: 50%; opacity: .72; box-shadow: 0 .2rem .6rem rgba(0,0,0,.18); }
     #inspectionScrollTools .btn:hover, #inspectionScrollTools .btn:focus { opacity: 1; }
     @media (min-width: 1200px) {
@@ -170,8 +171,8 @@
             </ul>
             <div id="inspectionApprovalBatchActions" class="d-flex flex-wrap align-items-center gap-1">
                 <button type="button" id="btnApprovalSelectAll" class="btn btn-sm btn-outline-secondary" title="Select all filtered inspections" aria-label="Select all filtered inspections">Select All</button>
-                <button type="button" id="btnBatchApproveInspection" class="btn btn-sm btn-success" title="Approve all selected inspections" aria-label="Approve all selected inspections">Approve All</button>
-                <button type="button" id="btnBatchVoidInspection" class="btn btn-sm btn-outline-danger" title="Void all selected inspections" aria-label="Void all selected inspections">Void All</button>
+                <button type="button" id="btnBatchApproveInspection" class="btn btn-sm btn-success" title="Approve selected inspections" aria-label="Approve selected inspections">Approve</button>
+                <button type="button" id="btnBatchVoidInspection" class="btn btn-sm btn-outline-danger" title="Void selected inspections" aria-label="Void selected inspections">Void</button>
             </div>
                 </div>
             </div>
@@ -193,9 +194,6 @@
                 <h5 class="mb-1">Inspection Detail</h5>
                 <div id="inspectionApprovalDetailSubtitle" class="inspection-muted"></div>
             </div>
-            <button type="button" id="btnBackInspectionApprovalQueue" class="btn btn-sm btn-outline-secondary">
-                <i class="bi bi-arrow-left"></i> Back to list
-            </button>
         </div>
         <ul class="nav nav-tabs mb-3" role="tablist">
             <li class="nav-item"><button class="nav-link active" id="inspectionApprovalParamTab" data-bs-toggle="tab" data-bs-target="#inspectionApprovalParamPane" type="button" role="tab">PARAMETERS</button></li>
