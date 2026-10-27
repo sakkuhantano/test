@@ -57,6 +57,12 @@ IF COL_LENGTH('dbo.PIP_T_Inspection', 'InspectionNo') IS NULL
 IF COL_LENGTH('dbo.PIP_T_Inspection', 'SyncDate') IS NULL
     ALTER TABLE dbo.PIP_T_Inspection ADD SyncDate DATETIME NULL;
 GO
+
+/* Historical sync timestamps were not stored; UpdateDate is only an approximation for existing rows. */
+UPDATE dbo.PIP_T_Inspection
+SET SyncDate = UpdateDate
+WHERE SyncDate IS NULL;
+GO
 IF COL_LENGTH('dbo.PIP_T_Inspection', 'FollowUp') IS NULL
     ALTER TABLE dbo.PIP_T_Inspection ADD FollowUp VARCHAR(30) NOT NULL
         CONSTRAINT DF_PIP_T_Inspection_FollowUp DEFAULT ('No Follow Up');
