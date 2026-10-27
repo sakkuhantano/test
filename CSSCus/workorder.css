@@ -1067,3 +1067,17 @@ html {
 .accordion-item.shadow-sm:hover{
     box-shadow:0 .5rem 1rem rgba(0,0,0,.08)!important;
 }
+
+
+/* Dark theme: work order custom controls and surfaces */
+[data-bs-theme="dark"] .btn-secondary-custom { background:#22262c; border-color:#444b54; color:#e9ecef; }
+[data-bs-theme="dark"] .tab-container { background:#22262c; }
+[data-bs-theme="dark"] .tab-btn { color:#adb5bd; }
+[data-bs-theme="dark"] .tab-btn.active { background:#1a1d23; color:#75cfc4; }
+[data-bs-theme="dark"] .work-order-item,
+[data-bs-theme="dark"] .work-order-card,
+[data-bs-theme="dark"] .work-order-detail,
+[data-bs-theme="dark"] .mobile-action-bar { background-color:#1a1d23; color:#e9ecef; border-color:#343a40; }
+[data-bs-theme="dark"] .work-order-item:hover { background-color:#22262c; }
+[data-bs-theme="dark"] .header-label { color:#adb5bd; }
+[data-bs-theme="dark"] .pagination-custom button { background:#1a1d23; color:#e9ecef; border-color:#343a40; }
