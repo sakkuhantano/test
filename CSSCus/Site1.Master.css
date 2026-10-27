@@ -618,3 +618,65 @@ body {
     color: #e9ecef;
     border-color: #343a40 #343a40 #1a1d23;
 }
+
+
+/* Dark mode hardening for surfaces inherited from the master layout.
+   Keep structural wrappers transparent; convert common Bootstrap and inline-white
+   surfaces so a page cannot expose a bright white block around its content. */
+[data-bs-theme="dark"] #contentbody,
+[data-bs-theme="dark"] #contentbody > .container,
+[data-bs-theme="dark"] #contentbody > .container-fluid,
+[data-bs-theme="dark"] #contentbody .content-wrapper,
+[data-bs-theme="dark"] #contentbody .page-container,
+[data-bs-theme="dark"] #contentbody .page-header,
+[data-bs-theme="dark"] #contentbody .module-header,
+[data-bs-theme="dark"] #contentbody .module-body,
+[data-bs-theme="dark"] #contentbody .module-footer {
+    background-color: transparent;
+    color: #e9ecef;
+}
+[data-bs-theme="dark"] #contentbody .card,
+[data-bs-theme="dark"] #contentbody .card-header,
+[data-bs-theme="dark"] #contentbody .card-footer,
+[data-bs-theme="dark"] #contentbody .dropdown-menu,
+[data-bs-theme="dark"] #contentbody .dropdown-menu-custom,
+[data-bs-theme="dark"] #contentbody .list-group-item,
+[data-bs-theme="dark"] #contentbody .modal-content,
+[data-bs-theme="dark"] #contentbody .offcanvas,
+[data-bs-theme="dark"] #contentbody .popover,
+[data-bs-theme="dark"] #contentbody .alert-light {
+    background-color: #1a1d23;
+    color: #e9ecef;
+    border-color: #343a40;
+}
+[data-bs-theme="dark"] #contentbody .bg-white,
+[data-bs-theme="dark"] #contentbody .bg-light,
+[data-bs-theme="dark"] #contentbody .table-light,
+[data-bs-theme="dark"] #contentbody [style*="background-color: white"],
+[data-bs-theme="dark"] #contentbody [style*="background-color:white"],
+[data-bs-theme="dark"] #contentbody [style*="background-color: #fff"],
+[data-bs-theme="dark"] #contentbody [style*="background-color:#fff"],
+[data-bs-theme="dark"] #contentbody [style*="background: white"],
+[data-bs-theme="dark"] #contentbody [style*="background:white"],
+[data-bs-theme="dark"] #contentbody [style*="background: #fff"],
+[data-bs-theme="dark"] #contentbody [style*="background:#fff"] {
+    background-color: #1a1d23 !important;
+    color: #e9ecef !important;
+    border-color: #343a40;
+}
+[data-bs-theme="dark"] #contentbody .text-dark,
+[data-bs-theme="dark"] #contentbody .text-body {
+    color: #e9ecef !important;
+}
+[data-bs-theme="dark"] #sidebar,
+[data-bs-theme="dark"] #sidebar .sidebar-logo-container,
+[data-bs-theme="dark"] #sidebar .dropdown,
+[data-bs-theme="dark"] #sidebarMenu {
+    background-color: #15181d;
+    color: #e9ecef;
+}
+[data-bs-theme="dark"] #masterHeader .btn-light {
+    background-color: #22262c;
+    color: #e9ecef;
+    border-color: #343a40;
+}
