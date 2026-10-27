@@ -1483,7 +1483,12 @@ async function applyInspectionParameters() {
     if (!changed) return true;
 
     const photos = await getInspectionPhotos(record.LocalInspectionID);
-    const hasPreviousData = photos.length > 0 || hasInspectionChecklistAnswers(record.Items);
+    // Include unsaved form values as well as the last persisted checklist snapshot.
+    let liveChecklistItems = [];
+    try { liveChecklistItems = collectInspectionItems(); } catch (_) { /* no rendered checklist yet */ }
+    const hasPreviousData = photos.length > 0 ||
+        hasInspectionChecklistAnswers(record.Items) ||
+        hasInspectionChecklistAnswers(liveChecklistItems);
     if (hasPreviousData) {
         const confirmed = await showConfirmation({
             title: "Reset Checklist?",
