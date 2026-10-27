@@ -477,6 +477,7 @@ WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID
   AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@SectionList,';') S WHERE S.val=I.SectionID)
 ORDER BY I.InspectionDate, I.ScheduledTime, I.InspectionID",
                     new SqlParameter[] {
+                        new SqlParameter("@EmployeeID", employeeId),
                         new SqlParameter("@CompanyID", companyId),
                         new SqlParameter("@LocationID", locationId),
                         new SqlParameter("@SectionList", String.Join(";", sections))
@@ -634,11 +635,10 @@ SELECT I.InspectionID, I.ClientInspectionID, I.InspectionNo,
 FROM dbo.PIP_T_Inspection I
 LEFT JOIN dbo.M_HRD_Employee E ON E.EmployeeID=I.OwnerEmployeeID
 WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID
+  AND I.OwnerEmployeeID=@EmployeeID
   AND I.Status='DONE'
-  AND I.InspectionDate >= CONVERT(DATETIME, CONVERT(VARCHAR(10), GETDATE(), 120), 120)
-  AND I.InspectionDate < DATEADD(DAY, 1, CONVERT(DATETIME, CONVERT(VARCHAR(10), GETDATE(), 120), 120))
   AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@SectionList,';') S WHERE S.val=I.SectionID)
-ORDER BY I.StartDateTime DESC, I.InspectionID DESC",
+ORDER BY I.InspectionDate DESC, I.StartDateTime DESC, I.InspectionID DESC",
                     new SqlParameter[] {
                         new SqlParameter("@CompanyID", companyId),
                         new SqlParameter("@LocationID", locationId),
