@@ -181,7 +181,7 @@ async function renderInspectionDashboardCards() {
             '<div class="dashboard-value" id="inspectionApprovedToday">0</div></div></div></div>' +
             '<div class="col"><div class="dashboard-card card-void h-100">' +
             '<div class="dashboard-icon"><i class="bi bi-x-octagon-fill"></i></div>' +
-            '<div class="dashboard-content"><div class="dashboard-title">Void / Returned</div>' +
+            '<div class="dashboard-content"><div class="dashboard-title">Void</div>' +
             '<div class="dashboard-value" id="inspectionVoidCount">0</div></div></div></div>'
         );
     }
