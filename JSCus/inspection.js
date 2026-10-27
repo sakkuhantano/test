@@ -1320,9 +1320,13 @@ function renderInspectionRecordTable(records, host, submitted) {
 }
 
 function isInspectionWithinSubmittedRange(record, fromDate, thruDate) {
-    // The Submitted range is based on the local sync timestamp, not the planned/completion date.
-    const syncDate = parseInspectionDate(record && (record.LastSyncAt || record.SyncDate));
-    return !!syncDate && syncDate >= fromDate && syncDate <= thruDate;
+    // LastSyncAt is stored as an ISO UTC timestamp; compare its local calendar date.
+    const syncValue = record && (record.LastSyncAt || record.SyncDate);
+    if (!syncValue) return false;
+    const parsed = new Date(syncValue);
+    if (Number.isNaN(parsed.getTime())) return false;
+    const syncDate = localDateString(parsed);
+    return syncDate >= fromDate && syncDate <= thruDate;
 }
 
 function parseInspectionDate(value) {
