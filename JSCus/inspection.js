@@ -1443,7 +1443,12 @@ async function applyInspectionParameters() {
     const detail = inspectionDetails.find(x =>
         x.InspectionTypeCode === typeCode && x.InspectionTypeDetailCode === detailCode
     );
-    const template = inspectionTemplates.find(x => Number(x.IDTemplate) === templateId);
+    const selectedTemplate = inspectionTemplates.find(x => Number(x.IDTemplate) === templateId);
+    const pinnedTemplate = currentInspectionRecord.TemplateSnapshot;
+    const template = pinnedTemplate &&
+        Number(pinnedTemplate.IDTemplate) === templateId &&
+        Number(pinnedTemplate.IDVersion) === Number(currentInspectionRecord.IDVersion)
+        ? pinnedTemplate : selectedTemplate;
 
     if (!type || !detail || !template ||
         template.TemplateType !== "I" ||
