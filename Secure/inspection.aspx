@@ -111,9 +111,6 @@
 <asp:Content ID="Content3" ContentPlaceHolderID="stickybar" runat="server">
 <div class="sticky-bar-wrapper w-100">
     <div class="d-flex align-items-center justify-content-between gap-2 p-2">
-        <button type="button" id="btnInspectionPageBack" class="btn btn-sm btn-outline-secondary" onclick="returnFromInspectionPage()">
-            <i class="bi bi-arrow-left"></i> Back
-        </button>
         <div class="flex-grow-1 text-center">
             <div class="fw-bold">Inspection Entry</div>
             <div class="inspection-muted" id="inspectionConnectionLabel">Offline-ready</div>
@@ -194,6 +191,9 @@
                 <h5 class="mb-1">Inspection Detail</h5>
                 <div id="inspectionApprovalDetailSubtitle" class="inspection-muted"></div>
             </div>
+            <button type="button" id="btnBackToInspectionApprovalList" class="btn btn-sm btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> Back to List
+            </button>
         </div>
         <ul class="nav nav-tabs mb-3" role="tablist">
             <li class="nav-item"><button class="nav-link active" id="inspectionApprovalParamTab" data-bs-toggle="tab" data-bs-target="#inspectionApprovalParamPane" type="button" role="tab">PARAMETERS</button></li>
