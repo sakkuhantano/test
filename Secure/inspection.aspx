@@ -120,7 +120,13 @@
             <div class="fw-bold">Inspection Entry</div>
             <div class="inspection-muted" id="inspectionConnectionLabel">Offline-ready</div>
         </div>
-        <div class="d-flex align-items-center gap-1">
+        <div class="d-flex align-items-center justify-content-end gap-2 flex-shrink-0">
+            <button type="button" id="btnBackToInspectionRecords" class="btn btn-sm btn-outline-secondary d-none text-nowrap">
+                <i class="bi bi-arrow-left"></i> Back to List
+            </button>
+            <button type="button" id="btnBackToInspectionApprovalList" class="btn btn-sm btn-outline-secondary d-none text-nowrap">
+                <i class="bi bi-arrow-left"></i> Back to List
+            </button>
             <span id="inspectionConflictBadge" class="badge rounded-pill text-bg-danger d-none" title="Inspection conflict">!</span>
         </div>
     </div>
@@ -201,9 +207,6 @@
                 <h5 class="mb-1">Inspection Detail</h5>
                 <div id="inspectionApprovalDetailSubtitle" class="inspection-muted"></div>
             </div>
-            <button type="button" id="btnBackToInspectionApprovalList" class="btn btn-sm btn-outline-secondary">
-                <i class="bi bi-arrow-left"></i> Back to List
-            </button>
         </div>
         <ul class="nav nav-tabs mb-3" role="tablist">
             <li class="nav-item"><button class="nav-link active" id="inspectionApprovalParamTab" data-bs-toggle="tab" data-bs-target="#inspectionApprovalParamPane" type="button" role="tab">PARAMETERS</button></li>
@@ -289,11 +292,6 @@
     </div>
 
     <div id="inspectionInputPanel" class="d-none">
-    <div class="d-flex justify-content-end mb-2">
-        <button type="button" id="btnBackToInspectionRecords" class="btn btn-sm btn-outline-secondary">
-            <i class="bi bi-arrow-left"></i> Back to List
-        </button>
-    </div>
     <div id="inspectionNotice" class="alert alert-info py-2 small mb-3">
         Pilih Inspection Type, detail inspeksi, lalu template. Data tersimpan di perangkat dan hanya disinkronkan oleh teknisi pemiliknya.
     </div>
