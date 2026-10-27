@@ -1736,6 +1736,8 @@ async function updateInspectionChecklistGate() {
 function showInspectionInputScreen(showNotice) {
     document.getElementById("inspectionRecordsPanel").classList.add("d-none");
     document.getElementById("inspectionInputPanel").classList.remove("d-none");
+    document.getElementById("btnBackToInspectionRecords").classList.remove("d-none");
+    document.getElementById("btnBackToInspectionApprovalList").classList.add("d-none");
     inspectionNoticeEnabled = showNotice === true;
     const notice = document.getElementById("inspectionNotice");
     if (notice) notice.classList.toggle("d-none", !inspectionNoticeEnabled);
@@ -1745,6 +1747,8 @@ function showInspectionRecordsScreen() {
     inspectionNoticeEnabled = false;
     document.getElementById("inspectionInputPanel").classList.add("d-none");
     document.getElementById("inspectionRecordsPanel").classList.remove("d-none");
+    document.getElementById("btnBackToInspectionRecords").classList.add("d-none");
+    document.getElementById("btnBackToInspectionApprovalList").classList.add("d-none");
 }
 
 function updateInspectionConflictBadge() {
@@ -2135,6 +2139,8 @@ function openInspectionApprovalDetail(inspectionId) {
     if (listView) listView.classList.add("d-none");
     if (listHeader) listHeader.classList.add("d-none");
     detailPanel.classList.remove("d-none");
+    document.getElementById("btnBackToInspectionApprovalList").classList.remove("d-none");
+    document.getElementById("btnBackToInspectionRecords").classList.add("d-none");
     selectedInspectionApproval = null;
     document.getElementById("inspectionApprovalDetailSubtitle").textContent = "";
     document.getElementById("inspectionApprovalParameters").innerHTML = "";
@@ -2149,6 +2155,8 @@ function openInspectionApprovalDetail(inspectionId) {
 function showInspectionApprovalQueueView() {
     const detailPanel = document.getElementById("inspectionApprovalDetailPanel");
     if (detailPanel) detailPanel.classList.add("d-none");
+    document.getElementById("btnBackToInspectionApprovalList").classList.add("d-none");
+    document.getElementById("btnBackToInspectionRecords").classList.add("d-none");
     const listView = document.getElementById("inspectionApprovalListView");
     const listHeader = document.getElementById("inspectionApprovalListHeader");
     if (listView) listView.classList.remove("d-none");
