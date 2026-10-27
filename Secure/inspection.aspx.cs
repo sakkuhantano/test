@@ -691,6 +691,26 @@ ORDER BY I.InspectionDate DESC, I.StartDateTime DESC, I.InspectionID DESC",
 FROM dbo.PIP_T_Inspection I
 LEFT JOIN dbo.M_HRD_Employee E ON E.EmployeeID=I.OwnerEmployeeID
 WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID
+  AND (
+       (I.Status='DONE'
+        AND ISNULL(I.IsApprove,0)=0
+        AND ISNULL(I.ApprovedBy,'')=''
+        AND ISNULL(I.ApprovedDate,CONVERT(DATETIME,'19000101',112))<=CONVERT(DATETIME,'19000101',112)
+        AND ISNULL(I.ApprovalRemark,'')=''
+        AND ISNULL(I.ReasonVoid,'')='')
+       OR
+       (I.Status='DONE'
+        AND ISNULL(I.IsApprove,0)=1
+        AND ISNULL(I.ApprovedBy,'')<>''
+        AND ISNULL(I.ApprovedDate,CONVERT(DATETIME,'19000101',112))>CONVERT(DATETIME,'19000101',112)
+        AND I.ApprovedDate>=@DateFrom AND I.ApprovedDate<DATEADD(DAY,1,@DateThru))
+       OR
+       (I.Status='DRAFT'
+        AND ISNULL(I.IsApprove,0)=0
+        AND ISNULL(I.ApprovedBy,'')<>''
+        AND ISNULL(I.ApprovedDate,CONVERT(DATETIME,'19000101',112))>CONVERT(DATETIME,'19000101',112)
+        AND ISNULL(I.ReasonVoid,'')<>'')
+  )
   AND EXISTS (
       SELECT 1 FROM dbo.UTL_User U
       WHERE U.EmployeeID=@EmployeeID AND ISNULL(U.IsSPV,0)=1
@@ -704,25 +724,6 @@ WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID
         )
   )";
 
-            string tabFilter = approvalTab == "VOID"
-                ? @" AND I.Status='DRAFT'
-                     AND ISNULL(I.IsApprove,0)=0
-                     AND ISNULL(I.ApprovedBy,'')<>''
-                     AND ISNULL(I.ApprovedDate,CONVERT(DATETIME,'19000101',112))>CONVERT(DATETIME,'19000101',112)
-                     AND ISNULL(I.ReasonVoid,'')<>''"
-                : (approvalTab == "APPROVED"
-                    ? @" AND I.Status='DONE'
-                         AND ISNULL(I.IsApprove,0)=1
-                         AND ISNULL(I.ApprovedBy,'')<>''
-                         AND ISNULL(I.ApprovedDate,CONVERT(DATETIME,'19000101',112))>CONVERT(DATETIME,'19000101',112)
-                         AND I.ApprovedDate>=@DateFrom AND I.ApprovedDate<DATEADD(DAY,1,@DateThru)"
-                    : @" AND I.Status='DONE'
-                         AND ISNULL(I.IsApprove,0)=0
-                         AND ISNULL(I.ApprovedBy,'')=''
-                         AND ISNULL(I.ApprovedDate,CONVERT(DATETIME,'19000101',112))<=CONVERT(DATETIME,'19000101',112)
-                         AND ISNULL(I.ApprovalRemark,'')=''
-                         AND ISNULL(I.ReasonVoid,'')=''");
-            
             SqlParameter[] filterOptionParameters = new SqlParameter[] {
                 new SqlParameter("@EmployeeID", employeeId),
                 new SqlParameter("@CompanyID", companyId),
@@ -734,7 +735,7 @@ WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID
                 DataTable filterRows = br.EQueryP(@"
 SELECT DISTINCT I.InspectionTypeCode, I.InspectionTypeName,
        I.InspectionTypeDetailCode, I.InspectionTypeDetailName,
-       I.IDTemplate, I.TemplateNo" + fromWhere + tabFilter + @"
+       I.IDTemplate, I.TemplateNo" + fromWhere + @"
 ORDER BY I.InspectionTypeName, I.InspectionTypeDetailName, I.TemplateNo",
                     filterOptionParameters);
 
@@ -754,7 +755,7 @@ SELECT I.InspectionID, I.ClientInspectionID, I.InspectionNo, I.CompanyID, I.Loca
        I.InspectionDate, CONVERT(VARCHAR(23), I.StartDateTime, 126) AS StartDateTime, CONVERT(VARCHAR(23), I.EndDateTime, 126) AS EndDateTime, I.Summary, I.OwnerEmployeeID,
        ISNULL(E.Name, I.OwnerEmployeeID) AS TechnicianName, I.Status, I.IsApprove,
        I.ApprovedBy, I.ApprovedDate, I.ApprovalRemark, I.ReasonVoid,
-       I.FollowUp, I.FollowUpSection, I.FollowUpRemark, I.FollowUpWONo" + fromWhere + tabFilter + @"
+       I.FollowUp, I.FollowUpSection, I.FollowUpRemark, I.FollowUpWONo" + fromWhere + @"
   AND (@InspectionTypeCode='' OR I.InspectionTypeCode=@InspectionTypeCode)
   AND (@InspectionTypeDetailCode='' OR I.InspectionTypeDetailCode=@InspectionTypeDetailCode)
   AND (@TemplateId='' OR CONVERT(VARCHAR(20),I.IDTemplate)=@TemplateId)
