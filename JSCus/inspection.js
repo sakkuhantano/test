@@ -1903,7 +1903,6 @@ async function loadInspectionApprovalQueue() {
     }
     document.getElementById("inspectionApprovalDetail").innerHTML = '<div class="text-muted">Pilih inspeksi untuk melihat detail checklist.</div>';
     try {
-        const approvedTab = currentInspectionApprovalTab === "APPROVED";
         const dateFrom = document.getElementById("txtApprovalDateFrom");
         const dateThru = document.getElementById("txtApprovalDateThru");
         const result = await inspectionApprovalPost("GetInspectionApprovalQueue", {
@@ -1911,8 +1910,8 @@ async function loadInspectionApprovalQueue() {
             companyId: inspectionCompanyID,
             locationId: inspectionLocationID,
             approvalTab: currentInspectionApprovalTab,
-            dateFrom: approvedTab && dateFrom ? dateFrom.value : "",
-            dateThru: approvedTab && dateThru ? dateThru.value : "",
+            dateFrom: dateFrom ? dateFrom.value : "",
+            dateThru: dateThru ? dateThru.value : "",
             inspectionTypeCode: document.getElementById("selApprovalType").value,
             inspectionTypeDetailCode: document.getElementById("selApprovalDetail").value,
             templateId: document.getElementById("selApprovalTemplate").value
