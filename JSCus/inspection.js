@@ -643,10 +643,10 @@ async function renderInspectionForm(record, readOnly) {
     const startTime = formatInspectionClock(record.StartDateTime);
     const endTime = formatInspectionClock(record.EndDateTime);
     document.getElementById("inspectionFormSubtitle").textContent =
-        "No. " + transactionNo + "\\n" +
+        "No. " + transactionNo + "\n" +
         record.TemplateNo + " / v" + record.TemplateVersion +
         " • Jadwal " + (record.ScheduledTime || "-") +
-        " • " + formatInspectionDateDMY(record.InspectionDate) + "\\n" +
+        " • " + formatInspectionDateDMY(record.InspectionDate) + "\n" +
         startTime + " - " + endTime;
     document.getElementById("txtInspectionSummary").value = record.Summary || "";
     const followUpValue = record.FollowUp === "Recommend Follow Up" ? "Recommend Follow Up" : "No Follow Up";
@@ -1330,6 +1330,23 @@ function formatInspectionClockTime(value) {
 async function openSavedInspection(localId) {
     const record = inspectionRecords.find(x => x.LocalInspectionID === localId);
     if (!record) return;
+
+    // For synced inspections, use server timestamps as the source of truth.
+    // The IndexedDB copy may have an empty/stale EndDateTime even though SQL Server has it.
+    if (record.SyncStatus === "SYNCED" && Array.isArray(serverSubmittedInspectionRecords)) {
+        const serverRecord = serverSubmittedInspectionRecords.find(item =>
+            (item.ClientInspectionID && item.ClientInspectionID === record.LocalInspectionID) ||
+            (item.InspectionID != null && record.ServerInspectionID != null &&
+                String(item.InspectionID) === String(record.ServerInspectionID)) ||
+            (item.InspectionNo && record.InspectionNo &&
+                String(item.InspectionNo).trim().toLowerCase() === String(record.InspectionNo).trim().toLowerCase())
+        );
+        if (serverRecord) {
+            if (serverRecord.StartDateTime) record.StartDateTime = serverRecord.StartDateTime;
+            if (serverRecord.EndDateTime) record.EndDateTime = serverRecord.EndDateTime;
+        }
+    }
+
     const login = getLoginData();
     if (!login || record.OwnerEmployeeID !== login.employeeid) {
         showInspectionNotice("Inspeksi ini bukan milik akun yang sedang login.", "danger");
