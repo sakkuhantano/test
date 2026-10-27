@@ -69,6 +69,9 @@ document.addEventListener("DOMContentLoaded", async function () {
             throw new Error("IndexedDB belum memiliki store inspeksi. Refresh halaman setelah aplikasi diperbarui.");
         }
 
+        const submittedToday = localDateString(new Date());
+        document.getElementById("txtSubmittedFrom").value = submittedToday;
+        document.getElementById("txtSubmittedThru").value = submittedToday;
         document.getElementById("txtInspectionDate").value = localDateString(new Date());
         document.getElementById("txtInspectionDate").disabled = true;
         document.getElementById("txtInspectionDate").setAttribute("aria-readonly", "true");
@@ -97,6 +100,12 @@ function wireInspectionEvents() {
     document.getElementById("txtInspectionDate").addEventListener("change", refreshInspectionScheduleOptions);
     document.getElementById("btnStartInspection").addEventListener("click", startNewInspection);
     document.getElementById("btnNewInspection").addEventListener("click", resetInspectionSelection);
+    document.getElementById("btnFilterSubmitted").addEventListener("click", function () {
+        refreshSavedInspectionList().catch(err => {
+            console.error("Unable to filter submitted inspections:", err);
+            showInspectionNotice(err.message || "Gagal memfilter inspeksi submitted.", "warning");
+        });
+    });
     document.getElementById("btnInspectionParamTab").addEventListener("click", () => showInspectionEditorTab("param"));
     document.getElementById("btnInspectionChecklistTab").addEventListener("click", () => showInspectionEditorTab("checklist"));
     document.getElementById("btnSaveInspectionDraft").addEventListener("click", () => saveInspection("DRAFT"));
@@ -1020,6 +1029,14 @@ function persistInspectionRecord(record) {
 }
 
 async function refreshSavedInspectionList() {
+    const fromInput = document.getElementById("txtSubmittedFrom");
+    const thruInput = document.getElementById("txtSubmittedThru");
+    const fromDate = fromInput ? fromInput.value : localDateString(new Date());
+    const thruDate = thruInput ? thruInput.value : localDateString(new Date());
+    if (!fromDate || !thruDate || fromDate > thruDate) {
+        showInspectionNotice("Tanggal From/Thru tidak valid. Pastikan From tidak melewati Thru.", "warning");
+        return;
+    }
     const all = await readInspectionStore("inspection_records");
     serverSlotRecords = all.filter(record => record.ServerOnly && record.CompanyID === inspectionCompanyID &&
         record.LocationID === inspectionLocationID);
@@ -1041,7 +1058,9 @@ async function refreshSavedInspectionList() {
                 body: JSON.stringify({
                     employeeId: inspectionLogin.employeeid,
                     companyId: inspectionCompanyID,
-                    locationId: inspectionLocationID
+                    locationId: inspectionLocationID,
+                    fromDate: fromDate,
+                    thruDate: thruDate
                 })
             });
             const payload = await response.json();
@@ -1065,9 +1084,12 @@ async function refreshSavedInspectionList() {
         record.Status === "DRAFT" || record.SyncStatus === "CONFLICT" || record.SyncStatus === "DELETE_PENDING");
     const submittedById = new Map();
     inspectionRecords.filter(record => record.Status === "DONE" &&
-        record.SyncStatus !== "CONFLICT" && record.SyncStatus !== "DELETE_PENDING")
+        record.SyncStatus !== "CONFLICT" && record.SyncStatus !== "DELETE_PENDING" &&
+        parseInspectionDate(record.InspectionDate) >= fromDate && parseInspectionDate(record.InspectionDate) <= thruDate)
         .forEach(record => submittedById.set(record.LocalInspectionID, record));
     serverSubmittedInspectionRecords.forEach(record => {
+        const recordDate = parseInspectionDate(record.InspectionDate);
+        if (!recordDate || recordDate < fromDate || recordDate > thruDate) return;
         const key = record.ClientInspectionID || String(record.InspectionID);
         const local = inspectionRecords.find(item => item.LocalInspectionID === key);
         if (local && (local.SyncStatus === "CONFLICT" || local.SyncStatus === "DELETE_PENDING")) return;
