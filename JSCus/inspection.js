@@ -147,11 +147,18 @@ function wireInspectionEvents() {
             showInspectionNotice(err.message || "Gagal kembali ke daftar inspeksi.", "warning");
         });
     });
-    document.getElementById("selInspectionType").addEventListener("change", onInspectionTypeChanged);
-    document.getElementById("selInspectionDetail").addEventListener("change", onInspectionDetailChanged);
+    document.getElementById("selInspectionType").addEventListener("change", function () {
+        onInspectionTypeChanged();
+        updateInspectionParameterTabGate();
+    });
+    document.getElementById("selInspectionDetail").addEventListener("change", function () {
+        onInspectionDetailChanged();
+        updateInspectionParameterTabGate();
+    });
     document.getElementById("selInspectionTemplate").addEventListener("change", function () {
         updateStartButton();
         refreshInspectionScheduleOptions();
+        updateInspectionParameterTabGate();
     });
     document.getElementById("txtInspectionDate").addEventListener("change", refreshInspectionScheduleOptions);
     document.getElementById("btnStartInspection").addEventListener("click", startNewInspection);
@@ -171,7 +178,16 @@ function wireInspectionEvents() {
     document.getElementById("inspectionSubmittedTab").addEventListener("shown.bs.tab", updateSubmittedFiltersVisibility);
     updateSubmittedFiltersVisibility();
     document.getElementById("btnInspectionParamTab").addEventListener("click", () => showInspectionEditorTab("param"));
-    document.getElementById("btnInspectionChecklistTab").addEventListener("click", () => showInspectionEditorTab("checklist"));
+    document.getElementById("btnInspectionChecklistTab").addEventListener("click", async () => {
+        if (!isInspectionParameterSelectionComplete()) {
+            updateInspectionParameterTabGate();
+            showInspectionEditorTab("param");
+            showInspectionNotice("Lengkapi Inspection Type, detail/jadwal, dan template terlebih dahulu sebelum membuka Checklist.", "warning");
+            return;
+        }
+        if (currentInspectionRecord && !currentInspectionReadOnly && !await applyInspectionParameters()) return;
+        showInspectionEditorTab("checklist");
+    });
     document.getElementById("btnSaveInspectionDraft").addEventListener("click", () => saveInspection("DRAFT"));
     document.getElementById("btnDeleteInspectionDraft").addEventListener("click", async () => {
         if (currentInspectionRecord) await deleteLocalInspectionDraft(currentInspectionRecord.LocalInspectionID);
@@ -1334,8 +1350,87 @@ async function closeInspectionForm() {
     showInspectionRecordsScreen(); await refreshSavedInspectionList();
 }
 function returnFromInspectionPage(){if(!document.getElementById("inspectionInputPanel").classList.contains("d-none")){closeInspectionForm();return;}window.location.href="dashboard.aspx";}
-function showInspectionEditorTab(tab){const p=tab==="param";document.getElementById("inspectionParamsPane").classList.toggle("d-none",!p);document.getElementById("inspectionChecklistPane").classList.toggle("d-none",p);document.getElementById("btnInspectionParamTab").classList.toggle("active",p);document.getElementById("btnInspectionChecklistTab").classList.toggle("active",!p);}
-function populateInspectionParameters(record){const t=document.getElementById("selInspectionType");t.value=record.InspectionTypeCode||"";onInspectionTypeChanged();document.getElementById("selInspectionDetail").value=(record.InspectionTypeDetailCode||"")+"|"+(record.ScheduledTime||"");onInspectionDetailChanged();document.getElementById("selInspectionTemplate").value=String(record.IDTemplate||"");document.getElementById("txtInspectionDate").value=record.InspectionDate||localDateString(new Date());document.getElementById("txtInspectionDate").disabled=true;t.disabled=currentInspectionReadOnly;document.getElementById("selInspectionDetail").disabled=currentInspectionReadOnly;document.getElementById("selInspectionTemplate").disabled=currentInspectionReadOnly;updateStartButton();}
+function showInspectionEditorTab(tab) {
+    const p = tab === "param";
+    if (!p && document.getElementById("btnInspectionChecklistTab").disabled) {
+        document.getElementById("inspectionParamsPane").classList.remove("d-none");
+        document.getElementById("inspectionChecklistPane").classList.add("d-none");
+        document.getElementById("btnInspectionParamTab").classList.add("active");
+        document.getElementById("btnInspectionChecklistTab").classList.remove("active");
+        return;
+    }
+    document.getElementById("inspectionParamsPane").classList.toggle("d-none", !p);
+    document.getElementById("inspectionChecklistPane").classList.toggle("d-none", p);
+    document.getElementById("btnInspectionParamTab").classList.toggle("active", p);
+    document.getElementById("btnInspectionChecklistTab").classList.toggle("active", !p);
+}
+function isInspectionParameterSelectionComplete() {
+    const typeCode = document.getElementById("selInspectionType").value;
+    const detailParts = document.getElementById("selInspectionDetail").value.split("|");
+    const detailCode = detailParts[0] || "";
+    const templateId = Number(document.getElementById("selInspectionTemplate").value);
+    const type = inspectionTypes.find(x => x.InspectionTypeCode === typeCode);
+    const detail = inspectionDetails.find(x =>
+        x.InspectionTypeCode === typeCode && x.InspectionTypeDetailCode === detailCode
+    );
+    const template = inspectionTemplates.find(x => Number(x.IDTemplate) === templateId);
+    return !!type && !!detail && !!template &&
+        template.TemplateType === "I" &&
+        template.InspectionTypeCode === typeCode &&
+        template.SectionID === type.SectionID;
+}
+function updateInspectionParameterTabGate() {
+    const button = document.getElementById("btnInspectionChecklistTab");
+    if (!button) return;
+    const complete = isInspectionParameterSelectionComplete();
+    button.disabled = !complete;
+    button.classList.toggle("disabled", !complete);
+    button.setAttribute("aria-disabled", complete ? "false" : "true");
+    button.title = complete ? "" : "Lengkapi semua parameter inspeksi terlebih dahulu.";
+}
+function populateInspectionParameters(record) {
+    const typeSelect = document.getElementById("selInspectionType");
+    typeSelect.value = record.InspectionTypeCode || "";
+    onInspectionTypeChanged();
+    document.getElementById("selInspectionDetail").value =
+        (record.InspectionTypeDetailCode || "") + "|" + (record.ScheduledTime || "");
+    onInspectionDetailChanged();
+    document.getElementById("selInspectionTemplate").value = String(record.IDTemplate || "");
+    document.getElementById("txtInspectionDate").value = record.InspectionDate || localDateString(new Date());
+    document.getElementById("txtInspectionDate").disabled = true;
+    typeSelect.disabled = currentInspectionReadOnly;
+    document.getElementById("selInspectionDetail").disabled = currentInspectionReadOnly;
+    document.getElementById("selInspectionTemplate").disabled = currentInspectionReadOnly;
+    updateStartButton();
+    updateInspectionParameterTabGate();
+}
+function hasInspectionChecklistAnswers(items) {
+    return (items || []).some(item => {
+        if (item.IsAnomali === true) return true;
+        if (["Value", "Remark", "Remark1", "Remark2"].some(key =>
+            String(item[key] == null ? "" : item[key]).trim() !== "")) return true;
+        const values = item.Values && typeof item.Values === "object" ? Object.values(item.Values) : [];
+        return values.some(value => String(value == null ? "" : value).trim() !== "");
+    });
+}
+
+async function clearInspectionPhotos(localInspectionId) {
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction("inspection_photos", "readwrite");
+        const store = tx.objectStore("inspection_photos");
+        const req = store.index("LocalInspectionID").openCursor(IDBKeyRange.only(localInspectionId));
+        req.onsuccess = () => {
+            const cursor = req.result;
+            if (!cursor) return;
+            cursor.delete();
+            cursor.continue();
+        };
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+        tx.onabort = () => reject(tx.error || new Error("Gagal mereset foto checklist."));
+    });
+}
+
 async function applyInspectionParameters() {
     if (!currentInspectionRecord || currentInspectionReadOnly) return true;
 
@@ -1348,15 +1443,14 @@ async function applyInspectionParameters() {
     const detail = inspectionDetails.find(x =>
         x.InspectionTypeCode === typeCode && x.InspectionTypeDetailCode === detailCode
     );
-    const selectedTemplate = inspectionTemplates.find(x => Number(x.IDTemplate) === templateId);
-    const pinnedTemplate = currentInspectionRecord.TemplateSnapshot;
-    const template = pinnedTemplate &&
-        Number(pinnedTemplate.IDTemplate) === templateId &&
-        Number(pinnedTemplate.IDVersion) === Number(currentInspectionRecord.IDVersion)
-        ? pinnedTemplate : selectedTemplate;
+    const template = inspectionTemplates.find(x => Number(x.IDTemplate) === templateId);
 
-    if (!type || !detail || !template) {
-        showInspectionNotice("Pilih Inspection Type, detail, dan template yang valid.", "warning");
+    if (!type || !detail || !template ||
+        template.TemplateType !== "I" ||
+        template.InspectionTypeCode !== typeCode ||
+        template.SectionID !== type.SectionID) {
+        showInspectionNotice("Pilih Inspection Type, detail, dan template Inspection yang sesuai.", "warning");
+        updateInspectionParameterTabGate();
         return false;
     }
 
@@ -1374,27 +1468,37 @@ async function applyInspectionParameters() {
     );
     if (duplicate) {
         showInspectionNotice("Kombinasi parameter ini sudah dipakai transaksi lain. Draft tidak diubah.", "warning");
+        populateInspectionParameters(currentInspectionRecord);
+        updateInspectionParameterTabGate();
         return false;
     }
 
-    const changed = Number(currentInspectionRecord.IDTemplate) !== Number(template.IDTemplate) ||
-        Number(currentInspectionRecord.IDVersion) !== Number(template.IDVersion);
-    const hasPinnedVersion = Number(currentInspectionRecord.IDTemplate) > 0 &&
-        Number(currentInspectionRecord.IDVersion) > 0;
-    if (hasPinnedVersion && changed) {
-        showInspectionNotice("Versi template inspeksi sudah terikat pada transaksi ini. Buat inspeksi baru untuk menggunakan versi aktif yang berbeda.", "warning");
-        return false;
-    }
-    if (changed && (currentInspectionRecord.Items || []).length) {
+    const record = currentInspectionRecord;
+    const changed = String(record.SectionID || "") !== String(type.SectionID || "") ||
+        String(record.InspectionTypeCode || "") !== String(type.InspectionTypeCode || "") ||
+        String(record.InspectionTypeDetailCode || "") !== String(detail.InspectionTypeDetailCode || "") ||
+        String(record.ScheduledTime || "") !== String(scheduledTime || "") ||
+        Number(record.IDTemplate) !== Number(template.IDTemplate) ||
+        Number(record.IDVersion) !== Number(template.IDVersion);
+    if (!changed) return true;
+
+    const photos = await getInspectionPhotos(record.LocalInspectionID);
+    const hasPreviousData = photos.length > 0 || hasInspectionChecklistAnswers(record.Items);
+    if (hasPreviousData) {
         const confirmed = await showConfirmation({
-            title: "Ganti Template",
-            message: "Template berubah. Semua jawaban checklist lama akan dikosongkan. Lanjutkan?",
-            yesText: "Lanjutkan"
+            title: "Reset Checklist?",
+            message: "Parameter inspeksi akan berubah. Semua jawaban checklist dan seluruh foto BEFORE/AFTER akan dihapus dari transaksi ini. Jika transaksi pernah tersinkron, foto lama di server juga akan diganti saat Sync berikutnya. Do you want to continue?",
+            yesText: "Yes, Reset Checklist",
+            noText: "No, Keep Existing Data"
         });
-        if (!confirmed) return false;
+        if (!confirmed) {
+            populateInspectionParameters(record);
+            updateInspectionParameterTabGate();
+            return false;
+        }
     }
 
-    Object.assign(currentInspectionRecord, {
+    Object.assign(record, {
         SectionID: type.SectionID,
         InspectionTypeCode: type.InspectionTypeCode,
         InspectionTypeName: type.InspectionTypeName,
@@ -1406,9 +1510,24 @@ async function applyInspectionParameters() {
         TemplateNo: template.TemplateNo,
         TemplateName: template.TemplateName,
         TemplateVersion: String(template.Version || ""),
-        TemplateSnapshot: JSON.parse(JSON.stringify(template))
+        TemplateSnapshot: JSON.parse(JSON.stringify(template)),
+        SyncStatus: "PENDING",
+        UpdatedAt: new Date().toISOString()
     });
-    if (changed) currentInspectionRecord.Items = [];
+
+    // Clear local photo blobs before persisting the new parameter set. The next successful
+    // full-transaction sync replaces server photo metadata and removes superseded server files.
+    await clearInspectionPhotos(record.LocalInspectionID);
+    inspectionPhotoBaseline = null;
+    record.Items = [];
+    record.NextPhotoSeqNo = 1;
+
+    const host = document.getElementById("inspectionChecklistHost");
+    host.innerHTML = renderInspectionSections(template, [], currentInspectionReadOnly, "inspectionSection");
+    updateInspectionRemarkPanels();
+    await renderInspectionPhotos();
+    await updateInspectionChecklistGate();
+    await persistInspectionRecord(record);
     return true;
 }
 
@@ -1581,6 +1700,7 @@ function handleInspectionPhotoViewerKeydown(event) {
 async function handleInspectionPhotoInput(event,type){const input=event.target,files=Array.from(input.files||[]);input.value="";if(!currentInspectionRecord||currentInspectionReadOnly||!files.length)return;const existing=await getInspectionPhotos(currentInspectionRecord.LocalInspectionID);let nextSeq=Math.max(Number(currentInspectionRecord.NextPhotoSeqNo||1),existing.reduce((max,p)=>Math.max(max,Number(p.SeqNo||p.OrderNo||0)),0)+1);let added=0;for(const file of files){if(!file.type.startsWith("image/")){showInspectionNotice("File harus berupa gambar.","warning");continue;}try{const blob=typeof compressImage==="function"?await compressImage(file,{maxWidth:1280,maxHeight:1280,maxSize:300*1024,quality:.75,minQuality:.30}):file;await new Promise((resolve,reject)=>{const tx=db.transaction("inspection_photos","readwrite");tx.objectStore("inspection_photos").add({LocalInspectionID:currentInspectionRecord.LocalInspectionID,Type:type,FileName:file.name||("inspection-"+type.toLowerCase()+".jpg"),Blob:blob,SeqNo:nextSeq,CreatedAt:new Date().toISOString()});tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error||new Error("Gagal menyimpan foto."));});nextSeq++;added++;}catch(err){console.error(err);showInspectionNotice("Foto gagal disimpan: "+(err.message||err),"danger");}}if(added){currentInspectionRecord.NextPhotoSeqNo=nextSeq;currentInspectionRecord.SyncStatus="PENDING";currentInspectionRecord.UpdatedAt=new Date().toISOString();}await renderInspectionPhotos();await updateInspectionChecklistGate();scheduleInspectionAutosave();}
 async function handleInspectionPhotoDelete(event){const b=event.target.closest("[data-delete-inspection-photo]");if(!b||!currentInspectionRecord||currentInspectionReadOnly)return;const confirmed=await showConfirmation({title:"Hapus Foto",message:"Hapus foto ini?",yesText:"Hapus"});if(!confirmed)return;const existing=await getInspectionPhotos(currentInspectionRecord.LocalInspectionID);const nextSeq=Math.max(Number(currentInspectionRecord.NextPhotoSeqNo||1),existing.reduce((max,p)=>Math.max(max,Number(p.SeqNo||p.OrderNo||0)),0)+1);currentInspectionRecord.NextPhotoSeqNo=nextSeq;currentInspectionRecord.SyncStatus="PENDING";currentInspectionRecord.UpdatedAt=new Date().toISOString();await new Promise((resolve,reject)=>{const tx=db.transaction("inspection_photos","readwrite");tx.objectStore("inspection_photos").delete(Number(b.dataset.deleteInspectionPhoto));tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error||new Error("Hapus foto gagal."));});await renderInspectionPhotos();await updateInspectionChecklistGate();scheduleInspectionAutosave();}
 async function updateInspectionChecklistGate() {
+    updateInspectionParameterTabGate();
     if (!currentInspectionRecord) return;
     const photos = await getInspectionPhotos(currentInspectionRecord.LocalInspectionID);
     const before = photos.some(photo => photo.Type === "BEFORE");
