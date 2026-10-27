@@ -5,7 +5,11 @@
         if (data)
             document.getElementById("lblUserNameDashboard").innerText = data.username;
 		renderCards();
-        setInterval(await refreshDashboardCounts(), 15000);
+        await renderInspectionDashboardCards();
+        setInterval(function () {
+            refreshDashboardCounts();
+            renderInspectionDashboardCards();
+        }, 15000);
     }
 );
 // document.addEventListener(
