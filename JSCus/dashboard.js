@@ -184,7 +184,10 @@ async function renderInspectionDashboardCards() {
                     x.OwnerEmployeeID === loginData.employeeid &&
                     x.CompanyID === (scope[0] || "") &&
                     x.LocationID === (scope[1] || "") &&
-                    x.SyncStatus !== "SYNCED").length);
+                    x.Status === "DONE" &&
+                    x.SyncStatus !== "SYNCED" &&
+                    x.SyncStatus !== "CONFLICT" &&
+                    x.SyncStatus !== "DELETE_PENDING").length);
                 req.onerror = () => reject(req.error);
             });
             const count = document.getElementById("inspectionPendingSync");
