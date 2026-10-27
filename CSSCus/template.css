@@ -744,3 +744,24 @@ body {
     padding-right: .65rem;
     width: 2.5rem;
 }
+
+
+/* Dark theme: template editor surfaces */
+[data-bs-theme="dark"] body { background-color:#0f1115; color:#e9ecef; }
+[data-bs-theme="dark"] { --app-bg:#0f1115; --border-color:#343a40; --text-muted:#adb5bd; --panel-bg:#1a1d23; --header-bg:#22262c; --active-bg:#173044; --active-border:#285477; }
+[data-bs-theme="dark"] .module-header,
+[data-bs-theme="dark"] .module-footer,
+[data-bs-theme="dark"] .explorer-search,
+[data-bs-theme="dark"] .panel,
+[data-bs-theme="dark"] .panel-content,
+[data-bs-theme="dark"] .module-body,
+[data-bs-theme="dark"] .module-container { background-color:#1a1d23; color:#e9ecef; border-color:#343a40; }
+[data-bs-theme="dark"] .panel-header { background:#22262c; color:#e9ecef; border-color:#343a40; }
+[data-bs-theme="dark"] .sortable-chosen,
+[data-bs-theme="dark"] .sortable-ghost { background-color:#263746 !important; }
+[data-bs-theme="dark"] .form-control,
+[data-bs-theme="dark"] .form-select,
+[data-bs-theme="dark"] input,
+[data-bs-theme="dark"] select,
+[data-bs-theme="dark"] textarea { background-color:#22262c; color:#e9ecef; border-color:#444b54; }
+[data-bs-theme="dark"] .text-muted { color:#adb5bd !important; }
