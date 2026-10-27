@@ -650,6 +650,23 @@ async function renderInspectionForm(record, readOnly) {
         startTime + " - " + endTime;
     document.getElementById("txtInspectionSummary").value = record.Summary || "";
     const followUpValue = record.FollowUp === "Recommend Follow Up" ? "Recommend Follow Up" : "No Follow Up";
+    const existingFollowUpWONo = String(record.FollowUpWONo || "").trim();
+    let followUpWONoPanel = document.getElementById("inspectionFollowUpWONoPanel");
+    if (existingFollowUpWONo) {
+        if (!followUpWONoPanel) {
+            followUpWONoPanel = document.createElement("div");
+            followUpWONoPanel.id = "inspectionFollowUpWONoPanel";
+            followUpWONoPanel.className = "alert alert-success d-flex align-items-center gap-2 mt-3 mb-3";
+            followUpWONoPanel.innerHTML = '<i class="bi bi-file-earmark-check-fill fs-5"></i><div><div class="small text-muted">Generated Follow Up WO No.</div><div class="fw-bold" id="inspectionFollowUpWONoValue"></div></div>';
+            const followUpPanel = document.getElementById("inspectionFollowUpPanel");
+            if (followUpPanel) followUpPanel.insertAdjacentElement("afterend", followUpWONoPanel);
+        }
+        const woValue = document.getElementById("inspectionFollowUpWONoValue");
+        if (woValue) woValue.textContent = existingFollowUpWONo;
+        if (followUpWONoPanel) followUpWONoPanel.classList.remove("d-none");
+    } else if (followUpWONoPanel) {
+        followUpWONoPanel.classList.add("d-none");
+    }
     document.getElementById("inspectionFollowUpNo").checked = followUpValue === "No Follow Up";
     document.getElementById("inspectionFollowUpYes").checked = followUpValue === "Recommend Follow Up";
     const followUpSection = document.getElementById("inspectionFollowUpSection");
@@ -2417,6 +2434,7 @@ async function loadInspectionApprovalDetail(inspectionId) {
             ? renderInspectionSections(template, items, true, "inspectionApprovalSection")
             : '<div class="alert alert-danger small">Struktur checklist untuk template versi ini tidak ditemukan di server. Checklist tidak ditampilkan dalam format cadangan agar hasil approval tidak salah format. Muat ulang detail atau hubungi administrator.</div>';
         const followUpValue = String(h.FollowUp || "No Follow Up");
+        const followUpWONo = String(h.FollowUpWONo || "").trim();
         const sectionIcons = { ACON: "bi-fan", COMM: "bi-broadcast", MECH: "bi-gear", ELEC: "bi-lightning-charge", CIVIL: "bi-building", PFIT: "bi-hammer", PHKP: "bi-brush", PSEC: "bi-shield-check" };
         const sectionLabels = { ACON: "Air Cond.", COMM: "Comm.", MECH: "Mechanical", ELEC: "Electrical", CIVIL: "Civil", PFIT: "Fit Out", PHKP: "Housekeeping", PSEC: "Security" };
         const followUpHtml = '<div class="accordion-item border-warning shadow-sm mt-3" id="inspectionApprovalFollowUpPanel">' +
@@ -2430,7 +2448,9 @@ async function loadInspectionApprovalDetail(inspectionId) {
                 return '<span class="btn ' + (selectedSection ? 'btn-primary' : 'btn-outline-primary') + ' rounded-3 inspection-followup-section-btn disabled" aria-pressed="' + selectedSection + '"><i class="bi ' + sectionIcons[section.Code] + '"></i><span class="fw-semibold">' + escInspection(section.Code) + '</span><small class="d-block">' + escInspection(sectionLabels[section.Code]) + '</small></span>';
             }).join("") +
             '</div></div></div>' +
-            '<div class="card border-warning-subtle bg-light"><div class="card-body"><label class="form-label small fw-semibold mb-2"><i class="bi bi-card-text me-1"></i>Follow Up Work Order Description</label><div class="form-control bg-body-secondary" style="min-height:5rem;white-space:pre-wrap">' + escInspection(h.FollowUpRemark || "-") + '</div><div class="d-flex justify-content-end mt-2"><small class="text-muted">' + String((h.FollowUpRemark || "").length) + ' / 300</small></div></div></div></div></div></div>';
+            '<div class="card border-warning-subtle bg-light"><div class="card-body"><label class="form-label small fw-semibold mb-2"><i class="bi bi-card-text me-1"></i>Follow Up Work Order Description</label><div class="form-control bg-body-secondary" style="min-height:5rem;white-space:pre-wrap">' + escInspection(h.FollowUpRemark || "-") + '</div><div class="d-flex justify-content-end mt-2"><small class="text-muted">' + String((h.FollowUpRemark || "").length) + ' / 300</small></div></div></div>' +
+            (followUpWONo ? '<div class="alert alert-success d-flex align-items-center gap-2 mt-3 mb-0"><i class="bi bi-file-earmark-check-fill fs-5"></i><div><div class="small text-muted">Generated Follow Up WO No.</div><div class="fw-bold">' + escInspection(followUpWONo) + '</div></div></div>' : '') +
+            '</div></div></div>';
         const templateSummaryText = template && (template.SummarySampleText || template.summarySampleText || (template.VersionInfo && template.VersionInfo.SummarySampleText)) || "";
         const summaryHtml = '<div class="accordion-item border-info shadow-sm mt-3" id="inspectionApprovalSummaryPanel"><div class="accordion-header"><div class="accordion-button bg-info-subtle text-dark fw-bold"><i class="bi bi-clipboard2-check-fill fs-5 me-2 text-info"></i><div class="d-flex flex-column"><span>FINAL INSPECTION SUMMARY</span><small class="text-muted fw-normal">Ringkasan hasil inspeksi dan pekerjaan yang telah dilakukan.</small></div></div></div><div class="accordion-body p-3"><div class="alert alert-info py-2 px-3 mb-3 small"><i class="bi bi-info-circle-fill me-1"></i>Jelaskan secara singkat hasil pemeriksaan, tindakan yang dilakukan, serta kondisi akhir unit setelah pekerjaan selesai.</div><textarea class="form-control" rows="5" maxlength="500" disabled placeholder="' + escInspection(templateSummaryText) + '">' + escInspection(h.Summary || "") + '</textarea><div class="d-flex justify-content-between align-items-center mt-2"><small class="text-muted">Maksimum 500 karakter.</small><small class="text-muted">' + String((h.Summary || "").length) + ' / 500</small></div></div></div>';
         const reasonVoidHtml = String(h.ReasonVoid || "").trim()
