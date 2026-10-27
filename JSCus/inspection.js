@@ -1700,6 +1700,7 @@ function addInspectionApprovalListener(id, eventName, handler) {
 
 function wireInspectionApprovalEvents() {
     addInspectionApprovalListener("btnRefreshInspectionApproval", "click", loadInspectionApprovalQueue);
+    addInspectionApprovalListener("btnBackToInspectionApprovalList", "click", showInspectionApprovalQueueView);
     addInspectionApprovalListener("btnInspectionApprovalOutstanding", "click", () => setInspectionApprovalTab("OUTSTANDING"));
     addInspectionApprovalListener("btnInspectionApprovalApproved", "click", () => setInspectionApprovalTab("APPROVED"));
     addInspectionApprovalListener("inspectionApprovalQueue", "click", function (event) {
@@ -1895,6 +1896,8 @@ function updateInspectionApprovalSelectAll() {
 function openInspectionApprovalDetail(inspectionId) {
     const detailPanel = document.getElementById("inspectionApprovalDetailPanel");
     if (!detailPanel || !inspectionId) return;
+    const listView = document.getElementById("inspectionApprovalListView");
+    if (listView) listView.classList.add("d-none");
     detailPanel.classList.remove("d-none");
     selectedInspectionApproval = null;
     document.getElementById("inspectionApprovalDetailSubtitle").textContent = "";
@@ -1910,6 +1913,8 @@ function openInspectionApprovalDetail(inspectionId) {
 function showInspectionApprovalQueueView() {
     const detailPanel = document.getElementById("inspectionApprovalDetailPanel");
     if (detailPanel) detailPanel.classList.add("d-none");
+    const listView = document.getElementById("inspectionApprovalListView");
+    if (listView) listView.classList.remove("d-none");
     selectedInspectionApproval = null;
     updateInspectionScrollTools();
 }
