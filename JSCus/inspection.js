@@ -1225,7 +1225,9 @@ async function refreshSavedInspectionList() {
             isInspectionWithinSubmittedRange(record, fromDate, thruDate)));
 
     serverSubmittedInspectionRecords.forEach(record => {
-        if (!isInspectionWithinSubmittedRange(record, fromDate, thruDate)) return;
+        // Server rows appear in Submitted by the server-side approval/void date range.
+        const approvedDate = parseInspectionDate(record && record.ApprovedDate);
+        if (!approvedDate || approvedDate < fromDate || approvedDate > thruDate) return;
 
         // Match server rows to local counterparts using stable IDs first, then transaction number.
         const local = inspectionRecords.find(item =>
@@ -1318,11 +1320,9 @@ function renderInspectionRecordTable(records, host, submitted) {
 }
 
 function isInspectionWithinSubmittedRange(record, fromDate, thruDate) {
-    // Submitted date range includes either the planned inspection date or the actual completion date.
-    // This keeps an inspection completed today visible even when its InspectionDate is older.
-    const inspectionDate = parseInspectionDate(record && record.InspectionDate);
-    const completedDate = parseInspectionDate(record && record.EndDateTime);
-    return [inspectionDate, completedDate].some(date => date && date >= fromDate && date <= thruDate);
+    // The Submitted range is based on the local sync timestamp, not the planned/completion date.
+    const syncDate = parseInspectionDate(record && (record.LastSyncAt || record.SyncDate));
+    return !!syncDate && syncDate >= fromDate && syncDate <= thruDate;
 }
 
 function parseInspectionDate(value) {
@@ -2065,7 +2065,7 @@ function setInspectionApprovalTab(tab, reload) {
     const selectAllHeader = document.getElementById("thInspectionApprovalSelectAll");
     if (selectAllHeader) selectAllHeader.classList.toggle("d-none", !outstanding);
     const dateFilters = document.getElementById("inspectionApprovalDateFilters");
-    if (dateFilters) dateFilters.classList.toggle("d-none", !approved);
+    if (dateFilters) dateFilters.classList.toggle("d-none", !(approved || voided));
     if (reload === false) renderInspectionApprovalQueue();
     else loadInspectionApprovalQueue();
 }
