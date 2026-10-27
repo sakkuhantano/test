@@ -480,8 +480,6 @@ ORDER BY I.InspectionDate, I.ScheduledTime, I.InspectionID",
                         new SqlParameter("@EmployeeID", employeeId),
                         new SqlParameter("@CompanyID", companyId),
                         new SqlParameter("@LocationID", locationId),
-                        new SqlParameter("@FromDate", submittedFrom),
-                        new SqlParameter("@ThruDate", submittedThru),
                         new SqlParameter("@SectionList", String.Join(";", sections))
                     });
                 var result = new List<Dictionary<string, object>>();
