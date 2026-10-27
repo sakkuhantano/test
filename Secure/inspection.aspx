@@ -407,7 +407,6 @@
                 <i class="bi bi-check-circle"></i> Done
             </button>
         </div>
-        <div id="inspectionFormMessage" class="inspection-muted mt-2"></div>
     </div>
     </div>
     </div>
