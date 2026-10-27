@@ -525,3 +525,8 @@
     width: 1.5rem;
     height: 1.5rem;
 }
+
+/* Dark theme: employee assignment fixed action bar and highlighted rows */
+[data-bs-theme="dark"] .mobile-bottom-action { background:#15181d !important; color:#e9ecef; border-top:1px solid #343a40; }
+[data-bs-theme="dark"] .wo-highlight { background:#3b3420 !important; color:#f8f9fa; }
+[data-bs-theme="dark"] .badge-completed { color:#adb5bd; }
