@@ -513,18 +513,8 @@ BEGIN
         RETURN;
     END;
 
-    /* A synced inspection keeps the exact template/version selected when it was created. */
-    IF EXISTS
-    (
-        SELECT 1
-        FROM dbo.PIP_T_Inspection Existing
-        WHERE Existing.ClientInspectionID=@p_ClientInspectionID
-          AND (Existing.IDTemplate<>@p_IDTemplate OR Existing.IDVersion<>@p_IDVersion)
-    )
-    BEGIN
-        RAISERROR('An existing inspection cannot change its template version.', 16, 1);
-        RETURN;
-    END;
+    /* A returned, unapproved inspection may change parameters/template.
+       The same ClientInspectionID is updated and its checklist/photo snapshot is replaced atomically. */
 
     IF NOT EXISTS
     (
