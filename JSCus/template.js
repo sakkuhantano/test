@@ -1519,31 +1519,35 @@ function renderTemplates(data, container, sectionId)
     //-----------------------------------
     // Restore versions for new templates
     //-----------------------------------
-    // Only the Template header/name is a valid drop target.
-    // Section headers and Version rows are deliberately not drop targets.
+    // Accept drops on the whole destination template row, not only its Bootstrap
+    // accordion button (which can interfere with native drag/drop interactions).
     container.querySelectorAll(".template-root-item").forEach(function(root) {
         const versionContainer = root.querySelector(".template-version-container");
-        const templateHeader = root.querySelector(".template-group-header");
-        if (!versionContainer || !templateHeader) return;
-        templateHeader.addEventListener("dragover", function(event) {
-            if (event.dataTransfer && Array.from(event.dataTransfer.types || []).includes("application/x-pip-version")) {
-                event.preventDefault();
-                event.dataTransfer.dropEffect = "copy";
-                templateHeader.classList.add("border", "border-primary");
-            }
+        if (!versionContainer) return;
+        root.addEventListener("dragover", function(event) {
+            const types = event.dataTransfer ? Array.from(event.dataTransfer.types || []) : [];
+            if (!types.includes("application/x-pip-version")) return;
+            event.preventDefault();
+            event.dataTransfer.dropEffect = "copy";
+            root.classList.add("border", "border-primary");
         });
-        templateHeader.addEventListener("dragleave", function(event) {
-            if (!templateHeader.contains(event.relatedTarget))
-                templateHeader.classList.remove("border", "border-primary");
+        root.addEventListener("dragleave", function(event) {
+            if (!root.contains(event.relatedTarget))
+                root.classList.remove("border", "border-primary");
         });
-        templateHeader.addEventListener("drop", async function(event) {
-            templateHeader.classList.remove("border", "border-primary");
+        root.addEventListener("drop", async function(event) {
+            root.classList.remove("border", "border-primary");
             const raw = event.dataTransfer && event.dataTransfer.getData("application/x-pip-version");
             if (!raw) return;
             event.preventDefault();
             event.stopPropagation();
             let source;
             try { source = JSON.parse(raw); } catch (_) { return; }
+            if (String(source.templateRuntimeId) === String(versionContainer.dataset.templateId) &&
+                String(source.sectionId) === String(versionContainer.dataset.sectionId)) {
+                showToast("Pilih Template tujuan yang berbeda.", "warning");
+                return;
+            }
             await cloneVersionToExistingTemplate(
                 source.sectionId,
                 source.templateRuntimeId,
@@ -3164,10 +3168,16 @@ function renderTemplateVersions(data,container)
             // Dragging an Active version only copies it into another Template as a Draft.
             // It does not edit the source version, so it must remain draggable even
             // when the currently selected version is read-only.
-            if (String(version.Status).toLowerCase() === "active") {
+            if (String(version.Status).trim().toLowerCase() === "active") {
                 node.draggable = true;
+                node.setAttribute("draggable", "true");
+                node.classList.add("active-version-draggable");
                 node.title = "Drag this Active Version onto another Template to clone it as a Draft";
                 node.addEventListener("dragstart", function(event) {
+                    if (!event.dataTransfer) {
+                        console.warn("[Template Builder] Browser tidak menyediakan dataTransfer untuk drag.");
+                        return;
+                    }
                     event.dataTransfer.effectAllowed = "copy";
                     event.dataTransfer.setData("application/x-pip-version", JSON.stringify({
                         sectionId: sectionId,
@@ -3175,6 +3185,11 @@ function renderTemplateVersions(data,container)
                         versionRuntimeId: version.RuntimeVersionID
                     }));
                     node.classList.add("opacity-50");
+                    console.debug("[Template Builder] Active version drag started", {
+                        sectionId: sectionId,
+                        templateRuntimeId: templateRuntimeID,
+                        versionRuntimeId: version.RuntimeVersionID
+                    });
                 });
                 node.addEventListener("dragend", function() {
                     node.classList.remove("opacity-50");
