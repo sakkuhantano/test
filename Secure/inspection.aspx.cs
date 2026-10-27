@@ -944,122 +944,122 @@ ORDER BY R.DisplayOrder, V.FieldName",
                 var h = new Dictionary<string, object>();
                 foreach (DataColumn col in header.Columns)
                     h[col.ColumnName] = header.Rows[0][col] == DBNull.Value ? null : header.Rows[0][col];
-                object approvalTemplateSnapshot = null;
-                                    DataTable meta = br.EQueryP(@"
-                SELECT T.IDTemplate, T.TemplateNo, T.TemplateName, T.SectionID, T.InspectionTypeCode,
-                       V.IDVersion, V.Version, V.StatusOption, ISNULL(V.SummarySampleText,'') SummarySampleText, V.IsRemark1Required VersionIsRemark1Required, V.Remark1Text VersionRemark1Text, V.IsRemark2Required VersionIsRemark2Required, V.Remark2Text VersionRemark2Text, V.RemarkRequiredOptions VersionRemarkRequiredOptions
-                FROM dbo.PIP_M_CheckListWOPM T
-                JOIN dbo.PIP_M_CheckListWOPM_Version V ON V.IDTemplate=T.IDTemplate
-                WHERE T.IDTemplate=@IDTemplate AND V.IDVersion=@IDVersion AND ISNULL(T.TemplateType,'W')='I'",
-                                        new SqlParameter[] {
-                                            new SqlParameter("@IDTemplate", Convert.ToInt32(header.Rows[0]["IDTemplate"])),
-                                            new SqlParameter("@IDVersion", Convert.ToInt32(header.Rows[0]["IDVersion"]))
-                                        });
-                                    if (meta.Rows.Count > 0)
-                                    {
-                                        DataRow m = meta.Rows[0];
-                                        DataTable templateItems = br.EQueryP(@"
-                SELECT S.IDSection, S.SectionName, S.DisplayOrder AS SectionOrder,
-                       I.IDItem, I.IDSubSection, ISNULL(SS.SubSectionName,'') AS SubSectionName,
-                       ISNULL(SS.DisplayOrder,0) AS SubSectionOrder,
-                       I.ItemLabel, I.ItemType, ISNULL(I.OptionList,'') OptionList,
-                       I.MinValue, I.MaxValue, ISNULL(I.Unit,'') Unit, I.IsValueRequired,
-                       I.IsRemark1Required, I.IsRemark2Required, I.IsRemark1Mandatory, I.IsRemark2Mandatory, I.Remark1Text, I.Remark2Text, I.IsUseDefaultRemark1, I.IsUseDefaultRemark2, ISNULL(I.RemarkRequiredOptions,'') RemarkRequiredOptions, I.DisplayOrder AS ItemOrder, V.StatusOption,
-                       I.ModelCode, I.MinTolerance, I.MaxTolerance, I.IsToleranceRequired
-                FROM dbo.PIP_M_CheckListWOPM_Section S
-                JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDSection=S.IDSection
-                LEFT JOIN dbo.PIP_M_CheckListWOPM_SubSection SS ON SS.IDSubSection=I.IDSubSection
-                JOIN dbo.PIP_M_CheckListWOPM_Version V ON V.IDVersion=S.IDVersion
-                WHERE V.IDVersion=@IDVersion
-                ORDER BY S.DisplayOrder,
-                         CASE WHEN ISNULL(I.IDSubSection,0)=0 THEN I.DisplayOrder ELSE SS.DisplayOrder END,
-                         I.DisplayOrder",
-                                            new SqlParameter[] { new SqlParameter("@IDVersion", Convert.ToInt32(header.Rows[0]["IDVersion"])) });
-                                        DataTable templateGroups = br.EQueryP(@"
-                SELECT G.IDItem, G.GroupName, G.FieldList, G.Unit, G.DisplayOrder
-                FROM dbo.PIP_M_CheckListWOPM_ItemGroup G
-                JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDItem=G.IDItem
-                JOIN dbo.PIP_M_CheckListWOPM_Section S ON S.IDSection=I.IDSection
-                WHERE S.IDVersion=@IDVersion
-                ORDER BY G.DisplayOrder",
-                                            new SqlParameter[] { new SqlParameter("@IDVersion", Convert.ToInt32(header.Rows[0]["IDVersion"])) });
-                
-                                        var sections = templateItems.AsEnumerable()
-                                            .GroupBy(row => new {
-                                                IDSection = Convert.ToInt32(row["IDSection"]),
-                                                SectionName = row["SectionName"].ToString(),
-                                                SectionOrder = Convert.ToInt32(row["SectionOrder"])
-                                            })
-                                            .OrderBy(group => group.Key.SectionOrder)
-                                            .Select(group => new {
-                                                idSection = group.Key.IDSection,
-                                                sectionName = group.Key.SectionName,
-                                                items = group.Select(itemRow => {
-                                                    string itemType = itemRow["ItemType"].ToString();
-                                                    string optionList = itemType == "OPTION"
-                                                        ? (String.IsNullOrEmpty(itemRow["OptionList"].ToString())
-                                                            ? itemRow["StatusOption"].ToString() : itemRow["OptionList"].ToString())
-                                                        : "";
-                                                    var itemGroups = templateGroups.AsEnumerable()
-                                                        .Where(g => g["IDItem"].ToString() == itemRow["IDItem"].ToString())
-                                                        .OrderBy(g => g["DisplayOrder"])
-                                                        .Select(g => new {
-                                                            groupName = g["GroupName"].ToString(),
-                                                            fieldList = g["FieldList"].ToString(),
-                                                            unit = g["Unit"].ToString()
-                                                        }).ToList();
-                                                    return new {
-                                                        idItem = Convert.ToInt32(itemRow["IDItem"]),
-                                                        idSubSection = itemRow["IDSubSection"] == DBNull.Value ? 0 : Convert.ToInt32(itemRow["IDSubSection"]),
-                                                        subSectionName = itemRow["SubSectionName"] == DBNull.Value ? "" : itemRow["SubSectionName"].ToString(),
-                                                        subSectionOrder = itemRow["SubSectionOrder"] == DBNull.Value ? 0 : Convert.ToInt32(itemRow["SubSectionOrder"]),
-                                                        itemOrder = itemRow["ItemOrder"] == DBNull.Value ? 0 : Convert.ToInt32(itemRow["ItemOrder"]),
-                                                        label = itemRow["ItemLabel"].ToString(),
-                                                        type = itemType,
-                                                        optionList = optionList,
-                                                        min = itemRow["MinValue"] == DBNull.Value ? (decimal?)null : Convert.ToDecimal(itemRow["MinValue"]),
-                                                        max = itemRow["MaxValue"] == DBNull.Value ? (decimal?)null : Convert.ToDecimal(itemRow["MaxValue"]),
-                                                        unit = itemRow["Unit"].ToString(),
-                                                        isValueRequired = Convert.ToBoolean(itemRow["IsValueRequired"]),
-                                                        versionIsRemark1Required = Convert.ToBoolean(m["VersionIsRemark1Required"]),
-                                                        versionIsRemark2Required = Convert.ToBoolean(m["VersionIsRemark2Required"]),
-                                                        versionRemark1Text = GF.GetString(m["VersionRemark1Text"]),
-                                                        versionRemark2Text = GF.GetString(m["VersionRemark2Text"]),
-                                                        isRemark1Required = Convert.ToBoolean(m["VersionIsRemark1Required"]) && (Convert.ToBoolean(itemRow["IsUseDefaultRemark1"]) || Convert.ToBoolean(itemRow["IsRemark1Required"])),
-                                                        isRemark2Required = Convert.ToBoolean(m["VersionIsRemark2Required"]) && (Convert.ToBoolean(itemRow["IsUseDefaultRemark2"]) || Convert.ToBoolean(itemRow["IsRemark2Required"])),
-                                                        isRemark1Mandatory = Convert.ToBoolean(itemRow["IsRemark1Mandatory"]),
-                                                        isRemark2Mandatory = Convert.ToBoolean(itemRow["IsRemark2Mandatory"]),
-                                                        remark1Text = Convert.ToBoolean(itemRow["IsUseDefaultRemark1"]) ? GF.GetString(m["VersionRemark1Text"]) : (itemRow["Remark1Text"] == DBNull.Value ? "Remark" : itemRow["Remark1Text"].ToString()),
-                                                        remark2Text = Convert.ToBoolean(itemRow["IsUseDefaultRemark2"]) ? GF.GetString(m["VersionRemark2Text"]) : (itemRow["Remark2Text"] == DBNull.Value ? "Remark" : itemRow["Remark2Text"].ToString()),
-                                                        remarkRequiredOptions = !(Convert.ToBoolean(m["VersionIsRemark1Required"]) || Convert.ToBoolean(m["VersionIsRemark2Required"])) ? new string[0] : (String.IsNullOrWhiteSpace(GF.GetString(m["VersionRemarkRequiredOptions"])) ? new string[0] : GF.GetString(m["VersionRemarkRequiredOptions"]).Split(';')),
-                                                        isToleranceRequired = itemRow["IsToleranceRequired"] != DBNull.Value && Convert.ToBoolean(itemRow["IsToleranceRequired"]),
-                                                        mintol = itemRow["MinTolerance"] == DBNull.Value ? (decimal?)null : Convert.ToDecimal(itemRow["MinTolerance"]),
-                                                        maxtol = itemRow["MaxTolerance"] == DBNull.Value ? (decimal?)null : Convert.ToDecimal(itemRow["MaxTolerance"]),
-                                                        modelcode = itemRow["ModelCode"] == DBNull.Value ? "" : itemRow["ModelCode"].ToString(),
-                                                        groups = itemGroups.Count > 0 ? itemGroups : null
-                                                    };
-                                                }).ToList()
-                                            }).ToList();
-                                        approvalTemplateSnapshot = new {
-                                            IDTemplate = Convert.ToInt32(m["IDTemplate"]),
-                                            IDVersion = Convert.ToInt32(m["IDVersion"]),
-                                            Version = m["Version"].ToString(),
-                                            SectionID = m["SectionID"].ToString(),
-                                            TemplateType = "I",
-                                            InspectionTypeCode = m["InspectionTypeCode"].ToString(),
-                                            TemplateNo = m["TemplateNo"].ToString(),
-                                            TemplateName = m["TemplateName"].ToString(),
-                                            StatusOption = m["StatusOption"].ToString(),
-                                            SummarySampleText = GF.GetString(m["SummarySampleText"]),
-                                            IsRemark1Required = Convert.ToBoolean(m["VersionIsRemark1Required"]),
-                                            Remark1Text = GF.GetString(m["VersionRemark1Text"]),
-                                            IsRemark2Required = Convert.ToBoolean(m["VersionIsRemark2Required"]),
-                                            Remark2Text = GF.GetString(m["VersionRemark2Text"]),
-                                            RemarkRequiredOptions = String.IsNullOrWhiteSpace(GF.GetString(m["VersionRemarkRequiredOptions"])) ? new string[0] : GF.GetString(m["VersionRemarkRequiredOptions"]).Split(';'),
-                                            sections = sections
-                                        };
-                                    }
-                                DataTable photoTable = br.EQueryP(@"
+object approvalTemplateSnapshot = null;
+                DataTable meta = br.EQueryP(@"
+SELECT T.IDTemplate, T.TemplateNo, T.TemplateName, T.SectionID, T.InspectionTypeCode,
+   V.IDVersion, V.Version, V.StatusOption, ISNULL(V.SummarySampleText,'') SummarySampleText, V.IsRemark1Required VersionIsRemark1Required, V.Remark1Text VersionRemark1Text, V.IsRemark2Required VersionIsRemark2Required, V.Remark2Text VersionRemark2Text, V.RemarkRequiredOptions VersionRemarkRequiredOptions
+FROM dbo.PIP_M_CheckListWOPM T
+JOIN dbo.PIP_M_CheckListWOPM_Version V ON V.IDTemplate=T.IDTemplate
+WHERE T.IDTemplate=@IDTemplate AND V.IDVersion=@IDVersion AND ISNULL(T.TemplateType,'W')='I'",
+                    new SqlParameter[] {
+                        new SqlParameter("@IDTemplate", Convert.ToInt32(header.Rows[0]["IDTemplate"])),
+                        new SqlParameter("@IDVersion", Convert.ToInt32(header.Rows[0]["IDVersion"]))
+                    });
+                if (meta.Rows.Count > 0)
+                {
+                    DataRow m = meta.Rows[0];
+                    DataTable templateItems = br.EQueryP(@"
+SELECT S.IDSection, S.SectionName, S.DisplayOrder AS SectionOrder,
+   I.IDItem, I.IDSubSection, ISNULL(SS.SubSectionName,'') AS SubSectionName,
+   ISNULL(SS.DisplayOrder,0) AS SubSectionOrder,
+   I.ItemLabel, I.ItemType, ISNULL(I.OptionList,'') OptionList,
+   I.MinValue, I.MaxValue, ISNULL(I.Unit,'') Unit, I.IsValueRequired,
+   I.IsRemark1Required, I.IsRemark2Required, I.IsRemark1Mandatory, I.IsRemark2Mandatory, I.Remark1Text, I.Remark2Text, I.IsUseDefaultRemark1, I.IsUseDefaultRemark2, ISNULL(I.RemarkRequiredOptions,'') RemarkRequiredOptions, I.DisplayOrder AS ItemOrder, V.StatusOption,
+   I.ModelCode, I.MinTolerance, I.MaxTolerance, I.IsToleranceRequired
+FROM dbo.PIP_M_CheckListWOPM_Section S
+JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDSection=S.IDSection
+LEFT JOIN dbo.PIP_M_CheckListWOPM_SubSection SS ON SS.IDSubSection=I.IDSubSection
+JOIN dbo.PIP_M_CheckListWOPM_Version V ON V.IDVersion=S.IDVersion
+WHERE V.IDVersion=@IDVersion
+ORDER BY S.DisplayOrder,
+     CASE WHEN ISNULL(I.IDSubSection,0)=0 THEN I.DisplayOrder ELSE SS.DisplayOrder END,
+     I.DisplayOrder",
+                        new SqlParameter[] { new SqlParameter("@IDVersion", Convert.ToInt32(header.Rows[0]["IDVersion"])) });
+                    DataTable templateGroups = br.EQueryP(@"
+SELECT G.IDItem, G.GroupName, G.FieldList, G.Unit, G.DisplayOrder
+FROM dbo.PIP_M_CheckListWOPM_ItemGroup G
+JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDItem=G.IDItem
+JOIN dbo.PIP_M_CheckListWOPM_Section S ON S.IDSection=I.IDSection
+WHERE S.IDVersion=@IDVersion
+ORDER BY G.DisplayOrder",
+                        new SqlParameter[] { new SqlParameter("@IDVersion", Convert.ToInt32(header.Rows[0]["IDVersion"])) });
+
+                    var sections = templateItems.AsEnumerable()
+                        .GroupBy(row => new {
+                            IDSection = Convert.ToInt32(row["IDSection"]),
+                            SectionName = row["SectionName"].ToString(),
+                            SectionOrder = Convert.ToInt32(row["SectionOrder"])
+                        })
+                        .OrderBy(group => group.Key.SectionOrder)
+                        .Select(group => new {
+                            idSection = group.Key.IDSection,
+                            sectionName = group.Key.SectionName,
+                            items = group.Select(itemRow => {
+                                string itemType = itemRow["ItemType"].ToString();
+                                string optionList = itemType == "OPTION"
+                                    ? (String.IsNullOrEmpty(itemRow["OptionList"].ToString())
+                                        ? itemRow["StatusOption"].ToString() : itemRow["OptionList"].ToString())
+                                    : "";
+                                var itemGroups = templateGroups.AsEnumerable()
+                                    .Where(g => g["IDItem"].ToString() == itemRow["IDItem"].ToString())
+                                    .OrderBy(g => g["DisplayOrder"])
+                                    .Select(g => new {
+                                        groupName = g["GroupName"].ToString(),
+                                        fieldList = g["FieldList"].ToString(),
+                                        unit = g["Unit"].ToString()
+                                    }).ToList();
+                                return new {
+                                    idItem = Convert.ToInt32(itemRow["IDItem"]),
+                                    idSubSection = itemRow["IDSubSection"] == DBNull.Value ? 0 : Convert.ToInt32(itemRow["IDSubSection"]),
+                                    subSectionName = itemRow["SubSectionName"] == DBNull.Value ? "" : itemRow["SubSectionName"].ToString(),
+                                    subSectionOrder = itemRow["SubSectionOrder"] == DBNull.Value ? 0 : Convert.ToInt32(itemRow["SubSectionOrder"]),
+                                    itemOrder = itemRow["ItemOrder"] == DBNull.Value ? 0 : Convert.ToInt32(itemRow["ItemOrder"]),
+                                    label = itemRow["ItemLabel"].ToString(),
+                                    type = itemType,
+                                    optionList = optionList,
+                                    min = itemRow["MinValue"] == DBNull.Value ? (decimal?)null : Convert.ToDecimal(itemRow["MinValue"]),
+                                    max = itemRow["MaxValue"] == DBNull.Value ? (decimal?)null : Convert.ToDecimal(itemRow["MaxValue"]),
+                                    unit = itemRow["Unit"].ToString(),
+                                    isValueRequired = Convert.ToBoolean(itemRow["IsValueRequired"]),
+                                    versionIsRemark1Required = Convert.ToBoolean(m["VersionIsRemark1Required"]),
+                                    versionIsRemark2Required = Convert.ToBoolean(m["VersionIsRemark2Required"]),
+                                    versionRemark1Text = GF.GetString(m["VersionRemark1Text"]),
+                                    versionRemark2Text = GF.GetString(m["VersionRemark2Text"]),
+                                    isRemark1Required = Convert.ToBoolean(m["VersionIsRemark1Required"]) && (Convert.ToBoolean(itemRow["IsUseDefaultRemark1"]) || Convert.ToBoolean(itemRow["IsRemark1Required"])),
+                                    isRemark2Required = Convert.ToBoolean(m["VersionIsRemark2Required"]) && (Convert.ToBoolean(itemRow["IsUseDefaultRemark2"]) || Convert.ToBoolean(itemRow["IsRemark2Required"])),
+                                    isRemark1Mandatory = Convert.ToBoolean(itemRow["IsRemark1Mandatory"]),
+                                    isRemark2Mandatory = Convert.ToBoolean(itemRow["IsRemark2Mandatory"]),
+                                    remark1Text = Convert.ToBoolean(itemRow["IsUseDefaultRemark1"]) ? GF.GetString(m["VersionRemark1Text"]) : (itemRow["Remark1Text"] == DBNull.Value ? "Remark" : itemRow["Remark1Text"].ToString()),
+                                    remark2Text = Convert.ToBoolean(itemRow["IsUseDefaultRemark2"]) ? GF.GetString(m["VersionRemark2Text"]) : (itemRow["Remark2Text"] == DBNull.Value ? "Remark" : itemRow["Remark2Text"].ToString()),
+                                    remarkRequiredOptions = !(Convert.ToBoolean(m["VersionIsRemark1Required"]) || Convert.ToBoolean(m["VersionIsRemark2Required"])) ? new string[0] : (String.IsNullOrWhiteSpace(GF.GetString(m["VersionRemarkRequiredOptions"])) ? new string[0] : GF.GetString(m["VersionRemarkRequiredOptions"]).Split(';')),
+                                    isToleranceRequired = itemRow["IsToleranceRequired"] != DBNull.Value && Convert.ToBoolean(itemRow["IsToleranceRequired"]),
+                                    mintol = itemRow["MinTolerance"] == DBNull.Value ? (decimal?)null : Convert.ToDecimal(itemRow["MinTolerance"]),
+                                    maxtol = itemRow["MaxTolerance"] == DBNull.Value ? (decimal?)null : Convert.ToDecimal(itemRow["MaxTolerance"]),
+                                    modelcode = itemRow["ModelCode"] == DBNull.Value ? "" : itemRow["ModelCode"].ToString(),
+                                    groups = itemGroups.Count > 0 ? itemGroups : null
+                                };
+                            }).ToList()
+                        }).ToList();
+                    approvalTemplateSnapshot = new {
+                        IDTemplate = Convert.ToInt32(m["IDTemplate"]),
+                        IDVersion = Convert.ToInt32(m["IDVersion"]),
+                        Version = m["Version"].ToString(),
+                        SectionID = m["SectionID"].ToString(),
+                        TemplateType = "I",
+                        InspectionTypeCode = m["InspectionTypeCode"].ToString(),
+                        TemplateNo = m["TemplateNo"].ToString(),
+                        TemplateName = m["TemplateName"].ToString(),
+                        StatusOption = m["StatusOption"].ToString(),
+                        SummarySampleText = GF.GetString(m["SummarySampleText"]),
+                        IsRemark1Required = Convert.ToBoolean(m["VersionIsRemark1Required"]),
+                        Remark1Text = GF.GetString(m["VersionRemark1Text"]),
+                        IsRemark2Required = Convert.ToBoolean(m["VersionIsRemark2Required"]),
+                        Remark2Text = GF.GetString(m["VersionRemark2Text"]),
+                        RemarkRequiredOptions = String.IsNullOrWhiteSpace(GF.GetString(m["VersionRemarkRequiredOptions"])) ? new string[0] : GF.GetString(m["VersionRemarkRequiredOptions"]).Split(';'),
+                        sections = sections
+                    };
+                }
+                DataTable photoTable = br.EQueryP(@"
 SELECT P.PhotoType, P.FileName, P.FileType, P.SeqNo
 FROM dbo.PIP_T_InspectionPhoto P
 WHERE P.InspectionID=@InspectionID
