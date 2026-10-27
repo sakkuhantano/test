@@ -727,7 +727,9 @@ WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID
             SqlParameter[] filterOptionParameters = new SqlParameter[] {
                 new SqlParameter("@EmployeeID", employeeId),
                 new SqlParameter("@CompanyID", companyId),
-                new SqlParameter("@LocationID", locationId)
+                new SqlParameter("@LocationID", locationId),
+                new SqlParameter("@DateFrom", fromDate),
+                new SqlParameter("@DateThru", thruDate)
             };
 
             using (var br = new WAL.BR.CF())
