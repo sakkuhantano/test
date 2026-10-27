@@ -7,8 +7,10 @@
     .inspection-filter-control { flex: 1 1 145px; min-width: 125px; }
     .inspection-date-control { flex: 0 1 135px; min-width: 120px; }
     .inspection-approval-tabs { flex: 0 0 auto; white-space: nowrap; }
-    #inspectionSubmittedFilters:not(.d-none) { display: flex !important; }
-    #inspectionSubmittedFilters .inspection-date-control { flex: 0 1 145px; min-width: 120px; }
+    .inspection-record-tabbar { flex-wrap: nowrap !important; justify-content: flex-start !important; overflow-x: auto; overflow-y: hidden; }
+    #inspectionRecordTabs { flex: 0 0 auto; white-space: nowrap; }
+    #inspectionSubmittedFilters:not(.d-none) { display: flex !important; flex: 0 0 auto; flex-wrap: nowrap !important; margin-left: .5rem; white-space: nowrap; }
+    #inspectionSubmittedFilters .inspection-date-control { flex: 0 0 135px; min-width: 135px; }
     #inspectionApprovalDateFilters:not(.d-none) { display: flex !important; }
     #inspectionScrollTools { position: fixed; right: 1rem; bottom: 1.25rem; z-index: 2070; display: flex; flex-direction: column; gap: .5rem; }
     #inspectionScrollTools .btn { width: 42px; height: 42px; border-radius: 50%; opacity: .72; box-shadow: 0 .2rem .6rem rgba(0,0,0,.18); }
@@ -78,8 +80,8 @@
             min-width: 0;
         }
         .inspection-approval-tabs { flex: 0 0 auto; }
-        #inspectionSubmittedFilters { flex: 1 1 100%; }
-        #inspectionSubmittedFilters .inspection-date-control { flex: 1 1 120px; min-width: 0; }
+        #inspectionSubmittedFilters { flex: 0 0 auto !important; }
+        #inspectionSubmittedFilters .inspection-date-control { flex: 0 0 115px; min-width: 115px; }
         #inspectionApprovalBatchActions { flex: 1 1 100%; }
         #inspectionApprovalBatchActions .btn { flex: 1 1 auto; }
         .inspection-photo-panel .d-flex.align-items-center.justify-content-between {
@@ -133,7 +135,6 @@
             </div>
             <button type="button" id="btnRefreshInspectionApproval" class="btn btn-sm btn-outline-primary">Refresh</button>
         </div>
-        <div id="inspectionApprovalNotice" class="alert alert-info py-2 small">Memuat antrean approval...</div>
         <div id="inspectionApprovalListView">
             <div class="inspection-approval-toolbar mb-3">
                 <div class="d-flex flex-wrap align-items-end gap-2 mb-3">
@@ -168,9 +169,9 @@
                 </li>
             </ul>
             <div id="inspectionApprovalBatchActions" class="d-flex flex-wrap align-items-center gap-1">
-                <button type="button" id="btnApprovalSelectAll" class="btn btn-sm btn-outline-secondary" title="Select all filtered" aria-label="Select all filtered">Select</button>
-                <button type="button" id="btnBatchApproveInspection" class="btn btn-sm btn-success" title="Approve selected" aria-label="Approve selected">Approve</button>
-                <button type="button" id="btnBatchVoidInspection" class="btn btn-sm btn-outline-danger" title="Void selected" aria-label="Void selected">Void</button>
+                <button type="button" id="btnApprovalSelectAll" class="btn btn-sm btn-outline-secondary" title="Select all filtered inspections" aria-label="Select all filtered inspections">Select All</button>
+                <button type="button" id="btnBatchApproveInspection" class="btn btn-sm btn-success" title="Approve all selected inspections" aria-label="Approve all selected inspections">Approve All</button>
+                <button type="button" id="btnBatchVoidInspection" class="btn btn-sm btn-outline-danger" title="Void all selected inspections" aria-label="Void all selected inspections">Void All</button>
             </div>
                 </div>
             </div>
@@ -205,7 +206,7 @@
             <div class="tab-pane fade" id="inspectionApprovalChecklistPane"><div id="inspectionApprovalDetail" class="small"></div></div>
         </div>
         <div class="mt-4 border-top pt-3" id="inspectionApprovalRemarkPanel">
-            <label for="txtInspectionApprovalRemark" class="form-label fw-semibold">Approval Remark (optional)</label>
+            <label for="txtInspectionApprovalRemark" class="form-label fw-semibold">Supervisor Remark (optional)</label>
             <textarea id="txtInspectionApprovalRemark" class="form-control" rows="3" maxlength="500" placeholder="Catatan supervisor..."></textarea>
         </div>
         <div class="d-flex flex-wrap justify-content-end gap-2 mt-3">
