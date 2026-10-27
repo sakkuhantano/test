@@ -368,3 +368,21 @@
     overflow-y:auto;
     min-height:0;
 }
+
+/* Dark theme: template lookup modal and panels */
+[data-bs-theme="dark"] body { background-color:#0f1115; color:#e9ecef; }
+[data-bs-theme="dark"] .custom-modal-content,
+[data-bs-theme="dark"] .modal-header,
+[data-bs-theme="dark"] .modal-body,
+[data-bs-theme="dark"] .left-panel,
+[data-bs-theme="dark"] .search-section,
+[data-bs-theme="dark"] .template-list,
+[data-bs-theme="dark"] .template-item { background-color:#1a1d23; color:#e9ecef; border-color:#343a40; }
+[data-bs-theme="dark"] .modal-title-custom { color:#e9ecef; }
+[data-bs-theme="dark"] .filter-btn { background:#22262c; color:#e9ecef; border-color:#444b54; }
+[data-bs-theme="dark"] .list-header { color:#adb5bd; }
+[data-bs-theme="dark"] .template-item:hover,
+[data-bs-theme="dark"] .template-item.active { background-color:#222e3b; border-color:#34516b; color:#e9ecef; }
+[data-bs-theme="dark"] .search-input-group { border-color:#444b54; }
+[data-bs-theme="dark"] .search-input-group input,
+[data-bs-theme="dark"] .search-input-group .input-group-text { background-color:#22262c; color:#e9ecef; }
