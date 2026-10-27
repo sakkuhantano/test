@@ -27,6 +27,14 @@
 .dashboard-info {
     min-width: 0;
 }
+.dashboard-content {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+.dashboard-card {
+    min-width: 0;
+    width: 100%;
+}
 .dashboard-title {
     font-size: 11px;
     color: var(--bs-secondary-color);
