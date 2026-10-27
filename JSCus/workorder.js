@@ -2144,12 +2144,25 @@ async function initWorkOrderPage() {
     return new Promise((resolve, reject) => {
         let request = store.getAll();
     request.onsuccess = function () {
-        allWorkOrders = request.result;
+        // Scope local IndexedDB Work Orders to the logged-in user's exact section(s)
+        // before calculating counters, so records cached for ENG cannot appear for HK.
+        const loginData = getLoginData() || {};
+        const rawSections = loginData.section;
+        const allowedSections = new Set(
+            (Array.isArray(rawSections) ? rawSections : String(rawSections || "").split(";"))
+                .map(section => String(section).trim())
+                .filter(Boolean)
+        );
+
+        allWorkOrders = (request.result || []).filter(wo =>
+            allowedSections.has(String(wo.SectionID == null ? "" : wo.SectionID).trim())
+        );
+
         updateTabCounters();
         defaultTab =
             document.querySelector('.tab-btn[data-status="PENDING"]');
         filterTab(defaultTab);
-        resolve(request.result);
+        resolve(allWorkOrders);
 		};
     request.onerror = function () {
         reject(request.error);
