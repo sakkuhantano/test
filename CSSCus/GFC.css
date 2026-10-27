@@ -116,3 +116,6 @@ body {
 }
 
 
+
+
+[data-bs-theme="dark"] ::-webkit-scrollbar-track { background:#15181d; }
