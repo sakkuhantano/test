@@ -2141,25 +2141,21 @@ async function loadInspectionApprovalDetail(inspectionId) {
         };
         const beforePhotoHtml = renderApprovalPhotoStage("BEFORE");
         const afterPhotoHtml = renderApprovalPhotoStage("AFTER");
-        const templateCandidates = inspectionTemplates.filter(x =>
+        // SPV approval is online: prefer the exact server-side snapshot for this inspection's IDTemplate + IDVersion.
+        // IndexedDB is only a fallback for older server responses; approval must never use a flat text-only renderer.
+        const cachedTemplateCandidates = inspectionTemplates.filter(x =>
             Number(x.IDTemplate) === Number(h.IDTemplate) &&
             Array.isArray(x.sections) && x.sections.length
         );
-        const template = templateCandidates.find(x =>
+        const cachedTemplate = cachedTemplateCandidates.find(x =>
             Number(x.IDVersion || x.VersionID || (x.VersionInfo && x.VersionInfo.IDVersion)) === Number(h.IDVersion)
-        ) || templateCandidates.find(x =>
+        ) || cachedTemplateCandidates.find(x =>
             Number(x.Version || x.TemplateVersion) === Number(h.TemplateVersion)
-        ) || templateCandidates[0] || null;
-        const checklistHtml = template
+        ) || null;
+        const template = result.template || result.TemplateSnapshot || cachedTemplate || null;
+        const checklistHtml = template && Array.isArray(template.sections) && template.sections.length
             ? renderInspectionSections(template, items, true, "inspectionApprovalSection")
-            : (items.length ? items.map(item =>
-                '<div class="border rounded p-3 mb-3"><div class="fw-semibold mb-2">' + escInspection(item.ItemLabel || ("Item " + item.IDItem)) +
-                (item.IsAnomali ? ' <span class="badge text-bg-danger">Anomali</span>' : '') + '</div>' +
-                '<div><strong>Hasil:</strong> ' + escInspection(item.Value || "-") + '</div>' +
-                Object.keys(item.Values || {}).map(field => '<div><strong>' + escInspection(field) + ':</strong> ' + escInspection(item.Values[field] || "-") + '</div>').join("") +
-                '<div class="small text-muted mt-1"><strong>Remark 1:</strong> ' + escInspection(item.Remark1 || item.Remark || "-") + '</div>' +
-                (item.Remark2 ? '<div class="small text-muted"><strong>Remark 2:</strong> ' + escInspection(item.Remark2) + '</div>' : '') + '</div>'
-            ).join("") : '<div class="text-muted">Tidak ada hasil checklist.</div>');
+            : '<div class="alert alert-danger small">Struktur checklist untuk template versi ini tidak ditemukan di server. Checklist tidak ditampilkan dalam format cadangan agar hasil approval tidak salah format. Muat ulang detail atau hubungi administrator.</div>';
         const followUpValue = String(h.FollowUp || "No Follow Up");
         const sectionIcons = { ACON: "bi-fan", COMM: "bi-broadcast", MECH: "bi-gear", ELEC: "bi-lightning-charge", CIVIL: "bi-building", PFIT: "bi-hammer", PHKP: "bi-brush", PSEC: "bi-shield-check" };
         const sectionLabels = { ACON: "Air Cond.", COMM: "Comm.", MECH: "Mechanical", ELEC: "Electrical", CIVIL: "Civil", PFIT: "Fit Out", PHKP: "Housekeeping", PSEC: "Security" };
