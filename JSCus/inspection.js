@@ -2057,14 +2057,16 @@ async function loadInspectionApprovalDetail(inspectionId) {
             '<div><strong>Follow Up:</strong> ' + escInspection(h.FollowUp || "No Follow Up") + '</div>' +
             (h.FollowUp === "Recommend Follow Up" ? '<div><strong>Responsible Section:</strong> ' + escInspection(h.FollowUpSection || "-") + '</div><div><strong>WO Description:</strong> ' + escInspection(h.FollowUpRemark || "-") + '</div>' : '') +
             '</div></div></div>';
-        const photoHtml = ["BEFORE", "AFTER"].map(type => {
+        const renderApprovalPhotoStage = type => {
             const stagePhotos = photos.filter(photo => String(photo.Type || "").toUpperCase() === type);
             if (!stagePhotos.length) return '<div class="inspection-muted mb-3">Foto ' + type + ' belum tersedia.</div>';
             return '<div class="border rounded p-3 mb-3"><div class="fw-semibold mb-2">FIELD DOCUMENTATION ' + type + '</div><div class="d-flex flex-wrap gap-2">' +
                 stagePhotos.map(photo => '<a href="' + escInspection(photo.Data || "#") + '" target="_blank" rel="noopener"><img src="' +
                     escInspection(photo.Data || "") + '" alt="Inspection ' + type + '" style="width:112px;height:112px;object-fit:cover" class="border rounded"></a>').join("") +
                 '</div></div>';
-        }).join("");
+        };
+        const beforePhotoHtml = renderApprovalPhotoStage("BEFORE");
+        const afterPhotoHtml = renderApprovalPhotoStage("AFTER");
         const template = inspectionTemplates.find(x =>
             Number(x.IDTemplate) === Number(h.IDTemplate) &&
             Number(x.IDVersion) === Number(h.IDVersion)
@@ -2079,7 +2081,7 @@ async function loadInspectionApprovalDetail(inspectionId) {
                 '<div class="small text-muted mt-1"><strong>Remark 1:</strong> ' + escInspection(item.Remark1 || item.Remark || "-") + '</div>' +
                 (item.Remark2 ? '<div class="small text-muted"><strong>Remark 2:</strong> ' + escInspection(item.Remark2) + '</div>' : '') + '</div>'
             ).join("") : '<div class="text-muted">Tidak ada hasil checklist.</div>');
-        checklistHost.innerHTML = photoHtml + checklistHtml;
+        checklistHost.innerHTML = beforePhotoHtml + checklistHtml + afterPhotoHtml;
         document.getElementById("btnApproveInspection").disabled = isApproved;
         document.getElementById("btnVoidInspection").disabled = isApproved;
     } catch (err) {
