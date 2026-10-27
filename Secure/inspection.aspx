@@ -126,7 +126,7 @@
 <div class="container-fluid px-2 px-md-3 pb-4">
     <div id="inspectionApprovalPanel" class="inspection-card p-3 mb-3 d-none">
         <div id="inspectionApprovalListView">
-        <div class="d-flex justify-content-between align-items-center mb-3">
+        <div id="inspectionApprovalListHeader" class="d-flex justify-content-between align-items-center mb-3">
             <div>
                 <div class="text-uppercase text-primary fw-bold inspection-muted">Supervisor</div>
                 <h5 class="mb-0">Inspection Approval</h5>
