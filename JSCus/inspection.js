@@ -173,6 +173,23 @@ function wireInspectionEvents() {
         showInspectionNotice(count + " inspeksi mengalami konflik saat sync. Buka daftar inspeksi untuk melihat alasan dan pilih Delete Local Transaction bila record lokal memang harus dibuang.", "warning");
     });
     document.getElementById("inspectionChecklistHost").addEventListener("input", function () { scheduleInspectionAutosave(); updateInspectionChecklistGate(); });
+    document.getElementById("inspectionFollowUpPanel").addEventListener("change", function (event) {
+        if (event.target.matches('input[name="inspectionFollowUp"]')) updateInspectionFollowUpPanel();
+    });
+    document.getElementById("txtInspectionSummary").addEventListener("input", function () {
+        document.getElementById("inspectionSummaryCounter").textContent = this.value.length + " / 500";
+    });
+    document.getElementById("txtInspectionFollowUpRemark").addEventListener("input", function () {
+        document.getElementById("inspectionFollowUpRemarkCounter").textContent = this.value.length + " / 300";
+    });
+    document.getElementById("inspectionApprovalDetail").addEventListener("click", function (event) {
+        const button = event.target.closest("[data-approval-photo-type]");
+        if (!button) return;
+        const type = button.dataset.approvalPhotoType;
+        const index = Number(button.dataset.approvalPhotoIndex);
+        const stagePhotos = (window.currentInspectionApprovalPhotos || []).filter(photo => String(photo.Type || "").toUpperCase() === type);
+        openInspectionPhotoViewerFromData(type, stagePhotos, index);
+    });
     document.getElementById("inspectionChecklistHost").addEventListener("change", function (event) {
         if (event.target && event.target.matches('[data-role="value"][type="radio"]')) updateInspectionRemarkPanels();
         scheduleInspectionAutosave();
@@ -601,6 +618,20 @@ async function renderInspectionForm(record, readOnly) {
         inspectionFollowUpSections.map(section => '<option value="' + escInspection(section.Code) + '">' +
             escInspection(section.Code + " - " + section.Name) + '</option>').join("");
     followUpSection.value = record.FollowUpSection || "";
+    const sectionIcons = { ACON: "bi-fan", COMM: "bi-broadcast", MECH: "bi-gear", ELEC: "bi-lightning-charge", CIVIL: "bi-building", PFIT: "bi-hammer", PHKP: "bi-brush", PSEC: "bi-shield-check" };
+    const sectionGroup = document.getElementById("inspectionFollowUpSectionGroup");
+    if (sectionGroup) {
+        sectionGroup.innerHTML = inspectionFollowUpSections.map(section =>
+            '<input type="radio" class="btn-check" name="inspectionFollowUpSectionChoice" id="inspectionFollowUpSection_' + escInspection(section.Code) + '" value="' + escInspection(section.Code) + '"' +
+            (String(record.FollowUpSection || "") === section.Code ? ' checked' : '') + (currentInspectionReadOnly ? ' disabled' : '') + '>' +
+            '<label class="btn btn-outline-primary rounded-3 inspection-followup-section-btn" for="inspectionFollowUpSection_' + escInspection(section.Code) + '">' +
+            '<i class="bi ' + sectionIcons[section.Code] + '"></i><div class="fw-semibold">' + escInspection(section.Code) + '</div><small class="text-muted">' + escInspection(section.Name) + '</small></label>'
+        ).join("");
+        sectionGroup.querySelectorAll('input[name="inspectionFollowUpSectionChoice"]').forEach(radio => radio.addEventListener("change", () => {
+            followUpSection.value = radio.value;
+            scheduleInspectionAutosave();
+        }));
+    }
     document.getElementById("txtInspectionFollowUpRemark").value = record.FollowUpRemark || "";
     document.querySelectorAll('input[name="inspectionFollowUp"]').forEach(input => input.disabled = currentInspectionReadOnly);
     followUpSection.disabled = currentInspectionReadOnly;
@@ -629,6 +660,10 @@ async function renderInspectionForm(record, readOnly) {
         record.Status === "DONE" ? "Selesai offline; menunggu sync." :
         "Draft tersimpan otomatis di perangkat.";
     updateInspectionRemarkPanels();
+    const summaryCounter = document.getElementById("inspectionSummaryCounter");
+    if (summaryCounter) summaryCounter.textContent = String((record.Summary || "").length) + " / 500";
+    const followUpCounter = document.getElementById("inspectionFollowUpRemarkCounter");
+    if (followUpCounter) followUpCounter.textContent = String((record.FollowUpRemark || "").length) + " / 300";
     await renderInspectionPhotos();
     await updateInspectionChecklistGate();
 }
@@ -639,6 +674,7 @@ function updateInspectionFollowUpPanel() {
     document.getElementById("inspectionFollowUpDetails").classList.toggle("d-none", !recommend);
     if (!recommend) {
         document.getElementById("inspectionFollowUpSection").value = "";
+        document.querySelectorAll('input[name="inspectionFollowUpSectionChoice"]').forEach(radio => radio.checked = false);
         document.getElementById("txtInspectionFollowUpRemark").value = "";
     }
 }
@@ -1455,6 +1491,11 @@ async function openInspectionPhotoViewer(type, photoId) {
     const photos = allPhotos.filter(photo => photo.Type === type);
     const index = photos.findIndex(photo => String(photo.ID) === String(photoId));
     if (index < 0) return;
+    openInspectionPhotoViewerFromData(type, photos, index);
+}
+
+function openInspectionPhotoViewerFromData(type, photos, index) {
+    if ((type !== "BEFORE" && type !== "AFTER") || !Array.isArray(photos) || index < 0 || index >= photos.length) return;
     inspectionPhotoViewerState.type = type;
     inspectionPhotoViewerState.photos = photos;
     inspectionPhotoViewerState.index = index;
@@ -1471,9 +1512,9 @@ function renderInspectionPhotoViewerCurrent() {
     const photo = state.photos[state.index];
     if (!photo) return closeInspectionPhotoViewer();
     if (state.objectUrl) URL.revokeObjectURL(state.objectUrl);
-    state.objectUrl = URL.createObjectURL(photo.Blob);
+    state.objectUrl = photo.Blob ? URL.createObjectURL(photo.Blob) : null;
     const image = document.getElementById("inspectionPhotoViewerImage");
-    image.src = state.objectUrl;
+    image.src = state.objectUrl || photo.Data || "";
     image.alt = "Foto " + state.type + " " + (state.index + 1);
     document.getElementById("inspectionPhotoViewerTitle").textContent = "FIELD DOCUMENTATION " + state.type;
     document.getElementById("inspectionPhotoViewerCount").textContent = (state.index + 1) + " / " + state.photos.length;
@@ -2035,6 +2076,7 @@ async function loadInspectionApprovalDetail(inspectionId) {
         document.getElementById("btnVoidInspection").classList.toggle("d-none", isApproved);
         const items = result.items || [];
         const photos = result.photos || [];
+        window.currentInspectionApprovalPhotos = photos;
         const start = formatInspectionClock(h.StartDateTime);
         const end = formatInspectionClock(h.EndDateTime);
         document.getElementById("inspectionApprovalDetailSubtitle").textContent =
@@ -2051,18 +2093,15 @@ async function loadInspectionApprovalDetail(inspectionId) {
             '<div><strong>Start – End:</strong> ' + escInspection(start) + ' – ' + escInspection(end) + '</div>' +
             '<div><strong>Technician:</strong> ' + escInspection(h.TechnicianName || h.OwnerEmployeeName || h.OwnerEmployeeID || "-") + '</div>' +
             '<div><strong>Section:</strong> ' + escInspection(h.SectionID || "-") + '</div></div></div>' +
-            '<div class="col-12 col-md-6"><div class="border rounded p-3 h-100"><div class="fw-semibold mb-2">Summary & Follow Up</div>' +
+            '<div class="col-12 col-md-6"><div class="border rounded p-3 h-100"><div class="fw-semibold mb-2">Inspection Template</div>' +
             '<div><strong>Template:</strong> ' + escInspection(h.TemplateNo || "-") + ' / v' + escInspection(h.TemplateVersion || "-") + '</div>' +
-            '<div><strong>Summary:</strong> ' + escInspection(h.Summary || "-") + '</div>' +
-            '<div><strong>Follow Up:</strong> ' + escInspection(h.FollowUp || "No Follow Up") + '</div>' +
-            (h.FollowUp === "Recommend Follow Up" ? '<div><strong>Responsible Section:</strong> ' + escInspection(h.FollowUpSection || "-") + '</div><div><strong>WO Description:</strong> ' + escInspection(h.FollowUpRemark || "-") + '</div>' : '') +
             '</div></div></div>';
         const renderApprovalPhotoStage = type => {
             const stagePhotos = photos.filter(photo => String(photo.Type || "").toUpperCase() === type);
             if (!stagePhotos.length) return '<div class="inspection-muted mb-3">Foto ' + type + ' belum tersedia.</div>';
-            return '<div class="border rounded p-3 mb-3"><div class="fw-semibold mb-2">FIELD DOCUMENTATION ' + type + '</div><div class="d-flex flex-wrap gap-2">' +
-                stagePhotos.map(photo => '<a href="' + escInspection(photo.Data || "#") + '" target="_blank" rel="noopener"><img src="' +
-                    escInspection(photo.Data || "") + '" alt="Inspection ' + type + '" style="width:112px;height:112px;object-fit:cover" class="border rounded"></a>').join("") +
+            return '<div class="inspection-photo-panel mb-3"><div class="fw-bold mb-2"><i class="bi bi-camera-fill me-2"></i>FIELD DOCUMENTATION ' + type + '</div><div class="d-flex flex-wrap gap-2">' +
+                stagePhotos.map((photo, index) => '<button type="button" class="inspection-photo-item inspection-approval-photo-item" data-approval-photo-type="' + type + '" data-approval-photo-index="' + index + '" aria-label="Preview foto ' + type + ' ' + (index + 1) + '"><img src="' +
+                    escInspection(photo.Data || "") + '" alt="Inspection ' + type + '" loading="lazy"></button>').join("") +
                 '</div></div>';
         };
         const beforePhotoHtml = renderApprovalPhotoStage("BEFORE");
@@ -2081,7 +2120,26 @@ async function loadInspectionApprovalDetail(inspectionId) {
                 '<div class="small text-muted mt-1"><strong>Remark 1:</strong> ' + escInspection(item.Remark1 || item.Remark || "-") + '</div>' +
                 (item.Remark2 ? '<div class="small text-muted"><strong>Remark 2:</strong> ' + escInspection(item.Remark2) + '</div>' : '') + '</div>'
             ).join("") : '<div class="text-muted">Tidak ada hasil checklist.</div>');
-        checklistHost.innerHTML = beforePhotoHtml + checklistHtml + afterPhotoHtml;
+        const followUpValue = String(h.FollowUp || "No Follow Up");
+        const sectionIcons = { ACON: "bi-fan", COMM: "bi-broadcast", MECH: "bi-gear", ELEC: "bi-lightning-charge", CIVIL: "bi-building", PFIT: "bi-hammer", PHKP: "bi-brush", PSEC: "bi-shield-check" };
+        const sectionLabels = { ACON: "Air Cond.", COMM: "Comm.", MECH: "Mechanical", ELEC: "Electrical", CIVIL: "Civil", PFIT: "Fit Out", PHKP: "Housekeeping", PSEC: "Security" };
+        const followUpHtml = '<div class="accordion-item border-warning shadow-sm mt-3" id="inspectionApprovalFollowUpPanel">' +
+            '<div class="accordion-header"><div class="accordion-button bg-warning-subtle text-dark fw-bold"><i class="bi bi-lightbulb-fill fs-5 me-2 text-warning"></i><div class="d-flex flex-column"><span>FOLLOW UP WORK ORDER RECOMMENDATION</span><small class="text-muted fw-normal">Tentukan apakah diperlukan Work Order lanjutan.</small></div></div></div>' +
+            '<div class="accordion-body p-3"><div class="alert alert-warning py-2 px-3 mb-3 small"><i class="bi bi-info-circle-fill me-1"></i>Bila ditemukan kerusakan yang memerlukan pekerjaan lanjutan, pilih <strong>Recommend Follow Up</strong>, kemudian tentukan section yang bertanggung jawab dan isi WO Remark.</div>' +
+            '<div class="mb-3"><div class="btn-group w-100 shadow-sm" role="group"><input class="btn-check" type="radio" disabled ' + (followUpValue !== "Recommend Follow Up" ? 'checked' : '') + '><label class="btn btn-outline-primary">No Follow Up</label><input class="btn-check" type="radio" disabled ' + (followUpValue === "Recommend Follow Up" ? 'checked' : '') + '><label class="btn btn-outline-primary">Recommend Follow Up</label></div></div>' +
+            '<div class="' + (followUpValue === "Recommend Follow Up" ? '' : 'd-none') + '" id="inspectionApprovalFollowUpDetails">' +
+            '<div class="card border-warning-subtle bg-light mb-3"><div class="card-body"><label class="form-label small fw-semibold mb-2"><i class="bi bi-diagram-3-fill me-1"></i>Responsible Section</label><div class="d-flex flex-wrap gap-2">' +
+            inspectionFollowUpSections.map(section => '<span class="btn btn-outline-primary rounded-3 inspection-followup-section-btn disabled ' + (String(h.FollowUpSection || "") === section.Code ? 'active' : '') + '"><i class="bi ' + sectionIcons[section.Code] + '"></i><span class="fw-semibold">' + escInspection(section.Code) + '</span><small class="text-muted d-block">' + escInspection(sectionLabels[section.Code]) + '</small></span>').join("") +
+            '</div><div class="small mt-2"><strong>Selected:</strong> ' + escInspection(h.FollowUpSection || "-") + '</div></div></div>' +
+            '<div class="card border-warning-subtle bg-light"><div class="card-body"><label class="form-label small fw-semibold mb-2"><i class="bi bi-card-text me-1"></i>Follow Up Work Order Description</label><div class="form-control bg-body-secondary" style="min-height:5rem;white-space:pre-wrap">' + escInspection(h.FollowUpRemark || "-") + '</div><div class="d-flex justify-content-end mt-2"><small class="text-muted">' + String((h.FollowUpRemark || "").length) + ' / 300</small></div></div></div></div></div></div>';
+        const templateSummaryText = template && (template.SummarySampleText || template.summarySampleText || (template.VersionInfo && template.VersionInfo.SummarySampleText)) || "";
+        const summaryHtml = '<div class="accordion-item border-info shadow-sm mt-3" id="inspectionApprovalSummaryPanel"><div class="accordion-header"><div class="accordion-button bg-info-subtle text-dark fw-bold"><i class="bi bi-clipboard2-check-fill fs-5 me-2 text-info"></i><div class="d-flex flex-column"><span>FINAL INSPECTION SUMMARY</span><small class="text-muted fw-normal">Ringkasan hasil inspeksi dan pekerjaan yang telah dilakukan.</small></div></div></div><div class="accordion-body p-3"><div class="alert alert-info py-2 px-3 mb-3 small"><i class="bi bi-info-circle-fill me-1"></i>Jelaskan secara singkat hasil pemeriksaan, tindakan yang dilakukan, serta kondisi akhir unit setelah pekerjaan selesai.</div><textarea class="form-control" rows="5" maxlength="500" disabled placeholder="' + escInspection(templateSummaryText) + '">' + escInspection(h.Summary || "") + '</textarea><div class="d-flex justify-content-between align-items-center mt-2"><small class="text-muted">Maksimum 500 karakter.</small><small class="text-muted">' + String((h.Summary || "").length) + ' / 500</small></div></div></div>';
+        checklistHost.innerHTML = beforePhotoHtml + checklistHtml + afterPhotoHtml + followUpHtml + summaryHtml;
+        checklistHost.querySelectorAll("[data-approval-photo-type]").forEach(button => button.addEventListener("click", () => {
+            const type = button.dataset.approvalPhotoType;
+            const stagePhotos = photos.filter(photo => String(photo.Type || "").toUpperCase() === type);
+            openInspectionPhotoViewerFromData(type, stagePhotos, Number(button.dataset.approvalPhotoIndex));
+        }));
         document.getElementById("btnApproveInspection").disabled = isApproved;
         document.getElementById("btnVoidInspection").disabled = isApproved;
     } catch (err) {
