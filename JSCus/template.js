@@ -3120,7 +3120,7 @@ function renderTemplateVersions(data,container)
             " id="versionNode_${sectionId}_${templateRuntimeID}_${version.RuntimeVersionID}">
             Version
             ${version.Version}
-            ${String(version.Status).trim().toLowerCase() === "active" ? '<span class="version-drag-handle ms-1" title="Drag Active Version onto another Template"><i class="bi bi-grip-vertical"></i><span>DRAG</span></span>' : ""}
+            ${String(version.Status).trim().toLowerCase() === "active" ? '<span class="version-drag-handle ms-1" draggable="true" title="Drag Active Version onto another Template"><i class="bi bi-grip-vertical"></i><span>DRAG</span></span>' : ""}
             <span class="dirty-placeholder"></span>
             </div>
             <div class="
