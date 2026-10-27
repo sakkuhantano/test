@@ -9,6 +9,16 @@ GO
 SET QUOTED_IDENTIFIER ON
 GO
 
+IF COL_LENGTH('dbo.PIP_T_Inspection', 'SyncDate') IS NULL
+    ALTER TABLE dbo.PIP_T_Inspection ADD SyncDate DATETIME NULL;
+GO
+
+/* Historical sync timestamps were not stored; UpdateDate is only an approximation for existing rows. */
+UPDATE dbo.PIP_T_Inspection
+SET SyncDate = UpdateDate
+WHERE SyncDate IS NULL;
+GO
+
 ALTER PROCEDURE dbo.spUTL_PIP_T_Inspection_Sync
 (
     @p_ClientInspectionID VARCHAR(36),
@@ -321,7 +331,7 @@ BEGIN
                 FollowUp=@p_FollowUp, FollowUpSection=ISNULL(@p_FollowUpSection,''), FollowUpRemark=ISNULL(@p_FollowUpRemark,''),
                 IsApprove=0, ApprovedBy='', ApprovedDate=CONVERT(DATETIME,'19000101',112), ApprovalRemark='',
                 ReasonVoid='',
-                UpdateUser=@p_UpdateUser, UpdateDate=GETDATE()
+                UpdateUser=@p_UpdateUser, UpdateDate=GETDATE(), SyncDate=GETDATE()
             WHERE InspectionID=@V_InspectionID;
         END
         ELSE
@@ -354,7 +364,7 @@ BEGIN
                 InspectionTypeDetailName, ScheduledTime, IDTemplate, IDVersion,
                 TemplateNo, TemplateName, TemplateVersion, InspectionDate,
                 StartDateTime, EndDateTime, Status, Summary, FollowUp, FollowUpSection, FollowUpRemark, OwnerEmployeeID,
-                EntryUser, EntryDate, UpdateUser, UpdateDate
+                EntryUser, EntryDate, UpdateUser, UpdateDate, SyncDate
             )
             VALUES
             (
@@ -364,7 +374,7 @@ BEGIN
                 @p_TemplateNo, @V_TemplateName, @p_TemplateVersion, @p_InspectionDate,
                 @p_StartDateTime, @p_EndDateTime, @p_Status, @p_Summary, @p_FollowUp,
                 ISNULL(@p_FollowUpSection,''), ISNULL(@p_FollowUpRemark,''), @p_UpdateUser,
-                @p_UpdateUser, GETDATE(), @p_UpdateUser, GETDATE()
+                @p_UpdateUser, GETDATE(), @p_UpdateUser, GETDATE(), GETDATE()
             );
         END;
 
