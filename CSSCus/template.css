@@ -898,3 +898,40 @@ body {
     border-color: #0d6efd !important;
     box-shadow: 0 0 0 2px rgba(13, 110, 253, .2);
 }
+
+
+/* Context menu must follow the active theme; use !important to override legacy white styles. */
+[data-bs-theme="dark"] .custom-context-menu {
+    background-color: #1a1d23 !important;
+    color: #e9ecef !important;
+    border-color: #454c55 !important;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, .45) !important;
+}
+[data-bs-theme="dark"] .custom-context-menu .context-item {
+    background-color: transparent;
+    color: #e9ecef !important;
+}
+[data-bs-theme="dark"] .custom-context-menu .context-item:hover,
+[data-bs-theme="dark"] .custom-context-menu .context-item:focus {
+    background-color: #2b323b !important;
+    color: #ffffff !important;
+}
+[data-bs-theme="dark"] .custom-context-menu .context-item.text-danger {
+    color: #ff8585 !important;
+}
+
+/* Make native drag behavior explicit on active version rows. */
+.template-version-item.active-version-draggable {
+    cursor: grab;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-user-drag: element;
+    touch-action: pan-y;
+}
+.template-version-item.active-version-draggable:active {
+    cursor: grabbing;
+}
+[data-bs-theme="dark"] .template-root-item.border-primary {
+    border-color: #0d6efd !important;
+    box-shadow: 0 0 0 2px rgba(13, 110, 253, .22);
+}
