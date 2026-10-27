@@ -1086,14 +1086,24 @@ async function refreshSavedInspectionList() {
     inspectionRecords.filter(record => record.Status === "DONE" &&
         record.SyncStatus !== "CONFLICT" && record.SyncStatus !== "DELETE_PENDING" &&
         parseInspectionDate(record.InspectionDate) >= fromDate && parseInspectionDate(record.InspectionDate) <= thruDate)
-        .forEach(record => submittedById.set(record.LocalInspectionID, record));
+        .forEach(record => submittedById.set(record.LocalInspectionID || record.InspectionNo, record));
     serverSubmittedInspectionRecords.forEach(record => {
         const recordDate = parseInspectionDate(record.InspectionDate);
         if (!recordDate || recordDate < fromDate || recordDate > thruDate) return;
-        const key = record.ClientInspectionID || String(record.InspectionID);
-        const local = inspectionRecords.find(item => item.LocalInspectionID === key);
+
+        // Match server rows to local counterparts using stable IDs first, then InspectionNo.
+        const local = inspectionRecords.find(item =>
+            (record.ClientInspectionID && item.LocalInspectionID === record.ClientInspectionID) ||
+            (record.InspectionID != null && item.ServerInspectionID != null &&
+                String(item.ServerInspectionID) === String(record.InspectionID)) ||
+            (record.InspectionNo && item.InspectionNo && item.InspectionNo === record.InspectionNo)
+        );
         if (local && (local.SyncStatus === "CONFLICT" || local.SyncStatus === "DELETE_PENDING")) return;
-        submittedById.set(key, local ? Object.assign({}, record, local, {
+        const key = local
+            ? (local.LocalInspectionID || local.InspectionNo)
+            : (record.ClientInspectionID || (record.InspectionNo ? "NO:" + record.InspectionNo : "ID:" + record.InspectionID));
+        submittedById.set(key, local ? Object.assign({}, local, record, {
+            LocalInspectionID: local.LocalInspectionID,
             InspectionNo: record.InspectionNo || local.InspectionNo || "",
             TechnicianName: record.TechnicianName || local.TechnicianName || ""
         }) : record);
@@ -1624,7 +1634,8 @@ function updateInspectionScrollTools() {
     const modalShown = !!document.querySelector("#inspectionApprovalDetailModal.show");
     tools.classList.toggle("d-none", !canScroll || (modalShown && !modalTarget));
     top.classList.toggle("d-none", scrollTop < 50);
-    bottom.classList.toggle("d-none", scrollTop + clientHeight >= scrollHeight - 50);
+    // Keep the down control in its fixed lower slot; the up control appears above it.
+    bottom.classList.remove("d-none");
 }
 
 function wireInspectionScrollTools() {
