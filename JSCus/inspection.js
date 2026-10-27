@@ -1787,16 +1787,12 @@ async function inspectionApprovalPost(method, args) {
 async function loadInspectionApprovalQueue() {
     showInspectionApprovalQueueView();
     const requestSequence = ++inspectionApprovalLoadSequence;
-    const notice = document.getElementById("inspectionApprovalNotice");
     const host = document.getElementById("inspectionApprovalQueue");
-    if (!notice || !host) return;
-    notice.className = "alert alert-info py-2 small";
-    notice.textContent = "Memuat data approval terbaru dari SQL Server...";
+    if (!host) return;
     host.innerHTML = '<tr><td colspan="8" class="text-muted py-2">Memuat dari server...</td></tr>';
     selectedInspectionApproval = null;
     if (!navigator.onLine) {
-        notice.className = "alert alert-warning py-2 small";
-        notice.textContent = "Approval Supervisor memerlukan koneksi ke server. Mode approval offline belum didukung.";
+        showToast("Approval Supervisor memerlukan koneksi ke server. Mode approval offline belum didukung.", "warning");
         host.innerHTML = '<tr><td colspan="8" class="text-muted py-2">Hubungkan internet lalu tekan Refresh.</td></tr>';
         document.getElementById("inspectionApprovalDetail").innerHTML = '<div class="text-muted">Detail approval hanya dapat dibuka saat online.</div>';
         return;
@@ -1822,15 +1818,9 @@ async function loadInspectionApprovalQueue() {
         populateInspectionApprovalFilters(result.filters || []);
         updateInspectionApprovalCounts();
         renderInspectionApprovalQueue();
-        notice.className = "alert alert-success py-2 small";
-        notice.textContent = inspectionApprovalRows.filter(row => !isInspectionApprovalApproved(row)).length +
-            " outstanding • " + inspectionApprovalRows.filter(isInspectionApprovalApproved).length +
-            " approved dalam cakupan filter. Data berhasil dimuat dari SQL Server.";
     } catch (err) {
         if (requestSequence !== inspectionApprovalLoadSequence) return;
         host.innerHTML = '<tr><td colspan="8" class="text-danger py-2">' + escInspection(err.message || "Gagal memuat antrean approval.") + '</td></tr>';
-        notice.className = "alert alert-danger py-2 small";
-        notice.textContent = err.message || "Gagal memuat antrean approval.";
     }
 }
 
@@ -2004,10 +1994,9 @@ async function executeInspectionApprovalAction(ids, action, remark) {
     }
     if (isSingleVoid && succeeded === 1) showInspectionApprovalQueueView();
     await loadInspectionApprovalQueue();
-    const notice = document.getElementById("inspectionApprovalNotice");
-    notice.className = "alert alert-" + (failures.length ? "warning" : "success") + " py-2 small";
-    notice.textContent = succeeded + " berhasil diproses; " + failures.length + " gagal." +
-        (failures.length ? " " + failures.slice(0, 3).join(" | ") : "");
+    showToast(succeeded + " berhasil diproses; " + failures.length + " gagal." +
+        (failures.length ? " " + failures.slice(0, 3).join(" | ") : ""),
+        failures.length ? "warning" : "success");
 }
 
 async function processBatchInspectionApproval(action) {
@@ -2096,8 +2085,7 @@ async function loadInspectionApprovalDetail(inspectionId) {
 async function processInspectionApproval(action) {
     if (!selectedInspectionApproval) return;
     if (!navigator.onLine) {
-        document.getElementById("inspectionApprovalNotice").className = "alert alert-warning py-2 small";
-        document.getElementById("inspectionApprovalNotice").textContent = "Approval tidak dapat diproses offline. Hubungkan internet lalu coba lagi.";
+        showToast("Approval tidak dapat diproses offline. Hubungkan internet lalu coba lagi.", "warning");
         return;
     }
     const confirmed = await showConfirmation({
@@ -2114,14 +2102,11 @@ async function processInspectionApproval(action) {
             locationId: inspectionLocationID, remark: remark
         });
         showInspectionApprovalQueueView();
-        document.getElementById("inspectionApprovalNotice").className = "alert alert-success py-2 small";
-        document.getElementById("inspectionApprovalNotice").textContent =
-            approvalResult.followUpWONo
-                ? "Inspection berhasil di-approve. Internal WO " + approvalResult.followUpWONo + " dibuat untuk Follow Up."
-                : "Inspection berhasil di-approve.";
+        showToast(approvalResult.followUpWONo
+            ? "Inspection berhasil di-approve. Internal WO " + approvalResult.followUpWONo + " dibuat untuk Follow Up."
+            : "Inspection berhasil di-approve.", "success");
         await loadInspectionApprovalQueue();
     } catch (err) {
-        document.getElementById("inspectionApprovalNotice").className = "alert alert-danger py-2 small";
-        document.getElementById("inspectionApprovalNotice").textContent = err.message || "Gagal memproses approval.";
+        showToast(err.message || "Gagal memproses approval.", "warning");
     }
 }
