@@ -53,3 +53,35 @@
     background: rgba(239, 68, 68, .15);
     color: #ef4444;
 }
+
+/* Compact Inspection dashboard cards; intentionally independent of Work Order cards. */
+.inspection-dashboard-card {
+    min-height: 68px;
+    height: 100%;
+    padding: 8px 10px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 2px;
+    border-radius: 10px;
+    line-height: 1.15;
+}
+.inspection-dashboard-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--bs-secondary-color);
+}
+.inspection-dashboard-value {
+    display: block;
+    font-size: 21px;
+    font-weight: 700;
+    line-height: 1;
+}
+.inspection-dashboard-caption {
+    font-size: 10px;
+    color: var(--bs-secondary-color);
+}
+@media (max-width: 575.98px) {
+    .inspection-dashboard-card { min-height: 62px; padding: 7px 8px; }
+    .inspection-dashboard-value { font-size: 19px; }
+}
