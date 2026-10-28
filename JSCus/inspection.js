@@ -811,7 +811,28 @@ function renderInspectionSections(template, savedItems, readOnly, idPrefix) {
         return '<div class="alert alert-warning small">Struktur checklist template tidak tersedia pada record ini.</div>';
     }
     const prefix = idPrefix || "inspectionSection";
-    return template.sections.map((section, sectionIndex) => {
+    const navPrefix = "inspectionNav_" + prefix.replace(/[^a-zA-Z0-9_-]/g, "_");
+    const navTabs = template.sections.map((section, sectionIndex) => {
+        const targetId = navPrefix + "_" + sectionIndex;
+        const label = section.sectionName || section.SectionName || ("Section " + (sectionIndex + 1));
+        return '<a class="inspection-section-tab' + (sectionIndex === 0 ? ' active' : '') + '" href="#' + targetId +
+            '" title="' + escInspection(label) + '" style="scroll-margin-top:120px" onclick="handleInspectionSectionNav(event, this)">' +
+            escInspection(label) + '</a>';
+    }).join("");
+    const navDropdown = template.sections.map((section, sectionIndex) => {
+        const targetId = navPrefix + "_" + sectionIndex;
+        const label = section.sectionName || section.SectionName || ("Section " + (sectionIndex + 1));
+        return '<li><a class="dropdown-item inspection-section-dropdown-item' + (sectionIndex === 0 ? ' active' : '') +
+            '" href="#' + targetId + '" onclick="handleInspectionSectionNav(event, this)">' +
+            (sectionIndex + 1) + '. ' + escInspection(label) + '</a></li>';
+    }).join("");
+    const navHtml = '<div class="inspection-section-nav d-flex align-items-center gap-2 mb-3 p-2 bg-body border rounded shadow-sm">' +
+        '<div class="inspection-section-nav-tabs flex-grow-1"><div class="d-inline-flex">' + navTabs + '</div></div>' +
+        '<div class="dropdown flex-shrink-0"><button type="button" class="btn btn-outline-secondary rounded-circle p-0 d-flex align-items-center justify-content-center" ' +
+        'data-bs-toggle="dropdown" data-bs-boundary="viewport" aria-label="Pilih section checklist" title="Pilih section checklist" style="width:34px;height:34px">' +
+        '<i class="bi bi-list text-primary"></i></button><ul class="dropdown-menu dropdown-menu-end shadow border-0">' + navDropdown + '</ul></div></div>';
+    wireInspectionSectionNavigation();
+    const sectionsHtml = template.sections.map((section, sectionIndex) => {
         const items = section.items || [];
         const subsectionGroups = new Map();
         items.forEach(item => {
@@ -853,11 +874,52 @@ function renderInspectionSections(template, savedItems, readOnly, idPrefix) {
             }
             return renderInspectionItem(element.item, savedItems, readOnly, prefix === "inspectionApprovalSection" ? "approval" : "inspection");
         }).join("");
-        return '<section class="mb-4 border rounded p-2">' +
+        const sectionTargetId = navPrefix + "_" + sectionIndex;
+        return '<section id="' + sectionTargetId + '" class="inspection-checklist-section mb-4 border rounded p-2" style="scroll-margin-top:120px">' +
             '<button type="button" class="btn btn-light text-start w-100 fw-bold mb-2" data-bs-toggle="collapse" data-bs-target="#' + sectionCollapseId + '" aria-expanded="true" aria-controls="' + sectionCollapseId + '">' +
             (sectionIndex + 1) + '. ' + escInspection(section.sectionName || section.SectionName || "Checklist") + '<i class="bi bi-chevron-down float-end"></i></button>' +
             '<div id="' + sectionCollapseId + '" class="collapse show">' + contentHtml + '</div></section>';
     }).join("");
+    return navHtml + sectionsHtml;
+}
+
+function wireInspectionSectionNavigation() {
+    if (document.documentElement.dataset.inspectionSectionNavWired) return;
+    document.documentElement.dataset.inspectionSectionNavWired = "1";
+    window.addEventListener("scroll", updateInspectionSectionNavActive, { passive: true });
+}
+
+function handleInspectionSectionNav(event, link) {
+    event.preventDefault();
+    const targetId = (link.getAttribute("href") || "").slice(1);
+    const target = targetId ? document.getElementById(targetId) : null;
+    if (!target) return;
+    target.scrollIntoView({ behavior: "smooth", block: "start" });
+    const nav = link.closest(".inspection-section-nav");
+    if (nav) {
+        nav.querySelectorAll(".inspection-section-tab, .inspection-section-dropdown-item").forEach(item => {
+            item.classList.toggle("active", item.getAttribute("href") === "#" + targetId);
+        });
+        const dropdownButton = nav.querySelector('[data-bs-toggle="dropdown"]');
+        if (dropdownButton && window.bootstrap && bootstrap.Dropdown) {
+            const dropdown = bootstrap.Dropdown.getInstance(dropdownButton);
+            if (dropdown) dropdown.hide();
+        }
+    }
+}
+
+function updateInspectionSectionNavActive() {
+    const sections = Array.from(document.querySelectorAll(".inspection-checklist-section"));
+    if (!sections.length) return;
+    let currentId = sections[0].id;
+    sections.forEach(section => {
+        if (section.getBoundingClientRect().top <= 160) currentId = section.id;
+    });
+    document.querySelectorAll(".inspection-section-nav").forEach(nav => {
+        nav.querySelectorAll(".inspection-section-tab, .inspection-section-dropdown-item").forEach(item => {
+            item.classList.toggle("active", item.getAttribute("href") === "#" + currentId);
+        });
+    });
 }
 
 function renderInspectionItem(item, savedItems, readOnly, idPrefix) {
