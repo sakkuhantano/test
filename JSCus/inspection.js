@@ -1595,12 +1595,16 @@ function showInspectionEditorTab(tab) {
         document.getElementById("inspectionChecklistPane").classList.add("d-none");
         document.getElementById("btnInspectionParamTab").classList.add("active");
         document.getElementById("btnInspectionChecklistTab").classList.remove("active");
+        const sectionNavHost = document.getElementById("inspectionSectionNavHost");
+        if (sectionNavHost) sectionNavHost.classList.add("d-none");
         return;
     }
     document.getElementById("inspectionParamsPane").classList.toggle("d-none", !p);
     document.getElementById("inspectionChecklistPane").classList.toggle("d-none", p);
     document.getElementById("btnInspectionParamTab").classList.toggle("active", p);
     document.getElementById("btnInspectionChecklistTab").classList.toggle("active", !p);
+    const sectionNavHost = document.getElementById("inspectionSectionNavHost");
+    if (sectionNavHost) sectionNavHost.classList.toggle("d-none", p);
 }
 function isInspectionParameterSelectionComplete() {
     const typeCode = document.getElementById("selInspectionType").value;
