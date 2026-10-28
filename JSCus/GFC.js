@@ -176,7 +176,7 @@ function getLoginData() {
 }
 function initIndexedDB() {
     return new Promise((resolve, reject) => {
-    const request = indexedDB.open("OfflineAppDB", 4);
+    const request = indexedDB.open("OfflineAppDB", 5);
 
     // JALAN jika DB belum ada / version naik
     request.onupgradeneeded = function (event) {
@@ -238,12 +238,11 @@ function initIndexedDB() {
             db.createObjectStore("inspection_types", { keyPath: "InspectionTypeCode" });
         }
         // Detail codes can repeat across properties; include company/location in the key.
-        if (db.objectStoreNames.contains("inspection_type_details")) {
-            db.deleteObjectStore("inspection_type_details");
+        if (!db.objectStoreNames.contains("inspection_type_details")) {
+            db.createObjectStore("inspection_type_details", {
+                keyPath: ["CompanyID", "LocationID", "InspectionTypeCode", "InspectionTypeDetailCode"]
+            });
         }
-        db.createObjectStore("inspection_type_details", {
-            keyPath: ["CompanyID", "LocationID", "InspectionTypeCode", "InspectionTypeDetailCode"]
-        });
         if (!db.objectStoreNames.contains("inspection_templates")) {
             db.createObjectStore("inspection_templates", { keyPath: "IDTemplate" });
         }
@@ -255,6 +254,15 @@ function initIndexedDB() {
         if (!db.objectStoreNames.contains("inspection_photos")) {
             const inspectionPhotoStore = db.createObjectStore("inspection_photos", { keyPath: "ID", autoIncrement: true });
             inspectionPhotoStore.createIndex("LocalInspectionID", "LocalInspectionID", { unique: false });
+        }
+        // Supervisor approval cache is metadata/detail only; photo Blobs stay in inspection_photos.
+        if (!db.objectStoreNames.contains("inspection_approval_cache")) {
+            db.createObjectStore("inspection_approval_cache", { keyPath: "CacheKey" });
+        }
+        if (!db.objectStoreNames.contains("inspection_approval_queue")) {
+            const approvalQueueStore = db.createObjectStore("inspection_approval_queue", { keyPath: "ActionID" });
+            approvalQueueStore.createIndex("by_scope_status", ["EmployeeID", "CompanyID", "LocationID", "Status"], { unique: false });
+            approvalQueueStore.createIndex("by_inspection", ["CompanyID", "LocationID", "InspectionID"], { unique: false });
         }
         //if (!db.objectStoreNames.contains("checklist_sections")) {
         //    let store = db.createObjectStore(
