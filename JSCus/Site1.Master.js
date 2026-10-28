@@ -407,11 +407,12 @@ function saveCompany(companyLocation, companyName) {
     var current = document.getElementById("lblCompanyLocation").innerText;
     if (current === companyLocation)
         return;
+
+    var data = getLoginData();
     if (data) {
-        var data = getLoginData();
         try {
-            data.curcompany=companyLocation;
-            data.curcompanyname=companyName;
+            data.curcompany = companyLocation;
+            data.curcompanyname = companyName;
             setLoginData(data);
         }
         catch (ex) { }
