@@ -2205,6 +2205,14 @@ function wireInspectionApprovalEvents() {
         }
     });
     addInspectionApprovalListener("btnInspectionApprovalPreview", "click", previewSelectedInspections);
+    addInspectionApprovalListener("inspectionApprovalChecklistTab", "shown.bs.tab", function () {
+        const navHost = document.getElementById("inspectionApprovalSectionNavHost");
+        if (navHost) navHost.classList.remove("d-none");
+    });
+    addInspectionApprovalListener("inspectionApprovalParamTab", "shown.bs.tab", function () {
+        const navHost = document.getElementById("inspectionApprovalSectionNavHost");
+        if (navHost) navHost.classList.add("d-none");
+    });
     addInspectionApprovalListener("selApprovalType", "change", function () {
         document.getElementById("selApprovalDetail").value = "";
         document.getElementById("selApprovalTemplate").value = "";
@@ -2391,6 +2399,7 @@ function renderInspectionApprovalQueue() {
         host.innerHTML = '<tr><td colspan="' + (hasSelectionColumn ? "8" : "7") + '" class="text-muted py-3 text-center">Tidak ada inspeksi untuk filter ini.</td></tr>';
         const selectAll = document.getElementById("chkAllInspectionApproval");
         if (selectAll) selectAll.checked = false;
+        updateInspectionApprovalSelectAll();
         return;
     }
     const sortedRows = rows.slice().sort((left, right) => {
