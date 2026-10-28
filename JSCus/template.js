@@ -6089,7 +6089,7 @@ async function appendTemplateMetadataControls(template)
                 '</div>' +
                 '<div class="mb-3">' +
                     '<label class="form-label">Company Scope</label>' +
-                    '<select id="propCompanyScope" class="form-select form-select-compact" ' + (isReadonlyMode ? 'disabled' : '') + '>' +
+                    '<select id="propCompanyScope" class="form-select form-select-compact">' +
                         '<option value="S">Selected Company / Gedung</option><option value="A">All Company / Gedung</option>' +
                     '</select>' +
                 '</div>' +
