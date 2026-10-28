@@ -58,6 +58,17 @@
     .inspection-saved-row { border-bottom: 1px solid var(--bs-border-color); padding: .7rem 0; }
     .inspection-saved-row:last-child { border-bottom: 0; }
     #inspectionChecklistHost input, #inspectionChecklistHost select, #inspectionChecklistHost textarea { min-height: 38px; }
+    .inspection-section-nav { position: sticky; top: 108px; z-index: 5; }
+    .inspection-section-nav-tabs { min-width: 0; overflow-x: auto; scrollbar-width: thin; }
+    .inspection-section-nav-tabs .d-inline-flex { gap: .35rem; }
+    .inspection-section-tab { display: inline-flex; align-items: center; white-space: nowrap; padding: .45rem .7rem; border-radius: .45rem; color: var(--bs-secondary-color); text-decoration: none; font-size: .875rem; font-weight: 600; border: 1px solid transparent; }
+    .inspection-section-tab:hover { background: var(--bs-tertiary-bg); color: var(--bs-primary); }
+    .inspection-section-tab.active { color: var(--bs-primary); background: var(--bs-primary-bg-subtle); border-color: var(--bs-primary-border-subtle); }
+    .inspection-section-dropdown-item.active { color: var(--bs-primary); background: var(--bs-primary-bg-subtle); font-weight: 600; }
+    @media (max-width: 575.98px) {
+        .inspection-section-nav { top: 90px; padding: .35rem !important; }
+        .inspection-section-tab { padding: .4rem .55rem; font-size: .8rem; }
+    }
     #inspectionFormSubtitle { white-space: pre-line; }
 
     /* Keep inspection entry and supervisor approval usable on narrow phones. */
