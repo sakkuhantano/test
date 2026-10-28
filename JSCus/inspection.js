@@ -1459,6 +1459,9 @@ function resetInspectionSelection() {
     document.getElementById("inspectionFormPanel").classList.add("d-none");
     document.getElementById("inspectionStartPanel").classList.remove("d-none");
     document.getElementById("inspectionStartButtonRow").classList.remove("d-none");
+    document.getElementById("selInspectionType").disabled = false;
+    document.getElementById("selInspectionDetail").disabled = false;
+    document.getElementById("selInspectionTemplate").disabled = false;
     document.getElementById("selInspectionType").value = "";
     resetDetailAndTemplateOptions();
     document.getElementById("txtInspectionDate").value = localDateString(new Date());
