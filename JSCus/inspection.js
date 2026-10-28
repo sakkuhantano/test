@@ -880,9 +880,13 @@ function renderInspectionSections(template, savedItems, readOnly, idPrefix) {
             (sectionIndex + 1) + '. ' + escInspection(section.sectionName || section.SectionName || "Checklist") + '<i class="bi bi-chevron-down float-end"></i></button>' +
             '<div id="' + sectionCollapseId + '" class="collapse show">' + contentHtml + '</div></section>';
     }).join("");
-    if (prefix === "inspectionSection") {
-        const navHost = document.getElementById("inspectionSectionNavHost");
-        if (navHost) navHost.innerHTML = navHtml;
+    if (prefix === "inspectionSection" || prefix === "inspectionApprovalSection") {
+        const navHostId = prefix === "inspectionSection" ? "inspectionSectionNavHost" : "inspectionApprovalSectionNavHost";
+        const navHost = document.getElementById(navHostId);
+        if (navHost) {
+            navHost.innerHTML = navHtml;
+            navHost.classList.toggle("d-none", prefix === "inspectionSection" ? document.getElementById("btnInspectionParamTab").classList.contains("active") : !document.getElementById("inspectionApprovalChecklistTab").classList.contains("active"));
+        }
         return sectionsHtml;
     }
     return navHtml + sectionsHtml;
@@ -2147,6 +2151,9 @@ let selectedInspectionApproval = null;
 let inspectionApprovalRows = [];
 let currentInspectionApprovalTab = "OUTSTANDING";
 let inspectionApprovalLoadSequence = 0;
+let inspectionApprovalSort = { key: "InspectionDate", direction: "asc" };
+// Configure this URL when the separate Excel-report solution exposes its preview endpoint.
+const inspectionApprovalPreviewEndpoint = "";
 
 function addInspectionApprovalListener(id, eventName, handler) {
     const element = document.getElementById(id);
@@ -2184,8 +2191,30 @@ function wireInspectionApprovalEvents() {
     addInspectionApprovalListener("inspectionApprovalQueue", "change", function (event) {
         if (event.target.matches("[data-approval-select]")) updateInspectionApprovalSelectAll();
     });
-    ["selApprovalType", "selApprovalDetail", "selApprovalTemplate",
-        "txtApprovalDateFrom", "txtApprovalDateThru"].forEach(id =>
+    addInspectionApprovalListener("inspectionApprovalTable", "click", function (event) {
+        const header = event.target.closest("[data-approval-sort]");
+        if (!header) return;
+        const key = header.dataset.approvalSort;
+        if (inspectionApprovalSort.key === key) inspectionApprovalSort.direction = inspectionApprovalSort.direction === "asc" ? "desc" : "asc";
+        else { inspectionApprovalSort.key = key; inspectionApprovalSort.direction = "asc"; }
+        renderInspectionApprovalQueue();
+    });
+    addInspectionApprovalListener("inspectionApprovalTable", "keydown", function (event) {
+        if ((event.key === "Enter" || event.key === " ") && event.target.matches("[data-approval-sort]")) {
+            event.preventDefault(); event.target.click();
+        }
+    });
+    addInspectionApprovalListener("btnInspectionApprovalPreview", "click", previewSelectedInspections);
+    addInspectionApprovalListener("selApprovalType", "change", function () {
+        document.getElementById("selApprovalDetail").value = "";
+        document.getElementById("selApprovalTemplate").value = "";
+        loadInspectionApprovalQueue();
+    });
+    addInspectionApprovalListener("selApprovalDetail", "change", function () {
+        document.getElementById("selApprovalTemplate").value = "";
+        loadInspectionApprovalQueue();
+    });
+    ["selApprovalTemplate", "txtApprovalDateFrom", "txtApprovalDateThru"].forEach(id =>
         addInspectionApprovalListener(id, "change", loadInspectionApprovalQueue));
     addInspectionApprovalListener("btnApprovalSelectAll", "click", function () {
         document.querySelectorAll("#inspectionApprovalQueue [data-approval-select]").forEach(box => { box.checked = true; });
@@ -2193,6 +2222,7 @@ function wireInspectionApprovalEvents() {
     });
     addInspectionApprovalListener("chkAllInspectionApproval", "change", function () {
         document.querySelectorAll("#inspectionApprovalQueue [data-approval-select]").forEach(box => { box.checked = this.checked; });
+        updateInspectionApprovalSelectAll();
     });
     addInspectionApprovalListener("btnBatchApproveInspection", "click", () => openInspectionApprovalAction("APPROVE", true));
     addInspectionApprovalListener("btnBatchVoidInspection", "click", () => openInspectionApprovalAction("VOID", true));
@@ -2321,17 +2351,22 @@ function populateInspectionApprovalFilters(filterRows) {
         { id: "selApprovalTemplate", key: "IDTemplate", label: "TemplateNo", all: "All templates" }
     ];
     const rows = Array.isArray(filterRows) ? filterRows : [];
+    const selectedType = document.getElementById("selApprovalType").value;
+    const selectedDetail = document.getElementById("selApprovalDetail").value;
     specs.forEach(spec => {
         const select = document.getElementById(spec.id);
         if (!select) return;
         const previous = select.value;
+        const applicableRows = rows.filter(row => {
+            if (spec.id !== "selApprovalType" && selectedType && String(row.InspectionTypeCode || "") !== selectedType) return false;
+            if (spec.id === "selApprovalTemplate" && selectedDetail && String(row.InspectionTypeDetailCode || "") !== selectedDetail) return false;
+            return true;
+        });
         const values = new Map();
-        rows.forEach(row => {
+        applicableRows.forEach(row => {
             const key = String(row[spec.key] == null ? "" : row[spec.key]);
             if (key && !values.has(key)) values.set(key, String(row[spec.label] || key));
         });
-        if (previous && !values.has(previous))
-            values.set(previous, previous + " (no records in this tab/date)");
         select.innerHTML = '<option value="">' + spec.all + '</option>' +
             Array.from(values.entries()).sort((a, b) => a[1].localeCompare(b[1])).map(pair =>
                 '<option value="' + escInspection(pair[0]) + '">' + escInspection(pair[1]) + '</option>'
@@ -2339,6 +2374,8 @@ function populateInspectionApprovalFilters(filterRows) {
         if (values.has(previous)) select.value = previous;
         else select.value = "";
     });
+    document.getElementById("selApprovalDetail").disabled = !selectedType;
+    document.getElementById("selApprovalTemplate").disabled = !selectedType;
 }
 
 function renderInspectionApprovalQueue() {
@@ -2356,7 +2393,24 @@ function renderInspectionApprovalQueue() {
         if (selectAll) selectAll.checked = false;
         return;
     }
-    host.innerHTML = rows.map(row => {
+    const sortedRows = rows.slice().sort((left, right) => {
+        const key = inspectionApprovalSort.key;
+        let a = left[key], b = right[key];
+        if (key === "InspectionDate" || key === "StartDateTime" || key === "EndDateTime") {
+            a = a ? new Date(a).getTime() : 0; b = b ? new Date(b).getTime() : 0;
+        } else if (key === "ScheduledTime") {
+            a = String(a || ""); b = String(b || "");
+        } else { a = String(a == null ? "" : a).toLocaleLowerCase(); b = String(b == null ? "" : b).toLocaleLowerCase(); }
+        const cmp = a < b ? -1 : (a > b ? 1 : 0);
+        return inspectionApprovalSort.direction === "asc" ? cmp : -cmp;
+    });
+    document.querySelectorAll("#inspectionApprovalTable [data-approval-sort]").forEach(th => {
+        const active = th.dataset.approvalSort === inspectionApprovalSort.key;
+        const indicator = th.querySelector(".approval-sort-indicator");
+        if (indicator) indicator.textContent = active ? (inspectionApprovalSort.direction === "asc" ? " ▲" : " ▼") : " ↕";
+        th.setAttribute("aria-sort", active ? (inspectionApprovalSort.direction === "asc" ? "ascending" : "descending") : "none");
+    });
+    host.innerHTML = sortedRows.map(row => {
         const id = Number(row.InspectionID);
         const start = formatInspectionClock(row.StartDateTime);
         const end = formatInspectionClock(row.EndDateTime);
@@ -2381,7 +2435,33 @@ function renderInspectionApprovalQueue() {
 function updateInspectionApprovalSelectAll() {
     const boxes = Array.from(document.querySelectorAll("#inspectionApprovalQueue [data-approval-select]"));
     const all = document.getElementById("chkAllInspectionApproval");
-    if (all) all.checked = currentInspectionApprovalTab === "OUTSTANDING" && boxes.length > 0 && boxes.every(box => box.checked);
+    const everySelected = currentInspectionApprovalTab === "OUTSTANDING" && boxes.length > 0 && boxes.every(box => box.checked);
+    if (all) all.checked = everySelected;
+    const preview = document.getElementById("btnInspectionApprovalPreview");
+    if (preview) preview.disabled = !everySelected;
+}
+
+function previewSelectedInspections() {
+    const boxes = Array.from(document.querySelectorAll("#inspectionApprovalQueue [data-approval-select]"));
+    if (!boxes.length || !boxes.every(box => box.checked)) {
+        showToast("Centang semua inspeksi yang tampil terlebih dahulu untuk Preview.", "warning");
+        return;
+    }
+    if (!inspectionApprovalPreviewEndpoint) {
+        showToast("Tombol Preview siap, tetapi URL endpoint report Excel dari solution lain belum dikonfigurasi.", "warning");
+        return;
+    }
+    const selectedIds = new Set(boxes.map(box => Number(box.value)));
+    const inspectionNos = inspectionApprovalRows
+        .filter(row => selectedIds.has(Number(row.InspectionID)))
+        .map(row => String(row.InspectionNo || "").trim()).filter(Boolean);
+    if (!inspectionNos.length) {
+        showToast("Nomor transaksi inspeksi tidak ditemukan untuk pilihan ini.", "warning");
+        return;
+    }
+    const url = new URL(inspectionApprovalPreviewEndpoint, window.location.href);
+    url.searchParams.set("inspectionno", inspectionNos.join(";"));
+    window.open(url.toString(), "_blank", "noopener");
 }
 
 function openInspectionApprovalDetail(inspectionId) {
