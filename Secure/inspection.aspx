@@ -58,9 +58,11 @@
     .inspection-saved-row { border-bottom: 1px solid var(--bs-border-color); padding: .7rem 0; }
     .inspection-saved-row:last-child { border-bottom: 0; }
     #inspectionChecklistHost input, #inspectionChecklistHost select, #inspectionChecklistHost textarea { min-height: 38px; }
-    .inspection-section-nav { position: sticky; top: 108px; z-index: 5; }
-    .inspection-section-nav-host { flex: 0 1 58%; min-width: 0; }
-    .inspection-section-nav-host .inspection-section-nav { position: static; max-width: 100%; margin-bottom: 0 !important; padding: .35rem !important; }
+    .inspection-editor-sticky { position: sticky; top: 64px; z-index: 1025; background: var(--bs-body-bg); padding: .35rem 0 .4rem; border-bottom: 1px solid var(--bs-border-color); }
+    #inspectionEditorTabs { white-space: nowrap; }
+    #inspectionEditorTabs .nav-link.active { font-weight: 700; }
+    .inspection-section-nav-host { min-width: 0; }
+    .inspection-section-nav-host .inspection-section-nav { position: static; width: 100%; max-width: 100%; margin-bottom: 0 !important; padding: .35rem !important; }
     .inspection-section-nav-tabs { min-width: 0; overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; -webkit-overflow-scrolling: touch; touch-action: pan-x; }
     .inspection-section-nav-tabs .d-inline-flex { gap: .35rem; width: max-content; min-width: 100%; }
     .inspection-section-tab { display: inline-flex; align-items: center; white-space: nowrap; padding: .45rem .7rem; border-radius: .45rem; color: var(--bs-secondary-color); text-decoration: none; font-size: .875rem; font-weight: 600; border: 1px solid transparent; }
@@ -68,10 +70,10 @@
     .inspection-section-tab.active { color: var(--bs-primary); background: var(--bs-primary-bg-subtle); border-color: var(--bs-primary-border-subtle); }
     .inspection-section-dropdown-item.active { color: var(--bs-primary); background: var(--bs-primary-bg-subtle); font-weight: 600; }
     @media (max-width: 575.98px) {
-        .inspection-form-heading { flex: 1 1 100% !important; width: 100%; }
-        .inspection-section-nav-host { flex: 1 1 100%; width: 100%; max-width: 100%; }
+        .inspection-editor-sticky { top: 58px; }
+        .inspection-form-heading { width: 100%; }
+        .inspection-section-nav-host { width: 100%; max-width: 100%; }
         .inspection-section-nav-host .inspection-section-nav { width: 100%; }
-        .inspection-section-nav { top: 90px; padding: .35rem !important; }
         .inspection-section-tab { padding: .4rem .55rem; font-size: .8rem; }
     }
     #inspectionFormSubtitle { white-space: pre-line; }
@@ -310,7 +312,7 @@
     <div id="inspectionNotice" class="alert alert-info py-2 small mb-3">
         Pilih Inspection Type, detail inspeksi, lalu template. Data tersimpan di perangkat dan hanya disinkronkan oleh teknisi pemiliknya.
     </div>
-    <ul id="inspectionEditorTabs" class="nav nav-tabs mb-3 d-none" role="tablist"><li class="nav-item"><button type="button" id="btnInspectionParamTab" class="nav-link" role="tab">PARAM</button></li><li class="nav-item"><button type="button" id="btnInspectionChecklistTab" class="nav-link active" role="tab">CHECKLIST</button></li></ul>
+    <div id="inspectionEditorStickyHeader" class="inspection-editor-sticky mb-3"><ul id="inspectionEditorTabs" class="nav nav-tabs mb-2 d-none" role="tablist"><li class="nav-item"><button type="button" id="btnInspectionParamTab" class="nav-link" role="tab">PARAM</button></li><li class="nav-item"><button type="button" id="btnInspectionChecklistTab" class="nav-link active" role="tab">CHECKLIST</button></li></ul><div id="inspectionSectionNavHost" class="inspection-section-nav-host d-none"></div></div>
     <div id="inspectionParamsPane">
     <div id="inspectionStartPanel" class="inspection-card p-3 mb-3">
         <div class="inspection-step mb-3">
@@ -355,13 +357,12 @@
     </div>
     <div id="inspectionChecklistPane" class="d-none">
     <div id="inspectionFormPanel" class="inspection-card p-3 mb-3 d-none">
-        <div class="inspection-form-header d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
-            <div class="inspection-form-heading flex-grow-1 min-w-0">
+        <div class="inspection-form-header mb-3">
+            <div class="inspection-form-heading min-w-0">
                 <div class="inspection-muted text-uppercase">Active inspection</div>
                 <h6 id="inspectionFormTitle" class="mb-1">Checklist</h6>
                 <div id="inspectionFormSubtitle" class="inspection-muted"></div>
             </div>
-            <div id="inspectionSectionNavHost" class="inspection-section-nav-host"></div>
         </div>
         <div class="inspection-photo-panel mb-3"><div class="fw-bold mb-2"><i class="bi bi-camera-fill me-2"></i>FIELD DOCUMENTATION BEFORE</div><div id="inspectionPhotoBeforeList" class="d-flex flex-wrap gap-2 mb-2"></div><div class="d-flex align-items-center justify-content-between gap-2"><label class="inspection-muted mb-0">Ambil foto sebelum inspeksi</label><button type="button" id="btnAddInspectionBeforePhoto" class="btn btn-sm btn-outline-primary" onclick="document.getElementById('inspectionPhotoBeforeInput').click()"><i class="bi bi-camera"></i> Take Picture</button><input id="inspectionPhotoBeforeInput" type="file" accept="image/*" capture="environment" multiple hidden /></div><div id="inspectionBeforePhotoCount" class="inspection-muted mt-1">0 foto</div></div>
         <div id="inspectionChecklistGateMessage" class="alert alert-warning py-2 small"></div><div id="inspectionChecklistHost"></div>
