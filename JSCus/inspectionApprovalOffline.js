@@ -329,6 +329,7 @@
     async function decorateApprovalQueue() {
         if (typeof renderInspectionApprovalQueue !== "function") return;
         const actions = await readScopedActions();
+        document.querySelectorAll("#inspectionApprovalQueue [data-approval-status-badge]").forEach(badge => badge.remove());
         document.querySelectorAll("#inspectionApprovalQueue [data-approval-id]").forEach(button => {
             const id = Number(button.dataset.approvalId);
             const action = actions.find(item => Number(item.InspectionID) === id);
@@ -336,6 +337,7 @@
             const badge = document.createElement("span");
             badge.className = "badge ms-2 " + (action.Status === "CONFLICT" ? "text-bg-danger" : "text-bg-warning");
             badge.textContent = action.Status === "CONFLICT" ? "Conflict" : "Pending Sync";
+            badge.dataset.approvalStatusBadge = "1";
             button.insertAdjacentElement("afterend", badge);
             const row = button.closest("tr");
             if (row) {
