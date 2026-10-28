@@ -256,8 +256,7 @@
         </div></div>
     </div>
     <div id="inspectionScrollTools" class="d-none" aria-label="Quick scroll controls">
-        <button type="button" id="inspectionScrollTop" class="btn btn-light border d-none" title="Scroll to top" aria-label="Scroll to top"><i class="bi bi-chevron-up"></i></button>
-        <button type="button" id="inspectionScrollBottom" class="btn btn-light border" title="Scroll to bottom" aria-label="Scroll to bottom"><i class="bi bi-chevron-down"></i></button>
+        <button type="button" id="inspectionScrollToggle" class="btn btn-light border" title="Scroll to bottom" aria-label="Scroll to bottom"><i class="bi bi-chevron-down"></i></button>
     </div>
 
     <div id="inspectionRecordsPanel" class="inspection-card p-3 mb-3">
