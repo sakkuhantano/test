@@ -58,8 +58,9 @@
     .inspection-saved-row { border-bottom: 1px solid var(--bs-border-color); padding: .7rem 0; }
     .inspection-saved-row:last-child { border-bottom: 0; }
     #inspectionChecklistHost input, #inspectionChecklistHost select, #inspectionChecklistHost textarea { min-height: 38px; }
-    .inspection-editor-sticky { position: -webkit-sticky; position: sticky; top: 0; z-index: 1035; background: var(--bs-body-bg); padding: .35rem 0 .4rem; border-bottom: 1px solid var(--bs-border-color); }
-    .inspection-approval-sticky { position: -webkit-sticky; position: sticky; top: 0; z-index: 1035; background: var(--bs-body-bg); padding: .35rem 0 .4rem; border-bottom: 1px solid var(--bs-border-color); }
+    .inspection-editor-sticky { position: -webkit-sticky; position: sticky; top: 64px; z-index: 1025; background: var(--bs-body-bg); padding: .35rem 0 .4rem; border-bottom: 1px solid var(--bs-border-color); }
+    .inspection-approval-sticky { position: -webkit-sticky; position: sticky; top: 64px; z-index: 1025; background: var(--bs-body-bg); padding: .35rem 0 .4rem; border-bottom: 1px solid var(--bs-border-color); }
+    #inspectionApprovalTable [data-approval-sort] { cursor: pointer; user-select: none; }
     #inspectionApprovalStickyHeader .nav-link.active { font-weight: 700; }
     #inspectionApprovalSectionNavHost .inspection-section-nav { margin-bottom: 0 !important; }
     #inspectionEditorTabs { white-space: nowrap; }
@@ -73,8 +74,8 @@
     .inspection-section-tab.active { color: var(--bs-primary); background: var(--bs-primary-bg-subtle); border-color: var(--bs-primary-border-subtle); }
     .inspection-section-dropdown-item.active { color: var(--bs-primary); background: var(--bs-primary-bg-subtle); font-weight: 600; }
     @media (max-width: 575.98px) {
-        .inspection-editor-sticky { top: 0; }
-        .inspection-approval-sticky { top: 0; }
+        .inspection-editor-sticky { top: 58px; }
+        .inspection-approval-sticky { top: 58px; }
         .inspection-form-heading { width: 100%; }
         .inspection-section-nav-host { width: 100%; max-width: 100%; }
         .inspection-section-nav-host .inspection-section-nav { width: 100%; }
