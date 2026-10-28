@@ -369,10 +369,16 @@
             throw new Error("Aksi ini belum bisa dikirim karena perangkat sedang offline.");
         }
         const result = await originalApprovalPost(method, args);
-        if (method === "GetInspectionApprovalQueue") {
-            await cacheQueue(currentInspectionApprovalTab, result);
-        } else if (method === "GetInspectionApprovalDetail") {
-            await cacheDetail(args.inspectionId, result);
+        try {
+            if (method === "GetInspectionApprovalQueue") {
+                await cacheQueue(currentInspectionApprovalTab, result);
+            } else if (method === "GetInspectionApprovalDetail") {
+                await cacheDetail(args.inspectionId, result);
+            }
+        } catch (cacheError) {
+            // Cache failure must never block a valid online approval workflow.
+            console.warn("Inspection approval loaded online but could not be cached for offline use:", cacheError);
+            showToast("Data approval berhasil dimuat, tetapi cache offline gagal disimpan. Periksa ruang penyimpanan perangkat.", "warning");
         }
         return result;
     };
@@ -380,7 +386,11 @@
     window.loadInspectionApprovalQueue = async function () {
         if (typeof db === "undefined" || !db) await initIndexedDB();
         if (!dbReady()) {
-            showToast("Cache approval offline belum siap. Refresh halaman saat online.", "warning");
+            if (navigator.onLine) {
+                await originalLoadApprovalQueue();
+                return;
+            }
+            showToast("Cache approval offline belum siap. Hubungkan internet dan refresh halaman.", "warning");
             return;
         }
         if (navigator.onLine) {
