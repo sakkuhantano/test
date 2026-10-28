@@ -400,8 +400,25 @@
             return;
         }
         if (navigator.onLine) {
-            await syncPendingApprovalActions();
+            const priorQueueCache = await getCache(cacheKey("QUEUE", "", currentInspectionApprovalTab));
+            try { await syncPendingApprovalActions(); }
+            catch (syncError) { console.warn("Pending approval sync could not run; continuing online queue load:", syncError); }
             await originalLoadApprovalQueue();
+            try {
+                const actions = await readScopedActions();
+                if (currentInspectionApprovalTab === "OUTSTANDING" && priorQueueCache && Array.isArray(priorQueueCache.Data)) {
+                    const existingIds = new Set((inspectionApprovalRows || []).map(row => Number(row.InspectionID)));
+                    actions.filter(item => item.Status === "CONFLICT").forEach(item => {
+                        if (existingIds.has(Number(item.InspectionID))) return;
+                        const staleRow = priorQueueCache.Data.find(row => Number(row.InspectionID) === Number(item.InspectionID));
+                        if (staleRow) {
+                            inspectionApprovalRows.push(Object.assign({}, staleRow, { LocalApprovalStatus: "CONFLICT" }));
+                            existingIds.add(Number(item.InspectionID));
+                        }
+                    });
+                    renderInspectionApprovalQueue();
+                }
+            } catch (mergeError) { console.warn("Could not display cached approval conflicts:", mergeError); }
         } else {
             showInspectionApprovalQueueView();
             selectedInspectionApproval = null;
@@ -487,10 +504,11 @@
     window.addEventListener("online", async function () {
         if (!window.location.search.includes("mode=approval")) return;
         try {
-            await syncPendingApprovalActions();
+            try { await syncPendingApprovalActions(); }
+            catch (syncError) { console.warn("Approval sync on reconnect failed:", syncError); }
             await loadInspectionApprovalQueue();
         } catch (err) {
-            console.warn("Approval sync on reconnect failed:", err);
+            console.warn("Approval queue refresh on reconnect failed:", err);
         }
     });
 
