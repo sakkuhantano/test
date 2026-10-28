@@ -1041,7 +1041,8 @@ function validateInspectionItems(items) {
         const templateItem = findInspectionTemplateItem(item.IDItem);
         if (!templateItem) continue;
         const invalid = (message, role) => ({ message, itemId: Number(item.IDItem), role: role || "value" });
-        if (templateItem.isValueRequired) {
+        // Every OPTION must have an explicit selection before Submit, regardless of the template flag.
+        if (templateItem.isValueRequired || String(item.Type || templateItem.type || "").toUpperCase() === "OPTION") {
             if (item.Type === "GROUP") {
                 const groups = templateItem.groups || [];
                 if (!groups.length) return invalid("GROUP tidak memiliki kolom input: " + item.ItemLabel, "group-value");
