@@ -1321,7 +1321,7 @@ IF @Action='REMOVE' AND
            AND EXISTS (SELECT 1 FROM dbo.UTL_User U WHERE U.EmployeeID=E.EmployeeID)
            AND E.EmployeeID<>@EmployeeID
            AND (ISNULL((SELECT CompanyScope FROM dbo.PIP_M_CheckListWOPM WHERE IDTemplate=@IDTemplate),'S')='A'
-                OR (';' + ISNULL((SELECT CompanyLocationList FROM dbo.PIP_M_CheckListWOPM WHERE IDTemplate=@IDTemplate),'') + ';' LIKE '%;' + E.CompanyID + E.LocationID + ';%')))
+                OR (';' + ISNULL((SELECT CompanyLocationList FROM dbo.PIP_M_CheckListWOPM WHERE IDTemplate=@IDTemplate),'') + ';' LIKE '%;' + E.CompanyID + E.LocationID + ';%'))))
     OR
     (@CurrentEmployeeList<>'' AND NOT EXISTS
         (SELECT 1 FROM dbo.SplitStringConvertToTable(@CurrentEmployeeList,';') X WHERE X.val<>@EmployeeID))
