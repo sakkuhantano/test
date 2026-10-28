@@ -1304,7 +1304,33 @@ FROM dbo.PIP_M_CheckListWOPM WITH (UPDLOCK,HOLDLOCK)
 WHERE IDTemplate=@IDTemplate;
 
 IF @CurrentEmployeeList IS NULL
+BEGIN
+    ROLLBACK TRANSACTION;
     RAISERROR('Template was not found.',16,1);
+    RETURN;
+END;
+
+/* The empty string means ALL eligible employees, so the UI cannot deselect the last assigned employee. */
+IF @Action='REMOVE' AND
+(
+    (@CurrentEmployeeList='' AND NOT EXISTS
+        (SELECT 1
+         FROM dbo.M_HRD_Employee E
+         WHERE E.SectionID=(SELECT SectionID FROM dbo.PIP_M_CheckListWOPM WHERE IDTemplate=@IDTemplate)
+           AND ISNULL(E.TerminationDate,'')=''
+           AND EXISTS (SELECT 1 FROM dbo.UTL_User U WHERE U.EmployeeID=E.EmployeeID)
+           AND E.EmployeeID<>@EmployeeID
+           AND (ISNULL((SELECT CompanyScope FROM dbo.PIP_M_CheckListWOPM WHERE IDTemplate=@IDTemplate),'S')='A'
+                OR (';' + ISNULL((SELECT CompanyLocationList FROM dbo.PIP_M_CheckListWOPM WHERE IDTemplate=@IDTemplate),'') + ';' LIKE '%;' + E.CompanyID + E.LocationID + ';%')))
+    OR
+    (@CurrentEmployeeList<>'' AND NOT EXISTS
+        (SELECT 1 FROM dbo.SplitStringConvertToTable(@CurrentEmployeeList,';') X WHERE X.val<>@EmployeeID))
+)
+BEGIN
+    ROLLBACK TRANSACTION;
+    RAISERROR('At least one eligible employee must remain assigned. An empty EmployeeList means all eligible employees.',16,1);
+    RETURN;
+END;
 
 IF @Action='REMOVE'
 BEGIN
