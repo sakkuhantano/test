@@ -399,6 +399,8 @@
             showToast("Cache approval offline belum siap. Hubungkan internet dan refresh halaman.", "warning");
             return;
         }
+        try { await cleanupExpiredApprovalCache(); }
+        catch (cleanupError) { console.warn("Approval cache cleanup failed:", cleanupError); }
         if (navigator.onLine) {
             const priorQueueCache = await getCache(cacheKey("QUEUE", "", currentInspectionApprovalTab));
             try { await syncPendingApprovalActions(); }
@@ -512,15 +514,4 @@
         }
     });
 
-    document.addEventListener("DOMContentLoaded", function () {
-        if (!window.location.search.includes("mode=approval")) return;
-        setTimeout(async function () {
-            try {
-                if (typeof db === "undefined" || !db) await initIndexedDB();
-                await cleanupExpiredApprovalCache();
-            } catch (err) {
-                console.warn("Approval cache initialization failed:", err);
-            }
-        }, 0);
-    });
 })();
