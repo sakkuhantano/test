@@ -60,6 +60,9 @@
     #inspectionChecklistHost input, #inspectionChecklistHost select, #inspectionChecklistHost textarea { min-height: 38px; }
     .inspection-editor-sticky { position: -webkit-sticky; position: sticky; top: 64px; z-index: 1025; background: var(--bs-body-bg); padding: .35rem 0 .4rem; border-bottom: 1px solid var(--bs-border-color); }
     .inspection-approval-sticky { position: -webkit-sticky; position: sticky; top: 64px; z-index: 1025; background: var(--bs-body-bg); padding: .35rem 0 .4rem; border-bottom: 1px solid var(--bs-border-color); }
+    /* Keep the complete inspection heading, tabs, and section navigation pinned below the master header. */
+    #inspectionEditorStickyHeader,
+    #inspectionApprovalStickyHeader { position: -webkit-sticky !important; position: sticky !important; top: 112px !important; z-index: 1080 !important; background: var(--bs-body-bg); }
     #inspectionApprovalTable [data-approval-sort] { cursor: pointer; user-select: none; }
     /* Compact SPV approval grid; keep each column label/value on one line. */
     #inspectionApprovalTable { font-size: .78rem; white-space: nowrap; }
@@ -80,6 +83,8 @@
     @media (max-width: 575.98px) {
         .inspection-editor-sticky { top: 58px; }
         .inspection-approval-sticky { top: 58px; }
+        #inspectionEditorStickyHeader,
+        #inspectionApprovalStickyHeader { top: 104px !important; }
         .inspection-form-heading { width: 100%; }
         .inspection-section-nav-host { width: 100%; max-width: 100%; }
         .inspection-section-nav-host .inspection-section-nav { width: 100%; }
