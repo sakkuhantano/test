@@ -61,13 +61,16 @@
     .inspection-section-nav { position: sticky; top: 108px; z-index: 5; }
     .inspection-section-nav-host { flex: 0 1 58%; min-width: 0; }
     .inspection-section-nav-host .inspection-section-nav { position: static; max-width: 100%; margin-bottom: 0 !important; padding: .35rem !important; }
-    .inspection-section-nav-tabs { min-width: 0; overflow-x: auto; scrollbar-width: thin; }
-    .inspection-section-nav-tabs .d-inline-flex { gap: .35rem; }
+    .inspection-section-nav-tabs { min-width: 0; overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; -webkit-overflow-scrolling: touch; touch-action: pan-x; }
+    .inspection-section-nav-tabs .d-inline-flex { gap: .35rem; width: max-content; min-width: 100%; }
     .inspection-section-tab { display: inline-flex; align-items: center; white-space: nowrap; padding: .45rem .7rem; border-radius: .45rem; color: var(--bs-secondary-color); text-decoration: none; font-size: .875rem; font-weight: 600; border: 1px solid transparent; }
     .inspection-section-tab:hover { background: var(--bs-tertiary-bg); color: var(--bs-primary); }
     .inspection-section-tab.active { color: var(--bs-primary); background: var(--bs-primary-bg-subtle); border-color: var(--bs-primary-border-subtle); }
     .inspection-section-dropdown-item.active { color: var(--bs-primary); background: var(--bs-primary-bg-subtle); font-weight: 600; }
     @media (max-width: 575.98px) {
+        .inspection-form-heading { flex: 1 1 100% !important; width: 100%; }
+        .inspection-section-nav-host { flex: 1 1 100%; width: 100%; max-width: 100%; }
+        .inspection-section-nav-host .inspection-section-nav { width: 100%; }
         .inspection-section-nav { top: 90px; padding: .35rem !important; }
         .inspection-section-tab { padding: .4rem .55rem; font-size: .8rem; }
     }
@@ -353,8 +356,8 @@
     </div>
     <div id="inspectionChecklistPane" class="d-none">
     <div id="inspectionFormPanel" class="inspection-card p-3 mb-3 d-none">
-        <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
-            <div class="flex-grow-1 min-w-0">
+        <div class="inspection-form-header d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
+            <div class="inspection-form-heading flex-grow-1 min-w-0">
                 <div class="inspection-muted text-uppercase">Active inspection</div>
                 <h6 id="inspectionFormTitle" class="mb-1">Checklist</h6>
                 <div id="inspectionFormSubtitle" class="inspection-muted"></div>
