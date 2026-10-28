@@ -2075,9 +2075,9 @@ function getInspectionScrollTarget() {
 
 function updateInspectionScrollTools() {
     const tools = document.getElementById("inspectionScrollTools");
-    const top = document.getElementById("inspectionScrollTop");
-    const bottom = document.getElementById("inspectionScrollBottom");
-    if (!tools || !top || !bottom) return;
+    const toggle = document.getElementById("inspectionScrollToggle");
+    const icon = toggle ? toggle.querySelector("i") : null;
+    if (!tools || !toggle || !icon) return;
     const target = getInspectionScrollTarget();
     const modalTarget = target !== window;
     const scrollingElement = document.scrollingElement || document.documentElement;
@@ -2090,14 +2090,18 @@ function updateInspectionScrollTools() {
     const atBottom = maxScroll - scrollTop <= 4;
     const modalShown = !!document.querySelector("#inspectionApprovalActionModal.show");
     tools.classList.toggle("d-none", !canScroll || (modalShown && !modalTarget));
-    top.classList.toggle("d-none", !canScroll || atTop);
-    bottom.classList.toggle("d-none", !canScroll || atBottom);
+
+    // Keep a single floating button anchored in one position; switch its action/icon at the bottom.
+    const showScrollUp = atBottom && !atTop;
+    icon.classList.toggle("bi-chevron-up", showScrollUp);
+    icon.classList.toggle("bi-chevron-down", !showScrollUp);
+    toggle.title = showScrollUp ? "Scroll to top" : "Scroll to bottom";
+    toggle.setAttribute("aria-label", toggle.title);
 }
 
 function wireInspectionScrollTools() {
-    const top = document.getElementById("inspectionScrollTop");
-    const bottom = document.getElementById("inspectionScrollBottom");
-    if (!top || !bottom) return;
+    const toggle = document.getElementById("inspectionScrollToggle");
+    if (!toggle) return;
     const scrollToPosition = position => {
         const target = getInspectionScrollTarget();
         if (target === window) {
@@ -2106,8 +2110,15 @@ function wireInspectionScrollTools() {
             target.scrollTo({ top: position === "top" ? 0 : target.scrollHeight, behavior: "smooth" });
         }
     };
-    top.addEventListener("click", () => scrollToPosition("top"));
-    bottom.addEventListener("click", () => scrollToPosition("bottom"));
+    toggle.addEventListener("click", () => {
+        const target = getInspectionScrollTarget();
+        const scrollingElement = document.scrollingElement || document.documentElement;
+        const scrollTop = target === window ? Math.max(window.scrollY || 0, scrollingElement.scrollTop || 0) : target.scrollTop;
+        const clientHeight = target === window ? window.innerHeight : target.clientHeight;
+        const scrollHeight = target === window ? scrollingElement.scrollHeight : target.scrollHeight;
+        const atBottom = scrollHeight - clientHeight - scrollTop <= 4;
+        scrollToPosition(atBottom ? "top" : "bottom");
+    });
     window.addEventListener("scroll", updateInspectionScrollTools, { passive: true });
     document.addEventListener("scroll", event => {
         if (event.target && event.target.classList && event.target.classList.contains("modal-body")) updateInspectionScrollTools();
