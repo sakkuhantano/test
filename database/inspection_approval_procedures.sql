@@ -56,8 +56,9 @@ BEGIN
         DECLARE @V_FollowUpWONo VARCHAR(10);
         DECLARE @V_InspectionNo VARCHAR(10);
         DECLARE @V_OwnerEmployeeID VARCHAR(50);
+        DECLARE @V_IDTemplate INT;
 
-        SELECT @V_SectionID=SectionID, @V_Status=Status, @V_IsApprove=IsApprove,
+        SELECT @V_IDTemplate=IDTemplate, @V_SectionID=SectionID, @V_Status=Status, @V_IsApprove=IsApprove,
                @V_ApprovedBy=ApprovedBy, @V_ApprovedDate=ApprovedDate,
                @V_ApprovalRemark=ApprovalRemark, @V_ReasonVoid=ReasonVoid,
                @V_FollowUp=ISNULL(FollowUp,'No Follow Up'),
@@ -89,7 +90,19 @@ BEGIN
                              WHERE L.CompanyID=@p_CompanyID AND L.LocationID=@p_LocationID)
               )
         )
-            RAISERROR('Supervisor is not authorized for this inspection section or company/location.', 16, 1);
+        OR NOT EXISTS
+        (
+            SELECT 1
+            FROM dbo.PIP_M_CheckListWOPM T
+            WHERE T.IDTemplate=@V_IDTemplate
+              AND T.SectionID=@V_SectionID
+              AND ISNULL(T.TemplateType,'W')='I'
+              AND (ISNULL(T.CompanyScope,'S')='A'
+                   OR (';' + ISNULL(T.CompanyLocationList,'') + ';' LIKE '%;' + @p_CompanyID + @p_LocationID + ';%'))
+              AND (ISNULL(T.EmployeeList,'')=''
+                   OR (';' + ISNULL(T.EmployeeList,'') + ';' LIKE '%;' + @V_OwnerEmployeeID + ';%'))
+        )
+            RAISERROR('Supervisor is not authorized for this inspection template, technician, or company/location.', 16, 1);
 
         IF @V_Status <> 'DONE' OR ISNULL(@V_IsApprove,0) <> 0
            OR ISNULL(@V_ApprovedBy,'') <> '' OR ISNULL(@V_ApprovedDate,CONVERT(DATETIME,'19000101',112)) > CONVERT(DATETIME,'19000101',112)
