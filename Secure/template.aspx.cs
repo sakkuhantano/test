@@ -1194,6 +1194,38 @@ COMMIT TRANSACTION;",
         }
 
         [WebMethod]
+        public static object SetTemplateAllEmployees(string idTemplate, string updateUser, string companyId, string locationId)
+        {
+            int id;
+            if (!Int32.TryParse(idTemplate, out id) || id <= 0)
+                return new { success = false, message = "Save the template before assigning employees." };
+
+            using (var br = new WAL.BR.CF())
+            {
+                DataTable scope = br.EQuery(@"
+SELECT 1
+FROM dbo.PIP_M_CheckListWOPM T
+WHERE T.IDTemplate=@IDTemplate
+  AND T.TemplateType='I'
+  AND (ISNULL(T.CompanyScope,'S')='A'
+       OR (';' + ISNULL(T.CompanyLocationList,'') + ';' LIKE '%;' + @CurrentCompanyID + @CurrentLocationID + ';%'))",
+                    "@IDTemplate=" + id + GF.Str2 +
+                    "@CurrentCompanyID=" + companyId + GF.Str2 +
+                    "@CurrentLocationID=" + locationId);
+                if (scope.Rows.Count == 0)
+                    return new { success = false, message = "Inspection template is not assigned to this company/location." };
+
+                br.EQuery(@"
+UPDATE dbo.PIP_M_CheckListWOPM
+SET EmployeeList='', UpdateUser=@UpdateUser, UpdateDate=GETDATE()
+WHERE IDTemplate=@IDTemplate AND TemplateType='I'",
+                    "@IDTemplate=" + id + GF.Str2 +
+                    "@UpdateUser=" + updateUser);
+                return new { success = true, message = "" };
+            }
+        }
+
+        [WebMethod]
         public static object GetTemplateEmployees(string idTemplate, string sectionId, string companyId, string locationId, string userId)
         {
             int id;
@@ -1284,16 +1316,9 @@ WHERE T.IDTemplate=@IDTemplate
                     return new { success = false, message = "Employee assignment is only available for Inspection templates." };
                 if (!String.Equals(GF.GetString(row["SectionID"]), GF.GetString(row["EmployeeSectionID"]), StringComparison.OrdinalIgnoreCase))
                     return new { success = false, message = "Employee SectionID does not match the template." };
-                if (action == "ADD" && GF.GetString(row["CompanyScope"]) != "A")
-                {
-                    DataTable scope = br.EQuery(@"
-SELECT 1 FROM dbo.PIP_M_CheckListWOPM T WHERE T.IDTemplate=@IDTemplate AND (';' + ISNULL(T.CompanyLocationList,'') + ';' LIKE '%;' + @CompanyID + @LocationID + ';%')",
-                        "@IDTemplate=" + id + GF.Str2 +
-                        "@CompanyID=" + GF.GetString(row["CompanyID"]) + GF.Str2 +
-                        "@LocationID=" + GF.GetString(row["EmployeeLocationID"]));
-                    if (scope.Rows.Count == 0)
-                        return new { success = false, message = "Employee company/location is not assigned to this template." };
-                }
+                // Eligibility is based on the selected company/location context and employee access,
+                // not necessarily the employee's home company/location. The query above already validates
+                // that the selected context is within this template's scope.
 
                 br.EQuery(@"
 SET XACT_ABORT ON;
