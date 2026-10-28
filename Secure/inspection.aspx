@@ -59,6 +59,8 @@
     .inspection-saved-row:last-child { border-bottom: 0; }
     #inspectionChecklistHost input, #inspectionChecklistHost select, #inspectionChecklistHost textarea { min-height: 38px; }
     .inspection-section-nav { position: sticky; top: 108px; z-index: 5; }
+    .inspection-section-nav-host { flex: 0 1 58%; min-width: 0; }
+    .inspection-section-nav-host .inspection-section-nav { position: static; max-width: 100%; margin-bottom: 0 !important; padding: .35rem !important; }
     .inspection-section-nav-tabs { min-width: 0; overflow-x: auto; scrollbar-width: thin; }
     .inspection-section-nav-tabs .d-inline-flex { gap: .35rem; }
     .inspection-section-tab { display: inline-flex; align-items: center; white-space: nowrap; padding: .45rem .7rem; border-radius: .45rem; color: var(--bs-secondary-color); text-decoration: none; font-size: .875rem; font-weight: 600; border: 1px solid transparent; }
@@ -351,12 +353,13 @@
     </div>
     <div id="inspectionChecklistPane" class="d-none">
     <div id="inspectionFormPanel" class="inspection-card p-3 mb-3 d-none">
-        <div class="d-flex justify-content-between align-items-start gap-2 mb-3">
-            <div>
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
+            <div class="flex-grow-1 min-w-0">
                 <div class="inspection-muted text-uppercase">Active inspection</div>
                 <h6 id="inspectionFormTitle" class="mb-1">Checklist</h6>
                 <div id="inspectionFormSubtitle" class="inspection-muted"></div>
             </div>
+            <div id="inspectionSectionNavHost" class="inspection-section-nav-host"></div>
         </div>
         <div class="inspection-photo-panel mb-3"><div class="fw-bold mb-2"><i class="bi bi-camera-fill me-2"></i>FIELD DOCUMENTATION BEFORE</div><div id="inspectionPhotoBeforeList" class="d-flex flex-wrap gap-2 mb-2"></div><div class="d-flex align-items-center justify-content-between gap-2"><label class="inspection-muted mb-0">Ambil foto sebelum inspeksi</label><button type="button" id="btnAddInspectionBeforePhoto" class="btn btn-sm btn-outline-primary" onclick="document.getElementById('inspectionPhotoBeforeInput').click()"><i class="bi bi-camera"></i> Take Picture</button><input id="inspectionPhotoBeforeInput" type="file" accept="image/*" capture="environment" multiple hidden /></div><div id="inspectionBeforePhotoCount" class="inspection-muted mt-1">0 foto</div></div>
         <div id="inspectionChecklistGateMessage" class="alert alert-warning py-2 small"></div><div id="inspectionChecklistHost"></div>
