@@ -1254,11 +1254,11 @@ ORDER BY E.CompanyID, E.LocationID, E.EmployeeID",
             {
                 DataTable dt = br.EQuery(@"
 SELECT T.TemplateType, T.CompanyScope, T.SectionID,
-       E.EmployeeID, E.SectionID EmployeeSectionID, E.CompanyID, EE.LocationID
+       E.EmployeeID, E.SectionID EmployeeSectionID, E.CompanyID, E.LocationID EmployeeLocationID
 FROM dbo.PIP_M_CheckListWOPM T
 JOIN dbo.M_HRD_Employee E ON E.EmployeeID=@EmployeeID
-CROSS APPLY dbo.F_SelectOneLogin('pip', E.EmployeeID, '') EE
 WHERE T.IDTemplate=@IDTemplate
+  AND E.SectionID=T.SectionID
   AND ISNULL(E.TerminationDate,'')=''
   AND EXISTS (SELECT 1 FROM dbo.UTL_User U WHERE U.EmployeeID=E.EmployeeID)
   AND (
@@ -1290,7 +1290,7 @@ WHERE T.IDTemplate=@IDTemplate
 SELECT 1 FROM dbo.PIP_M_CheckListWOPM T WHERE T.IDTemplate=@IDTemplate AND (';' + ISNULL(T.CompanyLocationList,'') + ';' LIKE '%;' + @CompanyID + @LocationID + ';%')",
                         "@IDTemplate=" + id + GF.Str2 +
                         "@CompanyID=" + GF.GetString(row["CompanyID"]) + GF.Str2 +
-                        "@LocationID=" + GF.GetString(row["LocationID"]));
+                        "@LocationID=" + GF.GetString(row["EmployeeLocationID"]));
                     if (scope.Rows.Count == 0)
                         return new { success = false, message = "Employee company/location is not assigned to this template." };
                 }
@@ -1319,6 +1319,15 @@ IF @Action='REMOVE' AND
          WHERE E.SectionID=(SELECT SectionID FROM dbo.PIP_M_CheckListWOPM WHERE IDTemplate=@IDTemplate)
            AND ISNULL(E.TerminationDate,'')=''
            AND EXISTS (SELECT 1 FROM dbo.UTL_User U WHERE U.EmployeeID=E.EmployeeID)
+           AND (
+               EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation CurrentPermission
+                       WHERE CurrentPermission.AppID='PIP' AND CurrentPermission.UserID=E.EmployeeID
+                         AND CurrentPermission.CompanyID=@CurrentCompanyID
+                         AND CurrentPermission.LocationID=@CurrentLocationID)
+               OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', E.EmployeeID, '') LoginCompany
+                          WHERE LoginCompany.CompanyID=@CurrentCompanyID
+                            AND LoginCompany.LocationID=@CurrentLocationID)
+           )
            AND E.EmployeeID<>@EmployeeID
            AND (ISNULL((SELECT CompanyScope FROM dbo.PIP_M_CheckListWOPM WHERE IDTemplate=@IDTemplate),'S')='A'
                 OR (';' + ISNULL((SELECT CompanyLocationList FROM dbo.PIP_M_CheckListWOPM WHERE IDTemplate=@IDTemplate),'') + ';' LIKE '%;' + E.CompanyID + E.LocationID + ';%'))))
@@ -1344,6 +1353,15 @@ BEGIN
             WHERE E.SectionID=T.SectionID
               AND ISNULL(E.TerminationDate,'')=''
               AND EXISTS (SELECT 1 FROM dbo.UTL_User U WHERE U.EmployeeID=E.EmployeeID)
+              AND (
+               EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation CurrentPermission
+                       WHERE CurrentPermission.AppID='PIP' AND CurrentPermission.UserID=E.EmployeeID
+                         AND CurrentPermission.CompanyID=@CurrentCompanyID
+                         AND CurrentPermission.LocationID=@CurrentLocationID)
+               OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', E.EmployeeID, '') LoginCompany
+                          WHERE LoginCompany.CompanyID=@CurrentCompanyID
+                            AND LoginCompany.LocationID=@CurrentLocationID)
+           )
               AND (ISNULL(T.CompanyScope,'S')='A'
                    OR (';' + ISNULL(T.CompanyLocationList,'') + ';' LIKE '%;' + E.CompanyID + E.LocationID + ';%'))
               AND E.EmployeeID<>@EmployeeID
@@ -1387,6 +1405,15 @@ BEGIN
               WHERE E.SectionID=T.SectionID
                 AND ISNULL(E.TerminationDate,'')=''
                 AND EXISTS (SELECT 1 FROM dbo.UTL_User U WHERE U.EmployeeID=E.EmployeeID)
+                AND (
+               EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation CurrentPermission
+                       WHERE CurrentPermission.AppID='PIP' AND CurrentPermission.UserID=E.EmployeeID
+                         AND CurrentPermission.CompanyID=@CurrentCompanyID
+                         AND CurrentPermission.LocationID=@CurrentLocationID)
+               OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', E.EmployeeID, '') LoginCompany
+                          WHERE LoginCompany.CompanyID=@CurrentCompanyID
+                            AND LoginCompany.LocationID=@CurrentLocationID)
+           )
                 AND (ISNULL(T.CompanyScope,'S')='A'
                      OR (';' + ISNULL(T.CompanyLocationList,'') + ';' LIKE '%;' + E.CompanyID + E.LocationID + ';%'))
                 AND (';' + ISNULL(T.EmployeeList,'') + ';' NOT LIKE '%;' + E.EmployeeID + ';%')
@@ -1397,7 +1424,9 @@ COMMIT TRANSACTION;",
                     "@IDTemplate=" + id + GF.Str2 +
                     "@EmployeeID=" + employeeId + GF.Str2 +
                     "@Action=" + action + GF.Str2 +
-                    "@UpdateUser=" + updateUser);
+                    "@UpdateUser=" + updateUser + GF.Str2 +
+                    "@CurrentCompanyID=" + companyId + GF.Str2 +
+                    "@CurrentLocationID=" + locationId);
                 return new { success = true, message = "" };
             }
         }
