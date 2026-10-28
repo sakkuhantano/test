@@ -12,6 +12,7 @@
     const CACHE_STORE = "inspection_approval_cache";
     const ACTION_STORE = "inspection_approval_queue";
     const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+    let approvalSyncInProgress = false;
 
     function scope() {
         return {
@@ -267,65 +268,70 @@
     }
 
     async function syncPendingApprovalActions() {
-        if (!navigator.onLine || !dbReady() || !inspectionLogin || !inspectionLogin.employeeid) return { synced: 0, conflicts: 0 };
-        const actions = (await readScopedActions()).filter(item => item.Status === "PENDING")
-            .sort((a, b) => String(a.CreatedAt).localeCompare(String(b.CreatedAt)));
-        let synced = 0, conflicts = 0;
-        for (const item of actions) {
-            if (!navigator.onLine) break;
-            try {
-                await originalApprovalPost("ProcessInspectionApproval", {
-                    inspectionId: item.InspectionID,
-                    action: item.Action,
-                    employeeId: item.EmployeeID,
-                    companyId: item.CompanyID,
-                    locationId: item.LocationID,
-                    remark: item.Remark
-                });
-                await deleteAction(item.ActionID);
-                synced++;
-            } catch (err) {
+        if (approvalSyncInProgress || !navigator.onLine || !dbReady() || !inspectionLogin || !inspectionLogin.employeeid)
+            return { synced: 0, conflicts: 0 };
+        approvalSyncInProgress = true;
+        try {
+            const actions = (await readScopedActions()).filter(item => item.Status === "PENDING")
+                .sort((a, b) => String(a.CreatedAt).localeCompare(String(b.CreatedAt)));
+            let synced = 0, conflicts = 0;
+            for (const item of actions) {
                 if (!navigator.onLine) break;
-                const message = String(err && err.message || err || "Sync approval gagal.");
-                // If the server committed but the response was lost, recognize the already-applied action.
-                let alreadyApplied = false;
                 try {
-                    const detail = await originalApprovalPost("GetInspectionApprovalDetail", {
-                        inspectionId: item.InspectionID, employeeId: item.EmployeeID
+                    await originalApprovalPost("ProcessInspectionApproval", {
+                        inspectionId: item.InspectionID,
+                        action: item.Action,
+                        employeeId: item.EmployeeID,
+                        companyId: item.CompanyID,
+                        locationId: item.LocationID,
+                        remark: item.Remark
                     });
-                    const h = detail && detail.header || {};
-                    alreadyApplied = String(h.ApprovedBy || "") === item.EmployeeID &&
-                        (item.Action === "APPROVE"
-                            ? Number(h.IsApprove) === 1
-                            : String(h.ReasonVoid || "").trim() !== "" && Number(h.IsApprove || 0) === 0);
-                } catch (_) { /* keep pending if the server state cannot be confirmed */ }
-                if (alreadyApplied) {
                     await deleteAction(item.ActionID);
                     synced++;
-                    continue;
-                }
-                if (/only inspections awaiting approval|state changed|not authorized|not found|authorization|template|supervisor/i.test(message)) {
-                    item.Status = "CONFLICT";
-                    item.LastError = message;
-                    item.LastAttemptAt = new Date().toISOString();
-                    const tx = db.transaction(ACTION_STORE, "readwrite");
-                    tx.objectStore(ACTION_STORE).put(item);
-                    await new Promise(resolve => { tx.oncomplete = resolve; tx.onerror = resolve; tx.onabort = resolve; });
-                    conflicts++;
-                } else {
-                    item.LastError = message;
-                    item.LastAttemptAt = new Date().toISOString();
-                    const tx = db.transaction(ACTION_STORE, "readwrite");
-                    tx.objectStore(ACTION_STORE).put(item);
-                    await new Promise(resolve => { tx.oncomplete = resolve; tx.onerror = resolve; tx.onabort = resolve; });
+                } catch (err) {
+                    if (!navigator.onLine) break;
+                    const message = String(err && err.message || err || "Sync approval gagal.");
+                    // If the server committed but the response was lost, recognize the already-applied action.
+                    let alreadyApplied = false;
+                    try {
+                        const detail = await originalApprovalPost("GetInspectionApprovalDetail", {
+                            inspectionId: item.InspectionID, employeeId: item.EmployeeID
+                        });
+                        const h = detail && detail.header || {};
+                        alreadyApplied = String(h.ApprovedBy || "") === item.EmployeeID &&
+                            (item.Action === "APPROVE"
+                                ? Number(h.IsApprove) === 1
+                                : String(h.ReasonVoid || "").trim() !== "" && Number(h.IsApprove || 0) === 0);
+                    } catch (_) { /* keep pending if the server state cannot be confirmed */ }
+                    if (alreadyApplied) {
+                        await deleteAction(item.ActionID);
+                        synced++;
+                        continue;
+                    }
+                    if (/only inspections awaiting approval|state changed|not authorized|not found|authorization|template|supervisor/i.test(message)) {
+                        item.Status = "CONFLICT";
+                        item.LastError = message;
+                        item.LastAttemptAt = new Date().toISOString();
+                        const tx = db.transaction(ACTION_STORE, "readwrite");
+                        tx.objectStore(ACTION_STORE).put(item);
+                        await new Promise(resolve => { tx.oncomplete = resolve; tx.onerror = resolve; tx.onabort = resolve; });
+                        conflicts++;
+                    } else {
+                        item.LastError = message;
+                        item.LastAttemptAt = new Date().toISOString();
+                        const tx = db.transaction(ACTION_STORE, "readwrite");
+                        tx.objectStore(ACTION_STORE).put(item);
+                        await new Promise(resolve => { tx.oncomplete = resolve; tx.onerror = resolve; tx.onabort = resolve; });
+                    }
                 }
             }
+            if (conflicts) showToast(conflicts + " approval konflik. Periksa kembali status server sebelum mengambil tindakan lain.", "warning");
+            else if (synced) showToast(synced + " approval offline berhasil dikonfirmasi server.", "success");
+            return { synced, conflicts };
+        } finally {
+            approvalSyncInProgress = false;
         }
-        if (conflicts) showToast(conflicts + " approval konflik. Periksa kembali status server sebelum mengambil tindakan lain.", "warning");
-        else if (synced) showToast(synced + " approval offline berhasil dikonfirmasi server.", "success");
-        return { synced, conflicts };
     }
-
     async function decorateApprovalQueue() {
         if (typeof renderInspectionApprovalQueue !== "function") return;
         const actions = await readScopedActions();
