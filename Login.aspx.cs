@@ -140,14 +140,16 @@ namespace Web
                         role["IsWO"] = Convert.ToBoolean(dt.Rows[0]["IsWO"]);
                         role["IsSPV"] = GF.GetBoolean(dt.Rows[0]["IsSPV"]);
                         foreach (DataRow row in oUser.EQuery(
-                            "select distinct * from " +
-                            "(" +
-                            "SELECT a.companyid+';'+a.locationid companylocation, a.alias companyname " +
+                            "select companylocation, companyname from (" +
+                            "select companylocation, companyname, sourcepriority, " +
+                            "ROW_NUMBER() OVER (PARTITION BY companylocation ORDER BY sourcepriority) rn from (" +
+                            "SELECT a.companyid+';'+a.locationid companylocation, a.alias companyname, 0 sourcepriority " +
                             "FROM dbo.F_SelectOneLogin('pip', @userid, '') a " +
-                            "union all "+
-                            "select a.companyid+';'+a.locationid,b.alias " +
+                            "union all " +
+                            "select a.companyid+';'+a.locationid, b.alias, 1 " +
                             "from syswebusercompanylocation a join syswebcompany b on a.companyid=b.companyid where a.userid=@userid and a.appid='pip' " +
-                            ") a",
+                            ") sources " +
+                            ") ranked where rn=1 order by sourcepriority, companylocation",
                             "@userid=" + V_EmpID).Rows)
                         {
                             Dictionary<string, object> dict = new Dictionary<string, object>();
