@@ -58,7 +58,10 @@
     .inspection-saved-row { border-bottom: 1px solid var(--bs-border-color); padding: .7rem 0; }
     .inspection-saved-row:last-child { border-bottom: 0; }
     #inspectionChecklistHost input, #inspectionChecklistHost select, #inspectionChecklistHost textarea { min-height: 38px; }
-    .inspection-editor-sticky { position: sticky; top: 64px; z-index: 1025; background: var(--bs-body-bg); padding: .35rem 0 .4rem; border-bottom: 1px solid var(--bs-border-color); }
+    .inspection-editor-sticky { position: -webkit-sticky; position: sticky; top: 0; z-index: 1035; background: var(--bs-body-bg); padding: .35rem 0 .4rem; border-bottom: 1px solid var(--bs-border-color); }
+    .inspection-approval-sticky { position: -webkit-sticky; position: sticky; top: 0; z-index: 1035; background: var(--bs-body-bg); padding: .35rem 0 .4rem; border-bottom: 1px solid var(--bs-border-color); }
+    #inspectionApprovalStickyHeader .nav-link.active { font-weight: 700; }
+    #inspectionApprovalSectionNavHost .inspection-section-nav { margin-bottom: 0 !important; }
     #inspectionEditorTabs { white-space: nowrap; }
     #inspectionEditorTabs .nav-link.active { font-weight: 700; }
     .inspection-section-nav-host { min-width: 0; }
@@ -70,7 +73,8 @@
     .inspection-section-tab.active { color: var(--bs-primary); background: var(--bs-primary-bg-subtle); border-color: var(--bs-primary-border-subtle); }
     .inspection-section-dropdown-item.active { color: var(--bs-primary); background: var(--bs-primary-bg-subtle); font-weight: 600; }
     @media (max-width: 575.98px) {
-        .inspection-editor-sticky { top: 58px; }
+        .inspection-editor-sticky { top: 0; }
+        .inspection-approval-sticky { top: 0; }
         .inspection-form-heading { width: 100%; }
         .inspection-section-nav-host { width: 100%; max-width: 100%; }
         .inspection-section-nav-host .inspection-section-nav { width: 100%; }
@@ -201,6 +205,7 @@
                 </li>
             </ul>
             <div id="inspectionApprovalBatchActions" class="d-flex flex-wrap align-items-center gap-1">
+                <button type="button" id="btnInspectionApprovalPreview" class="btn btn-sm btn-outline-primary" disabled title="Select all inspections to enable Preview"><i class="bi bi-file-earmark-excel me-1"></i>Preview</button>
                 <button type="button" id="btnApprovalSelectAll" class="btn btn-sm btn-outline-secondary" title="Select all filtered inspections" aria-label="Select all filtered inspections">Select All</button>
                 <button type="button" id="btnBatchApproveInspection" class="btn btn-sm btn-success" title="Approve selected inspections" aria-label="Approve selected inspections">Approve</button>
                 <button type="button" id="btnBatchVoidInspection" class="btn btn-sm btn-outline-danger" title="Void selected inspections" aria-label="Void selected inspections">Void</button>
@@ -208,11 +213,11 @@
                 </div>
             </div>
         <div class="table-responsive">
-            <table class="table table-sm table-hover align-middle">
+            <table id="inspectionApprovalTable" class="table table-sm table-hover align-middle">
                 <thead><tr>
                     <th id="thInspectionApprovalSelectAll"><input type="checkbox" id="chkAllInspectionApproval" class="form-check-input" aria-label="Select all filtered inspections"></th>
-                    <th>Transaction No.</th><th>Inspection Type</th><th>Inspection Type Detail</th>
-                    <th>Date</th><th>Scheduled</th><th>Start – End</th><th>Technician</th>
+                    <th role="button" tabindex="0" data-approval-sort="InspectionNo" class="text-nowrap">Transaction No. <span class="approval-sort-indicator"></span></th><th role="button" tabindex="0" data-approval-sort="InspectionTypeName">Inspection Type <span class="approval-sort-indicator"></span></th><th role="button" tabindex="0" data-approval-sort="InspectionTypeDetailName">Inspection Type Detail <span class="approval-sort-indicator"></span></th>
+                    <th role="button" tabindex="0" data-approval-sort="InspectionDate" class="text-nowrap">Date <span class="approval-sort-indicator"></span></th><th role="button" tabindex="0" data-approval-sort="ScheduledTime">Scheduled <span class="approval-sort-indicator"></span></th><th role="button" tabindex="0" data-approval-sort="StartDateTime" class="text-nowrap">Start – End <span class="approval-sort-indicator"></span></th><th role="button" tabindex="0" data-approval-sort="TechnicianName">Technician <span class="approval-sort-indicator"></span></th>
                 </tr></thead>
                 <tbody id="inspectionApprovalQueue"><tr><td colspan="8" class="text-muted py-3">Memuat antrean...</td></tr></tbody>
             </table>
@@ -226,10 +231,13 @@
                 <div id="inspectionApprovalDetailSubtitle" class="inspection-muted"></div>
             </div>
         </div>
-        <ul class="nav nav-tabs mb-3" role="tablist">
-            <li class="nav-item"><button class="nav-link active" id="inspectionApprovalParamTab" data-bs-toggle="tab" data-bs-target="#inspectionApprovalParamPane" type="button" role="tab">PARAMETERS</button></li>
-            <li class="nav-item"><button class="nav-link" id="inspectionApprovalChecklistTab" data-bs-toggle="tab" data-bs-target="#inspectionApprovalChecklistPane" type="button" role="tab">CHECKLIST</button></li>
-        </ul>
+        <div id="inspectionApprovalStickyHeader" class="inspection-approval-sticky mb-3">
+            <ul class="nav nav-tabs mb-2" role="tablist">
+                <li class="nav-item"><button class="nav-link active" id="inspectionApprovalParamTab" data-bs-toggle="tab" data-bs-target="#inspectionApprovalParamPane" type="button" role="tab">PARAMETERS</button></li>
+                <li class="nav-item"><button class="nav-link" id="inspectionApprovalChecklistTab" data-bs-toggle="tab" data-bs-target="#inspectionApprovalChecklistPane" type="button" role="tab">CHECKLIST</button></li>
+            </ul>
+            <div id="inspectionApprovalSectionNavHost" class="inspection-section-nav-host d-none"></div>
+        </div>
         <div class="tab-content">
             <div class="tab-pane fade show active" id="inspectionApprovalParamPane"><div id="inspectionApprovalParameters"></div></div>
             <div class="tab-pane fade" id="inspectionApprovalChecklistPane"><div id="inspectionApprovalDetail" class="small"></div></div>
