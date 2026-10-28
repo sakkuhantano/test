@@ -61,6 +61,10 @@
     .inspection-editor-sticky { position: -webkit-sticky; position: sticky; top: 64px; z-index: 1025; background: var(--bs-body-bg); padding: .35rem 0 .4rem; border-bottom: 1px solid var(--bs-border-color); }
     .inspection-approval-sticky { position: -webkit-sticky; position: sticky; top: 64px; z-index: 1025; background: var(--bs-body-bg); padding: .35rem 0 .4rem; border-bottom: 1px solid var(--bs-border-color); }
     #inspectionApprovalTable [data-approval-sort] { cursor: pointer; user-select: none; }
+    /* Compact SPV approval grid; keep each column label/value on one line. */
+    #inspectionApprovalTable { font-size: .78rem; white-space: nowrap; }
+    #inspectionApprovalTable > :not(caption) > * > * { padding: .35rem .45rem; }
+    #inspectionApprovalTable thead th { font-size: .75rem; }
     #inspectionApprovalStickyHeader .nav-link.active { font-weight: 700; }
     #inspectionApprovalSectionNavHost .inspection-section-nav { margin-bottom: 0 !important; }
     #inspectionEditorTabs { white-space: nowrap; }
