@@ -2420,8 +2420,10 @@ function renderInspectionApprovalQueue() {
             const toSortTimestamp = value => {
                 if (value == null || value === "") return 0;
                 if (typeof value === "string") {
-                    const dotNetDate = value.match(/\\/Date\\((-?\\d+)/);
-                    if (dotNetDate) return Number(dotNetDate[1]);
+                    if (value.indexOf("/Date(") === 0) {
+                        const milliseconds = Number(value.slice(6).split(")")[0]);
+                        if (Number.isFinite(milliseconds)) return milliseconds;
+                    }
                 }
                 const parsed = new Date(value).getTime();
                 return Number.isFinite(parsed) ? parsed : 0;
