@@ -174,8 +174,12 @@
                 <div class="text-uppercase text-primary fw-bold inspection-muted">Supervisor</div>
                 <h5 class="mb-0">Inspection Approval</h5>
                 <div class="inspection-muted">Inspeksi Complete dari teknisi pada section yang menjadi tanggung jawab Anda.</div>
+                <div class="alert alert-info py-2 px-3 mt-2 mb-0 small" id="inspectionApprovalOfflineHint">
+                    <strong>Persiapan offline:</strong> saat online, tekan <em>Refresh / Siapkan Offline</em>, lalu buka detail inspeksi yang akan diperiksa agar checklist dan foto tersimpan di perangkat.
+                    Approval offline akan berstatus <strong>Pending Sync</strong> sampai server mengonfirmasi. Detail yang belum pernah dibuka online belum tersedia offline.
+                </div>
             </div>
-            <button type="button" id="btnRefreshInspectionApproval" class="btn btn-sm btn-outline-primary">Refresh</button>
+            <button type="button" id="btnRefreshInspectionApproval" class="btn btn-sm btn-outline-primary">Refresh / Siapkan Offline</button>
         </div>
             <div class="inspection-approval-toolbar mb-3">
                 <div class="d-flex flex-wrap align-items-end gap-2 mb-3">
@@ -452,4 +456,5 @@
         <div class="inspection-photo-viewer-footer"><span id="inspectionPhotoViewerCount">1 / 1</span><div class="small">Gunakan panah atau geser foto ke kiri/kanan</div></div>
     </div>
 <script type="text/javascript" src="../JSCus/inspection.js"></script>
+<script type="text/javascript" src="../JSCus/inspectionApprovalOffline.js"></script>
 </asp:Content>
