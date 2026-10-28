@@ -13,7 +13,8 @@ let currentInspectionReadOnly = false;
 let inspectionAutoSaveTimer = null;
 let inspectionPhotoViewerState = { type: "", photos: [], index: 0, objectUrl: null, touchStartX: null };
 let inspectionPhotoBaseline = null;
-let inspectionNoticeEnabled = false;\nlet inspectionGridSort = { key: "inspectionDate", direction: "asc" };
+let inspectionNoticeEnabled = false;
+let inspectionGridSort = { key: "inspectionDate", direction: "asc" };
 let inspectionFollowUpSections = [
     { Code: "ACON", Name: "Air Cond." },
     { Code: "COMM", Name: "Comm." },
