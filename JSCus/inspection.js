@@ -1330,7 +1330,7 @@ function renderInspectionRecordTable(records, host, submitted) {
                 case "inspectionType": return String(record.InspectionTypeName || "");
                 case "locationArea": return String(record.InspectionTypeDetailName || "");
                 case "technician": return String(record.TechnicianName || (record.OwnerEmployeeID === inspectionLogin.employeeid ? inspectionTechnicianName : "") || "");
-                case "inspectionDate": default: return String(record.InspectionDate || "").substring(0, 10) + "|" + String(record.ScheduledTime || "");
+                case "inspectionDate": default: return String(parseInspectionDate(record.InspectionDate) || "") + "|" + String(record.ScheduledTime || "");
             }
         };
         const result = value(a).localeCompare(value(b), undefined, { numeric: true, sensitivity: "base" });
