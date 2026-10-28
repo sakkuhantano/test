@@ -6393,48 +6393,33 @@ async function renderTemplateEmployeeAssignments(template)
         });
         applyEmployeeFilterAndSort();
         assignAll.addEventListener('click', async function() {
-            const pending = employeeRows.filter(function(item) { return !item.row.IsAssigned; });
-            if (!pending.length) {
-                showToast('All eligible employees are already assigned.', 'info');
-                return;
-            }
             const confirmed = await showConfirmation({
                 title: 'Assign Template',
-                message: 'Assign this template to all ' + pending.length + ' eligible active employees in the selected company/location scope?',
+                message: 'Assign this template to all eligible active employees in the selected company/location scope?',
                 yesText: 'Assign'
             });
             if (!confirmed) return;
-            let assigned = 0;
-            const failed = [];
             assignAll.disabled = true;
             showLoading();
             try {
-                for (const item of pending) {
-                    try {
-                        const result = await promisifyPageMethod(
-                            PageMethods.SetTemplateEmployeeAssignment,
-                            String(template.IDTemplate), item.row.EmployeeID,
-                            'ADD', getLoginData().employeeid, companyId, locationId
-                        );
-                        if (result && result.success) {
-                            item.row.IsAssigned = true;
-                            item.checkbox.checked = true;
-                            assigned++;
-                        } else {
-                            failed.push(item.row.EmployeeID + ': ' + ((result && result.message) || 'assignment failed'));
-                        }
-                    } catch (ex) {
-                        failed.push(item.row.EmployeeID + ': ' + (ex.message || ex));
-                    }
+                const result = await promisifyPageMethod(
+                    PageMethods.SetTemplateAllEmployees,
+                    String(template.IDTemplate), getLoginData().employeeid, companyId, locationId
+                );
+                if (!result || !result.success) {
+                    showToast((result && result.message) || 'Unable to assign all employees.', 'warning');
+                    return;
                 }
+                employeeRows.forEach(function(item) {
+                    item.row.IsAssigned = true;
+                    item.checkbox.checked = true;
+                });
+                showToast('All eligible employees assigned. EmployeeList remains empty.', 'success');
+            } catch (ex) {
+                showToast(ex.message || String(ex), 'warning');
             } finally {
                 hideLoading();
                 assignAll.disabled = false;
-            }
-            if (failed.length) {
-                showToast('Assigned ' + assigned + ' of ' + pending.length + ' employees. Failed: ' + failed.join('; '), 'warning');
-            } else {
-                showToast('Assigned ' + assigned + ' of ' + pending.length + ' employees.', 'success');
             }
         });
         host.appendChild(table);
