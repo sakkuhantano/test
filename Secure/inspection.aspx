@@ -404,7 +404,7 @@
                 <i class="bi bi-trash"></i> Delete Draft
             </button>
             <button type="button" id="btnCompleteInspection" class="btn btn-primary flex-fill">
-                <i class="bi bi-check-circle"></i> Done
+                <i class="bi bi-check-circle"></i> Submit
             </button>
         </div>
     </div>
