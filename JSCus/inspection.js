@@ -880,6 +880,11 @@ function renderInspectionSections(template, savedItems, readOnly, idPrefix) {
             (sectionIndex + 1) + '. ' + escInspection(section.sectionName || section.SectionName || "Checklist") + '<i class="bi bi-chevron-down float-end"></i></button>' +
             '<div id="' + sectionCollapseId + '" class="collapse show">' + contentHtml + '</div></section>';
     }).join("");
+    if (prefix === "inspectionSection") {
+        const navHost = document.getElementById("inspectionSectionNavHost");
+        if (navHost) navHost.innerHTML = navHtml;
+        return sectionsHtml;
+    }
     return navHtml + sectionsHtml;
 }
 
