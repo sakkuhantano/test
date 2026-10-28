@@ -414,6 +414,26 @@ WHERE U.EmployeeID=@EmployeeID
                 if (!sections.Contains(sectionId, StringComparer.OrdinalIgnoreCase))
                     throw new HttpException(403, "This inspection section is not assigned to the current employee.");
 
+                DataTable templateAccess = br.EQueryP(@"
+SELECT 1
+FROM dbo.PIP_M_CheckListWOPM T
+WHERE T.IDTemplate=@IDTemplate
+  AND T.SectionID=@SectionID
+  AND ISNULL(T.TemplateType,'W')='I'
+  AND (ISNULL(T.CompanyScope,'S')='A'
+       OR (';' + ISNULL(T.CompanyLocationList,'') + ';' LIKE '%;' + @CompanyID + @LocationID + ';%'))
+  AND (ISNULL(T.EmployeeList,'')=''
+       OR (';' + ISNULL(T.EmployeeList,'') + ';' LIKE '%;' + @EmployeeID + ';%'))",
+                    new SqlParameter[] {
+                        new SqlParameter("@IDTemplate", templateId),
+                        new SqlParameter("@SectionID", sectionId),
+                        new SqlParameter("@CompanyID", companyId),
+                        new SqlParameter("@LocationID", locationId),
+                        new SqlParameter("@EmployeeID", employeeId)
+                    });
+                if (templateAccess.Rows.Count == 0)
+                    throw new HttpException(403, "This employee is not assigned to the selected Inspection template and company/location.");
+
                 DataTable duplicate = br.EQueryP(@"
 SELECT TOP 1 InspectionNo, OwnerEmployeeID, Status
 FROM dbo.PIP_T_Inspection
@@ -491,6 +511,17 @@ WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID
   AND I.InspectionDate >= CONVERT(DATETIME, CONVERT(VARCHAR(10), GETDATE(), 120), 120)
   AND I.InspectionDate < DATEADD(DAY, 1, CONVERT(DATETIME, CONVERT(VARCHAR(10), GETDATE(), 120), 120))
   AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@SectionList,';') S WHERE S.val=I.SectionID)
+  AND EXISTS (
+      SELECT 1
+      FROM dbo.PIP_M_CheckListWOPM T
+      WHERE T.IDTemplate=I.IDTemplate
+        AND T.SectionID=I.SectionID
+        AND ISNULL(T.TemplateType,'W')='I'
+        AND (ISNULL(T.CompanyScope,'S')='A'
+             OR (';' + ISNULL(T.CompanyLocationList,'') + ';' LIKE '%;' + I.CompanyID + I.LocationID + ';%'))
+        AND (ISNULL(T.EmployeeList,'')=''
+             OR (';' + ISNULL(T.EmployeeList,'') + ';' LIKE '%;' + I.OwnerEmployeeID + ';%'))
+  )
 ORDER BY I.InspectionDate, I.ScheduledTime, I.InspectionID",
                     new SqlParameter[] {
                         new SqlParameter("@EmployeeID", employeeId),
@@ -556,6 +587,26 @@ WHERE U.EmployeeID=@EmployeeID
                     .Select(s => s.Trim()).Where(s => s.Length > 0);
                 if (!sections.Contains(sectionId, StringComparer.OrdinalIgnoreCase))
                     throw new HttpException(403, "This inspection section is not assigned to the current employee.");
+
+                DataTable templateAccess = br.EQueryP(@"
+SELECT 1
+FROM dbo.PIP_M_CheckListWOPM T
+WHERE T.IDTemplate=@IDTemplate
+  AND T.SectionID=@SectionID
+  AND ISNULL(T.TemplateType,'W')='I'
+  AND (ISNULL(T.CompanyScope,'S')='A'
+       OR (';' + ISNULL(T.CompanyLocationList,'') + ';' LIKE '%;' + @CompanyID + @LocationID + ';%'))
+  AND (ISNULL(T.EmployeeList,'')=''
+       OR (';' + ISNULL(T.EmployeeList,'') + ';' LIKE '%;' + @EmployeeID + ';%'))",
+                    new SqlParameter[] {
+                        new SqlParameter("@IDTemplate", TokenInt(record, "IDTemplate")),
+                        new SqlParameter("@SectionID", sectionId),
+                        new SqlParameter("@CompanyID", companyId),
+                        new SqlParameter("@LocationID", locationId),
+                        new SqlParameter("@EmployeeID", employeeId)
+                    });
+                if (templateAccess.Rows.Count == 0)
+                    throw new HttpException(403, "This employee is not assigned to the archived Inspection template and company/location.");
 
                 br.EQueryP(@"
 SET XACT_ABORT ON;
@@ -658,6 +709,17 @@ FROM dbo.PIP_T_Inspection I
 LEFT JOIN dbo.M_HRD_Employee E ON E.EmployeeID=I.OwnerEmployeeID
 WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID
   AND I.OwnerEmployeeID=@EmployeeID
+  AND EXISTS (
+      SELECT 1
+      FROM dbo.PIP_M_CheckListWOPM T
+      WHERE T.IDTemplate=I.IDTemplate
+        AND T.SectionID=I.SectionID
+        AND ISNULL(T.TemplateType,'W')='I'
+        AND (ISNULL(T.CompanyScope,'S')='A'
+             OR (';' + ISNULL(T.CompanyLocationList,'') + ';' LIKE '%;' + I.CompanyID + I.LocationID + ';%'))
+        AND (ISNULL(T.EmployeeList,'')=''
+             OR (';' + ISNULL(T.EmployeeList,'') + ';' LIKE '%;' + I.OwnerEmployeeID + ';%'))
+  )
   AND I.SyncDate >= @FromDate AND I.SyncDate < DATEADD(DAY, 1, @ThruDate)
   AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@SectionList,';') S WHERE S.val=I.SectionID)
 ORDER BY I.ApprovedDate DESC, I.EndDateTime DESC, I.StartDateTime DESC, I.InspectionID DESC",
@@ -706,6 +768,17 @@ ORDER BY I.ApprovedDate DESC, I.EndDateTime DESC, I.StartDateTime DESC, I.Inspec
 FROM dbo.PIP_T_Inspection I
 LEFT JOIN dbo.M_HRD_Employee E ON E.EmployeeID=I.OwnerEmployeeID
 WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID
+  AND EXISTS (
+      SELECT 1
+      FROM dbo.PIP_M_CheckListWOPM T
+      WHERE T.IDTemplate=I.IDTemplate
+        AND T.SectionID=I.SectionID
+        AND ISNULL(T.TemplateType,'W')='I'
+        AND (ISNULL(T.CompanyScope,'S')='A'
+             OR (';' + ISNULL(T.CompanyLocationList,'') + ';' LIKE '%;' + I.CompanyID + I.LocationID + ';%'))
+        AND (ISNULL(T.EmployeeList,'')=''
+             OR (';' + ISNULL(T.EmployeeList,'') + ';' LIKE '%;' + I.OwnerEmployeeID + ';%'))
+  )
   AND (
        (I.Status='DONE'
         AND ISNULL(I.IsApprove,0)=0
@@ -815,6 +888,17 @@ SELECT
 FROM dbo.PIP_T_Inspection I
 WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID
   AND EXISTS (
+      SELECT 1
+      FROM dbo.PIP_M_CheckListWOPM T
+      WHERE T.IDTemplate=I.IDTemplate
+        AND T.SectionID=I.SectionID
+        AND ISNULL(T.TemplateType,'W')='I'
+        AND (ISNULL(T.CompanyScope,'S')='A'
+             OR (';' + ISNULL(T.CompanyLocationList,'') + ';' LIKE '%;' + I.CompanyID + I.LocationID + ';%'))
+        AND (ISNULL(T.EmployeeList,'')=''
+             OR (';' + ISNULL(T.EmployeeList,'') + ';' LIKE '%;' + I.OwnerEmployeeID + ';%'))
+  )
+  AND EXISTS (
       SELECT 1 FROM dbo.UTL_User U
       WHERE U.EmployeeID=@EmployeeID AND ISNULL(U.IsSPV,0)=1
         AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(U.Section,';') S WHERE S.val=I.SectionID)
@@ -911,6 +995,17 @@ SELECT I.InspectionID, I.InspectionNo, I.CompanyID, I.LocationID, I.SectionID, I
        I.FollowUp, I.FollowUpSection, I.FollowUpRemark, I.FollowUpWONo
 FROM dbo.PIP_T_Inspection I
 WHERE I.InspectionID=@InspectionID
+  AND EXISTS (
+      SELECT 1
+      FROM dbo.PIP_M_CheckListWOPM T
+      WHERE T.IDTemplate=I.IDTemplate
+        AND T.SectionID=I.SectionID
+        AND ISNULL(T.TemplateType,'W')='I'
+        AND (ISNULL(T.CompanyScope,'S')='A'
+             OR (';' + ISNULL(T.CompanyLocationList,'') + ';' LIKE '%;' + I.CompanyID + I.LocationID + ';%'))
+        AND (ISNULL(T.EmployeeList,'')=''
+             OR (';' + ISNULL(T.EmployeeList,'') + ';' LIKE '%;' + I.OwnerEmployeeID + ';%'))
+  )
   AND (
        (I.Status='DONE' AND (
             (ISNULL(I.IsApprove,0)=0 AND ISNULL(I.ApprovedBy,'')='' AND ISNULL(I.ApprovedDate,CONVERT(DATETIME,'19000101',112))<=CONVERT(DATETIME,'19000101',112) AND ISNULL(I.ApprovalRemark,'')='' AND ISNULL(I.ReasonVoid,'')='')

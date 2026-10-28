@@ -27,21 +27,39 @@ namespace UTL1.Secure
             //using (var br = new WAL.BR.CF())
             try
             {
+                using (var auth = new WAL.BR.CF())
+                {
+                    DataTable allowed = auth.EQueryP(@"
+SELECT TOP 1 1
+FROM dbo.PIP_T_WO W
+JOIN dbo.UTL_User U ON U.EmployeeID=@EmployeeID
+WHERE W.KeyHD=@KeyHD
+  AND ISNULL(U.IsSPV,0)=1
+  AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(U.Section,';') S WHERE S.val=W.SectionID)
+  AND (
+       EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
+               WHERE C.UserID=U.UserID AND C.AppID='pip'
+                 AND C.CompanyID=W.CompanyID AND C.LocationID=W.LocationID)
+       OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', U.EmployeeID, '') L
+                  WHERE L.CompanyID=W.CompanyID AND L.LocationID=W.LocationID)
+  )
+  AND EXISTS (
+      SELECT 1 FROM dbo.PIP_M_CheckListWOPM T
+      WHERE T.TemplateNo=W.TemplateWOPM AND T.SectionID=W.SectionID
+        AND ISNULL(T.TemplateType,'W')='W'
+        AND (ISNULL(T.CompanyScope,'S')='A'
+             OR (';' + ISNULL(T.CompanyLocationList,'') + ';' LIKE '%;' + W.CompanyID + W.LocationID + ';%'))
+  )",
+                        new SqlParameter[] {
+                            new SqlParameter("@EmployeeID", userid),
+                            new SqlParameter("@KeyHD", keyhd)
+                        });
+                    if (allowed.Rows.Count == 0)
+                        throw new HttpException(403, "Work Order is not authorized for this supervisor, section, or template company/location.");
+                }
+
                 using (var br = new BRC.PIP_T_WO())
                 {
-                    //                br.EQuery(@"
-                    //UPDATE pip_t_wo SET ReasonRespondDC = @Reason, isRespondDC = CASE WHEN @Reason<>'' THEN 0 ELSE 1 END, 
-                    //UpdateUser = @UpdateUser, UpdateDate = GETDATE(), isCompleteDC = CASE WHEN @Reason<>'' THEN 0 ELSE 1 END,
-                    //CompletedDate = CASE WHEN @Reason<>'' THEN '' ELSE GETDATE() END,
-                    //CompletedBy = CASE WHEN @Reason<>'' THEN '' ELSE ISNULL((SELECT swu.UserName FROM SysWebUser AS swu WHERE swu.employeeid=@UpdateUser),@UpdateUser) END,
-                    //RemarkSupervisor=CASE WHEN @Reason<>'' THEN '' ELSE @Remark END,
-                    //ApprovedRespondDCDate = GETDATE(),
-                    //ApprovedRespondDCUser = ISNULL((SELECT swu.UserName FROM SysWebUser AS swu WHERE swu.employeeid=@UpdateUser),@UpdateUser)
-                    //WHERE KeyHD=@KeyHD", "@KeyHD=" + keyhd + GF.Str2 +
-                    //                     "@Reason=" + reason + GF.Str2 +
-                    //                     "@Remark=" + remark + GF.Str2 +
-                    //                     "@UpdateUser=" + userid, false, true);
-
                     br.UpdateUser = userid;
                     br.KeyHD = keyhd;
                     br.UpdateWO_1(reason, remark, userid);
@@ -68,7 +86,10 @@ namespace UTL1.Secure
                                        "[Void]=SUM(CASE WHEN isRespondDC=0 AND ReasonRespondDC<>'' THEN 1 ELSE 0 END), " +
                                        "[Approved]=SUM(CASE WHEN ISNULL(RemarkTechnician,'')<>'' AND isCompleteDC=1 AND CONVERT(VARCHAR(8),ApprovedRespondDCDate,112)=CONVERT(VARCHAR(8),GETDATE(),112) THEN 1 ELSE 0 END) " +
                                        "FROM PIP_T_WO a WHERE WOType='p' AND a.CompanyID+';'+a.LocationID=@CompanyLocation " +
-                                       "AND EXISTS (SELECT * FROM dbo.SplitStringConvertToTable(@sectionlist,';') b WHERE b.val=a.sectionid)",
+                                       "AND EXISTS (SELECT * FROM dbo.SplitStringConvertToTable(@sectionlist,';') b WHERE b.val=a.sectionid) " +
+                                       "AND EXISTS (SELECT 1 FROM dbo.PIP_M_CheckListWOPM T WHERE T.TemplateNo=a.TemplateWOPM AND T.SectionID=a.SectionID " +
+                                       "AND ISNULL(T.TemplateType,'W')='W' AND (ISNULL(T.CompanyScope,'S')='A' " +
+                                       "OR (';' + ISNULL(T.CompanyLocationList,'') + ';' LIKE '%;' + a.CompanyID + a.LocationID + ';%')))",
                                        "@CompanyLocation=" + companyLocation + GF.Str2 +
                                        "@sectionlist=" + section);
                 return new
@@ -962,6 +983,14 @@ WHERE W.KeyHD=@KeyHD
               SELECT 1 FROM dbo.F_SelectOneLogin('pip', U.EmployeeID, '') L
               WHERE L.CompanyID=@CompanyID AND L.LocationID=@LocationID
           )
+      )
+  AND EXISTS
+      (
+          SELECT 1 FROM dbo.PIP_M_CheckListWOPM T
+          WHERE T.TemplateNo=W.TemplateWOPM AND T.SectionID=W.SectionID
+            AND ISNULL(T.TemplateType,'W')='W'
+            AND (ISNULL(T.CompanyScope,'S')='A'
+                 OR (';' + ISNULL(T.CompanyLocationList,'') + ';' LIKE '%;' + W.CompanyID + W.LocationID + ';%'))
       )
   AND
       (

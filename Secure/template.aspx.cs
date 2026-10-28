@@ -1203,7 +1203,7 @@ COMMIT TRANSACTION;",
             {
                 DataTable dt = br.EQuery(@"
 SELECT E.EmployeeID, E.Name, E.CompanyID, E.LocationID,
-       IsAssigned=CAST(CASE WHEN (';' + ISNULL(T.EmployeeList,'') + ';' LIKE '%;' + E.EmployeeID + ';%') THEN 1 ELSE 0 END AS BIT), swc.BuildingName
+       IsAssigned=CAST(CASE WHEN ISNULL(T.EmployeeList,'')='' OR (';' + ISNULL(T.EmployeeList,'') + ';' LIKE '%;' + E.EmployeeID + ';%') THEN 1 ELSE 0 END AS BIT), swc.BuildingName
 FROM dbo.M_HRD_Employee E JOIN SysWebCompany swc ON swc.CompanyID=E.CompanyID
 JOIN dbo.PIP_M_CheckListWOPM T ON T.IDTemplate=@IDTemplate
 
@@ -1295,24 +1295,109 @@ SELECT 1 FROM dbo.PIP_M_CheckListWOPM T WHERE T.IDTemplate=@IDTemplate AND (';' 
                         return new { success = false, message = "Employee company/location is not assigned to this template." };
                 }
 
-                if (action == "ADD")
-                {
-                    br.EQuery(@"
-IF (';' + ISNULL((SELECT EmployeeList FROM dbo.PIP_M_CheckListWOPM WHERE IDTemplate=@IDTemplate),'') + ';' NOT LIKE '%;' + @EmployeeID + ';%')
- UPDATE dbo.PIP_M_CheckListWOPM SET EmployeeList=CASE WHEN ISNULL(EmployeeList,'')='' THEN @EmployeeID ELSE EmployeeList+';'+@EmployeeID END WHERE IDTemplate=@IDTemplate",
-                        "@IDTemplate=" + id + GF.Str2 +
-                        "@EmployeeID=" + employeeId + GF.Str2 +
-                        "@UpdateUser=" + updateUser);
-                }
-                else
-                {
-                    br.EQuery(@"
-UPDATE T SET EmployeeList=ISNULL(STUFF((SELECT ';'+X.val FROM dbo.SplitStringConvertToTable(ISNULL(T.EmployeeList,''),';') X
- WHERE X.val<>@EmployeeID FOR XML PATH(''),TYPE).value('.','varchar(8000)'),1,1,''),'')
-FROM dbo.PIP_M_CheckListWOPM T WHERE T.IDTemplate=@IDTemplate",
-                        "@IDTemplate=" + id + GF.Str2 +
-                        "@EmployeeID=" + employeeId);
-                }
+                br.EQuery(@"
+SET XACT_ABORT ON;
+BEGIN TRANSACTION;
+DECLARE @CurrentEmployeeList VARCHAR(8000);
+SELECT @CurrentEmployeeList=ISNULL(EmployeeList,'')
+FROM dbo.PIP_M_CheckListWOPM WITH (UPDLOCK,HOLDLOCK)
+WHERE IDTemplate=@IDTemplate;
+
+IF @CurrentEmployeeList IS NULL
+BEGIN
+    ROLLBACK TRANSACTION;
+    RAISERROR('Template was not found.',16,1);
+    RETURN;
+END;
+
+/* The empty string means ALL eligible employees, so the UI cannot deselect the last assigned employee. */
+IF @Action='REMOVE' AND
+(
+    (@CurrentEmployeeList='' AND NOT EXISTS
+        (SELECT 1
+         FROM dbo.M_HRD_Employee E
+         WHERE E.SectionID=(SELECT SectionID FROM dbo.PIP_M_CheckListWOPM WHERE IDTemplate=@IDTemplate)
+           AND ISNULL(E.TerminationDate,'')=''
+           AND EXISTS (SELECT 1 FROM dbo.UTL_User U WHERE U.EmployeeID=E.EmployeeID)
+           AND E.EmployeeID<>@EmployeeID
+           AND (ISNULL((SELECT CompanyScope FROM dbo.PIP_M_CheckListWOPM WHERE IDTemplate=@IDTemplate),'S')='A'
+                OR (';' + ISNULL((SELECT CompanyLocationList FROM dbo.PIP_M_CheckListWOPM WHERE IDTemplate=@IDTemplate),'') + ';' LIKE '%;' + E.CompanyID + E.LocationID + ';%')))
+    OR
+    (@CurrentEmployeeList<>'' AND NOT EXISTS
+        (SELECT 1 FROM dbo.SplitStringConvertToTable(@CurrentEmployeeList,';') X WHERE X.val<>@EmployeeID))
+)
+BEGIN
+    ROLLBACK TRANSACTION;
+    RAISERROR('At least one eligible employee must remain assigned. An empty EmployeeList means all eligible employees.',16,1);
+    RETURN;
+END;
+
+IF @Action='REMOVE'
+BEGIN
+    /* Empty means all eligible employees. Materialize that set before removing one employee. */
+    IF @CurrentEmployeeList=''
+    BEGIN
+        UPDATE T
+        SET EmployeeList=ISNULL(STUFF((
+            SELECT ';'+E.EmployeeID
+            FROM dbo.M_HRD_Employee E
+            WHERE E.SectionID=T.SectionID
+              AND ISNULL(E.TerminationDate,'')=''
+              AND EXISTS (SELECT 1 FROM dbo.UTL_User U WHERE U.EmployeeID=E.EmployeeID)
+              AND (ISNULL(T.CompanyScope,'S')='A'
+                   OR (';' + ISNULL(T.CompanyLocationList,'') + ';' LIKE '%;' + E.CompanyID + E.LocationID + ';%'))
+              AND E.EmployeeID<>@EmployeeID
+            ORDER BY E.EmployeeID
+            FOR XML PATH(''),TYPE).value('.','varchar(8000)'),1,1,''),'')
+        FROM dbo.PIP_M_CheckListWOPM T
+        WHERE T.IDTemplate=@IDTemplate;
+    END
+    ELSE
+    BEGIN
+        UPDATE T
+        SET EmployeeList=ISNULL(STUFF((
+            SELECT ';'+X.val
+            FROM dbo.SplitStringConvertToTable(ISNULL(T.EmployeeList,''),';') X
+            WHERE X.val<>@EmployeeID
+            FOR XML PATH(''),TYPE).value('.','varchar(8000)'),1,1,''),'')
+        FROM dbo.PIP_M_CheckListWOPM T WHERE T.IDTemplate=@IDTemplate;
+    END
+END
+ELSE
+BEGIN
+    /* Re-adding to an empty list is already satisfied (empty means all). */
+    IF @CurrentEmployeeList<>''
+    BEGIN
+        UPDATE dbo.PIP_M_CheckListWOPM
+        SET EmployeeList=CASE
+            WHEN (';' + @CurrentEmployeeList + ';' NOT LIKE '%;' + @EmployeeID + ';%')
+                THEN @CurrentEmployeeList+';'+@EmployeeID
+            ELSE @CurrentEmployeeList
+        END
+        WHERE IDTemplate=@IDTemplate;
+
+        /* If every currently eligible employee is now explicitly assigned, normalize back to empty. */
+        UPDATE T
+        SET EmployeeList=''
+        FROM dbo.PIP_M_CheckListWOPM T
+        WHERE T.IDTemplate=@IDTemplate
+          AND NOT EXISTS (
+              SELECT 1
+              FROM dbo.M_HRD_Employee E
+              WHERE E.SectionID=T.SectionID
+                AND ISNULL(E.TerminationDate,'')=''
+                AND EXISTS (SELECT 1 FROM dbo.UTL_User U WHERE U.EmployeeID=E.EmployeeID)
+                AND (ISNULL(T.CompanyScope,'S')='A'
+                     OR (';' + ISNULL(T.CompanyLocationList,'') + ';' LIKE '%;' + E.CompanyID + E.LocationID + ';%'))
+                AND (';' + ISNULL(T.EmployeeList,'') + ';' NOT LIKE '%;' + E.EmployeeID + ';%')
+          );
+    END
+END
+COMMIT TRANSACTION;",
+                    "@IDTemplate=" + id + GF.Str2 +
+                    "@EmployeeID=" + employeeId + GF.Str2 +
+                    "@Action=" + action + GF.Str2 +
+                    "@UpdateUser=" + updateUser);
                 return new { success = true, message = "" };
             }
         }
