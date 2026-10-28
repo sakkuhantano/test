@@ -903,7 +903,18 @@ function handleInspectionSectionNav(event, link) {
     const targetId = (link.getAttribute("href") || "").slice(1);
     const target = targetId ? document.getElementById(targetId) : null;
     if (!target) return;
+    // Account for the sticky detail header so the selected section lands just beneath it.
     target.scrollIntoView({ behavior: "smooth", block: "start" });
+    window.setTimeout(() => {
+        const stickyHeader = target.closest("#inspectionApprovalDetailPanel")
+            ? document.getElementById("inspectionApprovalStickyHeader")
+            : document.getElementById("inspectionEditorStickyHeader");
+        if (!stickyHeader || !stickyHeader.getClientRects().length) return;
+        const targetTop = target.getBoundingClientRect().top;
+        const stickyBottom = stickyHeader.getBoundingClientRect().bottom;
+        const delta = targetTop - stickyBottom - 8;
+        if (Math.abs(delta) > 2) window.scrollBy({ top: delta, behavior: "smooth" });
+    }, 220);
     const nav = link.closest(".inspection-section-nav");
     if (nav) {
         nav.querySelectorAll(".inspection-section-tab, .inspection-section-dropdown-item").forEach(item => {
@@ -2406,7 +2417,16 @@ function renderInspectionApprovalQueue() {
         const key = inspectionApprovalSort.key;
         let a = left[key], b = right[key];
         if (key === "InspectionDate" || key === "StartDateTime" || key === "EndDateTime") {
-            a = a ? new Date(a).getTime() : 0; b = b ? new Date(b).getTime() : 0;
+            const toSortTimestamp = value => {
+                if (value == null || value === "") return 0;
+                if (typeof value === "string") {
+                    const dotNetDate = value.match(/\\/Date\\((-?\\d+)/);
+                    if (dotNetDate) return Number(dotNetDate[1]);
+                }
+                const parsed = new Date(value).getTime();
+                return Number.isFinite(parsed) ? parsed : 0;
+            };
+            a = toSortTimestamp(a); b = toSortTimestamp(b);
         } else if (key === "ScheduledTime") {
             a = String(a || ""); b = String(b || "");
         } else { a = String(a == null ? "" : a).toLocaleLowerCase(); b = String(b == null ? "" : b).toLocaleLowerCase(); }
