@@ -1330,7 +1330,7 @@ IF @Action='REMOVE' AND
            )
            AND E.EmployeeID<>@EmployeeID
            AND (ISNULL((SELECT CompanyScope FROM dbo.PIP_M_CheckListWOPM WHERE IDTemplate=@IDTemplate),'S')='A'
-                OR (';' + ISNULL((SELECT CompanyLocationList FROM dbo.PIP_M_CheckListWOPM WHERE IDTemplate=@IDTemplate),'') + ';' LIKE '%;' + E.CompanyID + E.LocationID + ';%'))))
+                OR (';' + ISNULL((SELECT CompanyLocationList FROM dbo.PIP_M_CheckListWOPM WHERE IDTemplate=@IDTemplate),'') + ';' LIKE '%;' + @CurrentCompanyID + @CurrentLocationID + ';%'))))
     OR
     (@CurrentEmployeeList<>'' AND NOT EXISTS
         (SELECT 1 FROM dbo.SplitStringConvertToTable(@CurrentEmployeeList,';') X WHERE X.val<>@EmployeeID))
@@ -1363,7 +1363,7 @@ BEGIN
                             AND LoginCompany.LocationID=@CurrentLocationID)
            )
               AND (ISNULL(T.CompanyScope,'S')='A'
-                   OR (';' + ISNULL(T.CompanyLocationList,'') + ';' LIKE '%;' + E.CompanyID + E.LocationID + ';%'))
+                   OR (';' + ISNULL(T.CompanyLocationList,'') + ';' LIKE '%;' + @CurrentCompanyID + @CurrentLocationID + ';%'))
               AND E.EmployeeID<>@EmployeeID
             ORDER BY E.EmployeeID
             FOR XML PATH(''),TYPE).value('.','varchar(8000)'),1,1,''),'')
@@ -1415,7 +1415,7 @@ BEGIN
                             AND LoginCompany.LocationID=@CurrentLocationID)
            )
                 AND (ISNULL(T.CompanyScope,'S')='A'
-                     OR (';' + ISNULL(T.CompanyLocationList,'') + ';' LIKE '%;' + E.CompanyID + E.LocationID + ';%'))
+                     OR (';' + ISNULL(T.CompanyLocationList,'') + ';' LIKE '%;' + @CurrentCompanyID + @CurrentLocationID + ';%'))
                 AND (';' + ISNULL(T.EmployeeList,'') + ';' NOT LIKE '%;' + E.EmployeeID + ';%')
           );
     END
