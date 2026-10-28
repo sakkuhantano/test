@@ -105,13 +105,24 @@
             String(row.LocationID || "") === s.LocationID &&
             (row.SyncStatus === "SYNCED" || row.ServerOnly === true)
         );
-        // Reuse the transaction's existing photo partition when it is a server-confirmed record.
-        // Never overwrite photos belonging to a local transaction that still has unsynced edits.
-        const photoLocalInspectionID = matching
+        const serverPhotos = Array.isArray(photos) ? photos : [];
+        let matchingPhotoCount = 0;
+        if (matching) {
+            const existingTx = db.transaction("inspection_photos", "readonly");
+            const existingPhotos = await requestResult(existingTx.objectStore("inspection_photos").index("LocalInspectionID")
+                .getAll(IDBKeyRange.only(String(matching.LocalInspectionID))));
+            matchingPhotoCount = existingPhotos.length;
+        }
+        // Reuse existing transaction photos only when the server photo set is complete enough to
+        // avoid replacing good local photos with a partial server response. Never touch unsynced edits.
+        const canReuseTransactionPhotos = !!matching &&
+            (serverPhotos.length === 0 || matchingPhotoCount === serverPhotos.length);
+        const photoLocalInspectionID = canReuseTransactionPhotos
             ? String(matching.LocalInspectionID)
             : "SPVAPPROVAL|" + s.EmployeeID + "|" + s.CompanyID + "|" + s.LocationID + "|" + String(inspectionId);
+        if (serverPhotos.length === 0 && canReuseTransactionPhotos) return photoLocalInspectionID;
         const prepared = [];
-        for (const photo of (photos || [])) {
+        for (const photo of serverPhotos) {
             if (!photo || !photo.Data) continue;
             prepared.push({
                 LocalInspectionID: photoLocalInspectionID,
