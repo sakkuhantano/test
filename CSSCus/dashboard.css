@@ -92,3 +92,33 @@
     .inspection-dashboard-card { min-height: 62px; padding: 7px 8px; }
     .inspection-dashboard-value { font-size: 19px; }
 }
+
+
+/* Inspection dashboard: four compact cards in one desktop row, stacked on phones. */
+#inspectionDashboardCards > [class*="col-"] {
+    min-width: 0;
+}
+#inspectionDashboardCards .dashboard-card {
+    min-height: 54px;
+    padding: 7px 9px;
+    gap: 7px;
+}
+#inspectionDashboardCards .dashboard-icon {
+    width: 30px;
+    height: 30px;
+    font-size: 14px;
+    border-radius: 8px;
+}
+#inspectionDashboardCards .dashboard-title {
+    font-size: 10px;
+    line-height: 1.2;
+}
+#inspectionDashboardCards .dashboard-value {
+    font-size: 19px;
+}
+@media (max-width: 575.98px) {
+    #inspectionDashboardCards .dashboard-card {
+        min-height: 52px;
+        padding: 7px 9px;
+    }
+}
