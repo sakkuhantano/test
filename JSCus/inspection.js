@@ -909,7 +909,8 @@ function handleInspectionSectionNav(event, link) {
 }
 
 function updateInspectionSectionNavActive() {
-    const sections = Array.from(document.querySelectorAll(".inspection-checklist-section"));
+    const sections = Array.from(document.querySelectorAll(".inspection-checklist-section"))
+        .filter(section => section.getClientRects().length > 0);
     if (!sections.length) return;
     let currentId = sections[0].id;
     sections.forEach(section => {
