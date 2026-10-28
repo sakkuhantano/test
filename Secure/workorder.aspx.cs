@@ -68,7 +68,10 @@ namespace UTL1.Secure
                                        "[Void]=SUM(CASE WHEN isRespondDC=0 AND ReasonRespondDC<>'' THEN 1 ELSE 0 END), " +
                                        "[Approved]=SUM(CASE WHEN ISNULL(RemarkTechnician,'')<>'' AND isCompleteDC=1 AND CONVERT(VARCHAR(8),ApprovedRespondDCDate,112)=CONVERT(VARCHAR(8),GETDATE(),112) THEN 1 ELSE 0 END) " +
                                        "FROM PIP_T_WO a WHERE WOType='p' AND a.CompanyID+';'+a.LocationID=@CompanyLocation " +
-                                       "AND EXISTS (SELECT * FROM dbo.SplitStringConvertToTable(@sectionlist,';') b WHERE b.val=a.sectionid)",
+                                       "AND EXISTS (SELECT * FROM dbo.SplitStringConvertToTable(@sectionlist,';') b WHERE b.val=a.sectionid) " +
+                                       "AND EXISTS (SELECT 1 FROM dbo.PIP_M_CheckListWOPM T WHERE T.TemplateNo=a.TemplateWOPM AND T.SectionID=a.SectionID " +
+                                       "AND ISNULL(T.TemplateType,'W')='W' AND (ISNULL(T.CompanyScope,'S')='A' " +
+                                       "OR (';' + ISNULL(T.CompanyLocationList,'') + ';' LIKE '%;' + a.CompanyID + a.LocationID + ';%')))",
                                        "@CompanyLocation=" + companyLocation + GF.Str2 +
                                        "@sectionlist=" + section);
                 return new
