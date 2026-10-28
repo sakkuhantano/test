@@ -13,7 +13,7 @@ let currentInspectionReadOnly = false;
 let inspectionAutoSaveTimer = null;
 let inspectionPhotoViewerState = { type: "", photos: [], index: 0, objectUrl: null, touchStartX: null };
 let inspectionPhotoBaseline = null;
-let inspectionNoticeEnabled = false;
+let inspectionNoticeEnabled = false;\nlet inspectionGridSort = { key: "inspectionDate", direction: "asc" };
 let inspectionFollowUpSections = [
     { Code: "ACON", Name: "Air Cond." },
     { Code: "COMM", Name: "Comm." },
@@ -219,7 +219,7 @@ function wireInspectionEvents() {
         }
         showInspectionNotice(count + " inspeksi mengalami konflik saat sync. Buka daftar inspeksi untuk melihat alasan dan pilih Delete Local Transaction bila record lokal memang harus dibuang.", "warning");
     });
-    document.getElementById("inspectionChecklistHost").addEventListener("input", function () { scheduleInspectionAutosave(); updateInspectionChecklistGate(); });
+    document.getElementById("inspectionChecklistHost").addEventListener("input", function (event) { if (event.target) event.target.classList.remove("is-invalid", "border-danger", "text-danger"); const item = event.target && event.target.closest(".inspection-item"); if (item) item.classList.remove("inspection-validation-error", "border", "border-danger", "rounded", "p-2"); scheduleInspectionAutosave(); updateInspectionChecklistGate(); });
     document.getElementById("inspectionFollowUpPanel").addEventListener("change", function (event) {
         if (event.target.matches('input[name="inspectionFollowUp"]')) updateInspectionFollowUpPanel();
     });
@@ -1039,48 +1039,70 @@ function validateInspectionItems(items) {
     for (const item of items) {
         const templateItem = findInspectionTemplateItem(item.IDItem);
         if (!templateItem) continue;
+        const invalid = (message, role) => ({ message, itemId: Number(item.IDItem), role: role || "value" });
         if (templateItem.isValueRequired) {
             if (item.Type === "GROUP") {
                 const groups = templateItem.groups || [];
-                if (!groups.length) return "GROUP tidak memiliki kolom input: " + item.ItemLabel;
+                if (!groups.length) return invalid("GROUP tidak memiliki kolom input: " + item.ItemLabel, "group-value");
                 for (const group of groups) {
                     const fields = String(group.fieldList || "").split(";").map(field => field.trim()).filter(Boolean);
-                    const filledCount = fields.filter(field => item.Values && item.Values[field] != null &&
-                        String(item.Values[field]).trim() !== "").length;
-                    if (fields.length > 3) {
-                        return "Maksimal 3 kolom untuk GROUP " + (group.groupName || "") + " pada " + item.ItemLabel;
-                    }
-                    if (fields.length < 2 || filledCount < 2) {
-                        return "Minimal 2 kolom harus diisi untuk GROUP " + (group.groupName || "") + " pada " + item.ItemLabel;
-                    }
+                    const filledCount = fields.filter(field => item.Values && item.Values[field] != null && String(item.Values[field]).trim() !== "").length;
+                    if (fields.length > 3) return invalid("Maksimal 3 kolom untuk GROUP " + (group.groupName || "") + " pada " + item.ItemLabel, "group-value");
+                    if (fields.length < 2 || filledCount < 2) return invalid("Minimal 2 kolom harus diisi untuk GROUP " + (group.groupName || "") + " pada " + item.ItemLabel, "group-value");
                 }
             } else if (item.Value == null || String(item.Value).trim() === "") {
-                return "Nilai wajib diisi: " + item.ItemLabel;
+                return invalid((item.Type === "OPTION" ? "Pilih salah satu option: " : "Nilai wajib diisi: ") + item.ItemLabel, "value");
             }
         }
         const requiredOptionRemarks = Array.isArray(templateItem.remarkRequiredOptions) ? templateItem.remarkRequiredOptions.map(x => String(x).trim()) : [];
-        const selectedOptionRequiresRemark = String(templateItem.type || "").toUpperCase() === "OPTION" &&
-            requiredOptionRemarks.includes(String(item.Value || "").trim());
+        const selectedOptionRequiresRemark = String(templateItem.type || "").toUpperCase() === "OPTION" && requiredOptionRemarks.includes(String(item.Value || "").trim());
         const versionRemark1Enabled = isInspectionVersionRemarkEnabled(templateItem, 1);
         const versionRemark2Enabled = isInspectionVersionRemarkEnabled(templateItem, 2);
         const selectedOptionRequiresRemark1 = selectedOptionRequiresRemark && versionRemark1Enabled;
         const selectedOptionRequiresRemark2 = selectedOptionRequiresRemark && versionRemark2Enabled;
-        const remark1Title = selectedOptionRequiresRemark && !templateItem.isRemark1Required
-            ? (templateItem.versionRemark1Text || templateItem.VersionRemark1Text || "Remark")
-            : (templateItem.remark1Text || "Remark");
-        const remark2Title = selectedOptionRequiresRemark && !templateItem.isRemark2Required
-            ? (templateItem.versionRemark2Text || templateItem.VersionRemark2Text || "Remark")
-            : (templateItem.remark2Text || "Remark");
-        if (versionRemark1Enabled && ((templateItem.isRemark1Required && templateItem.isRemark1Mandatory) || selectedOptionRequiresRemark1) && (!item.Remark1 || !item.Remark1.trim())) {
-            return remark1Title + " wajib diisi: " + item.ItemLabel;
-        }
-        if (versionRemark2Enabled && ((templateItem.isRemark2Required && templateItem.isRemark2Mandatory) || selectedOptionRequiresRemark2) && (!item.Remark2 || !item.Remark2.trim())) {
-            return remark2Title + " wajib diisi: " + item.ItemLabel;
-        }
+        const remark1Title = selectedOptionRequiresRemark && !templateItem.isRemark1Required ? (templateItem.versionRemark1Text || templateItem.VersionRemark1Text || "Remark") : (templateItem.remark1Text || "Remark");
+        const remark2Title = selectedOptionRequiresRemark && !templateItem.isRemark2Required ? (templateItem.versionRemark2Text || templateItem.VersionRemark2Text || "Remark") : (templateItem.remark2Text || "Remark");
+        if (versionRemark1Enabled && ((templateItem.isRemark1Required && templateItem.isRemark1Mandatory) || selectedOptionRequiresRemark1) && (!item.Remark1 || !item.Remark1.trim())) return invalid(remark1Title + " wajib diisi: " + item.ItemLabel, "remark1");
+        if (versionRemark2Enabled && ((templateItem.isRemark2Required && templateItem.isRemark2Mandatory) || selectedOptionRequiresRemark2) && (!item.Remark2 || !item.Remark2.trim())) return invalid(remark2Title + " wajib diisi: " + item.ItemLabel, "remark2");
     }
-    return "";
+    return null;
 }
 
+function focusInvalidInspectionItem(error) {
+    document.querySelectorAll("#inspectionChecklistHost .inspection-validation-error").forEach(el => {
+        el.classList.remove("inspection-validation-error", "border", "border-danger", "rounded", "p-2");
+    });
+    if (!error || !error.itemId) return;
+    const item = document.querySelector('#inspectionChecklistHost .inspection-item[data-item-id="' + error.itemId + '"]');
+    if (!item) return;
+    let parent = item.parentElement;
+    while (parent && parent.id !== "inspectionChecklistHost") {
+        if (parent.classList.contains("collapse")) {
+            parent.classList.add("show");
+            const toggle = document.querySelector('[data-bs-target="#' + parent.id + '"]');
+            if (toggle) toggle.setAttribute("aria-expanded", "true");
+        }
+        parent = parent.parentElement;
+    }
+    const control = error.role === "remark1" ? item.querySelector('[data-role="remark1"]') :
+        error.role === "remark2" ? item.querySelector('[data-role="remark2"]') :
+        error.role === "group-value" ? item.querySelector('[data-role="group-value"]') :
+        error.role === "value" && item.dataset.itemType === "OPTION"
+            ? item.querySelector('[data-role="value"]') || item.querySelector(".inspection-option-choice")
+            : item.querySelector('[data-role="value"]');
+    item.classList.add("inspection-validation-error", "border", "border-danger", "rounded", "p-2");
+    if (control) {
+        control.classList.add("is-invalid");
+        if (control.matches('input[type="radio"]')) {
+            const label = item.querySelector('label[for="' + control.id + '"]');
+            if (label) label.classList.add("border-danger", "text-danger");
+        }
+        control.scrollIntoView({ behavior: "smooth", block: "center" });
+        if (!control.matches('input[type="radio"]')) {
+            window.setTimeout(() => { try { control.focus({ preventScroll: true }); } catch (_) { control.focus(); } }, 250);
+        }
+    } else item.scrollIntoView({ behavior: "smooth", block: "center" });
+}
 async function saveInspection(status) {
     if (!currentInspectionRecord) return;
     const login = getLoginData();
@@ -1097,26 +1119,34 @@ async function saveInspection(status) {
 
     const items = collectInspectionItems();
     const photos = await getInspectionPhotos(currentInspectionRecord.LocalInspectionID);
-    if (!photos.some(p => p.Type === "BEFORE")) { showInspectionNotice("Foto BEFORE wajib diambil sebelum checklist dapat disimpan.", "warning"); showInspectionEditorTab("checklist"); return; }
     if (status === "DONE") {
-        if (!photos.some(p => p.Type === "AFTER")) {
-            showInspectionNotice("Foto AFTER wajib diambil sebelum inspeksi dapat di-Done.", "warning");
+        const error = validateInspectionItems(items);
+        if (error) {
+            showToast(error.message + ". Periksa kembali item yang ditandai merah.", "warning");
             showInspectionEditorTab("checklist");
+            focusInvalidInspectionItem(error);
             return;
         }
         const followUp = collectInspectionFollowUp();
-        if (followUp.FollowUp === "Recommend Follow Up" &&
-            (!followUp.FollowUpSection || !followUp.FollowUpRemark)) {
-            showInspectionNotice("Pilih Responsible Section dan isi deskripsi pekerjaan untuk Follow Up.", "warning");
+        if (followUp.FollowUp === "Recommend Follow Up" && (!followUp.FollowUpSection || !followUp.FollowUpRemark)) {
+            showToast("Pilih Responsible Section dan isi deskripsi pekerjaan untuk Follow Up.", "warning");
             return;
         }
-        const error = validateInspectionItems(items);
-        if (error) {
-            showInspectionNotice(error, "warning");
-            const invalid = document.querySelector("#inspectionChecklistHost input:invalid, #inspectionChecklistHost select:invalid");
-            if (invalid) invalid.focus();
+        const hasBefore = photos.some(p => p.Type === "BEFORE");
+        const hasAfter = photos.some(p => p.Type === "AFTER");
+        if (!hasBefore || !hasAfter) {
+            showToast(!hasBefore && !hasAfter
+                ? "Foto BEFORE dan AFTER wajib diisi (minimal 1 foto untuk masing-masing)."
+                : !hasBefore ? "Foto BEFORE wajib diisi (minimal 1 foto)." : "Foto AFTER wajib diisi (minimal 1 foto).", "warning");
+            showInspectionEditorTab("checklist");
+            const target = document.getElementById(!hasBefore ? "inspectionPhotoBeforeInput" : "inspectionPhotoAfterInput");
+            if (target) target.scrollIntoView({ behavior: "smooth", block: "center" });
             return;
         }
+    } else if (!photos.some(p => p.Type === "BEFORE")) {
+        showToast("Foto BEFORE wajib diambil sebelum checklist dapat disimpan.", "warning");
+        showInspectionEditorTab("checklist");
+        return;
     }
 
     currentInspectionRecord.Items = items;
@@ -1277,12 +1307,36 @@ function renderInspectionRecordTable(records, host, submitted) {
             '</div>';
         return;
     }
-    const columns = ["Inspection No.", "Inspection Date/Time", "Start/End",
-        "Inspection Type", "Location/Area", "Technician"]
-    const header = '<thead><tr>' + columns.map(column => '<th class="text-nowrap">' + column + '</th>').join("") + '</tr></thead>';
-    const rows = records.slice().sort((a, b) =>
-        String(b.StartDateTime || b.InspectionDate || "").localeCompare(String(a.StartDateTime || a.InspectionDate || ""))
-    ).map(record => {
+    const columns = [
+        { key: "inspectionNo", label: "Inspection No." },
+        { key: "inspectionDate", label: "Inspection Date/Time" },
+        { key: "startEnd", label: "Start/End" },
+        { key: "inspectionType", label: "Inspection Type" },
+        { key: "locationArea", label: "Location/Area" },
+        { key: "technician", label: "Technician" }
+    ];
+    const header = '<thead><tr>' + columns.map(column => {
+        const active = inspectionGridSort.key === column.key;
+        const arrow = active ? (inspectionGridSort.direction === "asc" ? " ▲" : " ▼") : " ↕";
+        return '<th class="text-nowrap" role="button" tabindex="0" data-inspection-sort="' + column.key + '" aria-sort="' +
+            (active ? (inspectionGridSort.direction === "asc" ? "ascending" : "descending") : "none") + '">' +
+            column.label + '<span class="text-muted small">' + arrow + '</span></th>';
+    }).join("") + '</tr></thead>';
+    const sortedRecords = records.slice().sort((a, b) => {
+        const value = record => {
+            switch (inspectionGridSort.key) {
+                case "inspectionNo": return String(record.InspectionNo || record.LocalInspectionID || "");
+                case "startEnd": return String(record.StartDateTime || "") + "|" + String(record.EndDateTime || "");
+                case "inspectionType": return String(record.InspectionTypeName || "");
+                case "locationArea": return String(record.InspectionTypeDetailName || "");
+                case "technician": return String(record.TechnicianName || (record.OwnerEmployeeID === inspectionLogin.employeeid ? inspectionTechnicianName : "") || "");
+                case "inspectionDate": default: return String(record.InspectionDate || "").substring(0, 10) + "|" + String(record.ScheduledTime || "");
+            }
+        };
+        const result = value(a).localeCompare(value(b), undefined, { numeric: true, sensitivity: "base" });
+        return inspectionGridSort.direction === "asc" ? result : -result;
+    });
+    const rows = sortedRecords.map(record => {
         const localId = record.LocalInspectionID || record.ClientInspectionID || "";
         const number = record.InspectionNo ||
             (localId ? "TEMP-" + String(localId).substring(0, 8).toUpperCase() : "—");
@@ -1317,6 +1371,24 @@ function renderInspectionRecordTable(records, host, submitted) {
     }).join("");
     host.innerHTML = '<div class="table-responsive"><table class="table table-sm table-hover align-middle mb-0">' +
         header + '<tbody>' + rows + '</tbody></table></div>';
+    if (!host.dataset.sortWired) {
+        host.dataset.sortWired = "1";
+        const sortFromEvent = event => {
+            const th = event.target.closest("[data-inspection-sort]");
+            if (!th || !host.contains(th)) return;
+            const key = th.dataset.inspectionSort;
+            if (inspectionGridSort.key === key) inspectionGridSort.direction = inspectionGridSort.direction === "asc" ? "desc" : "asc";
+            else { inspectionGridSort.key = key; inspectionGridSort.direction = "asc"; }
+            refreshSavedInspectionList().catch(err => console.error("Unable to sort inspection list:", err));
+        };
+        host.addEventListener("click", sortFromEvent);
+        host.addEventListener("keydown", event => {
+            if ((event.key === "Enter" || event.key === " ") && event.target.matches("[data-inspection-sort]")) {
+                event.preventDefault();
+                sortFromEvent(event);
+            }
+        });
+    }
 }
 
 function isInspectionWithinSubmittedRange(record, fromDate, thruDate) {
