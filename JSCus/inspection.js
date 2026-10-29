@@ -603,6 +603,19 @@ async function startNewInspection() {
     };
 
     await renderInspectionForm(currentInspectionRecord, false);
+    // A newly created inspection should open at FIELD DOCUMENTATION BEFORE,
+    // not at a leftover scroll position from the previous screen.
+    window.setTimeout(() => {
+        const beforePhotoPanel = document.getElementById("btnAddInspectionBeforePhoto")?.closest(".inspection-photo-panel");
+        if (!beforePhotoPanel) return;
+        const stickyHeader = document.getElementById("inspectionEditorStickyHeader");
+        beforePhotoPanel.scrollIntoView({ behavior: "auto", block: "start" });
+        if (stickyHeader && stickyHeader.getClientRects().length) {
+            const offset = beforePhotoPanel.getBoundingClientRect().top - stickyHeader.getBoundingClientRect().bottom - 8;
+            if (Math.abs(offset) > 2) window.scrollBy({ top: offset, behavior: "auto" });
+        }
+        updateInspectionScrollTools();
+    }, 80);
 }
 
 function parseInspectionDateValue(value) {
@@ -970,9 +983,17 @@ function updateInspectionSectionNavActive() {
     const sections = Array.from(document.querySelectorAll(".inspection-checklist-section"))
         .filter(section => section.getClientRects().length > 0);
     if (!sections.length) return;
+    const stickyHeader = document.getElementById("inspectionEditorStickyHeader");
+    const approvalStickyHeader = document.getElementById("inspectionApprovalStickyHeader");
+    const activeStickyHeader = approvalStickyHeader && approvalStickyHeader.getClientRects().length
+        ? approvalStickyHeader
+        : stickyHeader;
+    const activationLine = activeStickyHeader && activeStickyHeader.getClientRects().length
+        ? activeStickyHeader.getBoundingClientRect().bottom + 20
+        : 180;
     let currentId = sections[0].id;
     sections.forEach(section => {
-        if (section.getBoundingClientRect().top <= 160) currentId = section.id;
+        if (section.getBoundingClientRect().top <= activationLine) currentId = section.id;
     });
     document.querySelectorAll(".inspection-section-nav").forEach(nav => {
         nav.querySelectorAll(".inspection-section-tab, .inspection-section-dropdown-item").forEach(item => {
