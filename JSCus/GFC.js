@@ -860,6 +860,7 @@ async function downloadTodayInspectionSlots() {
         TemplateName: x.TemplateName || "",
         TemplateVersion: String(x.TemplateVersion || ""),
         InspectionDate: x.InspectionDate,
+        ServerInspectionID: Number(x.InspectionID || x.ServerInspectionID || 0),
         StartDateTime: x.StartDateTime || "",
         EndDateTime: x.EndDateTime || "",
         Status: x.Status || "",
