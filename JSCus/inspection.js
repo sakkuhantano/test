@@ -1554,7 +1554,7 @@ function renderInspectionRecordTable(records, host, submitted) {
         const deleteHtml = record.SyncStatus === "CONFLICT"
             ? '<button type="button" class="btn btn-sm btn-outline-danger mt-1" data-delete-conflict="' + escInspection(localId) + '">Delete Local Transaction</button>'
             : (record.SyncStatus === "DELETE_PENDING" && record.DeleteOriginalSyncStatus === "VOIDED"
-                ? '<button type="button" class="btn btn-sm btn-outline-secondary mt-1" data-edit-delete-reason="' + escInspection(localId) + '">Edit Reason Cancel</button>'
+                ? '<button type="button" class="btn btn-sm btn-outline-secondary mt-1" data-edit-delete-reason="' + escInspection(localId) + '">Reason Cancel</button>'
                 : "");
         const technicianName = record.TechnicianName && record.TechnicianName !== record.OwnerEmployeeID
             ? record.TechnicianName
