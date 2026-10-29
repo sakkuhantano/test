@@ -1536,7 +1536,22 @@ async function openServerSubmittedInspection(inspectionId) {
         showInspectionInputScreen();
         document.getElementById("inspectionEditorTabs").classList.remove("d-none");
         document.getElementById("inspectionStartButtonRow").classList.add("d-none");
-        document.getElementById("inspectionStartPanel").classList.add("d-none");
+        document.getElementById("inspectionStartPanel").classList.remove("d-none");
+        // Server-only records may no longer have their masters in IndexedDB. Show the
+        // transaction parameters from the server response instead of relying on local dropdown data.
+        const typeSelect = document.getElementById("selInspectionType");
+        const detailSelect = document.getElementById("selInspectionDetail");
+        const templateSelect = document.getElementById("selInspectionTemplate");
+        typeSelect.innerHTML = '<option value="__server_type__">' + escInspection(h.InspectionTypeName || h.InspectionTypeCode || "-") + '</option>';
+        typeSelect.value = "__server_type__";
+        detailSelect.innerHTML = '<option value="__server_detail__|' + escInspection(h.ScheduledTime || "") + '">' + escInspection((h.InspectionTypeDetailName || h.InspectionTypeDetailCode || "-") + (h.ScheduledTime ? " • " + h.ScheduledTime : "")) + '</option>';
+        detailSelect.value = "__server_detail__|" + (h.ScheduledTime || "");
+        templateSelect.innerHTML = '<option value="' + escInspection(h.IDTemplate || "__server_template__") + '">' + escInspection((h.TemplateNo || "Template") + " / v" + (h.TemplateVersion || "-")) + '</option>';
+        templateSelect.value = String(h.IDTemplate || "__server_template__");
+        [typeSelect, detailSelect, templateSelect].forEach(select => { select.disabled = true; });
+        document.getElementById("txtInspectionDate").value = h.InspectionDate ? String(h.InspectionDate).substring(0, 10) : "";
+        document.getElementById("txtInspectionDate").disabled = true;
+        updateInspectionParameterTabGate();
         document.getElementById("inspectionFormPanel").classList.remove("d-none");
         document.getElementById("btnDeleteInspectionDraft").classList.add("d-none");
         document.getElementById("btnSaveInspectionDraft").classList.add("d-none");
@@ -1709,7 +1724,7 @@ function isInspectionParameterSelectionComplete() {
 function updateInspectionParameterTabGate() {
     const button = document.getElementById("btnInspectionChecklistTab");
     if (!button) return;
-    const complete = isInspectionParameterSelectionComplete();
+    const complete = currentInspectionReadOnly || isInspectionParameterSelectionComplete();
     button.disabled = !complete;
     button.classList.toggle("disabled", !complete);
     button.setAttribute("aria-disabled", complete ? "false" : "true");
