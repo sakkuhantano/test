@@ -264,7 +264,7 @@
         <!-- Content Layer -->
 
         <uc1:toast runat="server" />
-        <script type="text/javascript" src="JSCus/GFC.js"></script>
+        <script type="text/javascript" src="JSCus/GFC.js?v=20261029-inspection-fix2"></script>
         <script type="text/javascript" src="JSCus/Login.js"></script>
 </body>
 </html>
