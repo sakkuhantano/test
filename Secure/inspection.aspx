@@ -266,6 +266,27 @@
     </div>
 </div>
 
+    <div class="modal fade" id="inspectionReasonCancelModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="inspectionReasonCancelTitle">Reason Cancel</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <label for="txtInspectionReasonCancel" class="form-label">Reason Cancel (wajib)</label>
+                    <textarea id="txtInspectionReasonCancel" class="form-control" rows="4" maxlength="500" placeholder="Masukkan alasan pembatalan..."></textarea>
+                    <div class="form-text">Maksimal 500 karakter.</div>
+                    <div id="inspectionReasonCancelError" class="text-danger small mt-2 d-none"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Batal</button>
+                    <button type="button" id="btnConfirmInspectionReasonCancel" class="btn btn-danger">Lanjutkan</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="modal fade" id="inspectionApprovalActionModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog"><div class="modal-content">
             <div class="modal-header"><h5 class="modal-title" id="inspectionApprovalActionTitle">Approval action</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
