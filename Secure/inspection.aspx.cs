@@ -508,6 +508,7 @@ SELECT I.InspectionID, I.ClientInspectionID, I.InspectionNo,
 FROM dbo.PIP_T_Inspection I
 LEFT JOIN dbo.M_HRD_Employee E ON E.EmployeeID=I.OwnerEmployeeID
 WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID
+  AND ISNULL(I.IsActive,1)=1
   AND I.InspectionDate >= CONVERT(DATETIME, CONVERT(VARCHAR(10), GETDATE(), 120), 120)
   AND I.InspectionDate < DATEADD(DAY, 1, CONVERT(DATETIME, CONVERT(VARCHAR(10), GETDATE(), 120), 120))
   AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@SectionList,';') S WHERE S.val=I.SectionID)
@@ -673,7 +674,6 @@ COMMIT TRANSACTION;",
                 throw new HttpException(403, "The transaction snapshot does not match the logged-in employee and company/location.");
             if (!String.Equals(TokenString(record, "SyncStatus"), "DELETE_PENDING", StringComparison.OrdinalIgnoreCase) ||
                 !String.Equals(TokenString(record, "DeleteOriginalSyncStatus"), "VOIDED", StringComparison.OrdinalIgnoreCase) ||
-                !String.Equals(TokenString(record, "Status"), "DONE", StringComparison.OrdinalIgnoreCase) ||
                 String.IsNullOrWhiteSpace(TokenString(record, "ReasonVoid")) || TokenInt(record, "ServerInspectionID") <= 0)
                 throw new HttpException(400, "Only a queued server-backed SPV-voided inspection can be deactivated.");
             reasonCancel = Limit(String.IsNullOrWhiteSpace(reasonCancel) ? TokenString(record, "DeleteReasonCancel") : reasonCancel, 500);
@@ -704,7 +704,7 @@ BEGIN
     WHERE InspectionID=@InspectionID AND ClientInspectionID=@ClientInspectionID
       AND CompanyID=@CompanyID AND LocationID=@LocationID AND SectionID=@SectionID
       AND OwnerEmployeeID=@EmployeeID AND ISNULL(IsActive,1)=1
-      AND Status='DONE' AND ISNULL(IsApprove,0)=0 AND ISNULL(ReasonVoid,'')<>''
+      AND ISNULL(IsApprove,0)=0 AND ISNULL(ReasonVoid,'')<>''
       AND ISNULL(ApprovedBy,'')<>'' AND ApprovedDate>CONVERT(DATETIME,'19000101',112);
     IF @@ROWCOUNT=0
     BEGIN
@@ -792,6 +792,7 @@ FROM dbo.PIP_T_Inspection I
 LEFT JOIN dbo.M_HRD_Employee E ON E.EmployeeID=I.OwnerEmployeeID
 WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID
   AND I.OwnerEmployeeID=@EmployeeID
+  AND ISNULL(I.IsActive,1)=1
   AND EXISTS (
       SELECT 1
       FROM dbo.PIP_M_CheckListWOPM T
@@ -851,6 +852,7 @@ ORDER BY I.ApprovedDate DESC, I.EndDateTime DESC, I.StartDateTime DESC, I.Inspec
 FROM dbo.PIP_T_Inspection I
 LEFT JOIN dbo.M_HRD_Employee E ON E.EmployeeID=I.OwnerEmployeeID
 WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID
+  AND ISNULL(I.IsActive,1)=1
   AND EXISTS (
       SELECT 1
       FROM dbo.PIP_M_CheckListWOPM T
@@ -1309,6 +1311,7 @@ SELECT I.InspectionID, I.ClientInspectionID, I.InspectionNo, I.CompanyID, I.Loca
        I.ReasonVoid, I.UpdateDate
 FROM dbo.PIP_T_Inspection I
 WHERE I.OwnerEmployeeID=@EmployeeID AND I.CompanyID=@CompanyID AND I.LocationID=@LocationID
+  AND ISNULL(I.IsActive,1)=1
   AND I.Status='DRAFT' AND I.IsApprove=0 AND ISNULL(I.ApprovedBy,'')<>'' AND ISNULL(I.ApprovedDate,CONVERT(DATETIME,'19000101',112))>CONVERT(DATETIME,'19000101',112)
   AND EXISTS (SELECT 1 FROM dbo.UTL_User U WHERE U.EmployeeID=@EmployeeID AND ISNULL(U.IsWO,0)=1
               AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(U.Section,';') S WHERE S.val=I.SectionID)
