@@ -216,9 +216,22 @@ function wireInspectionEvents() {
                     item.SyncStatus === "DELETE_PENDING" &&
                     item.DeleteOriginalSyncStatus === "VOIDED");
                 if (!pendingRecord) return;
+                let existingReasonCancel = String(pendingRecord.DeleteReasonCancel || "").trim();
+                const reasonVoid = String(pendingRecord.ReasonVoid || "").trim();
+
+                // Older client versions could incorrectly copy the SPV's ReasonVoid into
+                // DeleteReasonCancel. A queued delete has not been applied on the server yet,
+                // so do not treat that SPV remark as a technician-entered cancel reason.
+                if (existingReasonCancel && reasonVoid &&
+                    existingReasonCancel === reasonVoid) {
+                    existingReasonCancel = "";
+                    pendingRecord.DeleteReasonCancel = "";
+                    await persistInspectionRecord(pendingRecord);
+                }
+
                 const reason = await showInspectionReasonCancelDialog(
                     "Perbarui Reason Cancel",
-                    String(pendingRecord.DeleteReasonCancel || "").trim()
+                    existingReasonCancel
                 );
                 if (reason === null) return;
                 pendingRecord.DeleteReasonCancel = reason;
