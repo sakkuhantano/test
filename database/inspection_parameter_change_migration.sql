@@ -332,6 +332,7 @@ BEGIN
             SELECT 1
             FROM dbo.PIP_T_Inspection WITH (UPDLOCK, HOLDLOCK)
             WHERE ClientInspectionID <> @p_ClientInspectionID
+              AND ISNULL(IsActive,1)=1
               AND CompanyID = @p_CompanyID
               AND LocationID = @p_LocationID
               AND SectionID = @p_SectionID
