@@ -305,6 +305,8 @@ GO
 /* Migrate existing archive tables to the simplified shape. ClientInspectionID remains for retry idempotency. */
 IF COL_LENGTH('dbo.PIP_T_Inspection_Delete', 'ReasonCancel') IS NULL
     ALTER TABLE dbo.PIP_T_Inspection_Delete ADD ReasonCancel VARCHAR(1000) NOT NULL CONSTRAINT DF_PIP_T_Inspection_Delete_ReasonCancel DEFAULT ('');
+IF NOT EXISTS (SELECT 1 FROM sys.default_constraints WHERE parent_object_id=OBJECT_ID('dbo.PIP_T_Inspection_Delete') AND name='DF_PIP_T_Inspection_Delete_ReasonCancel')
+    ALTER TABLE dbo.PIP_T_Inspection_Delete ADD CONSTRAINT DF_PIP_T_Inspection_Delete_ReasonCancel DEFAULT ('') FOR ReasonCancel;
 IF COL_LENGTH('dbo.PIP_T_Inspection_Delete', 'ConflictReason') IS NOT NULL
     UPDATE dbo.PIP_T_Inspection_Delete SET ReasonCancel=ISNULL(NULLIF(ReasonCancel,''), ISNULL(ConflictReason,''));
 DECLARE @DeleteArchiveDefault sysname;
