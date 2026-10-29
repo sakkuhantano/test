@@ -15,7 +15,7 @@
     #inspectionScrollTools { position: static; }
     #inspectionScrollTools:not(.d-none) { display: block; }
     #inspectionScrollTools .btn { position: fixed; right: 1rem; z-index: 2070; width: 42px; height: 42px; border-radius: 50%; opacity: .82; box-shadow: 0 .2rem .6rem rgba(0,0,0,.18); }
-    #inspectionScrollUp { top: 4.5rem; bottom: auto; }
+    #inspectionScrollUp { bottom: 4.5rem; top: auto; }
     #inspectionScrollDown { bottom: 1.25rem; top: auto; }
     #inspectionScrollTools .btn:hover, #inspectionScrollTools .btn:focus { opacity: 1; }
     @media (min-width: 1200px) {
@@ -142,8 +142,8 @@
             flex: 1 1 auto;
         }
         #inspectionScrollTools .btn { right: .5rem; width: 38px; height: 38px; }
-        #inspectionScrollUp { top: 4.5rem; }
-        #inspectionScrollDown { bottom: .75rem; }
+        #inspectionScrollUp { bottom: 4rem; top: auto; }
+        #inspectionScrollDown { bottom: .75rem; top: auto; }
     }
 </style>
 </asp:Content>
@@ -455,6 +455,6 @@
         </div>
         <div class="inspection-photo-viewer-footer"><span id="inspectionPhotoViewerCount">1 / 1</span><div class="small">Gunakan panah atau geser foto ke kiri/kanan</div></div>
     </div>
-<script type="text/javascript" src="../JSCus/inspection.js?v=20261029-scroll-chevrons"></script>
+<script type="text/javascript" src="../JSCus/inspection.js?v=20261029-scroll-chevrons-spacing"></script>
 <script type="text/javascript" src="../JSCus/inspectionApprovalOffline.js"></script>
 </asp:Content>
