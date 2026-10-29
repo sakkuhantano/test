@@ -10,6 +10,52 @@ let meterSyncStatistics = {
     synced: 0
 };
 let totalPendingSync = 0;
+
+window.updateGlobalInspectionConflictBadge = async function () {
+    const badge = document.getElementById("inspectionConflictBadge");
+    if (!badge) return;
+
+    try {
+        if (typeof db === "undefined" || !db ||
+            !db.objectStoreNames || !db.objectStoreNames.contains("inspection_records")) {
+            badge.classList.add("d-none");
+            return;
+        }
+
+        const login = getLoginData();
+        const companyLocation = (login && login.curcompany || "").split(";");
+        if (!login || !login.employeeid || !companyLocation[0] || !companyLocation[1]) {
+            badge.classList.add("d-none");
+            return;
+        }
+
+        const count = await new Promise((resolve, reject) => {
+            const tx = db.transaction(["inspection_records"], "readonly");
+            const request = tx.objectStore("inspection_records").getAll();
+            request.onsuccess = function () {
+                resolve((request.result || []).filter(record =>
+                    !record.ServerOnly &&
+                    record.SyncStatus === "CONFLICT" &&
+                    record.OwnerEmployeeID === login.employeeid &&
+                    record.CompanyID === companyLocation[0] &&
+                    record.LocationID === companyLocation[1]
+                ).length);
+            };
+            request.onerror = () => reject(request.error);
+        });
+
+        badge.textContent = count ? String(count) : "!";
+        badge.classList.toggle("d-none", count === 0);
+    } catch (error) {
+        console.warn("Unable to refresh global inspection conflict badge:", error);
+    }
+};
+
+window.addEventListener("inspectionConflict", function () {
+    window.updateGlobalInspectionConflictBadge();
+});
+
+
 window.appFeatures = {
     ELC: getLoginData().role.IsELC,
     GAS: getLoginData().role.IsGAS,
@@ -68,6 +114,7 @@ document.addEventListener(
         initSidebarState();
 		// INIT DB
 		await initIndexedDB();
+        await window.updateGlobalInspectionConflictBadge();
         await loadCompanyDropdown();
 		loadCompanyName();
 
