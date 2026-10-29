@@ -805,6 +805,15 @@ WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID
              OR (';' + ISNULL(T.EmployeeList,'') + ';' LIKE '%;' + I.OwnerEmployeeID + ';%'))
   )
   AND I.SyncDate >= @FromDate AND I.SyncDate < DATEADD(DAY, 1, @ThruDate)
+  -- A supervisor-voided transaction is surfaced in Draft for technician handling,
+  -- not again in Submitted just because its SyncDate falls in the selected range.
+  AND NOT (
+      I.Status='DRAFT'
+      AND ISNULL(I.IsApprove,0)=0
+      AND ISNULL(I.ApprovedBy,'')<>''
+      AND ISNULL(I.ApprovedDate,CONVERT(DATETIME,'19000101',112))>CONVERT(DATETIME,'19000101',112)
+      AND ISNULL(I.ReasonVoid,'')<>''
+  )
   AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@SectionList,';') S WHERE S.val=I.SectionID)
 ORDER BY I.ApprovedDate DESC, I.EndDateTime DESC, I.StartDateTime DESC, I.InspectionID DESC",
                     new SqlParameter[] {
