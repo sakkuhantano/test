@@ -2119,6 +2119,7 @@ async function uploadWOGroup(workOrders, mode) {
         const bodyText = JSON.stringify(body);
         if (bodyText.length > maxRequestChars) {
             const labels = batchItems.map(x => x.wo.WONo || x.wo.KeyHD).join(", ");
+            failedBatchCount++;
             showToast("Upload WO ditunda karena ukuran foto/data terlalu besar (" + labels + "). Data lokal tetap pending; kecilkan foto atau tinjau batas request server.", "warning");
             continue;
         }
