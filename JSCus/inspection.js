@@ -206,8 +206,12 @@ function wireInspectionEvents() {
                 return;
             }
             const button = event.target.closest("[data-open-inspection]");
-            if (!button) return;
-            await openSavedInspection(button.dataset.openInspection);
+            if (button) {
+                await openSavedInspection(button.dataset.openInspection);
+                return;
+            }
+            const serverButton = event.target.closest("[data-open-server-inspection]");
+            if (serverButton) await openServerSubmittedInspection(serverButton.dataset.openServerInspection);
         });
     });
     window.addEventListener("inspectionConflict", function (event) {
@@ -316,7 +320,8 @@ function onInspectionDetailChanged() {
     const type = inspectionTypes.find(x => x.InspectionTypeCode === typeCode);
     const templates = inspectionTemplates.filter(x =>
         x.InspectionTypeCode === typeCode &&
-        (!type || x.SectionID === type.SectionID)
+        (!type || x.SectionID === type.SectionID) &&
+        String(x.VersionStatus || x.StatusVersion || x.VersionStatusName || x.Status || "").trim().toLowerCase() === "active"
     );
     const templateSelect = document.getElementById("selInspectionTemplate");
     templateSelect.innerHTML = '<option value="">Pilih template...</option>' +
@@ -1431,9 +1436,12 @@ function renderInspectionRecordTable(records, host, submitted) {
         const inspectionDateTime = date ? date + (record.ScheduledTime ? " " + record.ScheduledTime : "") : (record.ScheduledTime || "—");
         const startEnd = (start || "—") + " - " + end;
         const localExists = !!inspectionRecords.find(item => item.LocalInspectionID === localId);
+        const serverId = record.InspectionID || record.ServerInspectionID || "";
         const numberHtml = localExists
             ? '<button type="button" class="btn btn-link btn-sm p-0 text-nowrap" data-open-inspection="' + escInspection(localId) + '">' + escInspection(number) + '</button>'
-            : escInspection(number);
+            : (submitted && serverId
+                ? '<button type="button" class="btn btn-link btn-sm p-0 text-nowrap" data-open-server-inspection="' + escInspection(serverId) + '">' + escInspection(number) + '</button>'
+                : escInspection(number));
         const conflictHtml = record.SyncStatus === "CONFLICT"
             ? '<div class="text-danger small mt-1"><strong>CONFLICT:</strong> ' + escInspection(record.ConflictReason || "Server menolak transaksi.") + '</div>'
             : record.SyncStatus === "DELETE_PENDING"
@@ -1503,6 +1511,69 @@ function formatInspectionClockTime(value) {
     if (Number.isNaN(date.getTime()) || date.getFullYear() <= 1900) return "";
     return String(date.getHours()).padStart(2, "0") + ":" +
         String(date.getMinutes()).padStart(2, "0");
+}
+
+async function openServerSubmittedInspection(inspectionId) {
+    if (!navigator.onLine) {
+        showToast("Koneksi internet diperlukan untuk membuka detail inspeksi dari server.", "warning");
+        return;
+    }
+    const host = document.getElementById("inspectionChecklistHost");
+    if (!host) return;
+    try {
+        showToast("Memuat detail checklist dari server...", "info");
+        const result = await inspectionApprovalPost("GetInspectionApprovalDetail", {
+            inspectionId: Number(inspectionId), employeeId: inspectionLogin.employeeid
+        });
+        const h = result.header || {};
+        const template = result.template || result.TemplateSnapshot;
+        if (!template || !Array.isArray(template.sections) || !template.sections.length) {
+            showToast("Struktur template checklist tidak tersedia dari server.", "warning");
+            return;
+        }
+        currentInspectionRecord = null;
+        currentInspectionReadOnly = true;
+        inspectionPhotoBaseline = null;
+        showInspectionInputScreen();
+        document.getElementById("inspectionEditorTabs").classList.remove("d-none");
+        document.getElementById("inspectionStartButtonRow").classList.add("d-none");
+        document.getElementById("inspectionStartPanel").classList.add("d-none");
+        document.getElementById("inspectionFormPanel").classList.remove("d-none");
+        document.getElementById("btnDeleteInspectionDraft").classList.add("d-none");
+        document.getElementById("btnSaveInspectionDraft").classList.add("d-none");
+        document.getElementById("btnCompleteInspection").classList.add("d-none");
+        document.getElementById("inspectionFormTitle").textContent =
+            (h.InspectionTypeName || "Inspection") + " — " + (h.InspectionTypeDetailName || "");
+        document.getElementById("inspectionFormSubtitle").textContent =
+            "No. " + (h.InspectionNo || inspectionId) + " • " + formatInspectionDateDMY(h.InspectionDate) +
+            " • " + (h.ScheduledTime || "-") + "\n" + formatInspectionClock(h.StartDateTime) + " - " + formatInspectionClock(h.EndDateTime);
+        document.getElementById("txtInspectionSummary").value = h.Summary || "";
+        document.getElementById("txtInspectionSummary").readOnly = true;
+        document.querySelectorAll('input[name="inspectionFollowUp"]').forEach(input => {
+            input.disabled = true;
+            input.checked = String(h.FollowUp || "") === input.value;
+        });
+        document.getElementById("inspectionFollowUpSection").disabled = true;
+        document.getElementById("txtInspectionFollowUpRemark").value = h.FollowUpRemark || "";
+        document.getElementById("txtInspectionFollowUpRemark").readOnly = true;
+        const items = result.items || [];
+        host.innerHTML = renderInspectionSections(template, items, true, "serverSubmittedInspectionSection");
+        const renderPhotos = type => {
+            const photos = (result.photos || []).filter(p => String(p.Type || "").toUpperCase() === type);
+            return photos.length ? '<div class="inspection-photo-panel mb-3"><div class="fw-bold mb-2">FIELD DOCUMENTATION ' + type + '</div><div class="d-flex flex-wrap gap-2">' +
+                photos.map((p,i) => '<button type="button" class="inspection-photo-item inspection-approval-photo-item" data-approval-photo-type="' + type + '" data-server-photo-index="' + i + '"><img src="' + escInspection(p.Data || "") + '" alt="Inspection ' + type + '" loading="lazy"></button>').join("") +
+                '</div></div>' : '<div class="text-muted small mb-3">Foto ' + type + ' belum tersedia.</div>';
+        };
+        document.getElementById("inspectionPhotoBeforeList").innerHTML = renderPhotos("BEFORE");
+        document.getElementById("inspectionPhotoAfterList").innerHTML = renderPhotos("AFTER");
+        document.getElementById("inspectionPhotoBeforeInput").classList.add("d-none");
+        document.getElementById("inspectionPhotoAfterInput").classList.add("d-none");
+        showInspectionEditorTab("checklist");
+        showToast("Detail checklist berhasil dimuat dari server (read-only).", "success");
+    } catch (err) {
+        showToast("Gagal membuka detail inspeksi dari server. Pastikan koneksi tersedia lalu coba lagi.", "warning");
+        console.warn("Open server inspection detail failed:", err);
+    }
 }
 
 async function openSavedInspection(localId) {
