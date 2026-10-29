@@ -1225,6 +1225,17 @@ async function uploadPendingInspections() {
         const result = json.d || {};
         outcomes.push(...(result.results || []));
     }
+    // Never treat an omitted per-transaction result as a successful upload.
+    const returnedIds = new Set(outcomes.map(x => String(x.ClientInspectionID || "")));
+    ownedRecords.forEach(record => {
+        if (!returnedIds.has(String(record.LocalInspectionID))) {
+            outcomes.push({
+                ClientInspectionID: record.LocalInspectionID,
+                success: false,
+                message: "Server tidak mengembalikan status konfirmasi untuk transaksi ini."
+            });
+        }
+    });
     const successfulIds = new Set(outcomes.filter(x => x.success).map(x => x.ClientInspectionID));
 
     if (successfulIds.size) {
