@@ -1029,6 +1029,36 @@ async function uploadPendingInspections() {
     const locationId = companyLocation[1] || "";
     const allowedSections = (login.section || "").split(";").filter(Boolean);
 
+    async function cleanupConfirmedInspections() {
+        const records = await new Promise((resolve, reject) => {
+            const tx = db.transaction("inspection_records", "readonly");
+            const req = tx.objectStore("inspection_records").getAll();
+            req.onsuccess = () => resolve(req.result || []);
+            req.onerror = () => reject(req.error);
+        });
+        const confirmed = records.filter(r => r.SyncStatus === "SYNCED" &&
+            r.CompanyID === companyId && r.LocationID === locationId &&
+            allowedSections.includes(r.SectionID) && r.OwnerEmployeeID === login.employeeid);
+        for (const record of confirmed) {
+            await new Promise((resolve, reject) => {
+                const tx = db.transaction(["inspection_records", "inspection_photos"], "readwrite");
+                tx.objectStore("inspection_records").delete(record.LocalInspectionID);
+                const photos = tx.objectStore("inspection_photos");
+                const req = photos.index("LocalInspectionID").openCursor(IDBKeyRange.only(record.LocalInspectionID));
+                req.onsuccess = () => {
+                    const cursor = req.result;
+                    if (!cursor) return;
+                    cursor.delete();
+                    cursor.continue();
+                };
+                tx.oncomplete = resolve;
+                tx.onerror = () => reject(tx.error || new Error("Gagal membersihkan inspeksi yang sudah sync."));
+                tx.onabort = () => reject(tx.error || new Error("Pembersihan inspeksi dibatalkan."));
+            });
+        }
+    }
+    await cleanupConfirmedInspections();
+
     let allRecords = await new Promise((resolve, reject) => {
         const tx = db.transaction("inspection_records", "readonly");
         const req = tx.objectStore("inspection_records").getAll();
@@ -1198,28 +1228,34 @@ async function uploadPendingInspections() {
     const successfulIds = new Set(outcomes.filter(x => x.success).map(x => x.ClientInspectionID));
 
     if (successfulIds.size) {
-        // The API returned success for each ClientInspectionID, so the server has
-        // confirmed the transaction and its submitted photo set. Remove only those
-        // exact local transactions and their photo Blobs; keep failed/conflicting
-        // records untouched. The deletion is scoped by owner/company/location.
-        const confirmedRecords = ownedRecords.filter(record => successfulIds.has(record.LocalInspectionID));
-        for (const record of confirmedRecords) {
-            await new Promise((resolve, reject) => {
-                const tx = db.transaction(["inspection_records", "inspection_photos"], "readwrite");
-                tx.objectStore("inspection_records").delete(record.LocalInspectionID);
-                const photoStore = tx.objectStore("inspection_photos");
-                const req = photoStore.index("LocalInspectionID").openCursor(IDBKeyRange.only(record.LocalInspectionID));
-                req.onsuccess = () => {
-                    const cursor = req.result;
-                    if (!cursor) return;
-                    cursor.delete();
-                    cursor.continue();
+        // Persist confirmation before cleanup. If local deletion is interrupted,
+        // the record will not be uploaded twice; cleanupConfirmedInspections()
+        // retries the deletion on the next global Sync.
+        await new Promise((resolve, reject) => {
+            const tx = db.transaction("inspection_records", "readwrite");
+            const store = tx.objectStore("inspection_records");
+            ownedRecords.filter(record => successfulIds.has(record.LocalInspectionID)).forEach(record => {
+                const currentReq = store.get(record.LocalInspectionID);
+                currentReq.onsuccess = () => {
+                    const current = currentReq.result;
+                    if (!current || current.OwnerEmployeeID !== login.employeeid ||
+                        current.CompanyID !== companyId || current.LocationID !== locationId ||
+                        current.SectionID !== record.SectionID) return;
+                    current.SyncStatus = "SYNCED";
+                    current.LastSyncAt = new Date().toISOString();
+                    const outcome = outcomes.find(x => x.ClientInspectionID === record.LocalInspectionID);
+                    if (outcome) {
+                        current.ServerInspectionID = outcome.InspectionID;
+                        current.InspectionNo = outcome.InspectionNo || current.InspectionNo || "";
+                    }
+                    store.put(current);
                 };
-                tx.oncomplete = () => resolve();
-                tx.onerror = () => reject(tx.error || new Error("Gagal membersihkan transaksi inspeksi yang sudah sync."));
-                tx.onabort = () => reject(tx.error || new Error("Pembersihan transaksi inspeksi dibatalkan."));
             });
-        }
+            tx.oncomplete = resolve;
+            tx.onerror = () => reject(tx.error || new Error("Gagal menyimpan konfirmasi sync inspeksi."));
+            tx.onabort = () => reject(tx.error || new Error("Penyimpanan konfirmasi sync inspeksi dibatalkan."));
+        });
+        await cleanupConfirmedInspections();
     }
 
     const failed = outcomes.filter(x => !x.success);
