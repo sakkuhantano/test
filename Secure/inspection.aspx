@@ -165,7 +165,7 @@
             <button type="button" id="btnBackToInspectionApprovalList" class="btn btn-sm btn-outline-secondary d-none text-nowrap">
                 <i class="bi bi-arrow-left"></i> Back to List
             </button>
-            <span id="inspectionConflictBadge" class="badge rounded-pill text-bg-danger d-none" title="Inspection conflict">!</span>
+            
         </div>
     </div>
 </div>
