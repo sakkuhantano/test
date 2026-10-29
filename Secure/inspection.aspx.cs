@@ -972,6 +972,7 @@ SELECT
     SUM(CASE WHEN I.IsApprove=0 AND ISNULL(I.ApprovedBy,'')<>'' AND ISNULL(I.ApprovedDate,CONVERT(DATETIME,'19000101',112))>CONVERT(DATETIME,'19000101',112) THEN 1 ELSE 0 END) VoidCount
 FROM dbo.PIP_T_Inspection I
 WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID
+  AND ISNULL(I.IsActive,1)=1
   AND EXISTS (
       SELECT 1
       FROM dbo.PIP_M_CheckListWOPM T
