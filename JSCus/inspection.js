@@ -142,6 +142,7 @@ function wireInspectionPhotoViewerEvents() {
 
 function wireInspectionEvents() {
     wireInspectionPhotoViewerEvents();
+    wireInspectionReasonCancelDialog();
     document.getElementById("btnBackToInspectionRecords").addEventListener("click", function () {
         closeInspectionForm().catch(err => {
             console.error("Unable to return to inspection list:", err);
@@ -215,16 +216,11 @@ function wireInspectionEvents() {
                     item.SyncStatus === "DELETE_PENDING" &&
                     item.DeleteOriginalSyncStatus === "VOIDED");
                 if (!pendingRecord) return;
-                const enteredReason = window.prompt(
-                    "Perbarui Reason Cancel untuk inspeksi void:",
+                const reason = await showInspectionReasonCancelDialog(
+                    "Perbarui Reason Cancel",
                     String(pendingRecord.DeleteReasonCancel || "").trim()
                 );
-                if (enteredReason === null) return;
-                const reason = enteredReason.trim();
-                if (!reason || reason.length > 500) {
-                    showInspectionNotice("Reason Cancel wajib diisi dan maksimal 500 karakter.", "warning");
-                    return;
-                }
+                if (reason === null) return;
                 pendingRecord.DeleteReasonCancel = reason;
                 pendingRecord.UpdatedAt = new Date().toISOString();
                 delete pendingRecord.DeleteArchiveError;
@@ -1999,6 +1995,63 @@ async function applyInspectionParameters() {
     return true;
 }
 
+let inspectionReasonCancelResolve = null;
+
+function wireInspectionReasonCancelDialog() {
+    const modal = document.getElementById("inspectionReasonCancelModal");
+    const confirmButton = document.getElementById("btnConfirmInspectionReasonCancel");
+    const input = document.getElementById("txtInspectionReasonCancel");
+    const error = document.getElementById("inspectionReasonCancelError");
+    if (!modal || modal.dataset.wired === "1") return;
+    modal.dataset.wired = "1";
+
+    confirmButton.addEventListener("click", function () {
+        const reason = String(input.value || "").trim();
+        if (!reason) {
+            error.textContent = "Reason Cancel wajib diisi.";
+            error.classList.remove("d-none");
+            input.focus();
+            return;
+        }
+        if (reason.length > 500) {
+            error.textContent = "Reason Cancel maksimal 500 karakter.";
+            error.classList.remove("d-none");
+            input.focus();
+            return;
+        }
+        error.classList.add("d-none");
+        const resolve = inspectionReasonCancelResolve;
+        inspectionReasonCancelResolve = null;
+        if (resolve) resolve(reason);
+        bootstrap.Modal.getOrCreateInstance(modal).hide();
+    });
+    modal.addEventListener("hidden.bs.modal", function () {
+        if (inspectionReasonCancelResolve) {
+            const resolve = inspectionReasonCancelResolve;
+            inspectionReasonCancelResolve = null;
+            resolve(null);
+        }
+    });
+}
+
+function showInspectionReasonCancelDialog(title, initialValue) {
+    const modal = document.getElementById("inspectionReasonCancelModal");
+    if (!modal) {
+        showInspectionNotice("Dialog Reason Cancel tidak tersedia. Refresh aplikasi setelah update.", "danger");
+        return Promise.resolve(null);
+    }
+    wireInspectionReasonCancelDialog();
+    document.getElementById("inspectionReasonCancelTitle").textContent = title || "Reason Cancel";
+    const input = document.getElementById("txtInspectionReasonCancel");
+    input.value = String(initialValue || "").substring(0, 500);
+    document.getElementById("inspectionReasonCancelError").classList.add("d-none");
+    return new Promise(resolve => {
+        inspectionReasonCancelResolve = resolve;
+        bootstrap.Modal.getOrCreateInstance(modal).show();
+        window.setTimeout(() => input.focus(), 150);
+    });
+}
+
 async function deleteLocalInspectionDraft(localId) {
     const record = inspectionRecords.find(item => item.LocalInspectionID === localId);
     if (!record) {
@@ -2016,20 +2069,11 @@ async function deleteLocalInspectionDraft(localId) {
     const title = isConflict ? "Hapus Transaksi Conflict" : (isVoidedServerRecord ? "Hapus Draft Inspeksi Void" : "Hapus Draft Inspeksi");
     let reasonCancel = "";
     if (isVoidedServerRecord) {
-        const enteredReason = window.prompt(
-            "Isi Reason Cancel untuk menonaktifkan inspeksi yang sudah di-void SPV:",
+        reasonCancel = await showInspectionReasonCancelDialog(
+            "Reason Cancel",
             String(record.DeleteReasonCancel || "").trim()
         );
-        if (enteredReason === null) return;
-        reasonCancel = enteredReason.trim();
-        if (!reasonCancel) {
-            showInspectionNotice("Reason Cancel wajib diisi sebelum menghapus draft inspeksi void.", "warning");
-            return;
-        }
-        if (reasonCancel.length > 500) {
-            showInspectionNotice("Reason Cancel maksimal 500 karakter.", "warning");
-            return;
-        }
+        if (reasonCancel === null) return;
     }
     const message = isConflict
         ? "Hapus transaksi conflict ini? Snapshot transaksi dan checklist akan diarsipkan ke server saat Sync berikutnya. Record inspeksi utama tidak diubah."
