@@ -646,7 +646,7 @@ COMMIT TRANSACTION;",
                         new SqlParameter("@ReasonCancel", DbString(reasonCancel)),
                         new SqlParameter("@DeletedBy", Limit(employeeId, 50)),
                         new SqlParameter("@OriginalTransactionJson", SqlDbType.NVarChar, -1) { Value = originalTransactionJson }
-                    }, true, true);
+                    });
                 DataTable confirmed = br.EQueryP(
                     "SELECT COUNT(1) AS SavedCount FROM dbo.PIP_T_Inspection_Delete WHERE ClientInspectionID=@ClientInspectionID AND DeletedBy=@DeletedBy",
                     new SqlParameter[] {
@@ -722,7 +722,7 @@ COMMIT TRANSACTION;",
                         new SqlParameter("@SectionID", Limit(TokenString(record, "SectionID"), 10)),
                         new SqlParameter("@EmployeeID", Limit(employeeId, 50)),
                         new SqlParameter("@ReasonCancel", DbString(reasonCancel))
-                    }, true, true);
+                    });
                 DataTable confirmed = br.EQueryP(@"
 SELECT COUNT(1) AS SavedCount FROM dbo.PIP_T_Inspection
 WHERE InspectionID=@InspectionID AND ClientInspectionID=@ClientInspectionID
