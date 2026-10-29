@@ -267,6 +267,17 @@ async function loadInspectionCache(includeAllTemplates) {
         !!x.InspectionTypeCode
     );
 
+    // The server master endpoint filters Inspection Types by configured active templates,
+    // but IndexedDB can still contain older type rows from an earlier master download.
+    // Apply the same essential relationship locally so stale cached rows cannot leak into
+    // the New Inspection dropdown.
+    inspectionTypes = inspectionTypes.filter(type =>
+        inspectionTemplates.some(template =>
+            String(template.InspectionTypeCode || "").trim() === String(type.InspectionTypeCode || "").trim() &&
+            String(template.SectionID || "").trim() === String(type.SectionID || "").trim()
+        )
+    );
+
     const typeSelect = document.getElementById("selInspectionType");
     typeSelect.innerHTML = '<option value="">Pilih Inspection Type...</option>' +
         inspectionTypes.map(type =>
