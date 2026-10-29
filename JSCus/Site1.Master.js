@@ -2113,6 +2113,7 @@ async function uploadWOGroup(workOrders, mode) {
     }
     if (batch.length) batches.push(batch);
 
+    let failedBatchCount = 0;
     for (const batchItems of batches) {
         const body = payloadFor(batchItems);
         const bodyText = JSON.stringify(body);
@@ -2147,9 +2148,13 @@ async function uploadWOGroup(workOrders, mode) {
                 await markWOSynced(item.wo, result.serverTime, mode);
             }
         } catch (ex) {
+            failedBatchCount++;
             console.error("WO sync failed; this batch remains pending:", mode, batchItems.map(x => x.wo.KeyHD), ex);
             showToast("Sync WO " + mode + " gagal. Data lokal tetap pending dan akan dicoba lagi. " + ex.message, "warning");
         }
+    }
+    if (failedBatchCount) {
+        throw new Error(failedBatchCount + " batch WO gagal sync; data tersebut tetap tersimpan untuk dicoba lagi.");
     }
 }
 async function markWOSynced(wo, lastUpdate, mode) {
