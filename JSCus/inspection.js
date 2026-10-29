@@ -208,6 +208,31 @@ function wireInspectionEvents() {
                 await queueConflictInspectionDelete(deleteButton.dataset.deleteConflict);
                 return;
             }
+            const editReasonButton = event.target.closest("[data-edit-delete-reason]");
+            if (editReasonButton) {
+                const pendingRecord = inspectionRecords.find(item =>
+                    item.LocalInspectionID === editReasonButton.dataset.editDeleteReason &&
+                    item.SyncStatus === "DELETE_PENDING" &&
+                    item.DeleteOriginalSyncStatus === "VOIDED");
+                if (!pendingRecord) return;
+                const enteredReason = window.prompt(
+                    "Perbarui Reason Cancel untuk inspeksi void:",
+                    String(pendingRecord.DeleteReasonCancel || "").trim()
+                );
+                if (enteredReason === null) return;
+                const reason = enteredReason.trim();
+                if (!reason || reason.length > 500) {
+                    showInspectionNotice("Reason Cancel wajib diisi dan maksimal 500 karakter.", "warning");
+                    return;
+                }
+                pendingRecord.DeleteReasonCancel = reason;
+                pendingRecord.UpdatedAt = new Date().toISOString();
+                delete pendingRecord.DeleteArchiveError;
+                await persistInspectionRecord(pendingRecord);
+                await refreshSavedInspectionList();
+                showInspectionNotice("Reason Cancel diperbarui. Jalankan Sync untuk menerapkannya ke server.", "success");
+                return;
+            }
             const button = event.target.closest("[data-open-inspection]");
             if (button) {
                 await openSavedInspection(button.dataset.openInspection);
@@ -1519,7 +1544,9 @@ function renderInspectionRecordTable(records, host, submitted) {
                 : "";
         const deleteHtml = record.SyncStatus === "CONFLICT"
             ? '<button type="button" class="btn btn-sm btn-outline-danger mt-1" data-delete-conflict="' + escInspection(localId) + '">Delete Local Transaction</button>'
-            : "";
+            : (record.SyncStatus === "DELETE_PENDING" && record.DeleteOriginalSyncStatus === "VOIDED"
+                ? '<button type="button" class="btn btn-sm btn-outline-secondary mt-1" data-edit-delete-reason="' + escInspection(localId) + '">Edit Reason Cancel</button>'
+                : "");
         const technicianName = record.TechnicianName && record.TechnicianName !== record.OwnerEmployeeID
             ? record.TechnicianName
             : (record.OwnerEmployeeID === inspectionLogin.employeeid ? inspectionTechnicianName : "");
