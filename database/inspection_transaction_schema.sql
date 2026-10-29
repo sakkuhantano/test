@@ -43,6 +43,8 @@ BEGIN
         UpdateUser VARCHAR(50) NOT NULL,
         UpdateDate DATETIME NOT NULL CONSTRAINT DF_PIP_T_Inspection_UpdateDate DEFAULT (GETDATE()),
         SyncDate DATETIME NULL,
+        IsActive BIT NOT NULL CONSTRAINT DF_PIP_T_Inspection_IsActive DEFAULT (1),
+        ReasonCancel VARCHAR(500) NOT NULL CONSTRAINT DF_PIP_T_Inspection_ReasonCancel DEFAULT (''),
         CONSTRAINT PK_PIP_T_Inspection PRIMARY KEY CLUSTERED (InspectionID),
         CONSTRAINT UQ_PIP_T_Inspection_ClientInspectionID UNIQUE (ClientInspectionID),
         CONSTRAINT CK_PIP_T_Inspection_Status CHECK (Status IN ('DRAFT', 'DONE'))
@@ -56,6 +58,14 @@ IF COL_LENGTH('dbo.PIP_T_Inspection', 'InspectionNo') IS NULL
     ALTER TABLE dbo.PIP_T_Inspection ADD InspectionNo VARCHAR(10) NULL;
 IF COL_LENGTH('dbo.PIP_T_Inspection', 'SyncDate') IS NULL
     ALTER TABLE dbo.PIP_T_Inspection ADD SyncDate DATETIME NULL;
+IF COL_LENGTH('dbo.PIP_T_Inspection', 'IsActive') IS NULL
+    ALTER TABLE dbo.PIP_T_Inspection ADD IsActive BIT NOT NULL CONSTRAINT DF_PIP_T_Inspection_IsActive DEFAULT (1);
+IF COL_LENGTH('dbo.PIP_T_Inspection', 'ReasonCancel') IS NULL
+    ALTER TABLE dbo.PIP_T_Inspection ADD ReasonCancel VARCHAR(500) NOT NULL CONSTRAINT DF_PIP_T_Inspection_ReasonCancel DEFAULT ('');
+IF NOT EXISTS (SELECT 1 FROM sys.default_constraints WHERE parent_object_id=OBJECT_ID('dbo.PIP_T_Inspection') AND name='DF_PIP_T_Inspection_IsActive')
+    ALTER TABLE dbo.PIP_T_Inspection ADD CONSTRAINT DF_PIP_T_Inspection_IsActive DEFAULT (1) FOR IsActive;
+IF NOT EXISTS (SELECT 1 FROM sys.default_constraints WHERE parent_object_id=OBJECT_ID('dbo.PIP_T_Inspection') AND name='DF_PIP_T_Inspection_ReasonCancel')
+    ALTER TABLE dbo.PIP_T_Inspection ADD CONSTRAINT DF_PIP_T_Inspection_ReasonCancel DEFAULT ('') FOR ReasonCancel;
 GO
 
 /* Historical sync timestamps were not stored; UpdateDate is only an approximation for existing rows. */
@@ -266,16 +276,13 @@ IF TYPE_ID('dbo.Type_PIP_T_InspectionResultValue') IS NOT NULL
     DROP TYPE dbo.Type_PIP_T_InspectionResultValue;
 GO
 
-/* Durable archive for locally deleted conflicting inspections. The full JSON snapshot
-   preserves the original transaction and checklist values without deleting server data. */
+/* Archive only local transactions rejected as conflicts. The JSON snapshot preserves the full local transaction. */
 IF OBJECT_ID('dbo.PIP_T_Inspection_Delete', 'U') IS NULL
 BEGIN
     CREATE TABLE dbo.PIP_T_Inspection_Delete
     (
         DeleteArchiveID BIGINT NOT NULL,
         ClientInspectionID VARCHAR(36) NOT NULL,
-        ServerInspectionID BIGINT NOT NULL CONSTRAINT DF_PIP_T_Inspection_Delete_ServerInspectionID DEFAULT (0),
-        InspectionNo VARCHAR(10) NOT NULL CONSTRAINT DF_PIP_T_Inspection_Delete_InspectionNo DEFAULT (''),
         CompanyID VARCHAR(10) NOT NULL,
         LocationID VARCHAR(3) NOT NULL,
         SectionID VARCHAR(10) NOT NULL,
@@ -283,10 +290,9 @@ BEGIN
         InspectionTypeDetailCode VARCHAR(20) NOT NULL,
         IDTemplate INT NOT NULL,
         InspectionDate DATETIME NOT NULL,
-        ScheduledTime VARCHAR(5) NOT NULL CONSTRAINT DF_PIP_T_Inspection_Delete_ScheduledTime DEFAULT (''),
         OriginalStatus VARCHAR(10) NOT NULL CONSTRAINT DF_PIP_T_Inspection_Delete_OriginalStatus DEFAULT (''),
         OriginalSyncStatus VARCHAR(20) NOT NULL CONSTRAINT DF_PIP_T_Inspection_Delete_OriginalSyncStatus DEFAULT (''),
-        ConflictReason VARCHAR(1000) NOT NULL CONSTRAINT DF_PIP_T_Inspection_Delete_ConflictReason DEFAULT (''),
+        ReasonCancel VARCHAR(1000) NOT NULL CONSTRAINT DF_PIP_T_Inspection_Delete_ReasonCancel DEFAULT (''),
         DeletedBy VARCHAR(50) NOT NULL,
         DeletedAt DATETIME NOT NULL CONSTRAINT DF_PIP_T_Inspection_Delete_DeletedAt DEFAULT (GETDATE()),
         OriginalTransactionJson NVARCHAR(MAX) NOT NULL,
@@ -296,27 +302,39 @@ BEGIN
 END;
 GO
 
-UPDATE dbo.PIP_T_Inspection_Delete
-SET ServerInspectionID=ISNULL(ServerInspectionID,0), InspectionNo=ISNULL(InspectionNo,''),
-    ScheduledTime=ISNULL(ScheduledTime,''), OriginalStatus=ISNULL(OriginalStatus,''),
-    OriginalSyncStatus=ISNULL(OriginalSyncStatus,''), ConflictReason=ISNULL(ConflictReason,'')
-WHERE ServerInspectionID IS NULL OR InspectionNo IS NULL OR ScheduledTime IS NULL
-   OR OriginalStatus IS NULL OR OriginalSyncStatus IS NULL OR ConflictReason IS NULL;
-ALTER TABLE dbo.PIP_T_Inspection_Delete ALTER COLUMN ServerInspectionID BIGINT NOT NULL;
-ALTER TABLE dbo.PIP_T_Inspection_Delete ALTER COLUMN InspectionNo VARCHAR(10) NOT NULL;
-ALTER TABLE dbo.PIP_T_Inspection_Delete ALTER COLUMN ScheduledTime VARCHAR(5) NOT NULL;
-ALTER TABLE dbo.PIP_T_Inspection_Delete ALTER COLUMN OriginalStatus VARCHAR(10) NOT NULL;
-ALTER TABLE dbo.PIP_T_Inspection_Delete ALTER COLUMN OriginalSyncStatus VARCHAR(20) NOT NULL;
-ALTER TABLE dbo.PIP_T_Inspection_Delete ALTER COLUMN ConflictReason VARCHAR(1000) NOT NULL;
-IF NOT EXISTS (SELECT 1 FROM sys.default_constraints WHERE parent_object_id=OBJECT_ID('dbo.PIP_T_Inspection_Delete') AND name='DF_PIP_T_Inspection_Delete_ServerInspectionID') ALTER TABLE dbo.PIP_T_Inspection_Delete ADD CONSTRAINT DF_PIP_T_Inspection_Delete_ServerInspectionID DEFAULT (0) FOR ServerInspectionID;
-IF NOT EXISTS (SELECT 1 FROM sys.default_constraints WHERE parent_object_id=OBJECT_ID('dbo.PIP_T_Inspection_Delete') AND name='DF_PIP_T_Inspection_Delete_InspectionNo') ALTER TABLE dbo.PIP_T_Inspection_Delete ADD CONSTRAINT DF_PIP_T_Inspection_Delete_InspectionNo DEFAULT ('') FOR InspectionNo;
-IF NOT EXISTS (SELECT 1 FROM sys.default_constraints WHERE parent_object_id=OBJECT_ID('dbo.PIP_T_Inspection_Delete') AND name='DF_PIP_T_Inspection_Delete_ScheduledTime') ALTER TABLE dbo.PIP_T_Inspection_Delete ADD CONSTRAINT DF_PIP_T_Inspection_Delete_ScheduledTime DEFAULT ('') FOR ScheduledTime;
-IF NOT EXISTS (SELECT 1 FROM sys.default_constraints WHERE parent_object_id=OBJECT_ID('dbo.PIP_T_Inspection_Delete') AND name='DF_PIP_T_Inspection_Delete_OriginalStatus') ALTER TABLE dbo.PIP_T_Inspection_Delete ADD CONSTRAINT DF_PIP_T_Inspection_Delete_OriginalStatus DEFAULT ('') FOR OriginalStatus;
-IF NOT EXISTS (SELECT 1 FROM sys.default_constraints WHERE parent_object_id=OBJECT_ID('dbo.PIP_T_Inspection_Delete') AND name='DF_PIP_T_Inspection_Delete_OriginalSyncStatus') ALTER TABLE dbo.PIP_T_Inspection_Delete ADD CONSTRAINT DF_PIP_T_Inspection_Delete_OriginalSyncStatus DEFAULT ('') FOR OriginalSyncStatus;
-IF NOT EXISTS (SELECT 1 FROM sys.default_constraints WHERE parent_object_id=OBJECT_ID('dbo.PIP_T_Inspection_Delete') AND name='DF_PIP_T_Inspection_Delete_ConflictReason') ALTER TABLE dbo.PIP_T_Inspection_Delete ADD CONSTRAINT DF_PIP_T_Inspection_Delete_ConflictReason DEFAULT ('') FOR ConflictReason;
+/* Migrate existing archive tables to the simplified shape. ClientInspectionID remains for retry idempotency. */
+IF COL_LENGTH('dbo.PIP_T_Inspection_Delete', 'ReasonCancel') IS NULL
+    ALTER TABLE dbo.PIP_T_Inspection_Delete ADD ReasonCancel VARCHAR(1000) NOT NULL CONSTRAINT DF_PIP_T_Inspection_Delete_ReasonCancel DEFAULT ('');
+IF COL_LENGTH('dbo.PIP_T_Inspection_Delete', 'ConflictReason') IS NOT NULL
+    UPDATE dbo.PIP_T_Inspection_Delete SET ReasonCancel=ISNULL(NULLIF(ReasonCancel,''), ISNULL(ConflictReason,''));
+DECLARE @DeleteArchiveDefault sysname;
+SELECT @DeleteArchiveDefault=dc.name FROM sys.default_constraints dc
+JOIN sys.columns c ON c.object_id=dc.parent_object_id AND c.column_id=dc.parent_column_id
+WHERE dc.parent_object_id=OBJECT_ID('dbo.PIP_T_Inspection_Delete') AND c.name='ConflictReason';
+IF @DeleteArchiveDefault IS NOT NULL EXEC('ALTER TABLE dbo.PIP_T_Inspection_Delete DROP CONSTRAINT ' + QUOTENAME(@DeleteArchiveDefault));
+IF COL_LENGTH('dbo.PIP_T_Inspection_Delete', 'ConflictReason') IS NOT NULL ALTER TABLE dbo.PIP_T_Inspection_Delete DROP COLUMN ConflictReason;
+
+SET @DeleteArchiveDefault=NULL;
+SELECT @DeleteArchiveDefault=dc.name FROM sys.default_constraints dc
+JOIN sys.columns c ON c.object_id=dc.parent_object_id AND c.column_id=dc.parent_column_id
+WHERE dc.parent_object_id=OBJECT_ID('dbo.PIP_T_Inspection_Delete') AND c.name='ServerInspectionID';
+IF @DeleteArchiveDefault IS NOT NULL EXEC('ALTER TABLE dbo.PIP_T_Inspection_Delete DROP CONSTRAINT ' + QUOTENAME(@DeleteArchiveDefault));
+IF COL_LENGTH('dbo.PIP_T_Inspection_Delete', 'ServerInspectionID') IS NOT NULL ALTER TABLE dbo.PIP_T_Inspection_Delete DROP COLUMN ServerInspectionID;
+
+SET @DeleteArchiveDefault=NULL;
+SELECT @DeleteArchiveDefault=dc.name FROM sys.default_constraints dc
+JOIN sys.columns c ON c.object_id=dc.parent_object_id AND c.column_id=dc.parent_column_id
+WHERE dc.parent_object_id=OBJECT_ID('dbo.PIP_T_Inspection_Delete') AND c.name='InspectionNo';
+IF @DeleteArchiveDefault IS NOT NULL EXEC('ALTER TABLE dbo.PIP_T_Inspection_Delete DROP CONSTRAINT ' + QUOTENAME(@DeleteArchiveDefault));
+IF COL_LENGTH('dbo.PIP_T_Inspection_Delete', 'InspectionNo') IS NOT NULL ALTER TABLE dbo.PIP_T_Inspection_Delete DROP COLUMN InspectionNo;
+
+SET @DeleteArchiveDefault=NULL;
+SELECT @DeleteArchiveDefault=dc.name FROM sys.default_constraints dc
+JOIN sys.columns c ON c.object_id=dc.parent_object_id AND c.column_id=dc.parent_column_id
+WHERE dc.parent_object_id=OBJECT_ID('dbo.PIP_T_Inspection_Delete') AND c.name='ScheduledTime';
+IF @DeleteArchiveDefault IS NOT NULL EXEC('ALTER TABLE dbo.PIP_T_Inspection_Delete DROP CONSTRAINT ' + QUOTENAME(@DeleteArchiveDefault));
+IF COL_LENGTH('dbo.PIP_T_Inspection_Delete', 'ScheduledTime') IS NOT NULL ALTER TABLE dbo.PIP_T_Inspection_Delete DROP COLUMN ScheduledTime;
 GO
-
-
 
 /* Inspection photos reuse the shared dbo.Type_N_Tbl_C5 TVP (C1-C4 used, C5 unused). */
 GO
@@ -618,6 +636,15 @@ BEGIN
             IF EXISTS
             (
                 SELECT 1 FROM dbo.PIP_T_Inspection
+                WHERE InspectionID=@V_InspectionID AND ISNULL(IsActive,1)=0
+            )
+            BEGIN
+                RAISERROR('Inactive inspections cannot be changed or resubmitted.', 16, 1);
+            END;
+
+            IF EXISTS
+            (
+                SELECT 1 FROM dbo.PIP_T_Inspection
                 WHERE InspectionID=@V_InspectionID AND ISNULL(IsApprove,0)=1
             )
             BEGIN
@@ -670,7 +697,7 @@ BEGIN
                 InspectionTypeDetailName, ScheduledTime, IDTemplate, IDVersion,
                 TemplateNo, TemplateName, TemplateVersion, InspectionDate,
                 StartDateTime, EndDateTime, Status, Summary, FollowUp, FollowUpSection, FollowUpRemark, OwnerEmployeeID,
-                EntryUser, EntryDate, UpdateUser, UpdateDate, SyncDate
+                EntryUser, EntryDate, UpdateUser, UpdateDate, SyncDate, IsActive
             )
             VALUES
             (
@@ -680,7 +707,7 @@ BEGIN
                 @p_TemplateNo, @V_TemplateName, @p_TemplateVersion, @p_InspectionDate,
                 @p_StartDateTime, @p_EndDateTime, @p_Status, @p_Summary, @p_FollowUp,
                 ISNULL(@p_FollowUpSection,''), ISNULL(@p_FollowUpRemark,''), @p_UpdateUser,
-                @p_UpdateUser, GETDATE(), @p_UpdateUser, GETDATE(), GETDATE()
+                @p_UpdateUser, GETDATE(), @p_UpdateUser, GETDATE(), GETDATE(), 1
             );
         END;
 
