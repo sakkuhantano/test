@@ -15,7 +15,7 @@
     #inspectionScrollTools { position: static; }
     #inspectionScrollTools:not(.d-none) { display: block; }
     #inspectionScrollTools .btn { position: fixed; right: 1rem; z-index: 2070; width: 42px; height: 42px; border-radius: 50%; opacity: .82; box-shadow: 0 .2rem .6rem rgba(0,0,0,.18); }
-    #inspectionScrollUp { top: 1.25rem; bottom: auto; }
+    #inspectionScrollUp { top: 4.5rem; bottom: auto; }
     #inspectionScrollDown { bottom: 1.25rem; top: auto; }
     #inspectionScrollTools .btn:hover, #inspectionScrollTools .btn:focus { opacity: 1; }
     @media (min-width: 1200px) {
