@@ -2111,26 +2111,28 @@ async function deleteLocalInspectionDraft(localId) {
         record.UpdatedAt = record.DeleteQueuedAt;
         delete record.DeleteArchiveError;
         await persistInspectionRecord(record);
+
+        // Queue only: never invoke uploadPendingInspections here. Server changes must
+        // happen exclusively when the technician explicitly presses the global Sync button.
+        // Return from the checklist to the records grid immediately while retaining the
+        // DELETE_PENDING row and its local photos until Sync confirms the server operation.
+        if (currentInspectionRecord && currentInspectionRecord.LocalInspectionID === localId) {
+            currentInspectionRecord = null;
+            currentInspectionReadOnly = false;
+            inspectionPhotoBaseline = null;
+            document.getElementById("inspectionEditorTabs").classList.add("d-none");
+            document.getElementById("inspectionFormPanel").classList.add("d-none");
+            document.getElementById("inspectionStartPanel").classList.remove("d-none");
+            document.getElementById("inspectionStartButtonRow").classList.remove("d-none");
+            showInspectionRecordsScreen();
+        }
         await refreshSavedInspectionList();
-        if (!navigator.onLine) {
-            showInspectionNotice("Penghapusan masuk antrean. Data lokal dan foto tetap disimpan sampai Sync berikutnya berhasil.", "warning");
-            return;
-        }
-        try {
-            if (typeof uploadPendingInspections === "function") await uploadPendingInspections();
-            await refreshSavedInspectionList();
-            const stillQueued = (await readInspectionStore("inspection_records")).some(item =>
-                item.LocalInspectionID === localId && item.SyncStatus === "DELETE_PENDING");
-            showInspectionNotice(stillQueued
-                ? "Server belum mengonfirmasi penghapusan. Data lokal tetap aman dan akan dicoba lagi saat Sync."
-                : (isConflict
-                    ? "Snapshot transaksi conflict berhasil diarsipkan. Record inspeksi utama tidak diubah."
-                    : "Server sudah menonaktifkan inspeksi void. Salinan lokal dan foto sudah dibersihkan."),
-                stillQueued ? "warning" : "success");
-        } catch (err) {
-            console.error("Inspection delete sync failed:", err);
-            showInspectionNotice("Penghapusan gagal diproses. Data lokal tetap disimpan untuk retry: " + (err.message || err), "danger");
-        }
+        showInspectionNotice(
+            isConflict
+                ? "Penghapusan conflict masuk antrean. Snapshot dan data lokal tetap disimpan sampai lo klik Sync."
+                : "Penghapusan masuk antrean. Data dan foto lokal tetap disimpan; klik Sync untuk mengubah IsActive menjadi 0 dan menyimpan Reason Cancel ke server.",
+            "warning"
+        );
         return;
     }
     await new Promise((resolve, reject) => {
