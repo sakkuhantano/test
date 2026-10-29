@@ -2331,6 +2331,9 @@ function updateInspectionConflictBadge() {
         record.SyncStatus === "CONFLICT").length;
     badge.textContent = count ? String(count) : "!";
     badge.classList.toggle("d-none", count === 0);
+    if (typeof window.updateGlobalInspectionConflictBadge === "function") {
+        window.updateGlobalInspectionConflictBadge();
+    }
 }
 
 async function queueConflictInspectionDelete(localId) {
