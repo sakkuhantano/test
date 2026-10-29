@@ -1198,20 +1198,28 @@ async function uploadPendingInspections() {
     const successfulIds = new Set(outcomes.filter(x => x.success).map(x => x.ClientInspectionID));
 
     if (successfulIds.size) {
-        await new Promise((resolve, reject) => {
-            const tx = db.transaction("inspection_records", "readwrite");
-            const store = tx.objectStore("inspection_records");
-            ownedRecords.filter(record => successfulIds.has(record.LocalInspectionID)).forEach(record => {
-                const outcome = outcomes.find(x => x.ClientInspectionID === record.LocalInspectionID);
-                record.SyncStatus = "SYNCED";
-                record.ServerInspectionID = outcome ? outcome.InspectionID : record.ServerInspectionID;
-                record.InspectionNo = outcome ? (outcome.InspectionNo || record.InspectionNo || "") : (record.InspectionNo || "");
-                record.LastSyncAt = new Date().toISOString();
-                store.put(record);
+        // The API returned success for each ClientInspectionID, so the server has
+        // confirmed the transaction and its submitted photo set. Remove only those
+        // exact local transactions and their photo Blobs; keep failed/conflicting
+        // records untouched. The deletion is scoped by owner/company/location.
+        const confirmedRecords = ownedRecords.filter(record => successfulIds.has(record.LocalInspectionID));
+        for (const record of confirmedRecords) {
+            await new Promise((resolve, reject) => {
+                const tx = db.transaction(["inspection_records", "inspection_photos"], "readwrite");
+                tx.objectStore("inspection_records").delete(record.LocalInspectionID);
+                const photoStore = tx.objectStore("inspection_photos");
+                const req = photoStore.index("LocalInspectionID").openCursor(IDBKeyRange.only(record.LocalInspectionID));
+                req.onsuccess = () => {
+                    const cursor = req.result;
+                    if (!cursor) return;
+                    cursor.delete();
+                    cursor.continue();
+                };
+                tx.oncomplete = () => resolve();
+                tx.onerror = () => reject(tx.error || new Error("Gagal membersihkan transaksi inspeksi yang sudah sync."));
+                tx.onabort = () => reject(tx.error || new Error("Pembersihan transaksi inspeksi dibatalkan."));
             });
-            tx.oncomplete = () => resolve();
-            tx.onerror = () => reject(tx.error);
-        });
+        }
     }
 
     const failed = outcomes.filter(x => !x.success);
