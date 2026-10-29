@@ -320,8 +320,7 @@ function onInspectionDetailChanged() {
     const type = inspectionTypes.find(x => x.InspectionTypeCode === typeCode);
     const templates = inspectionTemplates.filter(x =>
         x.InspectionTypeCode === typeCode &&
-        (!type || x.SectionID === type.SectionID) &&
-        String(x.VersionStatus || x.StatusVersion || x.VersionStatusName || x.Status || "").trim().toLowerCase() === "active"
+        (!type || x.SectionID === type.SectionID)
     );
     const templateSelect = document.getElementById("selInspectionTemplate");
     templateSelect.innerHTML = '<option value="">Pilih template...</option>' +
