@@ -678,7 +678,7 @@ async function renderInspectionForm(record, readOnly) {
     document.getElementById("inspectionFormPanel").classList.remove("d-none");
     populateInspectionParameters(record);
     showInspectionEditorTab("checklist");
-    const canDeleteVoidedInspection = record.SyncStatus === "SYNCED" && record.Status === "DONE" &&
+    const canDeleteVoidedInspection = record.SyncStatus === "SYNCED" &&
         Number(record.ServerInspectionID) > 0 && String(record.ReasonVoid || "").trim() !== "";
     const canDeleteDraft = canDeleteVoidedInspection || (!currentInspectionReadOnly &&
         record.Status === "DRAFT" && record.SyncStatus !== "SYNCED" &&
@@ -1958,7 +1958,7 @@ async function deleteLocalInspectionDraft(localId) {
         return;
     }
     const isConflict = record.SyncStatus === "CONFLICT";
-    const isVoidedServerRecord = record.SyncStatus === "SYNCED" && record.Status === "DONE" &&
+    const isVoidedServerRecord = record.SyncStatus === "SYNCED" &&
         Number(record.ServerInspectionID) > 0 && String(record.ReasonVoid || "").trim() !== "";
     const isPureLocalDraft = record.Status === "DRAFT" && record.SyncStatus !== "SYNCED" &&
         record.SyncStatus !== "CONFLICT" && record.SyncStatus !== "DELETE_PENDING";
