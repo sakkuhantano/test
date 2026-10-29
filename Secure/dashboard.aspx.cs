@@ -311,8 +311,27 @@ SELECT DISTINCT T.InspectionTypeCode, T.InspectionTypeName, T.SectionID
 FROM dbo.PIP_M_InspectionType T
 WHERE T.IsActive=1
   AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@SectionList, ';') S WHERE S.val=T.SectionID)
+  AND EXISTS (
+      SELECT 1
+      FROM dbo.PIP_M_CheckListWOPM C
+      WHERE C.InspectionTypeCode=T.InspectionTypeCode
+        AND C.SectionID=T.SectionID
+        AND C.IsActive=1
+        AND ISNULL(C.TemplateType,'W')='I'
+        AND (ISNULL(C.CompanyScope,'S')='A'
+             OR (';' + ISNULL(C.CompanyLocationList,'') + ';' LIKE '%;' + @CompanyID + @LocationID + ';%'))
+        AND (ISNULL(C.EmployeeList,'')=''
+             OR (';' + ISNULL(C.EmployeeList,'') + ';' LIKE '%;' + @EmployeeID + ';%'))
+        AND EXISTS (
+            SELECT 1 FROM dbo.PIP_M_CheckListWOPM_Version V
+            WHERE V.IDTemplate=C.IDTemplate AND V.Status='Active'
+        )
+  )
 ORDER BY T.SectionID, T.InspectionTypeName",
-                    "@SectionList=" + section);
+                    "@SectionList=" + section + GF.Str2 +
+                    "@CompanyID=" + companyId + GF.Str2 +
+                    "@LocationID=" + locationId + GF.Str2 +
+                    "@EmployeeID=" + employeeId);
 
                 DataTable details = br.EQuery(@"
 SELECT D.InspectionTypeCode, D.InspectionTypeDetailCode,
