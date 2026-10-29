@@ -350,7 +350,9 @@ ORDER BY D.InspectionTypeCode, D.ScheduleTime, D.InspectionTypeDetailCode",
                 {
                     InspectionTypeCode = GF.GetString(row["InspectionTypeCode"]),
                     InspectionTypeName = GF.GetString(row["InspectionTypeName"]),
-                    SectionID = GF.GetString(row["SectionID"])
+                    SectionID = GF.GetString(row["SectionID"]),
+                    CompanyID = companyId,
+                    LocationID = locationId
                 }).ToList();
                 var detailRows = details.AsEnumerable().Select(row => new
                 {
