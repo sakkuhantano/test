@@ -1105,45 +1105,45 @@ async function uploadPendingInspections() {
         req.onerror = () => reject(req.error);
     });
 
-    // Archive queued local deletions before considering any inspection uploads.
-    // A local record is removed only after the server confirms its archive exists.
+    // Process queued local deletes on Sync: conflicts are archived; SPV-voided records are deactivated.
     const deleteQueue = allRecords.filter(record =>
-        record.SyncStatus === "DELETE_PENDING" &&
-        record.CompanyID === companyId &&
-        record.LocationID === locationId &&
-        allowedSections.includes(record.SectionID) &&
+        record.SyncStatus === "DELETE_PENDING" && record.CompanyID === companyId &&
+        record.LocationID === locationId && allowedSections.includes(record.SectionID) &&
         record.OwnerEmployeeID === login.employeeid
     );
     for (const record of deleteQueue) {
         try {
-            const archiveResponse = await fetch("inspection.aspx/ArchiveInspectionDelete", {
+            const isConflictDelete = record.DeleteOriginalSyncStatus === "CONFLICT";
+            const endpoint = isConflictDelete ? "ArchiveInspectionDelete" : "DeactivateVoidedInspection";
+            if (!isConflictDelete && record.DeleteOriginalSyncStatus !== "VOIDED")
+                throw new Error("Unknown queued Inspection delete type; record retained for safety.");
+            const response = await fetch("inspection.aspx/" + endpoint, {
                 method: "POST",
                 headers: { "Content-Type": "application/json; charset=utf-8" },
                 body: JSON.stringify({
-                    employeeId: login.employeeid,
-                    companyId: companyId,
-                    locationId: locationId,
+                    employeeId: login.employeeid, companyId: companyId, locationId: locationId,
                     clientInspectionId: record.LocalInspectionID,
-                    conflictReason: record.ConflictReason || "",
+                    reasonCancel: record.DeleteReasonCancel || "",
                     originalTransactionJson: JSON.stringify(record)
                 })
             });
-            const archivePayload = await archiveResponse.json();
-            const archiveResult = archivePayload && Object.prototype.hasOwnProperty.call(archivePayload, "d")
-                ? archivePayload.d : archivePayload;
-            if (!archiveResponse.ok || !archiveResult || archiveResult.success !== true)
-                throw new Error((archivePayload && archivePayload.Message) || "Server belum mengonfirmasi arsip transaksi.");
-
+            const payload = await response.json();
+            const result = payload && Object.prototype.hasOwnProperty.call(payload, "d") ? payload.d : payload;
+            if (!response.ok || !result || result.success !== true)
+                throw new Error((payload && payload.Message) || "Server belum mengonfirmasi penghapusan.");
             await new Promise((resolve, reject) => {
-                const tx = db.transaction("inspection_records", "readwrite");
+                const tx = db.transaction(["inspection_records", "inspection_photos"], "readwrite");
                 tx.objectStore("inspection_records").delete(record.LocalInspectionID);
+                const photos = tx.objectStore("inspection_photos");
+                const req = photos.index("LocalInspectionID").openCursor(IDBKeyRange.only(record.LocalInspectionID));
+                req.onsuccess = () => { const cursor = req.result; if (!cursor) return; cursor.delete(); cursor.continue(); };
                 tx.oncomplete = () => resolve();
-                tx.onerror = () => reject(tx.error);
+                tx.onerror = () => reject(tx.error || new Error("Local delete failed"));
                 tx.onabort = () => reject(tx.error || new Error("Local delete aborted"));
             });
-        } catch (archiveError) {
-            console.warn("Inspection delete archive will be retried:", record.LocalInspectionID, archiveError);
-            record.DeleteArchiveError = archiveError.message || String(archiveError);
+        } catch (deleteError) {
+            console.warn("Inspection delete will be retried:", record.LocalInspectionID, deleteError);
+            record.DeleteArchiveError = deleteError.message || String(deleteError);
             await new Promise((resolve, reject) => {
                 const tx = db.transaction("inspection_records", "readwrite");
                 tx.objectStore("inspection_records").put(record);
