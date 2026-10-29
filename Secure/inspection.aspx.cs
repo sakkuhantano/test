@@ -541,32 +541,11 @@ ORDER BY I.InspectionDate, I.ScheduledTime, I.InspectionID",
             }
         }
 
-        [WebMethod]
-        public static object ArchiveInspectionDelete(string employeeId, string companyId, string locationId,
-            string clientInspectionId, string conflictReason, string originalTransactionJson)
+        private static void ValidateInspectionDeleteAccess(WAL.BR.CF br, JObject record,
+            string employeeId, string companyId, string locationId)
         {
-            if (String.IsNullOrWhiteSpace(employeeId) || String.IsNullOrWhiteSpace(clientInspectionId) ||
-                String.IsNullOrWhiteSpace(originalTransactionJson))
-                throw new HttpException(400, "Employee, client transaction ID, and transaction snapshot are required.");
-
-            JObject record;
-            try { record = JObject.Parse(originalTransactionJson); }
-            catch { throw new HttpException(400, "The original inspection snapshot is invalid."); }
-
-            if (!String.Equals(TokenString(record, "LocalInspectionID"), clientInspectionId, StringComparison.OrdinalIgnoreCase) ||
-                !String.Equals(TokenString(record, "OwnerEmployeeID"), employeeId, StringComparison.OrdinalIgnoreCase) ||
-                !String.Equals(TokenString(record, "CompanyID"), companyId, StringComparison.OrdinalIgnoreCase) ||
-                !String.Equals(TokenString(record, "LocationID"), locationId, StringComparison.OrdinalIgnoreCase))
-                throw new HttpException(403, "The transaction snapshot does not match the logged-in employee and company/location.");
-
-            if (!String.Equals(TokenString(record, "SyncStatus"), "DELETE_PENDING", StringComparison.OrdinalIgnoreCase) ||
-                !String.Equals(TokenString(record, "DeleteOriginalSyncStatus"), "CONFLICT", StringComparison.OrdinalIgnoreCase))
-                throw new HttpException(400, "Only a queued local conflict can be archived for deletion.");
-
             string sectionId = TokenString(record, "SectionID");
-            using (var br = new WAL.BR.CF())
-            {
-                DataTable auth = br.EQueryP(@"
+            DataTable auth = br.EQueryP(@"
 SELECT ISNULL(U.Section,'') Section, ISNULL(U.IsWO,0) IsWO
 FROM dbo.UTL_User U
 WHERE U.EmployeeID=@EmployeeID
@@ -575,20 +554,20 @@ WHERE U.EmployeeID=@EmployeeID
                  AND C.CompanyID=@CompanyID AND C.LocationID=@LocationID)
        OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', U.EmployeeID, '') L
                   WHERE L.CompanyID=@CompanyID AND L.LocationID=@LocationID))",
-                    new SqlParameter[] {
-                        new SqlParameter("@EmployeeID", employeeId),
-                        new SqlParameter("@CompanyID", companyId),
-                        new SqlParameter("@LocationID", locationId)
-                    });
-                if (auth.Rows.Count == 0 || !Convert.ToBoolean(auth.Rows[0]["IsWO"]))
-                    throw new HttpException(403, "This account is not authorized to archive Inspection transactions.");
-                var sections = auth.Rows[0]["Section"].ToString()
-                    .Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries)
-                    .Select(s => s.Trim()).Where(s => s.Length > 0);
-                if (!sections.Contains(sectionId, StringComparer.OrdinalIgnoreCase))
-                    throw new HttpException(403, "This inspection section is not assigned to the current employee.");
+                new SqlParameter[] {
+                    new SqlParameter("@EmployeeID", employeeId),
+                    new SqlParameter("@CompanyID", companyId),
+                    new SqlParameter("@LocationID", locationId)
+                });
+            if (auth.Rows.Count == 0 || !Convert.ToBoolean(auth.Rows[0]["IsWO"]))
+                throw new HttpException(403, "This account is not authorized to delete Inspection transactions.");
+            var sections = auth.Rows[0]["Section"].ToString()
+                .Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries)
+                .Select(s => s.Trim()).Where(s => s.Length > 0);
+            if (!sections.Contains(sectionId, StringComparer.OrdinalIgnoreCase))
+                throw new HttpException(403, "This inspection section is not assigned to the current employee.");
 
-                DataTable templateAccess = br.EQueryP(@"
+            DataTable templateAccess = br.EQueryP(@"
 SELECT 1
 FROM dbo.PIP_M_CheckListWOPM T
 WHERE T.IDTemplate=@IDTemplate
@@ -598,58 +577,162 @@ WHERE T.IDTemplate=@IDTemplate
        OR (';' + ISNULL(T.CompanyLocationList,'') + ';' LIKE '%;' + @CompanyID + @LocationID + ';%'))
   AND (ISNULL(T.EmployeeList,'')=''
        OR (';' + ISNULL(T.EmployeeList,'') + ';' LIKE '%;' + @EmployeeID + ';%'))",
-                    new SqlParameter[] {
-                        new SqlParameter("@IDTemplate", TokenInt(record, "IDTemplate")),
-                        new SqlParameter("@SectionID", sectionId),
-                        new SqlParameter("@CompanyID", companyId),
-                        new SqlParameter("@LocationID", locationId),
-                        new SqlParameter("@EmployeeID", employeeId)
-                    });
-                if (templateAccess.Rows.Count == 0)
-                    throw new HttpException(403, "This employee is not assigned to the archived Inspection template and company/location.");
+                new SqlParameter[] {
+                    new SqlParameter("@IDTemplate", TokenInt(record, "IDTemplate")),
+                    new SqlParameter("@SectionID", sectionId),
+                    new SqlParameter("@CompanyID", companyId),
+                    new SqlParameter("@LocationID", locationId),
+                    new SqlParameter("@EmployeeID", employeeId)
+                });
+            if (templateAccess.Rows.Count == 0)
+                throw new HttpException(403, "This employee is not assigned to the Inspection template and company/location.");
+        }
 
+        [WebMethod]
+        public static object ArchiveInspectionDelete(string employeeId, string companyId, string locationId,
+            string clientInspectionId, string reasonCancel, string originalTransactionJson)
+        {
+            if (String.IsNullOrWhiteSpace(employeeId) || String.IsNullOrWhiteSpace(clientInspectionId) ||
+                String.IsNullOrWhiteSpace(originalTransactionJson))
+                throw new HttpException(400, "Employee, client transaction ID, and transaction snapshot are required.");
+            JObject record;
+            try { record = JObject.Parse(originalTransactionJson); }
+            catch { throw new HttpException(400, "The original inspection snapshot is invalid."); }
+            if (!String.Equals(TokenString(record, "LocalInspectionID"), clientInspectionId, StringComparison.OrdinalIgnoreCase) ||
+                !String.Equals(TokenString(record, "OwnerEmployeeID"), employeeId, StringComparison.OrdinalIgnoreCase) ||
+                !String.Equals(TokenString(record, "CompanyID"), companyId, StringComparison.OrdinalIgnoreCase) ||
+                !String.Equals(TokenString(record, "LocationID"), locationId, StringComparison.OrdinalIgnoreCase))
+                throw new HttpException(403, "The transaction snapshot does not match the logged-in employee and company/location.");
+            if (!String.Equals(TokenString(record, "SyncStatus"), "DELETE_PENDING", StringComparison.OrdinalIgnoreCase) ||
+                !String.Equals(TokenString(record, "DeleteOriginalSyncStatus"), "CONFLICT", StringComparison.OrdinalIgnoreCase))
+                throw new HttpException(400, "Only a queued local conflict can be archived for deletion.");
+
+            reasonCancel = Limit(String.IsNullOrWhiteSpace(reasonCancel)
+                ? (TokenString(record, "DeleteReasonCancel") == "" ? TokenString(record, "ConflictReason") : TokenString(record, "DeleteReasonCancel"))
+                : reasonCancel, 1000);
+            if (String.IsNullOrWhiteSpace(reasonCancel)) reasonCancel = "Deleted by technician due to sync conflict.";
+            using (var br = new WAL.BR.CF())
+            {
+                ValidateInspectionDeleteAccess(br, record, employeeId, companyId, locationId);
                 br.EQueryP(@"
 SET XACT_ABORT ON;
 BEGIN TRANSACTION;
 IF NOT EXISTS (SELECT 1 FROM dbo.PIP_T_Inspection_Delete WITH (UPDLOCK, HOLDLOCK) WHERE ClientInspectionID=@ClientInspectionID)
 BEGIN
     DECLARE @NextDeleteArchiveID BIGINT;
-    SELECT @NextDeleteArchiveID=ISNULL(MAX(DeleteArchiveID),0)+1
-    FROM dbo.PIP_T_Inspection_Delete WITH (UPDLOCK, HOLDLOCK);
+    SELECT @NextDeleteArchiveID=ISNULL(MAX(DeleteArchiveID),0)+1 FROM dbo.PIP_T_Inspection_Delete WITH (UPDLOCK, HOLDLOCK);
     INSERT dbo.PIP_T_Inspection_Delete
-    (DeleteArchiveID, ClientInspectionID, ServerInspectionID, InspectionNo, CompanyID, LocationID, SectionID,
-     InspectionTypeCode, InspectionTypeDetailCode, IDTemplate, InspectionDate, ScheduledTime,
-     OriginalStatus, OriginalSyncStatus, ConflictReason, DeletedBy, OriginalTransactionJson)
+    (DeleteArchiveID, ClientInspectionID, CompanyID, LocationID, SectionID,
+     InspectionTypeCode, InspectionTypeDetailCode, IDTemplate, InspectionDate,
+     OriginalStatus, OriginalSyncStatus, ReasonCancel, DeletedBy, OriginalTransactionJson)
     VALUES
-    (@NextDeleteArchiveID, @ClientInspectionID, @ServerInspectionID, @InspectionNo, @CompanyID, @LocationID, @SectionID,
-     @InspectionTypeCode, @InspectionTypeDetailCode, @IDTemplate, @InspectionDate, @ScheduledTime,
-     @OriginalStatus, @OriginalSyncStatus, @ConflictReason, @DeletedBy, @OriginalTransactionJson);
+    (@NextDeleteArchiveID, @ClientInspectionID, @CompanyID, @LocationID, @SectionID,
+     @InspectionTypeCode, @InspectionTypeDetailCode, @IDTemplate, @InspectionDate,
+     @OriginalStatus, @OriginalSyncStatus, @ReasonCancel, @DeletedBy, @OriginalTransactionJson);
 END;
 COMMIT TRANSACTION;",
                     new SqlParameter[] {
                         new SqlParameter("@ClientInspectionID", Limit(clientInspectionId, 36)),
-                        new SqlParameter("@ServerInspectionID", TokenInt(record, "ServerInspectionID") > 0 ? (object)TokenInt(record, "ServerInspectionID") : DBNull.Value),
-                        new SqlParameter("@InspectionNo", DbString(Limit(TokenString(record, "InspectionNo"), 10))),
                         new SqlParameter("@CompanyID", Limit(companyId, 10)),
                         new SqlParameter("@LocationID", Limit(locationId, 3)),
-                        new SqlParameter("@SectionID", Limit(sectionId, 10)),
+                        new SqlParameter("@SectionID", Limit(TokenString(record, "SectionID"), 10)),
                         new SqlParameter("@InspectionTypeCode", Limit(TokenString(record, "InspectionTypeCode"), 2)),
                         new SqlParameter("@InspectionTypeDetailCode", Limit(TokenString(record, "InspectionTypeDetailCode"), 20)),
                         new SqlParameter("@IDTemplate", TokenInt(record, "IDTemplate")),
                         new SqlParameter("@InspectionDate", ParseDate(TokenString(record, "InspectionDate"), DateTime.Today)),
-                        new SqlParameter("@ScheduledTime", DbString(Limit(TokenString(record, "ScheduledTime"), 5))),
                         new SqlParameter("@OriginalStatus", DbString(Limit(TokenString(record, "Status"), 10))),
-                        new SqlParameter("@OriginalSyncStatus", DbString(Limit(TokenString(record, "DeleteOriginalSyncStatus") == "" ? TokenString(record, "SyncStatus") : TokenString(record, "DeleteOriginalSyncStatus"), 20))),
-                        new SqlParameter("@ConflictReason", DbString(Limit(conflictReason, 1000))),
+                        new SqlParameter("@OriginalSyncStatus", DbString(Limit(TokenString(record, "DeleteOriginalSyncStatus"), 20))),
+                        new SqlParameter("@ReasonCancel", DbString(reasonCancel)),
                         new SqlParameter("@DeletedBy", Limit(employeeId, 50)),
                         new SqlParameter("@OriginalTransactionJson", SqlDbType.NVarChar, -1) { Value = originalTransactionJson }
                     }, true, true);
-
                 DataTable confirmed = br.EQueryP(
                     "SELECT COUNT(1) AS SavedCount FROM dbo.PIP_T_Inspection_Delete WHERE ClientInspectionID=@ClientInspectionID AND DeletedBy=@DeletedBy",
                     new SqlParameter[] {
                         new SqlParameter("@ClientInspectionID", Limit(clientInspectionId, 36)),
                         new SqlParameter("@DeletedBy", Limit(employeeId, 50))
+                    });
+                return new { success = confirmed.Rows.Count > 0 && Convert.ToInt32(confirmed.Rows[0]["SavedCount"]) > 0 };
+            }
+        }
+
+        [WebMethod]
+        public static object DeactivateVoidedInspection(string employeeId, string companyId, string locationId,
+            string clientInspectionId, string reasonCancel, string originalTransactionJson)
+        {
+            if (String.IsNullOrWhiteSpace(employeeId) || String.IsNullOrWhiteSpace(clientInspectionId) ||
+                String.IsNullOrWhiteSpace(originalTransactionJson))
+                throw new HttpException(400, "Employee, client transaction ID, and transaction snapshot are required.");
+            JObject record;
+            try { record = JObject.Parse(originalTransactionJson); }
+            catch { throw new HttpException(400, "The original inspection snapshot is invalid."); }
+            if (!String.Equals(TokenString(record, "LocalInspectionID"), clientInspectionId, StringComparison.OrdinalIgnoreCase) ||
+                !String.Equals(TokenString(record, "OwnerEmployeeID"), employeeId, StringComparison.OrdinalIgnoreCase) ||
+                !String.Equals(TokenString(record, "CompanyID"), companyId, StringComparison.OrdinalIgnoreCase) ||
+                !String.Equals(TokenString(record, "LocationID"), locationId, StringComparison.OrdinalIgnoreCase))
+                throw new HttpException(403, "The transaction snapshot does not match the logged-in employee and company/location.");
+            if (!String.Equals(TokenString(record, "SyncStatus"), "DELETE_PENDING", StringComparison.OrdinalIgnoreCase) ||
+                !String.Equals(TokenString(record, "DeleteOriginalSyncStatus"), "VOIDED", StringComparison.OrdinalIgnoreCase) ||
+                !String.Equals(TokenString(record, "Status"), "DONE", StringComparison.OrdinalIgnoreCase) ||
+                String.IsNullOrWhiteSpace(TokenString(record, "ReasonVoid")) || TokenInt(record, "ServerInspectionID") <= 0)
+                throw new HttpException(400, "Only a queued server-backed SPV-voided inspection can be deactivated.");
+            reasonCancel = Limit(String.IsNullOrWhiteSpace(reasonCancel) ? TokenString(record, "DeleteReasonCancel") : reasonCancel, 500);
+            if (String.IsNullOrWhiteSpace(reasonCancel)) reasonCancel = "Deleted by technician after SPV void.";
+
+            using (var br = new WAL.BR.CF())
+            {
+                ValidateInspectionDeleteAccess(br, record, employeeId, companyId, locationId);
+                br.EQueryP(@"
+SET XACT_ABORT ON;
+BEGIN TRANSACTION;
+IF EXISTS
+(
+    SELECT 1 FROM dbo.PIP_T_Inspection WITH (UPDLOCK, HOLDLOCK)
+    WHERE InspectionID=@InspectionID AND ClientInspectionID=@ClientInspectionID
+      AND CompanyID=@CompanyID AND LocationID=@LocationID AND SectionID=@SectionID
+      AND OwnerEmployeeID=@EmployeeID AND ISNULL(IsActive,1)=0
+)
+BEGIN
+    UPDATE dbo.PIP_T_Inspection SET ReasonCancel=CASE WHEN ISNULL(ReasonCancel,'')='' THEN @ReasonCancel ELSE ReasonCancel END
+    WHERE InspectionID=@InspectionID AND ClientInspectionID=@ClientInspectionID
+      AND CompanyID=@CompanyID AND LocationID=@LocationID AND OwnerEmployeeID=@EmployeeID;
+END
+ELSE
+BEGIN
+    UPDATE dbo.PIP_T_Inspection
+    SET IsActive=0, ReasonCancel=@ReasonCancel, UpdateUser=@EmployeeID, UpdateDate=GETDATE(), SyncDate=GETDATE()
+    WHERE InspectionID=@InspectionID AND ClientInspectionID=@ClientInspectionID
+      AND CompanyID=@CompanyID AND LocationID=@LocationID AND SectionID=@SectionID
+      AND OwnerEmployeeID=@EmployeeID AND ISNULL(IsActive,1)=1
+      AND Status='DONE' AND ISNULL(IsApprove,0)=0 AND ISNULL(ReasonVoid,'')<>''
+      AND ISNULL(ApprovedBy,'')<>'' AND ApprovedDate>CONVERT(DATETIME,'19000101',112);
+    IF @@ROWCOUNT=0
+    BEGIN
+        ROLLBACK TRANSACTION;
+        RAISERROR('The server inspection is not eligible for technician deletion.',16,1);
+        RETURN;
+    END;
+END;
+COMMIT TRANSACTION;",
+                    new SqlParameter[] {
+                        new SqlParameter("@InspectionID", TokenInt(record, "ServerInspectionID")),
+                        new SqlParameter("@ClientInspectionID", Limit(clientInspectionId, 36)),
+                        new SqlParameter("@CompanyID", Limit(companyId, 10)),
+                        new SqlParameter("@LocationID", Limit(locationId, 3)),
+                        new SqlParameter("@SectionID", Limit(TokenString(record, "SectionID"), 10)),
+                        new SqlParameter("@EmployeeID", Limit(employeeId, 50)),
+                        new SqlParameter("@ReasonCancel", DbString(reasonCancel))
+                    }, true, true);
+                DataTable confirmed = br.EQueryP(@"
+SELECT COUNT(1) AS SavedCount FROM dbo.PIP_T_Inspection
+WHERE InspectionID=@InspectionID AND ClientInspectionID=@ClientInspectionID
+  AND CompanyID=@CompanyID AND LocationID=@LocationID AND OwnerEmployeeID=@EmployeeID AND IsActive=0",
+                    new SqlParameter[] {
+                        new SqlParameter("@InspectionID", TokenInt(record, "ServerInspectionID")),
+                        new SqlParameter("@ClientInspectionID", Limit(clientInspectionId, 36)),
+                        new SqlParameter("@CompanyID", Limit(companyId, 10)),
+                        new SqlParameter("@LocationID", Limit(locationId, 3)),
+                        new SqlParameter("@EmployeeID", Limit(employeeId, 50))
                     });
                 return new { success = confirmed.Rows.Count > 0 && Convert.ToInt32(confirmed.Rows[0]["SavedCount"]) > 0 };
             }
