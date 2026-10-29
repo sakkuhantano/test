@@ -2213,9 +2213,10 @@ function getInspectionScrollTarget() {
 
 function updateInspectionScrollTools() {
     const tools = document.getElementById("inspectionScrollTools");
-    const toggle = document.getElementById("inspectionScrollToggle");
-    const icon = toggle ? toggle.querySelector("i") : null;
-    if (!tools || !toggle || !icon) return;
+    const scrollUp = document.getElementById("inspectionScrollUp");
+    const scrollDown = document.getElementById("inspectionScrollDown");
+    if (!tools || !scrollUp || !scrollDown) return;
+
     const target = getInspectionScrollTarget();
     const modalTarget = target !== window;
     const scrollingElement = document.scrollingElement || document.documentElement;
@@ -2229,17 +2230,16 @@ function updateInspectionScrollTools() {
     const modalShown = !!document.querySelector("#inspectionApprovalActionModal.show");
     tools.classList.toggle("d-none", !canScroll || (modalShown && !modalTarget));
 
-    // Keep a single floating button anchored in one position; switch its action/icon at the bottom.
-    const showScrollUp = atBottom && !atTop;
-    icon.classList.toggle("bi-chevron-up", showScrollUp);
-    icon.classList.toggle("bi-chevron-down", !showScrollUp);
-    toggle.title = showScrollUp ? "Scroll to top" : "Scroll to bottom";
-    toggle.setAttribute("aria-label", toggle.title);
+    // Hide only the direction that cannot move farther; show both while between the ends.
+    scrollUp.classList.toggle("d-none", atTop);
+    scrollDown.classList.toggle("d-none", atBottom);
 }
 
 function wireInspectionScrollTools() {
-    const toggle = document.getElementById("inspectionScrollToggle");
-    if (!toggle) return;
+    const scrollUp = document.getElementById("inspectionScrollUp");
+    const scrollDown = document.getElementById("inspectionScrollDown");
+    if (!scrollUp || !scrollDown) return;
+
     const scrollToPosition = position => {
         const target = getInspectionScrollTarget();
         if (target === window) {
@@ -2248,15 +2248,9 @@ function wireInspectionScrollTools() {
             target.scrollTo({ top: position === "top" ? 0 : target.scrollHeight, behavior: "smooth" });
         }
     };
-    toggle.addEventListener("click", () => {
-        const target = getInspectionScrollTarget();
-        const scrollingElement = document.scrollingElement || document.documentElement;
-        const scrollTop = target === window ? Math.max(window.scrollY || 0, scrollingElement.scrollTop || 0) : target.scrollTop;
-        const clientHeight = target === window ? window.innerHeight : target.clientHeight;
-        const scrollHeight = target === window ? scrollingElement.scrollHeight : target.scrollHeight;
-        const atBottom = scrollHeight - clientHeight - scrollTop <= 4;
-        scrollToPosition(atBottom ? "top" : "bottom");
-    });
+
+    scrollUp.addEventListener("click", () => scrollToPosition("top"));
+    scrollDown.addEventListener("click", () => scrollToPosition("bottom"));
     window.addEventListener("scroll", updateInspectionScrollTools, { passive: true });
     document.addEventListener("scroll", event => {
         if (event.target && event.target.classList && event.target.classList.contains("modal-body")) updateInspectionScrollTools();
