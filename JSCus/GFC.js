@@ -771,7 +771,34 @@ async function getInspectionData() {
             tx.onabort = () => reject(tx.error || new Error("Inspection Type reconciliation aborted"));
         });
 
-        const replaceStore = (name, rows) => new Promise((resolve, reject) => {        await reconcileScopedInspectionTypes(masters.types || []);
+        const replaceStore = (name, rows) => new Promise((resolve, reject) => {
+            const readTx = db.transaction(name, "readonly");
+            const readReq = readTx.objectStore(name).getAll();
+            readReq.onsuccess = () => {
+                const existing = readReq.result || [];
+                const merged = new Map();
+                const keyOf = row => {
+                    if (name === "inspection_type_details") {
+                        return [row.CompanyID, row.LocationID, row.InspectionTypeCode, row.InspectionTypeDetailCode].join("|");
+                    }
+                    if (name === "inspection_templates") {
+                        return String(row.IDTemplate);
+                    }
+                    return String(row.InspectionTypeCode);
+                };
+                existing.forEach(row => merged.set(keyOf(row), row));
+                (rows || []).forEach(row => merged.set(keyOf(row), row));
+                const writeTx = db.transaction(name, "readwrite");
+                const store = writeTx.objectStore(name);
+                merged.forEach(row => store.put(row));
+                writeTx.oncomplete = () => resolve();
+                writeTx.onerror = () => reject(writeTx.error);
+                writeTx.onabort = () => reject(writeTx.error || new Error("IndexedDB master merge aborted"));
+            };
+            readReq.onerror = () => reject(readReq.error);
+        });
+
+        await reconcileScopedInspectionTypes(masters.types || []);
         await replaceStore("inspection_type_details", details);
         await replaceStore("inspection_templates", templates);
         await downloadReturnedInspections();
