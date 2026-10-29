@@ -1293,6 +1293,16 @@ async function saveInspection(status) {
         return;
     }
 
+    // Ask for explicit confirmation only after all Submit validations pass.
+    if (status === "DONE") {
+        const confirmed = await showConfirmation({
+            title: "Confirm Submit",
+            message: "Are you sure you want to submit this data?",
+            yesText: "Submit"
+        });
+        if (!confirmed) return;
+    }
+
     currentInspectionRecord.Items = items;
     currentInspectionRecord.Summary = document.getElementById("txtInspectionSummary").value.trim();
     Object.assign(currentInspectionRecord, collectInspectionFollowUp());
