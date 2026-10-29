@@ -12,6 +12,18 @@ async function removePhotoPartition(id){if(!id)return;const tx=db.transaction(P,
 async function cacheDetail(s,id,d){if(!d||!d.header)return;const local="SPVAPPROVAL|"+s.e+"|"+s.c+"|"+s.l+"|"+id, photos=[];for(const p of (d.photos||[])){if(!p||!p.Data)continue;photos.push({LocalInspectionID:local,Type:String(p.Type||"").toUpperCase(),FileName:p.FileName||"",Blob:await(await fetch(p.Data)).blob(),SeqNo:Number(p.SeqNo||p.OrderNo||0),CreatedAt:new Date().toISOString(),ApprovalCachePhoto:true});}
 const tx=db.transaction(P,"readwrite"),st=tx.objectStore(P),r=st.index("LocalInspectionID").openCursor(IDBKeyRange.only(local));r.onsuccess=()=>{const c=r.result;if(c){c.delete();c.continue();return;}photos.forEach(p=>st.add(p));};await done(tx,"Simpan foto approval gagal.");const safe=Object.assign({},d);delete safe.photos;await putCache({CacheKey:key(s,"DETAIL",id),CacheType:"DETAIL",EmployeeID:s.e,CompanyID:s.c,LocationID:s.l,InspectionID:Number(id),PhotoLocalInspectionID:local,Data:safe,CachedAt:new Date().toISOString()});}
 async function deleteConfirmed(s,a){let tx=db.transaction(A,"readwrite");tx.objectStore(A).delete(a.ActionID);await done(tx,"Hapus approval pending gagal.");tx=db.transaction(C,"readwrite");tx.objectStore(C).delete(key(s,"DETAIL",a.InspectionID));await done(tx,"Hapus detail cache gagal.");await removePhotoPartition("SPVAPPROVAL|"+s.e+"|"+s.c+"|"+s.l+"|"+a.InspectionID);}
+async function cleanupStaleCache(s,currentIds){
+ const actions=(await all(A)).filter(a=>a.EmployeeID===s.e&&a.CompanyID===s.c&&a.LocationID===s.l&&(a.Status==="PENDING"||a.Status==="CONFLICT"));
+ const protectedIds=new Set(actions.map(a=>Number(a.InspectionID)));
+ const rows=(await all(C)).filter(r=>r.EmployeeID===s.e&&r.CompanyID===s.c&&r.LocationID===s.l);
+ for(const row of rows){
+  if(row.CacheType==="QUEUE"&&row.ApprovalTab!=="OUTSTANDING"){const tx=db.transaction(C,"readwrite");tx.objectStore(C).delete(row.CacheKey);await done(tx,"Hapus cache history approval gagal.");continue;}
+  if(row.CacheType==="DETAIL"&&!currentIds.has(Number(row.InspectionID))&&!protectedIds.has(Number(row.InspectionID))){
+   const tx=db.transaction(C,"readwrite");tx.objectStore(C).delete(row.CacheKey);await done(tx,"Hapus detail approval lama gagal.");
+   if(String(row.PhotoLocalInspectionID||"").indexOf("SPVAPPROVAL|")===0)await removePhotoPartition(row.PhotoLocalInspectionID);
+  }
+ }
+}
 window.syncInspectionApprovalOffline=async function(){
  const l=getLoginData();if(!l||!l.role||!l.role.IsSPV)return{synced:0,cached:0,conflicts:0};if(!navigator.onLine)throw new Error("Koneksi internet diperlukan untuk sync approval SPV.");
  if(!db||![C,A,P].every(n=>db.objectStoreNames.contains(n)))throw new Error("IndexedDB approval belum siap.");
@@ -24,7 +36,8 @@ window.syncInspectionApprovalOffline=async function(){
  const now=new Date(),date=now.getFullYear()+"-"+String(now.getMonth()+1).padStart(2,"0")+"-"+String(now.getDate()).padStart(2,"0");
  const q=await post("GetInspectionApprovalQueue",{employeeId:s.e,companyId:s.c,locationId:s.l,approvalTab:"OUTSTANDING",dateFrom:date,dateThru:date,inspectionTypeCode:"",inspectionTypeDetailCode:"",templateId:""});
  await putCache({CacheKey:key(s,"QUEUE","","OUTSTANDING"),CacheType:"QUEUE",EmployeeID:s.e,CompanyID:s.c,LocationID:s.l,ApprovalTab:"OUTSTANDING",Data:q.data||[],Filters:q.filters||[],CachedAt:new Date().toISOString()});
- let cached=0;for(const row of(q.data||[])){if(!navigator.onLine)throw new Error("Koneksi terputus saat cache detail approval.");const d=await post("GetInspectionApprovalDetail",{inspectionId:row.InspectionID,employeeId:s.e});await cacheDetail(s,row.InspectionID,d);cached++;}
+ let cached=0;const currentIds=new Set((q.data||[]).map(row=>Number(row.InspectionID)));for(const row of(q.data||[])){if(!navigator.onLine)throw new Error("Koneksi terputus saat cache detail approval.");const d=await post("GetInspectionApprovalDetail",{inspectionId:row.InspectionID,employeeId:s.e});await cacheDetail(s,row.InspectionID,d);cached++;}
+ await cleanupStaleCache(s,currentIds);
  return{synced,cached,conflicts};
 };
 })();
