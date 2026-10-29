@@ -12,9 +12,11 @@
     #inspectionSubmittedFilters:not(.d-none) { display: flex !important; flex: 0 0 auto; flex-wrap: nowrap !important; margin-left: .5rem; white-space: nowrap; }
     #inspectionSubmittedFilters .inspection-date-control { flex: 0 0 135px; min-width: 135px; }
     #inspectionApprovalDateFilters:not(.d-none) { display: flex !important; }
-    #inspectionScrollTools { position: fixed; right: 1rem; bottom: 1.25rem; z-index: 2070; flex-direction: column; gap: .5rem; }
-    #inspectionScrollTools:not(.d-none) { display: flex; }
-    #inspectionScrollTools .btn { width: 42px; height: 42px; border-radius: 50%; opacity: .72; box-shadow: 0 .2rem .6rem rgba(0,0,0,.18); }
+    #inspectionScrollTools { position: static; }
+    #inspectionScrollTools:not(.d-none) { display: block; }
+    #inspectionScrollTools .btn { position: fixed; right: 1rem; z-index: 2070; width: 42px; height: 42px; border-radius: 50%; opacity: .82; box-shadow: 0 .2rem .6rem rgba(0,0,0,.18); }
+    #inspectionScrollUp { top: 1.25rem; bottom: auto; }
+    #inspectionScrollDown { bottom: 1.25rem; top: auto; }
     #inspectionScrollTools .btn:hover, #inspectionScrollTools .btn:focus { opacity: 1; }
     @media (min-width: 1200px) {
         .inspection-filter-control { flex-basis: 145px; }
@@ -73,10 +75,10 @@
     #inspectionEditorTabs { white-space: nowrap; }
     #inspectionEditorTabs .nav-link.active { font-weight: 700; }
     .inspection-section-nav-host { min-width: 0; }
-    .inspection-section-nav-host .inspection-section-nav { position: static; width: 100%; max-width: 100%; margin-bottom: 0 !important; padding: .35rem !important; }
-    .inspection-section-nav-tabs { min-width: 0; overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; -webkit-overflow-scrolling: touch; touch-action: pan-x; }
-    .inspection-section-nav-tabs .d-inline-flex { gap: .35rem; width: max-content; min-width: 100%; }
-    .inspection-section-tab { display: inline-flex; align-items: center; white-space: nowrap; padding: .45rem .7rem; border-radius: .45rem; color: var(--bs-secondary-color); text-decoration: none; font-size: .875rem; font-weight: 600; border: 1px solid transparent; }
+    .inspection-section-nav-host .inspection-section-nav { position: static; width: 100%; max-width: 100%; min-height: 58px; margin-bottom: 0 !important; padding: .6rem !important; }
+    .inspection-section-nav-tabs { min-width: 0; overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; -webkit-overflow-scrolling: touch; touch-action: pan-x; padding: .15rem 0 .35rem; }
+    .inspection-section-nav-tabs .d-inline-flex { gap: .35rem; width: max-content; min-width: 100%; min-height: 42px; align-items: center; }
+    .inspection-section-tab { display: inline-flex; align-items: center; min-height: 40px; white-space: nowrap; padding: .55rem .75rem; border-radius: .45rem; color: var(--bs-secondary-color); text-decoration: none; font-size: .875rem; font-weight: 600; border: 1px solid transparent; }
     .inspection-section-tab:hover { background: var(--bs-tertiary-bg); color: var(--bs-primary); }
     .inspection-section-tab.active { color: var(--bs-primary); background: var(--bs-primary-bg-subtle); border-color: var(--bs-primary-border-subtle); }
     .inspection-section-dropdown-item.active { color: var(--bs-primary); background: var(--bs-primary-bg-subtle); font-weight: 600; }
@@ -139,8 +141,9 @@
         #inspectionApprovalDetailPanel .d-flex.justify-content-end .btn {
             flex: 1 1 auto;
         }
-        #inspectionScrollTools { right: .5rem; bottom: .75rem; }
-        #inspectionScrollTools .btn { width: 38px; height: 38px; }
+        #inspectionScrollTools .btn { right: .5rem; width: 38px; height: 38px; }
+        #inspectionScrollUp { top: 4.5rem; }
+        #inspectionScrollDown { bottom: .75rem; }
     }
 </style>
 </asp:Content>
