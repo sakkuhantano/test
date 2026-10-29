@@ -1926,6 +1926,18 @@ async function uploadPendingWO() {
     const locationId = companyLocation[1] || "";
     const allowedSections = (login.section || "").split(";").filter(Boolean);
 
+    // Retry cleanup for server-confirmed WO uploads left behind by a prior local cleanup interruption.
+    const previouslySynced = await new Promise((resolve, reject) => {
+        const tx = db.transaction("workorder", "readonly");
+        const req = tx.objectStore("workorder").getAll();
+        req.onsuccess = () => resolve(req.result || []);
+        req.onerror = () => reject(req.error);
+    });
+    for (const item of previouslySynced.filter(x => x.SyncStatus === "SYNCED" &&
+        x.CompanyID === companyId && x.LocationID === locationId && allowedSections.includes(x.SectionID))) {
+        await cleanupConfirmedSyncedWO(item);
+    }
+
     const allLocal = await new Promise((resolve, reject) => {
         const tx = db.transaction("workorder", "readonly");
         const req = tx.objectStore("workorder").getAll();
@@ -1935,6 +1947,7 @@ async function uploadPendingWO() {
 
     const pendingInCompany = allLocal.filter(x =>
         (x.Status === "DONE" || x.StatusSPV === "PENDING") &&
+        x.SyncStatus !== "SYNCED" &&
         x.CompanyID === companyId &&
         x.LocationID === locationId
     );
