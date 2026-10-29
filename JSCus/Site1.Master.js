@@ -996,6 +996,7 @@ async function syncAllData() {
 
         if (hasMeterRole) totalSteps++; // upload meter
         if (role.IsWO || role.IsSPV) totalSteps++; // upload WO / SPV actions
+        if (role.IsSPV) totalSteps++; // sync SPV inspection approvals and prepare offline cache
         if (role.IsELC) totalSteps++;
         if (role.IsWTR) totalSteps++;
         if (role.IsGAS) totalSteps++;
@@ -1020,6 +1021,15 @@ async function syncAllData() {
             step++;
             updateSyncProgress(step, totalSteps, "Uploading inspections");
             await uploadPendingInspections();
+        }
+        if (role.IsSPV) {
+            step++;
+            updateSyncProgress(step, totalSteps, "Syncing SPV inspection approvals");
+            if (typeof window.syncInspectionApprovalOffline !== "function")
+                throw new Error("Modul global sync approval inspeksi belum dimuat.");
+            const approvalSync = await window.syncInspectionApprovalOffline(login);
+            if (approvalSync.conflicts)
+                showToast(approvalSync.conflicts + " approval inspeksi konflik; aksi tetap tersimpan untuk diperiksa.", "warning");
         }
 
         // DOWNLOAD METER
