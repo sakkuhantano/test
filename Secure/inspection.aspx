@@ -276,7 +276,8 @@
         </div></div>
     </div>
     <div id="inspectionScrollTools" class="d-none" aria-label="Quick scroll controls">
-        <button type="button" id="inspectionScrollToggle" class="btn btn-light border" title="Scroll to bottom" aria-label="Scroll to bottom"><i class="bi bi-chevron-down"></i></button>
+        <button type="button" id="inspectionScrollUp" class="btn btn-light border" title="Scroll to top" aria-label="Scroll to top"><i class="bi bi-chevron-up"></i></button>
+        <button type="button" id="inspectionScrollDown" class="btn btn-light border" title="Scroll to bottom" aria-label="Scroll to bottom"><i class="bi bi-chevron-down"></i></button>
     </div>
 
     <div id="inspectionRecordsPanel" class="inspection-card p-3 mb-3">
@@ -451,6 +452,6 @@
         </div>
         <div class="inspection-photo-viewer-footer"><span id="inspectionPhotoViewerCount">1 / 1</span><div class="small">Gunakan panah atau geser foto ke kiri/kanan</div></div>
     </div>
-<script type="text/javascript" src="../JSCus/inspection.js"></script>
+<script type="text/javascript" src="../JSCus/inspection.js?v=20261029-scroll-chevrons"></script>
 <script type="text/javascript" src="../JSCus/inspectionApprovalOffline.js"></script>
 </asp:Content>
