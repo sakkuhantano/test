@@ -237,6 +237,13 @@ function initIndexedDB() {
         if (!db.objectStoreNames.contains("inspection_types")) {
             db.createObjectStore("inspection_types", { keyPath: "InspectionTypeCode" });
         }
+        // Scoped Inspection Type cache: the browser may be shared by multiple
+        // companies/locations/sections, so the legacy code-only key is unsafe.
+        if (!db.objectStoreNames.contains("inspection_types_scoped")) {
+            db.createObjectStore("inspection_types_scoped", {
+                keyPath: ["InspectionTypeCode", "SectionID", "CompanyID", "LocationID"]
+            });
+        }
         // Detail codes can repeat across properties; include company/location in the key.
         if (!db.objectStoreNames.contains("inspection_type_details")) {
             db.createObjectStore("inspection_type_details", {
@@ -730,36 +737,41 @@ async function getInspectionData() {
             return Object.assign({}, detail, { ScheduleTime: times.join(";") });
         });
 
-        // Shared browser IndexedDB is used by multiple employee logins.
-        // Merge master rows instead of clearing another section's offline cache.
-        const replaceStore = (name, rows) => new Promise((resolve, reject) => {
-            const readTx = db.transaction(name, "readonly");
-            const readReq = readTx.objectStore(name).getAll();
+        // Reconcile only the logged-in company/location and sections.
+        // Offline inspection records and photos are deliberately untouched.
+        const reconcileScopedInspectionTypes = (rows) => new Promise((resolve, reject) => {
+            const storeName = "inspection_types_scoped";
+            const sections = (login.section || "").split(";").map(s => s.trim()).filter(Boolean);
+            const companyId = companyLocation[0] || "";
+            const locationId = companyLocation[1] || "";
+            const incoming = (rows || []).map(row => Object.assign({}, row, {
+                CompanyID: companyId,
+                LocationID: locationId
+            }));
+            const incomingKeys = new Set(incoming.map(row =>
+                [row.InspectionTypeCode, row.SectionID, row.CompanyID, row.LocationID].join("|")
+            ));
+            const tx = db.transaction(storeName, "readwrite");
+            const store = tx.objectStore(storeName);
+            const readReq = store.getAll();
             readReq.onsuccess = () => {
-                const existing = readReq.result || [];
-                const merged = new Map();
-                const keyOf = row => {
-                    if (name === "inspection_type_details") {
-                        return [row.CompanyID, row.LocationID, row.InspectionTypeCode, row.InspectionTypeDetailCode].join("|");
+                (readReq.result || []).forEach(row => {
+                    const inCurrentScope = row.CompanyID === companyId &&
+                        row.LocationID === locationId && sections.includes(String(row.SectionID || ""));
+                    const key = [row.InspectionTypeCode, row.SectionID, row.CompanyID, row.LocationID].join("|");
+                    if (inCurrentScope && !incomingKeys.has(key)) {
+                        store.delete([row.InspectionTypeCode, row.SectionID, row.CompanyID, row.LocationID]);
                     }
-                    if (name === "inspection_templates") {
-                        return String(row.IDTemplate);
-                    }
-                    return String(row.InspectionTypeCode);
-                };
-                existing.forEach(row => merged.set(keyOf(row), row));
-                (rows || []).forEach(row => merged.set(keyOf(row), row));
-                const writeTx = db.transaction(name, "readwrite");
-                const store = writeTx.objectStore(name);
-                merged.forEach(row => store.put(row));
-                writeTx.oncomplete = () => resolve();
-                writeTx.onerror = () => reject(writeTx.error);
-                writeTx.onabort = () => reject(writeTx.error || new Error("IndexedDB master merge aborted"));
+                });
+                incoming.forEach(row => store.put(row));
             };
-            readReq.onerror = () => reject(readReq.error);
+            readReq.onerror = () => { try { tx.abort(); } catch (_) {} reject(readReq.error); };
+            tx.oncomplete = () => resolve();
+            tx.onerror = () => reject(tx.error || new Error("Inspection Type reconciliation failed"));
+            tx.onabort = () => reject(tx.error || new Error("Inspection Type reconciliation aborted"));
         });
 
-        await replaceStore("inspection_types", masters.types || []);
+        const replaceStore = (name, rows) => new Promise((resolve, reject) => {        await reconcileScopedInspectionTypes(masters.types || []);
         await replaceStore("inspection_type_details", details);
         await replaceStore("inspection_templates", templates);
         await downloadReturnedInspections();
