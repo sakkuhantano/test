@@ -671,7 +671,8 @@ async function renderInspectionForm(record, readOnly) {
     const photosAtOpen = await getInspectionPhotos(record.LocalInspectionID);
     inspectionPhotoBaseline = photosAtOpen.map(photo => Object.assign({}, photo));
     showInspectionInputScreen();
-    currentInspectionReadOnly = !!readOnly || record.Status === "DONE";
+    currentInspectionReadOnly = !!readOnly || record.Status === "DONE" ||
+        (record.SyncStatus === "SYNCED" && String(record.ReasonVoid || "").trim() !== "");
     document.getElementById("inspectionEditorTabs").classList.remove("d-none");
     document.getElementById("inspectionStartButtonRow").classList.add("d-none");
     document.getElementById("inspectionStartPanel").classList.remove("d-none");
