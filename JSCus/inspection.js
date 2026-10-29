@@ -1509,7 +1509,13 @@ function renderInspectionRecordTable(records, host, submitted) {
         const conflictHtml = record.SyncStatus === "CONFLICT"
             ? '<div class="text-danger small mt-1"><strong>CONFLICT:</strong> ' + escInspection(record.ConflictReason || "Server menolak transaksi.") + '</div>'
             : record.SyncStatus === "DELETE_PENDING"
-                ? '<div class="text-warning small mt-1">Menunggu arsip server sebelum dihapus lokal.</div>'
+                ? '<div class="text-warning small mt-1">' +
+                    (record.DeleteOriginalSyncStatus === "VOIDED"
+                        ? 'Menunggu server menonaktifkan inspeksi void sebelum data lokal dihapus.'
+                        : 'Menunggu arsip server sebelum transaksi lokal dihapus.') +
+                  (record.DeleteReasonCancel ? '<div>Reason Cancel: ' + escInspection(record.DeleteReasonCancel) + '</div>' : '') +
+                  (record.DeleteArchiveError ? '<div class="text-danger">Sync terakhir: ' + escInspection(record.DeleteArchiveError) + '</div>' : '') +
+                  '</div>'
                 : "";
         const deleteHtml = record.SyncStatus === "CONFLICT"
             ? '<button type="button" class="btn btn-sm btn-outline-danger mt-1" data-delete-conflict="' + escInspection(localId) + '">Delete Local Transaction</button>'
@@ -1981,10 +1987,27 @@ async function deleteLocalInspectionDraft(localId) {
         return;
     }
     const title = isConflict ? "Hapus Transaksi Conflict" : (isVoidedServerRecord ? "Hapus Draft Inspeksi Void" : "Hapus Draft Inspeksi");
+    let reasonCancel = "";
+    if (isVoidedServerRecord) {
+        const enteredReason = window.prompt(
+            "Isi Reason Cancel untuk menonaktifkan inspeksi yang sudah di-void SPV:",
+            String(record.DeleteReasonCancel || "").trim()
+        );
+        if (enteredReason === null) return;
+        reasonCancel = enteredReason.trim();
+        if (!reasonCancel) {
+            showInspectionNotice("Reason Cancel wajib diisi sebelum menghapus draft inspeksi void.", "warning");
+            return;
+        }
+        if (reasonCancel.length > 500) {
+            showInspectionNotice("Reason Cancel maksimal 500 karakter.", "warning");
+            return;
+        }
+    }
     const message = isConflict
         ? "Hapus transaksi conflict ini? Snapshot transaksi dan checklist akan diarsipkan ke server saat Sync berikutnya. Record inspeksi utama tidak diubah."
         : (isVoidedServerRecord
-            ? "Hapus salinan lokal inspeksi yang sudah di-void SPV? Saat Sync berikutnya, server akan menandai IsActive = 0 dan menyimpan ReasonCancel. Salinan lokal dan foto dibersihkan setelah server mengonfirmasi."
+            ? "Hapus salinan lokal inspeksi yang sudah di-void SPV? Reason Cancel akan disimpan ke PIP_T_Inspection, IsActive diubah menjadi 0, lalu salinan lokal dan foto dibersihkan setelah server mengonfirmasi."
             : "Hapus draft " + (record.InspectionNo || ("TEMP-" + String(localId).substring(0, 8).toUpperCase())) +
               " beserta foto BEFORE/AFTER dari perangkat? Draft ini belum pernah di-Done dan tidak akan disimpan ke tabel server.");
     const confirmed = await showConfirmation({ title: title, message: message, yesText: "Hapus" });
@@ -1993,8 +2016,8 @@ async function deleteLocalInspectionDraft(localId) {
     if (isConflict || isVoidedServerRecord) {
         record.DeleteOriginalSyncStatus = isConflict ? "CONFLICT" : "VOIDED";
         record.DeleteReasonCancel = isConflict
-            ? (record.ConflictReason || "Deleted by technician due to sync conflict.")
-            : (record.ReasonVoid || "Deleted by technician after SPV void.");
+            ? (record.DeleteReasonCancel || record.ConflictReason || "Deleted by technician due to sync conflict.")
+            : reasonCancel;
         record.SyncStatus = "DELETE_PENDING";
         record.DeleteQueuedAt = new Date().toISOString();
         record.UpdatedAt = record.DeleteQueuedAt;
