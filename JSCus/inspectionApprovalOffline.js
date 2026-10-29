@@ -212,7 +212,7 @@
 
     async function loadCachedDetail(inspectionId) {
         const cached = await getCache(cacheKey("DETAIL", inspectionId));
-        if (!cached || !cached.Data) throw new Error("Detail ini belum disiapkan untuk offline. Saat online, tekan Refresh lalu buka detail inspeksi ini terlebih dahulu.");
+        if (!cached || !cached.Data) throw new Error("Detail ini belum disiapkan untuk offline. Saat online, jalankan Sync global untuk mengunduh antrean, checklist, dan foto approval.");
         if (Date.now() - new Date(cached.CachedAt || 0).getTime() > CACHE_TTL_MS)
             throw new Error("Cache detail approval sudah lebih dari 7 hari. Hubungkan internet dan buka kembali detail ini.");
         const result = Object.assign({}, cached.Data);
@@ -241,7 +241,7 @@
         for (const id of ids) {
             const detail = await getCache(cacheKey("DETAIL", id));
             if (!detail || !detail.Data || Date.now() - new Date(detail.CachedAt || 0).getTime() > CACHE_TTL_MS)
-                throw new Error("Inspeksi #" + id + " belum disiapkan untuk offline. Saat online, tekan Refresh lalu buka detail inspeksi tersebut. Tidak ada aksi batch yang disimpan.");
+                throw new Error("Inspeksi #" + id + " belum disiapkan untuk offline. Saat online, jalankan Sync global terlebih dahulu. Tidak ada aksi batch yang disimpan.");
             const old = existing.find(item => item.ActionID === actionIdFor(id));
             if (old) {
                 if (old.Status === "PENDING")
@@ -396,7 +396,7 @@
                 await originalLoadApprovalQueue();
                 return;
             }
-            showToast("Cache approval offline belum siap. Hubungkan internet dan refresh halaman.", "warning");
+            showToast("Cache approval offline belum siap. Hubungkan internet lalu jalankan Sync global.", "warning");
             return;
         }
         try { await cleanupExpiredApprovalCache(); }
@@ -428,7 +428,7 @@
             const host = document.getElementById("inspectionApprovalQueue");
             if (!cached || !Array.isArray(cached.Data)) {
                 inspectionApprovalRows = [];
-                host.innerHTML = '<tr><td colspan="8" class="text-muted py-3 text-center">Belum ada antrean yang tersimpan. Hubungkan internet, tekan Refresh, lalu buka detail inspeksi yang perlu diperiksa.</td></tr>';
+                host.innerHTML = '<tr><td colspan="8" class="text-muted py-3 text-center">Belum ada antrean yang tersimpan. Hubungkan internet lalu jalankan Sync global untuk menyiapkan antrean dan detail offline.</td></tr>';
                 document.getElementById("inspectionApprovalDetail").innerHTML = '<div class="text-muted">Detail offline hanya tersedia setelah dibuka saat online.</div>';
                 updateInspectionApprovalCounts();
                 return;
