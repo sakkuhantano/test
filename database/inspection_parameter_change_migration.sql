@@ -89,6 +89,10 @@ IF @DeleteArchiveDefault IS NOT NULL EXEC('ALTER TABLE dbo.PIP_T_Inspection_Dele
 IF COL_LENGTH('dbo.PIP_T_Inspection_Delete', 'ScheduledTime') IS NOT NULL ALTER TABLE dbo.PIP_T_Inspection_Delete DROP COLUMN ScheduledTime;
 GO
 
+IF OBJECT_ID('dbo.spUTL_PIP_T_Inspection_Sync', 'P') IS NULL
+    EXEC('CREATE PROCEDURE dbo.spUTL_PIP_T_Inspection_Sync AS RETURN 0;');
+GO
+
 ALTER PROCEDURE dbo.spUTL_PIP_T_Inspection_Sync
 (
     @p_ClientInspectionID VARCHAR(36),
