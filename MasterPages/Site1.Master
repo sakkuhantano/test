@@ -235,6 +235,8 @@ class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-
 0
 </span>
 
+<span id="inspectionConflictBadge" class="position-absolute top-0 start-0 translate-middle badge rounded-pill text-bg-danger d-none" title="Inspection conflict">!</span>
+
 </button>
 
 <!-- USER PROFILE BUTTON -->
