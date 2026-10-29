@@ -1,5 +1,5 @@
 /*
-    Inspection transaction schema and offline sync procedure.
+    Inspection transaction schema.
     SQL Server 2008 compatible.
     Depends on database/master_template_inspection_schema.sql.
     Run for a new database, then run inspection_parameter_change_migration.sql to install the canonical sync procedure.
