@@ -252,12 +252,18 @@ function wireInspectionEvents() {
 }
 
 async function loadInspectionCache(includeAllTemplates) {
-    inspectionTypes = await readInspectionStore("inspection_types");
+    inspectionTypes = await readInspectionStore(
+        db.objectStoreNames.contains("inspection_types_scoped") ? "inspection_types_scoped" : "inspection_types"
+    );
     inspectionDetails = await readInspectionStore("inspection_type_details");
     inspectionTemplates = await readInspectionStore("inspection_templates");
 
     const sections = (inspectionLogin.section || "").split(";").filter(Boolean);
-    inspectionTypes = inspectionTypes.filter(x => sections.includes(x.SectionID));
+    inspectionTypes = inspectionTypes.filter(x =>
+        sections.includes(String(x.SectionID || "")) &&
+        (!x.CompanyID || x.CompanyID === inspectionCompanyID) &&
+        (!x.LocationID || x.LocationID === inspectionLocationID)
+    );
     inspectionDetails = inspectionDetails.filter(x =>
         x.CompanyID === inspectionCompanyID && x.LocationID === inspectionLocationID
     );
