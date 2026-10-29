@@ -1672,6 +1672,9 @@ async function openSavedInspection(localId) {
         if (serverRecord) {
             if (serverRecord.StartDateTime) record.StartDateTime = serverRecord.StartDateTime;
             if (serverRecord.EndDateTime) record.EndDateTime = serverRecord.EndDateTime;
+            if (serverRecord.InspectionID != null) record.ServerInspectionID = Number(serverRecord.InspectionID);
+            if (serverRecord.ReasonVoid) record.ReasonVoid = serverRecord.ReasonVoid;
+            if (serverRecord.IsApprove != null) record.IsApprove = serverRecord.IsApprove;
         }
     }
 
