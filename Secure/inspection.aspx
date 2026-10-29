@@ -65,6 +65,9 @@
     /* Keep the complete inspection heading, tabs, and section navigation pinned below the master header. */
     #inspectionEditorStickyHeader,
     #inspectionApprovalStickyHeader { position: -webkit-sticky !important; position: sticky !important; top: 112px !important; z-index: 1080 !important; background: var(--bs-body-bg); }
+    /* Bootstrap modal defaults sit below the sticky inspection header (z-index 1080). Keep dialogs and their backdrop above it. */
+    .modal-backdrop { z-index: 1090 !important; }
+    .modal { z-index: 1100 !important; }
     #inspectionApprovalTable [data-approval-sort] { cursor: pointer; user-select: none; }
     /* Compact SPV approval grid; keep each column label/value on one line. */
     #inspectionApprovalTable { font-size: .78rem; white-space: nowrap; }
