@@ -176,7 +176,7 @@ function getLoginData() {
 }
 function initIndexedDB() {
     return new Promise((resolve, reject) => {
-    const request = indexedDB.open("OfflineAppDB", 5);
+    const request = indexedDB.open("OfflineAppDB", 6);
 
     // JALAN jika DB belum ada / version naik
     request.onupgradeneeded = function (event) {
