@@ -2325,8 +2325,10 @@ function showInspectionRecordsScreen() {
 function updateInspectionConflictBadge() {
     const badge = document.getElementById("inspectionConflictBadge");
     if (!badge) return;
+    // DELETE_PENDING includes supervisor-voided records awaiting server deactivation;
+    // these are queued deletions, not inspection conflicts.
     const count = inspectionRecords.filter(record =>
-        record.SyncStatus === "CONFLICT" || record.SyncStatus === "DELETE_PENDING").length;
+        record.SyncStatus === "CONFLICT").length;
     badge.textContent = count ? String(count) : "!";
     badge.classList.toggle("d-none", count === 0);
 }
