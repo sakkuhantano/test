@@ -455,16 +455,25 @@
     window.processInspectionApproval = async function (action) {
         if (navigator.onLine) return originalProcessApproval(action);
         if (!selectedInspectionApproval) return;
+        const normalizedAction = String(action || "APPROVE").toUpperCase();
+        if (normalizedAction !== "APPROVE" && normalizedAction !== "VOID") {
+            showToast("Aksi approval tidak valid.", "warning");
+            return;
+        }
         const confirmed = await showConfirmation({
             title: "Konfirmasi Approval Offline",
-            message: "Simpan aksi Approve sebagai Pending Sync? Status belum resmi berubah sampai server mengonfirmasi.",
+            message: "Simpan aksi " + normalizedAction + " sebagai Pending Sync? Status belum resmi berubah sampai server mengonfirmasi.",
             yesText: "Simpan Pending Sync"
         });
         if (!confirmed) return;
         try {
             const remark = (document.getElementById("txtInspectionApprovalRemark").value || "").trim();
-            await queueOfflineActions([Number(selectedInspectionApproval.InspectionID)], "APPROVE", remark);
-            showToast("Approve tersimpan lokal sebagai Pending Sync. Belum dianggap Approved.", "warning");
+            if (normalizedAction === "VOID" && !remark) {
+                showToast("Reason for Void wajib diisi.", "warning");
+                return;
+            }
+            await queueOfflineActions([Number(selectedInspectionApproval.InspectionID)], normalizedAction, remark);
+            showToast(normalizedAction + " tersimpan lokal sebagai Pending Sync. Belum dianggap selesai sampai server mengonfirmasi.", "warning");
             await decorateApprovalQueue();
         } catch (err) {
             showToast(err.message || "Aksi offline gagal disimpan.", "warning");
