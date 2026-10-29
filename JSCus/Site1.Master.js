@@ -989,6 +989,9 @@ async function syncAllData() {
         //await updateTotalPendingSync();
         let login = getLoginData();
         if (!login) return;
+        if (!navigator.onLine) {
+            throw new Error("Sync membutuhkan koneksi internet. Data offline tetap tersimpan dan belum dihapus.");
+        }
 
         let role = login.role;
         let totalSteps = 0;
