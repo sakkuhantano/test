@@ -801,7 +801,7 @@ WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID
   )
   AND EXISTS (
       SELECT 1 FROM dbo.UTL_User U
-      WHERE U.EmployeeID=@EmployeeID AND ISNULL(U.IsSPV,0)=1
+      WHERE U.EmployeeID=@EmployeeID AND (ISNULL(U.IsSPV,0)=1 OR (ISNULL(U.IsWO,0)=1 AND I.OwnerEmployeeID=U.EmployeeID))
         AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(U.Section,';') S WHERE S.val=I.SectionID)
         AND (
           EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
