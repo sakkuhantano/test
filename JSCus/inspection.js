@@ -180,7 +180,10 @@ function wireInspectionEvents() {
     updateSubmittedFiltersVisibility();
     document.getElementById("btnInspectionParamTab").addEventListener("click", () => showInspectionEditorTab("param"));
     document.getElementById("btnInspectionChecklistTab").addEventListener("click", async () => {
-        if (!isInspectionParameterSelectionComplete()) {
+        // Server-only submitted records intentionally use synthetic parameter options because
+        // their original masters may no longer exist in IndexedDB. They are read-only, so
+        // don't revalidate those synthetic values against the local master caches.
+        if (!currentInspectionReadOnly && !isInspectionParameterSelectionComplete()) {
             updateInspectionParameterTabGate();
             showInspectionEditorTab("param");
             showInspectionNotice("Lengkapi Inspection Type, detail/jadwal, dan template terlebih dahulu sebelum membuka Checklist.", "warning");
@@ -597,6 +600,20 @@ function parseInspectionDateValue(value) {
     }
     const parsed = new Date(raw);
     return isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function inspectionDateInputValue(value) {
+    if (value == null || value === "") return "";
+    const raw = String(value).trim();
+    // Preserve date-only / ISO dates without timezone conversion.
+    const isoDate = raw.match(/^(\\d{4})-(\\d{2})-(\\d{2})/);
+    if (isoDate) return isoDate[1] + "-" + isoDate[2] + "-" + isoDate[3];
+    // Handle ASP.NET JSON DateTime values such as /Date(1793232000000)/.
+    const date = parseInspectionDateValue(value);
+    if (!date) return "";
+    return String(date.getFullYear()).padStart(4, "0") + "-" +
+        String(date.getMonth() + 1).padStart(2, "0") + "-" +
+        String(date.getDate()).padStart(2, "0");
 }
 
 function formatInspectionDateDMY(value) {
@@ -1549,7 +1566,7 @@ async function openServerSubmittedInspection(inspectionId) {
         templateSelect.innerHTML = '<option value="' + escInspection(h.IDTemplate || "__server_template__") + '">' + escInspection((h.TemplateNo || "Template") + " / v" + (h.TemplateVersion || "-")) + '</option>';
         templateSelect.value = String(h.IDTemplate || "__server_template__");
         [typeSelect, detailSelect, templateSelect].forEach(select => { select.disabled = true; });
-        document.getElementById("txtInspectionDate").value = h.InspectionDate ? String(h.InspectionDate).substring(0, 10) : "";
+        document.getElementById("txtInspectionDate").value = inspectionDateInputValue(h.InspectionDate);
         document.getElementById("txtInspectionDate").disabled = true;
         updateInspectionParameterTabGate();
         document.getElementById("inspectionFormPanel").classList.remove("d-none");
