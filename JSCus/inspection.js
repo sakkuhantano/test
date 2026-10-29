@@ -671,16 +671,15 @@ async function renderInspectionForm(record, readOnly) {
     const photosAtOpen = await getInspectionPhotos(record.LocalInspectionID);
     inspectionPhotoBaseline = photosAtOpen.map(photo => Object.assign({}, photo));
     showInspectionInputScreen();
-    currentInspectionReadOnly = !!readOnly || record.Status === "DONE" ||
-        (record.SyncStatus === "SYNCED" && String(record.ReasonVoid || "").trim() !== "");
+    const isVoidedServerRecord = isVoidedServerInspectionRecord(record);
+    currentInspectionReadOnly = !isVoidedServerRecord && (!!readOnly || record.Status === "DONE");
     document.getElementById("inspectionEditorTabs").classList.remove("d-none");
     document.getElementById("inspectionStartButtonRow").classList.add("d-none");
     document.getElementById("inspectionStartPanel").classList.remove("d-none");
     document.getElementById("inspectionFormPanel").classList.remove("d-none");
     populateInspectionParameters(record);
     showInspectionEditorTab("checklist");
-    const canDeleteVoidedInspection = record.SyncStatus === "SYNCED" &&
-        Number(record.ServerInspectionID) > 0 && String(record.ReasonVoid || "").trim() !== "";
+    const canDeleteVoidedInspection = isVoidedServerRecord;
     const canDeleteDraft = canDeleteVoidedInspection || (!currentInspectionReadOnly &&
         record.Status === "DRAFT" && record.SyncStatus !== "SYNCED" &&
         record.SyncStatus !== "CONFLICT" && record.SyncStatus !== "DELETE_PENDING" &&
@@ -1255,7 +1254,7 @@ async function saveInspection(status) {
         showInspectionNotice("Data ini bukan milik akun yang sedang login. Penyimpanan dibatalkan.", "danger");
         return;
     }
-    if (currentInspectionRecord.Status === "DONE") {
+    if (currentInspectionRecord.Status === "DONE" && !isVoidedServerInspectionRecord(currentInspectionRecord)) {
         showInspectionNotice("Inspeksi yang sudah Complete bersifat read-only.", "warning");
         return;
     }
@@ -1656,9 +1655,24 @@ async function openServerSubmittedInspection(inspectionId) {
     }
 }
 
+function isVoidedServerInspectionRecord(record) {
+    return !!record &&
+        Number(record.ServerInspectionID) > 0 &&
+        String(record.ReasonVoid || "").trim() !== "" &&
+        (record.SyncStatus === "SYNCED" || record.VoidedServerInspection === true);
+}
+
 async function openSavedInspection(localId) {
     const record = inspectionRecords.find(x => x.LocalInspectionID === localId);
     if (!record) return;
+
+    // A server-voided inspection is reopened for correction, even if its previous
+    // local status was DONE. Keep the marker so Delete Draft still targets the server row
+    // if the technician saves a local draft before deciding to delete it.
+    if (record.SyncStatus === "SYNCED" && Number(record.ServerInspectionID) > 0 &&
+        String(record.ReasonVoid || "").trim() !== "") {
+        record.VoidedServerInspection = true;
+    }
 
     // For synced inspections, use server timestamps as the source of truth.
     // The IndexedDB copy may have an empty/stale EndDateTime even though SQL Server has it.
@@ -1686,7 +1700,7 @@ async function openSavedInspection(localId) {
     }
 
     currentInspectionRecord = record;
-    await renderInspectionForm(record, record.Status === "DONE");
+    await renderInspectionForm(record, record.Status === "DONE" && !isVoidedServerInspectionRecord(record));
 }
 
 function resetInspectionSelection() {
@@ -1959,8 +1973,7 @@ async function deleteLocalInspectionDraft(localId) {
         return;
     }
     const isConflict = record.SyncStatus === "CONFLICT";
-    const isVoidedServerRecord = record.SyncStatus === "SYNCED" &&
-        Number(record.ServerInspectionID) > 0 && String(record.ReasonVoid || "").trim() !== "";
+    const isVoidedServerRecord = isVoidedServerInspectionRecord(record);
     const isPureLocalDraft = record.Status === "DRAFT" && record.SyncStatus !== "SYNCED" &&
         record.SyncStatus !== "CONFLICT" && record.SyncStatus !== "DELETE_PENDING";
     if (!isConflict && !isVoidedServerRecord && !isPureLocalDraft) {
