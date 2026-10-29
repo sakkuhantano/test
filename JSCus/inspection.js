@@ -678,12 +678,12 @@ async function renderInspectionForm(record, readOnly) {
     document.getElementById("inspectionFormPanel").classList.remove("d-none");
     populateInspectionParameters(record);
     showInspectionEditorTab("checklist");
-    const canDeleteDraft = !currentInspectionReadOnly &&
-        record.Status === "DRAFT" &&
-        record.SyncStatus !== "SYNCED" &&
-        record.SyncStatus !== "CONFLICT" &&
-        record.SyncStatus !== "DELETE_PENDING" &&
-        inspectionRecords.some(item => item.LocalInspectionID === record.LocalInspectionID);
+    const canDeleteVoidedInspection = record.SyncStatus === "SYNCED" && record.Status === "DONE" &&
+        Number(record.ServerInspectionID) > 0 && String(record.ReasonVoid || "").trim() !== "";
+    const canDeleteDraft = canDeleteVoidedInspection || (!currentInspectionReadOnly &&
+        record.Status === "DRAFT" && record.SyncStatus !== "SYNCED" &&
+        record.SyncStatus !== "CONFLICT" && record.SyncStatus !== "DELETE_PENDING" &&
+        inspectionRecords.some(item => item.LocalInspectionID === record.LocalInspectionID));
     document.getElementById("btnDeleteInspectionDraft").classList.toggle("d-none", !canDeleteDraft);
     document.getElementById("btnSaveInspectionDraft").classList.toggle("d-none", currentInspectionReadOnly);
     document.getElementById("btnCompleteInspection").classList.toggle("d-none", currentInspectionReadOnly);
@@ -1950,35 +1950,70 @@ async function applyInspectionParameters() {
 
 async function deleteLocalInspectionDraft(localId) {
     const record = inspectionRecords.find(item => item.LocalInspectionID === localId);
-    if (!record || record.Status !== "DRAFT" || record.SyncStatus === "SYNCED" ||
-        record.SyncStatus === "CONFLICT" || record.SyncStatus === "DELETE_PENDING") {
-        showInspectionNotice("Hanya draft lokal yang belum tersinkron yang bisa dihapus di dalam form draft.", "warning");
+    if (!record) {
+        showInspectionNotice("Transaksi inspeksi tidak ditemukan di perangkat.", "warning");
         return;
     }
-    const confirmed = await showConfirmation({
-        title: "Hapus Draft Inspeksi",
-        message: "Hapus draft " + (record.InspectionNo || ("TEMP-" + String(localId).substring(0, 8).toUpperCase())) +
-            " beserta foto BEFORE/AFTER dari perangkat? Tindakan ini tidak bisa dibatalkan.",
-        yesText: "Hapus"
-    });
+    const isConflict = record.SyncStatus === "CONFLICT";
+    const isVoidedServerRecord = record.SyncStatus === "SYNCED" && record.Status === "DONE" &&
+        Number(record.ServerInspectionID) > 0 && String(record.ReasonVoid || "").trim() !== "";
+    const isPureLocalDraft = record.Status === "DRAFT" && record.SyncStatus !== "SYNCED" &&
+        record.SyncStatus !== "CONFLICT" && record.SyncStatus !== "DELETE_PENDING";
+    if (!isConflict && !isVoidedServerRecord && !isPureLocalDraft) {
+        showInspectionNotice("Delete Draft hanya tersedia untuk draft lokal, transaksi conflict, atau inspeksi yang sudah di-void SPV.", "warning");
+        return;
+    }
+    const title = isConflict ? "Hapus Transaksi Conflict" : (isVoidedServerRecord ? "Hapus Draft Inspeksi Void" : "Hapus Draft Inspeksi");
+    const message = isConflict
+        ? "Hapus transaksi conflict ini? Snapshot transaksi dan checklist akan diarsipkan ke server saat Sync berikutnya. Record inspeksi utama tidak diubah."
+        : (isVoidedServerRecord
+            ? "Hapus salinan lokal inspeksi yang sudah di-void SPV? Saat Sync berikutnya, server akan menandai IsActive = 0 dan menyimpan ReasonCancel. Salinan lokal dan foto dibersihkan setelah server mengonfirmasi."
+            : "Hapus draft " + (record.InspectionNo || ("TEMP-" + String(localId).substring(0, 8).toUpperCase())) +
+              " beserta foto BEFORE/AFTER dari perangkat? Draft ini belum pernah di-Done dan tidak akan disimpan ke tabel server.");
+    const confirmed = await showConfirmation({ title: title, message: message, yesText: "Hapus" });
     if (!confirmed) return;
 
+    if (isConflict || isVoidedServerRecord) {
+        record.DeleteOriginalSyncStatus = isConflict ? "CONFLICT" : "VOIDED";
+        record.DeleteReasonCancel = isConflict
+            ? (record.ConflictReason || "Deleted by technician due to sync conflict.")
+            : (record.ReasonVoid || "Deleted by technician after SPV void.");
+        record.SyncStatus = "DELETE_PENDING";
+        record.DeleteQueuedAt = new Date().toISOString();
+        record.UpdatedAt = record.DeleteQueuedAt;
+        delete record.DeleteArchiveError;
+        await persistInspectionRecord(record);
+        await refreshSavedInspectionList();
+        if (!navigator.onLine) {
+            showInspectionNotice("Penghapusan masuk antrean. Data lokal dan foto tetap disimpan sampai Sync berikutnya berhasil.", "warning");
+            return;
+        }
+        try {
+            if (typeof uploadPendingInspections === "function") await uploadPendingInspections();
+            await refreshSavedInspectionList();
+            const stillQueued = (await readInspectionStore("inspection_records")).some(item =>
+                item.LocalInspectionID === localId && item.SyncStatus === "DELETE_PENDING");
+            showInspectionNotice(stillQueued
+                ? "Server belum mengonfirmasi penghapusan. Data lokal tetap aman dan akan dicoba lagi saat Sync."
+                : (isConflict
+                    ? "Snapshot transaksi conflict berhasil diarsipkan. Record inspeksi utama tidak diubah."
+                    : "Server sudah menonaktifkan inspeksi void. Salinan lokal dan foto sudah dibersihkan."),
+                stillQueued ? "warning" : "success");
+        } catch (err) {
+            console.error("Inspection delete sync failed:", err);
+            showInspectionNotice("Penghapusan gagal diproses. Data lokal tetap disimpan untuk retry: " + (err.message || err), "danger");
+        }
+        return;
+    }
     await new Promise((resolve, reject) => {
         const tx = db.transaction(["inspection_records", "inspection_photos"], "readwrite");
         tx.objectStore("inspection_records").delete(localId);
-        const req = tx.objectStore("inspection_photos").index("LocalInspectionID")
-            .openCursor(IDBKeyRange.only(localId));
-        req.onsuccess = () => {
-            const cursor = req.result;
-            if (!cursor) return;
-            cursor.delete();
-            cursor.continue();
-        };
+        const req = tx.objectStore("inspection_photos").index("LocalInspectionID").openCursor(IDBKeyRange.only(localId));
+        req.onsuccess = () => { const cursor = req.result; if (!cursor) return; cursor.delete(); cursor.continue(); };
         tx.oncomplete = () => resolve();
         tx.onerror = () => reject(tx.error);
         tx.onabort = () => reject(tx.error || new Error("Hapus draft gagal."));
     });
-
     if (currentInspectionRecord && currentInspectionRecord.LocalInspectionID === localId) {
         currentInspectionRecord = null;
         currentInspectionReadOnly = false;
@@ -1990,8 +2025,9 @@ async function deleteLocalInspectionDraft(localId) {
         showInspectionRecordsScreen();
     }
     await refreshSavedInspectionList();
-    showInspectionNotice("Draft lokal beserta fotonya sudah dihapus.", "success");
+    showInspectionNotice("Draft lokal beserta fotonya sudah dihapus tanpa membuat record server.", "success");
 }
+
 async function getInspectionPhotos(localId){return new Promise((resolve,reject)=>{const tx=db.transaction("inspection_photos","readonly"),req=tx.objectStore("inspection_photos").index("LocalInspectionID").getAll(IDBKeyRange.only(localId));req.onsuccess=()=>resolve((req.result||[]).sort((a,b)=>String(a.Type).localeCompare(String(b.Type))||Number(a.SeqNo||a.OrderNo||0)-Number(b.SeqNo||b.OrderNo||0)));req.onerror=()=>reject(req.error);});}
 async function renderInspectionPhotos() {
     if (!currentInspectionRecord) return;
@@ -2168,41 +2204,7 @@ function updateInspectionConflictBadge() {
 }
 
 async function queueConflictInspectionDelete(localId) {
-    const record = inspectionRecords.find(item => item.LocalInspectionID === localId && item.SyncStatus === "CONFLICT");
-    if (!record) {
-        showInspectionNotice("Record konflik tidak ditemukan atau sudah berubah.", "warning");
-        return;
-    }
-    const ok = await showConfirmation({
-        title: "Hapus Transaksi Konflik Lokal",
-        message: "Hapus transaksi konflik ini dari daftar lokal? Snapshot transaksi dan checklist akan diarsipkan ke server terlebih dahulu. Record server yang menyebabkan konflik tidak akan dihapus.",
-        yesText: "Lanjutkan"
-    });
-    if (!ok) return;
-    record.DeleteOriginalSyncStatus = record.SyncStatus;
-    record.DeleteOriginalConflictReason = record.ConflictReason || "";
-    record.SyncStatus = "DELETE_PENDING";
-    record.DeleteQueuedAt = new Date().toISOString();
-    record.UpdatedAt = record.DeleteQueuedAt;
-    await persistInspectionRecord(record);
-    await refreshSavedInspectionList();
-    if (!navigator.onLine) {
-        showInspectionNotice("Penghapusan masuk antrean. Data lokal tetap disimpan sampai arsip server berhasil dikonfirmasi.", "warning");
-        return;
-    }
-    try {
-        if (typeof uploadPendingInspections === "function") await uploadPendingInspections();
-        await refreshSavedInspectionList();
-        const stillQueued = (await readInspectionStore("inspection_records")).some(item =>
-            item.LocalInspectionID === localId && item.SyncStatus === "DELETE_PENDING");
-        showInspectionNotice(stillQueued
-            ? "Arsip server belum terkonfirmasi. Data lokal tetap aman dan akan dicoba lagi saat Sync."
-            : "Snapshot transaksi berhasil diarsipkan; transaksi konflik lokal sudah dibuang. Data server tidak diubah.",
-            stillQueued ? "warning" : "success");
-    } catch (err) {
-        console.error("Archive conflict deletion failed:", err);
-        showInspectionNotice("Arsip gagal. Data lokal tetap disimpan untuk retry: " + (err.message || err), "danger");
-    }
+    await deleteLocalInspectionDraft(localId);
 }
 
 function showInspectionNotice(message, type) {
