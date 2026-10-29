@@ -1559,14 +1559,18 @@ function renderInspectionRecordTable(records, host, submitted) {
         const technicianName = record.TechnicianName && record.TechnicianName !== record.OwnerEmployeeID
             ? record.TechnicianName
             : (record.OwnerEmployeeID === inspectionLogin.employeeid ? inspectionTechnicianName : "");
-        return '<tr>' +
-            '<td class="text-nowrap">' + numberHtml + conflictHtml + '</td>' +
+        const mainRow = '<tr>' +
+            '<td class="text-nowrap">' + numberHtml + '</td>' +
             '<td class="text-nowrap">' + escInspection(inspectionDateTime) + '</td>' +
             '<td class="text-nowrap">' + escInspection(startEnd) + '</td>' +
             '<td>' + escInspection(record.InspectionTypeName || "—") + '</td>' +
             '<td>' + escInspection(record.InspectionTypeDetailName || "—") + '</td>' +
             '<td>' + escInspection(technicianName || "—") + deleteHtml + '</td>' +
             '</tr>';
+        const messageRow = conflictHtml
+            ? '<tr class="inspection-grid-message-row"><td colspan="6" class="small" style="white-space:normal;overflow-wrap:anywhere;word-break:break-word;padding-top:0.25rem;padding-bottom:0.5rem;">' + conflictHtml + '</td></tr>'
+            : "";
+        return mainRow + messageRow;
     }).join("");
     host.innerHTML = '<div class="table-responsive"><table class="table table-sm table-hover align-middle mb-0">' +
         header + '<tbody>' + rows + '</tbody></table></div>';
