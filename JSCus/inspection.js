@@ -392,9 +392,9 @@ function refreshInspectionScheduleOptions() {
             return;
         }
         if (!templateId || selectedDate !== today) {
-            option.textContent = baseLabel + (selectedDate !== today
-                ? " • server status tersedia untuk hari ini"
-                : " • pilih template untuk cek slot");
+            // Keep each dropdown option focused on the detail/time label.
+            // Template/slot guidance belongs in the hint area, not repeated on every option.
+            option.textContent = baseLabel;
             return;
         }
         const matchesKey = record =>
