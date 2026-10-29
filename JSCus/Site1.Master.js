@@ -2130,54 +2130,73 @@ async function uploadWOGroup(workOrders, mode) {
     }
 }
 async function markWOSynced(wo, lastUpdate, mode) {
-    return new Promise((resolve, reject) => {
+    // First persist the server-confirmed state. If local cleanup is interrupted,
+    // the next Sync can clean this confirmed record without uploading it again.
+    await new Promise((resolve, reject) => {
         const tx = db.transaction("workorder", "readwrite");
         const store = tx.objectStore("workorder");
         const getReq = store.get(wo.KeyHD);
-
         getReq.onsuccess = function () {
             const data = getReq.result;
             if (!data) {
                 reject(new Error("WO lokal tidak ditemukan saat konfirmasi sync; status tidak diubah."));
                 return;
             }
-
-            // Revalidate immutable scope/owner metadata before updating the record.
-            // This protects against stale async responses and accidental KeyHD collisions.
-            const sameScope =
-                data.CompanyID === wo.CompanyID &&
-                data.LocationID === wo.LocationID &&
-                data.SectionID === wo.SectionID;
+            const sameScope = data.CompanyID === wo.CompanyID &&
+                data.LocationID === wo.LocationID && data.SectionID === wo.SectionID;
             const sameOwner = mode === "TECHNICIAN"
                 ? data.InspectionOwnerID === wo.InspectionOwnerID
                 : data.SupervisorActionOwnerID === wo.SupervisorActionOwnerID;
             const stillSameStage = mode === "TECHNICIAN"
                 ? data.Status === "DONE"
                 : data.StatusSPV === "PENDING";
-
             if (!sameScope || !sameOwner || !stillSameStage) {
                 reject(new Error("Scope, pemilik, atau status WO berubah selama sync. Status lokal tidak diubah; periksa dan sync ulang."));
                 return;
             }
-
-            // Keep legacy Status transitions for compatibility with current UI,
-            // while adding an explicit sync state separate from the workflow state.
-            if (mode === "TECHNICIAN") {
-                data.Status = "SYNCED";
-                data.ReasonVoid = "";
-            } else {
-                data.StatusSPV = "SYNCED";
-            }
             data.SyncStatus = "SYNCED";
             data.LastSyncAt = new Date().toISOString();
             if (lastUpdate) data.LastUpdated = lastUpdate;
-
             const putReq = store.put(data);
-            putReq.onsuccess = () => resolve();
             putReq.onerror = () => reject(putReq.error);
         };
         getReq.onerror = () => reject(getReq.error);
-        tx.onabort = () => reject(tx.error || new Error("IndexedDB sync-status update aborted"));
+        tx.oncomplete = resolve;
+        tx.onerror = () => reject(tx.error || new Error("Gagal menyimpan status sync WO."));
+        tx.onabort = () => reject(tx.error || new Error("Penyimpanan status sync WO dibatalkan."));
+    });
+
+    await cleanupConfirmedSyncedWO(wo);
+}
+
+async function cleanupConfirmedSyncedWO(wo) {
+    // Delete only the locally-owned WO transaction after the server confirmed it.
+    // The following downloadWorkOrder() refresh repopulates any still-relevant
+    // server work-order data. Keep other owners/companies/sections untouched.
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction(["workorder", "wo_checklist", "wo_photos"], "readwrite");
+        const woStore = tx.objectStore("workorder");
+        const getReq = woStore.get(wo.KeyHD);
+        getReq.onsuccess = function () {
+            const current = getReq.result;
+            if (!current || current.SyncStatus !== "SYNCED" ||
+                current.CompanyID !== wo.CompanyID || current.LocationID !== wo.LocationID ||
+                current.SectionID !== wo.SectionID) return;
+            woStore.delete(wo.KeyHD);
+            tx.objectStore("wo_checklist").delete(wo.KeyHD);
+            const photoStore = tx.objectStore("wo_photos");
+            const photoReq = photoStore.index("KeyHD").openCursor(IDBKeyRange.only(wo.KeyHD));
+            photoReq.onsuccess = function () {
+                const cursor = photoReq.result;
+                if (!cursor) return;
+                cursor.delete();
+                cursor.continue();
+            };
+        };
+        getReq.onerror = () => reject(getReq.error);
+        tx.oncomplete = resolve;
+        tx.onerror = () => reject(tx.error || new Error("Gagal menghapus cache WO yang sudah sync."));
+        tx.onabort = () => reject(tx.error || new Error("Pembersihan cache WO dibatalkan."));
     });
 }
 // async function cleanupOldWorkOrders() {
