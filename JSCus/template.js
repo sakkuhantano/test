@@ -545,6 +545,7 @@ function createNewTemplate(sectionId)
         GroupEquipment:"",
         TemplateType:"W",
         InspectionTypeCode:"",
+        InspectionTypeDetailCode:"",
         CompanyScope:"S",
         // Ensure Save All persists the default Company/Location as the initial Selected Company scope.
         MetadataDirty:true
@@ -5944,6 +5945,29 @@ async function refreshInspectionTypeDropdown(template)
         console.error(ex);
     }
 }
+async function refreshInspectionDetailDropdown(template)
+{
+    const select = document.getElementById("propInspectionDetail");
+    if (!select || !template) return;
+    const typeCode = template.InspectionTypeCode || "";
+    const selectedCode = template.InspectionTypeDetailCode || "";
+    select.disabled = isReadonlyMode || !typeCode;
+    select.innerHTML = '<option value="">-- All Inspection Details --</option>';
+    if (!typeCode) return;
+    try {
+        const raw = await promisifyPageMethod(PageMethods.GetInspectionTypeDetails, typeCode);
+        const details = JSON.parse(raw || "[]");
+        details.forEach(function(item) {
+            select.add(new Option(item.InspectionTypeDetailCode + " - " + item.InspectionTypeDetailName, item.InspectionTypeDetailCode));
+        });
+        if (selectedCode && !details.some(function(x) { return x.InspectionTypeDetailCode === selectedCode; }))
+            select.add(new Option(selectedCode + " (inactive/unavailable)", selectedCode));
+        select.value = selectedCode;
+    } catch (ex) {
+        select.innerHTML = '<option value="">Failed to load inspection details</option>';
+        console.error(ex);
+    }
+}
 async function showTemplateRootProperties(template, version)
 {
     const panel =
@@ -6065,6 +6089,7 @@ async function appendTemplateMetadataControls(template)
     template.TemplateType = template.TemplateType || "W";
     template.CompanyScope = template.CompanyScope || "S";
     template.InspectionTypeCode = template.InspectionTypeCode || "";
+    template.InspectionTypeDetailCode = template.InspectionTypeDetailCode || "";
 
     const section = document.createElement('div');
     section.className = 'border-top mt-3 pt-3';
@@ -6087,6 +6112,11 @@ async function appendTemplateMetadataControls(template)
                     '<select id="propInspectionType" class="form-select form-select-compact" ' + (isReadonlyMode ? 'disabled' : '') + '><option value="">Loading...</option></select>' +
                     '<div class="form-text">Filtered by SectionID ' + escapeHtml(template.SectionID || '') + '.</div>' +
                 '</div>' +
+                '<div class="mb-3" id="inspectionDetailField" style="display:none;">' +
+                    '<label class="form-label">Inspection Detail <span class="text-muted">(optional)</span></label>' +
+                    '<select id="propInspectionDetail" class="form-select form-select-compact" ' + (isReadonlyMode ? 'disabled' : '') + '><option value="">-- All Inspection Details --</option></select>' +
+                    '<div class="form-text">Kosongkan untuk mengizinkan semua detail pada Inspection Type ini.</div>' +
+                '</div>' +
                 '<div class="mb-3">' +
                     '<label class="form-label">Company Scope</label>' +
                     '<select id="propCompanyScope" class="form-select form-select-compact">' +
@@ -6108,6 +6138,7 @@ async function appendTemplateMetadataControls(template)
     const typeSelect = document.getElementById('propTemplateType');
     const scopeSelect = document.getElementById('propCompanyScope');
     const inspectionSelect = document.getElementById('propInspectionType');
+    const inspectionDetailSelect = document.getElementById('propInspectionDetail');
     typeSelect.value = template.TemplateType;
     scopeSelect.value = template.CompanyScope;
 
@@ -6118,10 +6149,14 @@ async function appendTemplateMetadataControls(template)
 
     typeSelect.addEventListener('change', async function() {
         template.TemplateType = this.value;
-        if (template.TemplateType !== 'I') template.InspectionTypeCode = '';
+        if (template.TemplateType !== 'I') {
+            template.InspectionTypeCode = '';
+            template.InspectionTypeDetailCode = '';
+        }
         markMetadataDirty();
         if (template.TemplateType === 'I')
             await refreshInspectionTypeDropdown(template);
+        await refreshInspectionDetailDropdown(template);
         await appendTemplateMetadataRefresh(template);
     });
 
@@ -6134,9 +6169,17 @@ async function appendTemplateMetadataControls(template)
     });
 
     await refreshInspectionTypeDropdown(template);
+    await refreshInspectionDetailDropdown(template);
 
-    inspectionSelect.addEventListener('change', function() {
+    inspectionSelect.addEventListener('change', async function() {
         template.InspectionTypeCode = this.value;
+        template.InspectionTypeDetailCode = '';
+        markMetadataDirty();
+        await refreshInspectionDetailDropdown(template);
+    });
+
+    inspectionDetailSelect.addEventListener('change', function() {
+        template.InspectionTypeDetailCode = this.value || '';
         markMetadataDirty();
     });
 
@@ -6156,8 +6199,10 @@ async function appendTemplateMetadataRefresh(template)
 {
     const isInspection = template.TemplateType === 'I';
     const inspectionField = document.getElementById('inspectionTypeField');
+    const inspectionDetailField = document.getElementById('inspectionDetailField');
     const employeeTab = document.getElementById('tplEmployeeTabItem');
     if (inspectionField) inspectionField.style.display = isInspection ? '' : 'none';
+    if (inspectionDetailField) inspectionDetailField.style.display = isInspection ? '' : 'none';
     if (employeeTab) employeeTab.style.display = isInspection ? '' : 'none';
     const activePane = document.querySelector('#tplEmployeePane.show.active');
     if (!isInspection && activePane) {
@@ -6453,6 +6498,7 @@ async function saveDirtyTemplateMetadata()
             String(template.IDTemplate),
             template.TemplateType || 'W',
             template.InspectionTypeCode || '',
+            template.InspectionTypeDetailCode || '',
             template.CompanyScope || 'S',
             getLoginData().employeeid,
             companyId,
