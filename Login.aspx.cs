@@ -108,9 +108,72 @@ namespace Web
         [WebMethod]
         public static object F_Login(string p_userid, string p_password, string p_browserGuid, string p_deviceName)
         {
+            string passwordHash;
             using (var oUser = new WAL.BR.CF())
             {
-                string V_Pwd = oUser.GetHashStringSQL(p_password);
+                passwordHash = oUser.GetHashStringSQL(p_password);
+            }
+            return F_LoginWithHash(p_userid, passwordHash, p_browserGuid, p_deviceName);
+        }
+
+        [WebMethod]
+        public static object F_LoginByInfoID(string infoID, string p_browserGuid, string p_deviceName)
+        {
+            if (String.IsNullOrWhiteSpace(infoID) || infoID.Length > 100)
+                return new { success = false, message = "Invalid portal login ticket." };
+
+            try
+            {
+                using (var oUser = new WAL.BR.CF())
+                {
+                    // Consume the short-lived portal ticket atomically to prevent replay.
+                    DataTable dtTicket = oUser.EQuery(
+                        @"UPDATE SysWebInfo
+                          SET ExpiredDate = GETDATE(), UpdateDate = GETDATE()
+                          OUTPUT deleted.Description1 AS EmployeeID,
+                                 deleted.Description2 AS PasswordHash
+                          WHERE ID = @InfoID
+                            AND Type = 'LinkApp'
+                            AND AppID = 'WebApp'
+                            AND DBName = 'MULIA'
+                            AND ExpiredDate > GETDATE()",
+                        "@InfoID=" + infoID);
+
+                    if (dtTicket.Rows.Count != 1)
+                        return new { success = false, message = "Portal login ticket is invalid, expired, or already used." };
+
+                    string employeeID = Convert.ToString(dtTicket.Rows[0]["EmployeeID"]).Trim();
+                    string passwordHash = Convert.ToString(dtTicket.Rows[0]["PasswordHash"]).Trim();
+                    if (String.IsNullOrWhiteSpace(employeeID) || String.IsNullOrWhiteSpace(passwordHash))
+                        return new { success = false, message = "Portal login ticket does not contain valid user credentials." };
+
+                    DataTable dtUser = oUser.EQuery(
+                        @"SELECT TOP 1 UserID
+                          FROM UTL_User
+                          WHERE EmployeeID = @EmployeeID
+                            AND [Password] = @Password
+                            AND IsActive = 1",
+                        "@EmployeeID=" + employeeID + GF.Str2 +
+                        "@Password=" + passwordHash);
+
+                    if (dtUser.Rows.Count != 1)
+                        return new { success = false, message = "UTL1 account not found or inactive." };
+
+                    string userID = Convert.ToString(dtUser.Rows[0]["UserID"]).Trim();
+                    return F_LoginWithHash(userID, passwordHash, p_browserGuid, p_deviceName);
+                }
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, message = "Portal login failed: " + ex.Message };
+            }
+        }
+
+        [WebMethod]
+        private static object F_LoginWithHash(string p_userid, string V_Pwd, string p_browserGuid, string p_deviceName)
+        {
+            using (var oUser = new WAL.BR.CF())
+            {
                 DataTable dt = oUser.EQuery("SELECT x.*, JobTitleName, EmailAddress, ProfitCenterNo, ISNULL(us.LastSyncMaster,CAST('' AS SMALLDATETIME)) LastSyncMaster, " +
                                             "UserName1=a.UserName, ISNULL(us.LastSyncWO,CAST('' AS SMALLDATETIME)) LastSyncWO " +
                                             "FROM UTL_User x " +
