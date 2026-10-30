@@ -544,8 +544,9 @@ async function startNewInspection() {
     );
     const template = inspectionTemplates.find(x => Number(x.IDTemplate) === templateId);
 
-    if (!type || !detail || !template) {
-        showInspectionNotice("Pilih Inspection Type, detail, dan template yang valid.", "warning");
+    if (!type || !detail || !template ||
+        (getInspectionScheduleTimes(detail).length > 0 && !scheduledTime)) {
+        showInspectionNotice("Pilih Inspection Type, detail, jam jadwal (jika tersedia), dan template yang valid.", "warning");
         return;
     }
 
@@ -1898,7 +1899,10 @@ function isInspectionParameterSelectionComplete() {
         x.InspectionTypeCode === typeCode && x.InspectionTypeDetailCode === detailCode
     );
     const template = inspectionTemplates.find(x => Number(x.IDTemplate) === templateId);
+    const scheduleTime = document.getElementById("selInspectionScheduleTime").value || "";
+    const hasScheduledTimes = getInspectionScheduleTimes(detail).length > 0;
     return !!type && !!detail && !!template &&
+        (!hasScheduledTimes || !!scheduleTime) &&
         template.TemplateType === "I" &&
         template.InspectionTypeCode === typeCode &&
         template.SectionID === type.SectionID;
