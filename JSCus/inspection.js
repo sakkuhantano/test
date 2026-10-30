@@ -628,7 +628,7 @@ function updateStartButton() {
          String(template.InspectionTypeDetailCode) === String(detailCode || ""));
     const hasScheduledTimes = getInspectionScheduleTimes(detail).length > 0;
     const scheduledTime = document.getElementById("selInspectionScheduleTime").value;
-    const enabled = !!typeCode && !!detailCode && detailMatchesTemplate &&
+    const enabled = !!typeCode && !!detail && !!detailCode && detailMatchesTemplate &&
         (!hasScheduledTimes || !!scheduledTime) && !!templateId;
     document.getElementById("btnStartInspection").disabled = !enabled;
 }
