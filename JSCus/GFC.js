@@ -1312,7 +1312,7 @@ async function uploadPendingInspections() {
     const failed = outcomes.filter(x => !x.success);
     const isValidationConflict = message => {
         const text = String(message || "").toLowerCase();
-        return /already exists|duplicate|invalid|required|not authorized|unauthorized|inactive|missing|not configured|belongs to another|locked|unavailable|another inspection/.test(text);
+        return /already exists|duplicate|invalid|required|not authorized|unauthorized|inactive|missing|not configured|belongs to another|locked|unavailable|another inspection|sudah memiliki data di server|sudah tercatat di server|sudah ada di server|jadwal inspeksi ini sudah|inspeksi .* sudah tercatat/.test(text);
     };
     const conflicts = failed.filter(x => isValidationConflict(x.message));
     if (conflicts.length) {
@@ -1325,7 +1325,7 @@ async function uploadPendingInspections() {
                 const lowerReason = technicalReason.toLowerCase();
                 record.SyncStatus = "CONFLICT";
                 record.ConflictTechnicalReason = technicalReason;
-                record.ConflictReason = /already exists|duplicate|another inspection/.test(lowerReason)
+                record.ConflictReason = /already exists|duplicate|another inspection|sudah memiliki data di server|sudah tercatat di server|sudah ada di server|jadwal inspeksi ini sudah|inspeksi .* sudah tercatat/.test(lowerReason)
                     ? "Jadwal inspeksi yang sama sudah tercatat di server. Periksa data inspeksi yang sudah ada sebelum mencoba mengirim ulang."
                     : "Inspeksi belum dapat dikirim karena data tidak sesuai dengan kondisi di server. Silakan periksa kembali atau hubungi supervisor.";
                 record.LastSyncAt = new Date().toISOString();
