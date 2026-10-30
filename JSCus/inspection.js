@@ -183,12 +183,14 @@ function wireInspectionEvents() {
     document.getElementById("selInspectionTemplate").addEventListener("change", function () {
         const typeCode = document.getElementById("selInspectionType").value;
         const selectedTemplate = inspectionTemplates.find(x => Number(x.IDTemplate) === Number(this.value));
-        const pinnedDetailCode = String(selectedTemplate && selectedTemplate.InspectionTypeDetailCode || "");
+        const pinnedDetailCodes = String(selectedTemplate && selectedTemplate.InspectionTypeDetailCode || "")
+            .split(";").map(x => x.trim()).filter(Boolean);
+        const pinnedDetailSet = new Set(pinnedDetailCodes);
         const details = inspectionDetails.filter(x =>
             x.InspectionTypeCode === typeCode &&
             x.CompanyID === inspectionCompanyID &&
             x.LocationID === inspectionLocationID &&
-            (!pinnedDetailCode || String(x.InspectionTypeDetailCode) === pinnedDetailCode)
+            (!pinnedDetailSet.size || pinnedDetailSet.has(String(x.InspectionTypeDetailCode)))
         );
         const detailSelect = document.getElementById("selInspectionDetail");
         const previousDetail = detailSelect.value;
@@ -197,11 +199,18 @@ function wireInspectionEvents() {
                 '<option value="' + escInspection(detail.InspectionTypeDetailCode) + '">' +
                 escInspection(detail.InspectionTypeDetailName) + '</option>'
             ).join("");
-        if (pinnedDetailCode && !details.some(detail => String(detail.InspectionTypeDetailCode) === pinnedDetailCode)) {
-            detailSelect.add(new Option(pinnedDetailCode + " (tidak tersedia di lokasi ini)", pinnedDetailCode));
-        }
-        if (pinnedDetailCode) {
-            detailSelect.value = pinnedDetailCode;
+        pinnedDetailCodes.forEach(function(code) {
+            if (!details.some(detail => String(detail.InspectionTypeDetailCode) === code))
+                detailSelect.add(new Option(code + " (tidak tersedia di lokasi ini)", code));
+        });
+        if (pinnedDetailSet.size) {
+            if (pinnedDetailCodes.length === 1) {
+                detailSelect.value = pinnedDetailCodes[0];
+            } else if (previousDetail && pinnedDetailSet.has(previousDetail)) {
+                detailSelect.value = previousDetail;
+            } else {
+                detailSelect.value = "";
+            }
             detailSelect.disabled = true;
         } else {
             detailSelect.disabled = !this.value || details.length === 0;
@@ -623,9 +632,10 @@ function updateStartButton() {
     );
     const templateId = Number(document.getElementById("selInspectionTemplate").value);
     const template = inspectionTemplates.find(x => Number(x.IDTemplate) === templateId);
+    const allowedDetailCodes = String(template && template.InspectionTypeDetailCode || "")
+        .split(";").map(x => x.trim()).filter(Boolean);
     const detailMatchesTemplate = !!template &&
-        (!String(template.InspectionTypeDetailCode || "") ||
-         String(template.InspectionTypeDetailCode) === String(detailCode || ""));
+        (!allowedDetailCodes.length || allowedDetailCodes.includes(String(detailCode || "")));
     const hasScheduledTimes = getInspectionScheduleTimes(detail).length > 0;
     const scheduledTime = document.getElementById("selInspectionScheduleTime").value;
     const enabled = !!typeCode && !!detail && !!detailCode && detailMatchesTemplate &&
@@ -645,8 +655,8 @@ async function startNewInspection() {
     const template = inspectionTemplates.find(x => Number(x.IDTemplate) === templateId);
 
     if (!type || !detail || !template ||
-        (template.InspectionTypeDetailCode &&
-         String(template.InspectionTypeDetailCode) !== String(detail.InspectionTypeDetailCode)) ||
+        (String(template.InspectionTypeDetailCode || "").split(";").map(x => x.trim()).filter(Boolean).length > 0 &&
+         !String(template.InspectionTypeDetailCode).split(";").map(x => x.trim()).includes(String(detail.InspectionTypeDetailCode))) ||
         (getInspectionScheduleTimes(detail).length > 0 && !scheduledTime)) {
         showInspectionNotice("Pilih Inspection Type, detail, jam jadwal (jika tersedia), dan template yang valid.", "warning");
         return;
@@ -2020,8 +2030,8 @@ function isInspectionParameterSelectionComplete() {
         (!hasScheduledTimes || !!scheduleTime) &&
         template.TemplateType === "I" &&
         template.InspectionTypeCode === typeCode &&
-        (!template.InspectionTypeDetailCode ||
-         String(template.InspectionTypeDetailCode) === String(detailCode)) &&
+        (!String(template.InspectionTypeDetailCode || "").split(";").map(x => x.trim()).filter(Boolean).length ||
+         String(template.InspectionTypeDetailCode).split(";").map(x => x.trim()).includes(String(detailCode))) &&
         template.SectionID === type.SectionID;
 }
 function updateInspectionParameterTabGate() {
