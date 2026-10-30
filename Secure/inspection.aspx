@@ -61,6 +61,10 @@
     .inspection-saved-row:last-child { border-bottom: 0; }
     #inspectionChecklistHost input, #inspectionChecklistHost select, #inspectionChecklistHost textarea { min-height: 38px; }
     .inspection-editor-sticky { position: -webkit-sticky; position: sticky; top: 64px; z-index: 1025; background: var(--bs-body-bg); padding: .35rem 0 .4rem; border-bottom: 1px solid var(--bs-border-color); }
+    /* Popovers are appended to body, so keep them above the sticky inspection header. */
+    .popover { z-index: 1120 !important; }
+    .inspection-form-header { padding-left: .55rem; }
+
     .inspection-approval-sticky { position: -webkit-sticky; position: sticky; top: 64px; z-index: 1025; background: var(--bs-body-bg); padding: .35rem 0 .4rem; border-bottom: 1px solid var(--bs-border-color); }
     /* Keep the complete inspection heading, tabs, and section navigation pinned below the master header. */
     #inspectionEditorStickyHeader,
@@ -357,7 +361,7 @@
     <div id="inspectionNotice" class="alert alert-info py-2 small mb-3">
         Pilih Inspection Type, detail inspeksi, lalu template. Data tersimpan di perangkat dan hanya disinkronkan oleh teknisi pemiliknya.
     </div>
-    <div id="inspectionEditorStickyHeader" class="inspection-editor-sticky mb-2"><div class="inspection-form-header d-flex align-items-center gap-2 mb-2"><h6 id="inspectionFormTitle" class="mb-0 text-truncate flex-grow-1">Checklist</h6><button type="button" id="btnInspectionFormInfo" class="btn btn-sm btn-outline-secondary py-0 px-2 flex-shrink-0" aria-label="Informasi inspeksi" title="Informasi inspeksi"><i class="bi bi-info-circle-fill"></i></button></div><ul id="inspectionEditorTabs" class="nav nav-tabs mb-2 d-none" role="tablist"><li class="nav-item"><button type="button" id="btnInspectionParamTab" class="nav-link" role="tab">PARAM</button></li><li class="nav-item"><button type="button" id="btnInspectionChecklistTab" class="nav-link active" role="tab">CHECKLIST</button></li></ul><div id="inspectionSectionNavHost" class="inspection-section-nav-host d-none"></div></div>
+    <div id="inspectionEditorStickyHeader" class="inspection-editor-sticky mb-2"><div class="inspection-form-header d-flex align-items-center gap-2 mb-2"><h6 id="inspectionFormTitle" class="mb-0 text-truncate flex-shrink-1">Checklist</h6><button type="button" id="btnInspectionFormInfo" class="btn btn-sm btn-outline-secondary py-0 px-2 flex-shrink-0" aria-label="Informasi inspeksi" title="Informasi inspeksi"><i class="bi bi-info-circle-fill"></i></button></div><ul id="inspectionEditorTabs" class="nav nav-tabs mb-2 d-none" role="tablist"><li class="nav-item"><button type="button" id="btnInspectionParamTab" class="nav-link" role="tab">PARAM</button></li><li class="nav-item"><button type="button" id="btnInspectionChecklistTab" class="nav-link active" role="tab">CHECKLIST</button></li></ul><div id="inspectionSectionNavHost" class="inspection-section-nav-host d-none"></div></div>
     <div id="inspectionParamsPane">
     <div id="inspectionStartPanel" class="inspection-card p-3 mb-3">
         <div class="inspection-step mb-3">
