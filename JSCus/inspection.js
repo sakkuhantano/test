@@ -562,12 +562,22 @@ function refreshInspectionScheduleOptions() {
         }
     });
 
+    // The user may choose a time before choosing the template. When the template
+    // is selected later, a previously selected time can become occupied. Clear it
+    // immediately; otherwise a disabled-but-selected option could still pass the
+    // required-value check and allow Start Inspection.
+    const selectedOption = select.options[select.selectedIndex];
+    if (selectedOption && selectedOption.value && selectedOption.disabled) {
+        select.value = "";
+    }
+
     const hint = document.getElementById("inspectionScheduleHint");
     if (hint && detailCode && templateId && selectedDate === today) {
         hint.textContent = slotCount
             ? emptyCount + " jam tersedia, " + occupiedCount + " sudah terisi/diinspeksi dari " + slotCount + " jadwal."
             : "Tidak ada jadwal waktu terkonfigurasi untuk detail ini.";
     }
+    updateStartButton();
 }
 
 function resetDetailAndTemplateOptions() {
