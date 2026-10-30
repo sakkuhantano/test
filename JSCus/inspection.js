@@ -2275,17 +2275,17 @@ async function deleteLocalInspectionDraft(localId) {
     }
     const title = isConflict ? "Hapus Transaksi Conflict" : (isVoidedServerRecord ? "Hapus Draft Inspeksi Void" : "Hapus Draft Inspeksi");
     let reasonCancel = "";
-    if (isVoidedServerRecord) {
+    if (isConflict || isVoidedServerRecord) {
         reasonCancel = await showInspectionReasonCancelDialog(
             "Reason Cancel",
-            String(record.DeleteReasonCancel || "").trim()
+            isVoidedServerRecord ? String(record.DeleteReasonCancel || "").trim() : ""
         );
         if (reasonCancel === null) return;
     }
     const message = isConflict
-        ? "Hapus transaksi conflict ini? Snapshot transaksi dan checklist akan diarsipkan ke server saat Sync berikutnya. Record inspeksi utama tidak diubah."
+        ? "Hapus transaksi yang gagal disinkronkan ini? Data inspeksi dan checklist akan diarsipkan ke server saat Sync berikutnya. Data lokal dan foto tetap disimpan sampai server mengonfirmasi."
         : (isVoidedServerRecord
-            ? "Hapus salinan lokal inspeksi yang sudah di-void SPV? Reason Cancel akan disimpan ke PIP_T_Inspection, IsActive diubah menjadi 0, lalu salinan lokal dan foto dibersihkan setelah server mengonfirmasi."
+            ? "Hapus salinan lokal inspeksi yang sudah di-void SPV? Alasan pembatalan akan disimpan ke server dan data lokal beserta foto dibersihkan setelah server mengonfirmasi."
             : "Hapus draft " + (record.InspectionNo || ("TEMP-" + String(localId).substring(0, 8).toUpperCase())) +
               " beserta foto BEFORE/AFTER dari perangkat? Draft ini belum pernah di-Done dan tidak akan disimpan ke tabel server.");
     const confirmed = await showConfirmation({ title: title, message: message, yesText: "Hapus" });
@@ -2293,9 +2293,7 @@ async function deleteLocalInspectionDraft(localId) {
 
     if (isConflict || isVoidedServerRecord) {
         record.DeleteOriginalSyncStatus = isConflict ? "CONFLICT" : "VOIDED";
-        record.DeleteReasonCancel = isConflict
-            ? (record.DeleteReasonCancel || record.ConflictReason || "Deleted by technician due to sync conflict.")
-            : reasonCancel;
+        record.DeleteReasonCancel = reasonCancel;
         record.SyncStatus = "DELETE_PENDING";
         record.DeleteQueuedAt = new Date().toISOString();
         record.UpdatedAt = record.DeleteQueuedAt;
