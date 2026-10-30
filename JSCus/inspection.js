@@ -182,10 +182,13 @@ function wireInspectionEvents() {
     });
     document.getElementById("selInspectionTemplate").addEventListener("change", function () {
         const typeCode = document.getElementById("selInspectionType").value;
+        const selectedTemplate = inspectionTemplates.find(x => Number(x.IDTemplate) === Number(this.value));
+        const pinnedDetailCode = String(selectedTemplate && selectedTemplate.InspectionTypeDetailCode || "");
         const details = inspectionDetails.filter(x =>
             x.InspectionTypeCode === typeCode &&
             x.CompanyID === inspectionCompanyID &&
-            x.LocationID === inspectionLocationID
+            x.LocationID === inspectionLocationID &&
+            (!pinnedDetailCode || String(x.InspectionTypeDetailCode) === pinnedDetailCode)
         );
         const detailSelect = document.getElementById("selInspectionDetail");
         const previousDetail = detailSelect.value;
@@ -194,9 +197,16 @@ function wireInspectionEvents() {
                 '<option value="' + escInspection(detail.InspectionTypeDetailCode) + '">' +
                 escInspection(detail.InspectionTypeDetailName) + '</option>'
             ).join("");
-        detailSelect.disabled = !this.value || details.length === 0;
-        if (previousDetail && details.some(detail => String(detail.InspectionTypeDetailCode) === previousDetail)) {
-            detailSelect.value = previousDetail;
+        if (pinnedDetailCode && !details.some(detail => String(detail.InspectionTypeDetailCode) === pinnedDetailCode)) {
+            detailSelect.add(new Option(pinnedDetailCode + " (tidak tersedia di lokasi ini)", pinnedDetailCode));
+        }
+        if (pinnedDetailCode) {
+            detailSelect.value = pinnedDetailCode;
+            detailSelect.disabled = true;
+        } else {
+            detailSelect.disabled = !this.value || details.length === 0;
+            if (previousDetail && details.some(detail => String(detail.InspectionTypeDetailCode) === previousDetail))
+                detailSelect.value = previousDetail;
         }
         const selectedDetail = details.find(detail => detail.InspectionTypeDetailCode === detailSelect.value);
         populateInspectionScheduleTimeOptions(selectedDetail);
@@ -611,11 +621,15 @@ function updateStartButton() {
     const detail = inspectionDetails.find(x =>
         x.InspectionTypeCode === typeCode && x.InspectionTypeDetailCode === detailCode
     );
+    const templateId = Number(document.getElementById("selInspectionTemplate").value);
+    const template = inspectionTemplates.find(x => Number(x.IDTemplate) === templateId);
+    const detailMatchesTemplate = !!template &&
+        (!String(template.InspectionTypeDetailCode || "") ||
+         String(template.InspectionTypeDetailCode) === String(detailCode || ""));
     const hasScheduledTimes = getInspectionScheduleTimes(detail).length > 0;
     const scheduledTime = document.getElementById("selInspectionScheduleTime").value;
-    const enabled = !!typeCode && !!detailCode &&
-        (!hasScheduledTimes || !!scheduledTime) &&
-        !!document.getElementById("selInspectionTemplate").value;
+    const enabled = !!typeCode && !!detailCode && detailMatchesTemplate &&
+        (!hasScheduledTimes || !!scheduledTime) && !!templateId;
     document.getElementById("btnStartInspection").disabled = !enabled;
 }
 
@@ -631,6 +645,8 @@ async function startNewInspection() {
     const template = inspectionTemplates.find(x => Number(x.IDTemplate) === templateId);
 
     if (!type || !detail || !template ||
+        (template.InspectionTypeDetailCode &&
+         String(template.InspectionTypeDetailCode) !== String(detail.InspectionTypeDetailCode)) ||
         (getInspectionScheduleTimes(detail).length > 0 && !scheduledTime)) {
         showInspectionNotice("Pilih Inspection Type, detail, jam jadwal (jika tersedia), dan template yang valid.", "warning");
         return;
@@ -2004,6 +2020,8 @@ function isInspectionParameterSelectionComplete() {
         (!hasScheduledTimes || !!scheduleTime) &&
         template.TemplateType === "I" &&
         template.InspectionTypeCode === typeCode &&
+        (!template.InspectionTypeDetailCode ||
+         String(template.InspectionTypeDetailCode) === String(detailCode)) &&
         template.SectionID === type.SectionID;
 }
 function updateInspectionParameterTabGate() {
@@ -2058,7 +2076,8 @@ function populateInspectionParameters(record) {
     document.getElementById("txtInspectionDate").value = record.InspectionDate || localDateString(new Date());
     document.getElementById("txtInspectionDate").disabled = true;
     typeSelect.disabled = currentInspectionReadOnly;
-    detailSelect.disabled = currentInspectionReadOnly || !templateSelect.value;
+    const selectedTemplate = inspectionTemplates.find(x => Number(x.IDTemplate) === Number(templateSelect.value));
+    detailSelect.disabled = currentInspectionReadOnly || !templateSelect.value || !!(selectedTemplate && selectedTemplate.InspectionTypeDetailCode);
     scheduleTimeSelect.disabled = currentInspectionReadOnly || !getInspectionScheduleTimes(
         inspectionDetails.find(x => x.InspectionTypeCode === (record.InspectionTypeCode || "") &&
             x.InspectionTypeDetailCode === (record.InspectionTypeDetailCode || ""))
@@ -2115,6 +2134,8 @@ async function applyInspectionParameters() {
     if (!type || !detail || !template ||
         template.TemplateType !== "I" ||
         template.InspectionTypeCode !== typeCode ||
+        (template.InspectionTypeDetailCode &&
+         String(template.InspectionTypeDetailCode) !== String(detailCode)) ||
         template.SectionID !== type.SectionID) {
         showInspectionNotice("Pilih Inspection Type, detail, dan template Inspection yang sesuai.", "warning");
         updateInspectionParameterTabGate();
