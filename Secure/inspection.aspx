@@ -100,6 +100,107 @@
         .inspection-section-tab { padding: .4rem .55rem; font-size: .8rem; }
     }
 
+    /* Supervisor approval: compact, equal-width status tabs. */
+    #inspectionApprovalQueueTabs { min-width: 0; }
+    #inspectionApprovalQueueTabs .nav-item { min-width: 0; }
+    #inspectionApprovalQueueTabs .nav-link { white-space: nowrap; }
+    #inspectionApprovalQueueTabs .badge { font-size: .7em; }
+
+    @media (max-width: 575.98px) {
+        #inspectionApprovalListHeader { align-items: flex-start !important; gap: .5rem; }
+        #inspectionApprovalListHeader > div { min-width: 0; }
+        #inspectionApprovalListHeader h5 { font-size: 1.05rem; }
+        #inspectionApprovalQueueTabs {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            width: 100%;
+            border-bottom: 1px solid var(--bs-border-color);
+        }
+        #inspectionApprovalQueueTabs .nav-item { width: 100%; }
+        #inspectionApprovalQueueTabs .nav-link {
+            width: 100%;
+            padding: .55rem .2rem;
+            font-size: .78rem;
+            text-align: center;
+            white-space: normal;
+            border-radius: .45rem .45rem 0 0;
+        }
+        #inspectionApprovalQueueTabs .badge {
+            margin-left: .15rem !important;
+            padding: .25em .4em;
+            font-size: .68em;
+        }
+        #inspectionApprovalListView > .table-responsive {
+            overflow: visible;
+            margin: 0;
+        }
+        #inspectionApprovalTable {
+            display: block;
+            width: 100%;
+            margin-bottom: 0;
+            white-space: normal;
+            border: 0;
+        }
+        #inspectionApprovalTable thead { display: none; }
+        #inspectionApprovalTable tbody {
+            display: flex;
+            flex-direction: column;
+            gap: .65rem;
+        }
+        #inspectionApprovalTable tbody tr {
+            display: block;
+            padding: .55rem .7rem;
+            border: 1px solid var(--bs-border-color);
+            border-radius: .65rem;
+            background: var(--bs-body-bg);
+            box-shadow: 0 .1rem .25rem rgba(0,0,0,.04);
+        }
+        #inspectionApprovalTable tbody td {
+            display: grid;
+            grid-template-columns: minmax(6.25rem, 38%) minmax(0, 1fr);
+            align-items: start;
+            gap: .5rem;
+            width: 100%;
+            padding: .3rem 0 !important;
+            border: 0;
+            font-size: .82rem;
+            white-space: normal;
+            overflow-wrap: anywhere;
+        }
+        #inspectionApprovalTable tbody td[data-label]::before {
+            content: attr(data-label);
+            color: var(--bs-secondary-color);
+            font-size: .74rem;
+            font-weight: 600;
+        }
+        #inspectionApprovalTable tbody td[data-label="Transaction No."] {
+            display: block;
+            padding-bottom: .45rem !important;
+            margin-bottom: .2rem;
+            border-bottom: 1px solid var(--bs-border-color);
+        }
+        #inspectionApprovalTable tbody td[data-label="Transaction No."] button {
+            text-align: left;
+            white-space: normal !important;
+            overflow-wrap: anywhere;
+        }
+        #inspectionApprovalTable tbody td.approval-select-cell {
+            display: flex;
+            justify-content: flex-end;
+            padding: 0 0 .35rem !important;
+        }
+        #inspectionApprovalTable tbody td[colspan] {
+            display: block;
+            text-align: center;
+        }
+        #inspectionApprovalBatchActions {
+            display: grid !important;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            width: 100%;
+        }
+        #inspectionApprovalBatchActions .btn { min-width: 0; }
+    }
+
     /* Keep inspection entry and supervisor approval usable on narrow phones. */
     .inspection-card, .inspection-item, .inspection-photo-panel { min-width: 0; }
     .inspection-item-label, .inspection-muted { overflow-wrap: anywhere; }
