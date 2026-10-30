@@ -359,7 +359,7 @@
 
     <div id="inspectionInputPanel" class="d-none">
     <div id="inspectionNotice" class="alert alert-info py-2 small mb-3">
-        Pilih Inspection Type, detail inspeksi, lalu template. Data tersimpan di perangkat dan hanya disinkronkan oleh teknisi pemiliknya.
+        Pilih Inspection Type, template, detail inspeksi, lalu jam jadwal. Data tersimpan di perangkat dan hanya disinkronkan oleh teknisi pemiliknya.
     </div>
     <div id="inspectionEditorStickyHeader" class="inspection-editor-sticky mb-2"><div class="inspection-form-header d-flex align-items-center gap-2 mb-2"><h6 id="inspectionFormTitle" class="mb-0 text-truncate flex-shrink-1">Checklist</h6><button type="button" id="btnInspectionFormInfo" class="btn btn-sm btn-outline-secondary py-0 px-2 flex-shrink-0" aria-label="Informasi inspeksi" title="Informasi inspeksi"><i class="bi bi-info-circle-fill"></i></button></div><ul id="inspectionEditorTabs" class="nav nav-tabs mb-2 d-none" role="tablist"><li class="nav-item"><button type="button" id="btnInspectionParamTab" class="nav-link" role="tab">PARAM</button></li><li class="nav-item"><button type="button" id="btnInspectionChecklistTab" class="nav-link active" role="tab">CHECKLIST</button></li></ul><div id="inspectionSectionNavHost" class="inspection-section-nav-host d-none"></div></div>
     <div id="inspectionParamsPane">
@@ -376,7 +376,18 @@
         </div>
 
         <div class="inspection-step mb-3">
-            <div class="fw-bold">2. Inspection Detail</div>
+            <div class="fw-bold">2. Template</div>
+            <div class="inspection-muted">Hanya template Inspection yang sesuai Type dan Section.</div>
+        </div>
+        <div class="mb-3">
+            <label for="selInspectionTemplate" class="form-label small fw-semibold">Inspection Template</label>
+            <select id="selInspectionTemplate" class="form-select form-select-sm" disabled>
+                <option value="">Pilih template...</option>
+            </select>
+        </div>
+
+        <div class="inspection-step mb-3">
+            <div class="fw-bold">3. Inspection Detail</div>
             <div class="inspection-muted">Pilih lokasi atau objek yang akan diperiksa.</div>
         </div>
         <div class="mb-3">
@@ -386,7 +397,7 @@
             </select>
         </div>
         <div class="inspection-step mb-3">
-            <div class="fw-bold">3. Schedule Time</div>
+            <div class="fw-bold">4. Schedule Time</div>
             <div class="inspection-muted">Pilih jam sesuai jadwal detail. Jika tidak ada jadwal, bagian ini boleh kosong.</div>
         </div>
         <div class="mb-3">
@@ -397,16 +408,6 @@
             <div id="inspectionScheduleHint" class="inspection-muted mt-1"></div>
         </div>
 
-        <div class="inspection-step mb-3">
-            <div class="fw-bold">4. Template</div>
-            <div class="inspection-muted">Hanya template Inspection yang sesuai Type dan Section.</div>
-        </div>
-        <div class="mb-3">
-            <label for="selInspectionTemplate" class="form-label small fw-semibold">Inspection Template</label>
-            <select id="selInspectionTemplate" class="form-select form-select-sm" disabled>
-                <option value="">Pilih template...</option>
-            </select>
-        </div>
         <div class="mb-3">
             <label for="txtInspectionDate" class="form-label small fw-semibold">Tanggal inspeksi</label>
             <input id="txtInspectionDate" type="date" class="form-control form-control-sm" disabled readonly aria-readonly="true" />
