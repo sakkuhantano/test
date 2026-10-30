@@ -5939,6 +5939,8 @@ async function refreshInspectionTypeDropdown(template)
         if (selectedCode && !types.some(function(x) { return x.InspectionTypeCode === selectedCode; }))
             select.add(new Option(selectedCode + ' (inactive/unavailable)', selectedCode));
         select.value = selectedCode;
+        // Inspection Type is template metadata, independent of version read-only state.
+        select.disabled = false;
     } catch (ex) {
         select.innerHTML = '';
         select.add(new Option('Failed to load inspection types', ''));
@@ -5969,7 +5971,9 @@ function renderTemplateInspectionDetailTags(template, details) {
         const label = document.createElement("span");
         label.textContent = detailMap.has(code) ? code + " - " + detailMap.get(code) : code + " (inactive/unavailable)";
         tag.appendChild(label);
-        if (!isReadonlyMode) {
+        {
+            // Inspection Detail metadata remains editable even when the selected
+            // checklist version is published/read-only.
             const remove = document.createElement("button");
             remove.type = "button";
             remove.className = "btn-close";
@@ -5993,10 +5997,10 @@ async function refreshInspectionDetailDropdown(template) {
     if (!select || !template) return;
     const typeCode = template.InspectionTypeCode || "";
     const selectedCodes = getTemplateInspectionDetailCodes(template);
-    select.disabled = isReadonlyMode || !typeCode;
+    select.disabled = !typeCode;
     select.innerHTML = '<option value="">-- Select Inspection Detail --</option>';
     const addButton = document.getElementById("btnAddInspectionDetail");
-    if (addButton) addButton.disabled = isReadonlyMode || !typeCode;
+    if (addButton) addButton.disabled = !typeCode;
     if (!typeCode) {
         renderTemplateInspectionDetailTags(template, []);
         return;
@@ -6157,14 +6161,14 @@ async function appendTemplateMetadataControls(template)
                 '</div>' +
                 '<div class="mb-3" id="inspectionTypeField" style="display:none;">' +
                     '<label class="form-label">Inspection Type</label>' +
-                    '<select id="propInspectionType" class="form-select form-select-compact" ' + (isReadonlyMode ? 'disabled' : '') + '><option value="">Loading...</option></select>' +
+                    '<select id="propInspectionType" class="form-select form-select-compact"><option value="">Loading...</option></select>' +
                     '<div class="form-text">Filtered by SectionID ' + escapeHtml(template.SectionID || '') + '.</div>' +
                 '</div>' +
                 '<div class="mb-3" id="inspectionDetailField" style="display:none;">' +
                     '<label class="form-label">Inspection Detail <span class="text-muted">(optional, multiple)</span></label>' +
                     '<div id="propInspectionDetailTags" class="d-flex flex-wrap gap-2 border rounded p-2 mb-2" style="min-height:42px;"></div>' +
                     '<div class="input-group input-group-sm">' +
-                        '<select id="propInspectionDetail" class="form-select form-select-compact" ' + (isReadonlyMode ? 'disabled' : '') + '><option value="">-- Select Inspection Detail --</option></select>' +
+                        '<select id="propInspectionDetail" class="form-select form-select-compact"><option value="">-- Select Inspection Detail --</option></select>' +
                         '<button type="button" id="btnAddInspectionDetail" class="btn btn-outline-primary" ' + (isReadonlyMode ? 'disabled' : '') + '>Add</button>' +
                     '</div>' +
                     '<div class="form-text">Pilih detail lalu klik Add. Klik × pada tag untuk menghapus. Tidak ada tag = semua detail. Kode disimpan dipisahkan dengan semicolon (;).</div>' +
