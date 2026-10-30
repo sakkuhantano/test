@@ -359,6 +359,70 @@ function readInspectionStore(storeName) {
     });
 }
 
+function refreshInspectionDetailAvailability() {
+    const detailSelect = document.getElementById("selInspectionDetail");
+    const typeCode = document.getElementById("selInspectionType").value;
+    const type = inspectionTypes.find(x =>
+        String(x.InspectionTypeCode || "") === String(typeCode || "")
+    );
+    const selectedDate = document.getElementById("txtInspectionDate").value || localDateString(new Date());
+    const today = localDateString(new Date());
+
+    Array.from(detailSelect.options).forEach(option => {
+        if (!option.value) return;
+
+        option.disabled = false;
+        const detailCode = option.value;
+        const detail = inspectionDetails.find(x =>
+            String(x.InspectionTypeCode || "") === String(typeCode || "") &&
+            String(x.InspectionTypeDetailCode || "") === String(detailCode || "")
+        );
+        const baseLabel = detail ? detail.InspectionTypeDetailName : option.textContent;
+        const templates = inspectionTemplates.filter(template =>
+            String(template.InspectionTypeCode || "") === String(typeCode || "") &&
+            (!type || String(template.SectionID || "") === String(type.SectionID || ""))
+        );
+
+        // Keep the existing duplicate key semantics: each configured template has
+        // its own slots. A detail is unavailable only when every time/template
+        // combination is already occupied for today's date.
+        if (!type || !detail || selectedDate !== today || !templates.length) {
+            option.textContent = baseLabel;
+            return;
+        }
+
+        const times = getInspectionScheduleTimes(detail);
+        const slotTimes = times.length ? times : [""];
+        let totalSlots = 0;
+        let occupiedSlots = 0;
+
+        templates.forEach(template => {
+            slotTimes.forEach(time => {
+                totalSlots++;
+                const matchesKey = record =>
+                    parseInspectionDate(record.InspectionDate) === selectedDate &&
+                    String(record.CompanyID || "") === String(inspectionCompanyID || "") &&
+                    String(record.LocationID || "") === String(inspectionLocationID || "") &&
+                    String(record.SectionID || "") === String(type.SectionID || "") &&
+                    String(record.InspectionTypeCode || "") === String(typeCode || "") &&
+                    String(record.InspectionTypeDetailCode || "") === String(detailCode || "") &&
+                    String(record.ScheduledTime || "") === String(time || "") &&
+                    Number(record.IDTemplate) === Number(template.IDTemplate);
+
+                if (inspectionRecords.some(matchesKey) || serverSlotRecords.some(matchesKey)) {
+                    occupiedSlots++;
+                }
+            });
+        });
+
+        const fullyOccupied = totalSlots > 0 && occupiedSlots === totalSlots;
+        option.disabled = fullyOccupied;
+        option.textContent = fullyOccupied
+            ? baseLabel + " • SUDAH DIINSPEKSI"
+            : baseLabel;
+    });
+}
+
 function onInspectionTypeChanged() {
     const typeCode = document.getElementById("selInspectionType").value;
     const type = inspectionTypes.find(x => x.InspectionTypeCode === typeCode);
@@ -375,6 +439,7 @@ function onInspectionTypeChanged() {
             escInspection(detail.InspectionTypeDetailName) + '</option>'
         ).join("");
     detailSelect.disabled = !typeCode || details.length === 0;
+    refreshInspectionDetailAvailability();
     resetInspectionScheduleTimeOptions();
     document.getElementById("inspectionScheduleHint").textContent = type
         ? "Section: " + type.SectionID + ". Pilih template untuk melihat slot hari ini yang sudah terisi/kosong."
