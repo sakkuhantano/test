@@ -1803,7 +1803,20 @@ async function openSavedInspection(localId) {
     await renderInspectionForm(record, record.Status === "DONE" && !isVoidedServerInspectionRecord(record));
 }
 
+function restoreInspectionMasterDropdowns() {
+    const typeSelect = document.getElementById("selInspectionType");
+    typeSelect.innerHTML = '<option value="">Pilih Inspection Type...</option>' +
+        inspectionTypes.map(type =>
+            '<option value="' + escInspection(type.InspectionTypeCode) + '">' +
+            escInspection(type.InspectionTypeCode + " - " + type.InspectionTypeName) + '</option>'
+        ).join("");
+    typeSelect.value = "";
+    typeSelect.disabled = inspectionTypes.length === 0;
+    resetDetailAndTemplateOptions();
+}
+
 function resetInspectionSelection() {
+    restoreInspectionMasterDropdowns();
     showInspectionInputScreen(true);
     showInspectionNotice("Pilih Inspection Type, detail inspeksi, lalu template. Data tersimpan di perangkat dan hanya disinkronkan oleh teknisi pemiliknya.", "info");
     currentInspectionRecord = null;
@@ -1812,10 +1825,10 @@ function resetInspectionSelection() {
     document.getElementById("inspectionFormPanel").classList.add("d-none");
     document.getElementById("inspectionStartPanel").classList.remove("d-none");
     document.getElementById("inspectionStartButtonRow").classList.remove("d-none");
-    document.getElementById("selInspectionType").disabled = false;
-    document.getElementById("selInspectionDetail").disabled = false;
+    document.getElementById("selInspectionType").disabled = inspectionTypes.length === 0;
+    document.getElementById("selInspectionDetail").disabled = true;
     document.getElementById("selInspectionScheduleTime").disabled = true;
-    document.getElementById("selInspectionTemplate").disabled = false;
+    document.getElementById("selInspectionTemplate").disabled = true;
     document.getElementById("selInspectionType").value = "";
     resetDetailAndTemplateOptions();
     document.getElementById("txtInspectionDate").value = localDateString(new Date());
