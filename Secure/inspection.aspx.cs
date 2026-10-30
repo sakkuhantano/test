@@ -146,6 +146,27 @@ namespace UTL1.Secure
 
                     using (var br = new WAL.BR.CF())
                     {
+                        syncStage = "validate inspection template detail";
+                        DataTable templateDetailCheck = br.EQueryP(@"
+SELECT T.IDTemplate
+FROM dbo.PIP_M_CheckListWOPM T
+WHERE T.IDTemplate=@IDTemplate
+  AND T.SectionID=@SectionID
+  AND T.TemplateType='I'
+  AND T.InspectionTypeCode=@InspectionTypeCode
+  AND (
+       ISNULL(T.InspectionTypeDetailCode,'')=''
+       OR T.InspectionTypeDetailCode=@InspectionTypeDetailCode
+  )",
+                            new SqlParameter[] {
+                                new SqlParameter("@IDTemplate", TokenInt(record, "IDTemplate")),
+                                new SqlParameter("@SectionID", sectionId),
+                                new SqlParameter("@InspectionTypeCode", inspectionTypeCode),
+                                new SqlParameter("@InspectionTypeDetailCode", inspectionTypeDetailCode)
+                            });
+                        if (templateDetailCheck == null || templateDetailCheck.Rows.Count == 0)
+                            throw new Exception("Inspection Detail tidak sesuai dengan batasan Inspection Detail pada Master Template.");
+
                         syncStage = "preflight existing inspection";
                         DataTable existingRows = br.EQueryP(@"
 SELECT InspectionID, InspectionNo, InspectionDate, CompanyID, LocationID,
