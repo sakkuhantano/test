@@ -2037,23 +2037,32 @@ function setInspectionFormHeader(transactionNo, infoLines) {
 
 function populateInspectionParameters(record) {
     const typeSelect = document.getElementById("selInspectionType");
+    const templateSelect = document.getElementById("selInspectionTemplate");
+    const detailSelect = document.getElementById("selInspectionDetail");
+    const scheduleTimeSelect = document.getElementById("selInspectionScheduleTime");
+
     typeSelect.value = record.InspectionTypeCode || "";
     onInspectionTypeChanged();
-    document.getElementById("selInspectionDetail").value = record.InspectionTypeDetailCode || "";
+
+    // Detail options depend on the selected template. Populate them through the
+    // same change handler used by the normal parameter-selection flow.
+    templateSelect.value = String(record.IDTemplate || "");
+    templateSelect.dispatchEvent(new Event("change"));
+
+    detailSelect.value = record.InspectionTypeDetailCode || "";
     onInspectionDetailChanged();
-    document.getElementById("selInspectionScheduleTime").value = record.ScheduledTime || "";
-    document.getElementById("selInspectionTemplate").value = String(record.IDTemplate || "");
+    scheduleTimeSelect.value = record.ScheduledTime || "";
     refreshInspectionScheduleOptions();
+
     document.getElementById("txtInspectionDate").value = record.InspectionDate || localDateString(new Date());
     document.getElementById("txtInspectionDate").disabled = true;
     typeSelect.disabled = currentInspectionReadOnly;
-    document.getElementById("selInspectionDetail").disabled = currentInspectionReadOnly;
-    document.getElementById("selInspectionScheduleTime").disabled = currentInspectionReadOnly || !getInspectionScheduleTimes(
+    detailSelect.disabled = currentInspectionReadOnly || !templateSelect.value;
+    scheduleTimeSelect.disabled = currentInspectionReadOnly || !getInspectionScheduleTimes(
         inspectionDetails.find(x => x.InspectionTypeCode === (record.InspectionTypeCode || "") &&
             x.InspectionTypeDetailCode === (record.InspectionTypeDetailCode || ""))
     ).length;
-    updateStartButton();
-    document.getElementById("selInspectionTemplate").disabled = currentInspectionReadOnly;
+    templateSelect.disabled = currentInspectionReadOnly;
     updateStartButton();
     updateInspectionParameterTabGate();
 }
