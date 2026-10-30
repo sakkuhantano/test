@@ -9520,8 +9520,43 @@ function patchSavedIdentity(saveResult)
         });
     });
 }
+function syncVisibleTemplateMetadataBeforeSave()
+{
+    if (!currentTemplate) return;
+
+    const scopeSelect = document.getElementById("propCompanyScope");
+    const typeSelect = document.getElementById("propTemplateType");
+    const inspectionSelect = document.getElementById("propInspectionType");
+    const values = {};
+
+    if (scopeSelect) values.CompanyScope = scopeSelect.value || "S";
+    if (typeSelect) values.TemplateType = typeSelect.value || "W";
+    if (inspectionSelect && typeSelect && typeSelect.value === "I")
+        values.InspectionTypeCode = inspectionSelect.value || "";
+
+    const cache = getTemplateCache(currentTemplate.SectionID, currentTemplate.RuntimeTemplateID);
+    const cachedTemplate = cache && cache.Template;
+    let changed = false;
+
+    Object.keys(values).forEach(function(key) {
+        if (String(currentTemplate[key] == null ? "" : currentTemplate[key]) !== String(values[key])) {
+            changed = true;
+        }
+        currentTemplate[key] = values[key];
+        if (cachedTemplate) cachedTemplate[key] = values[key];
+    });
+
+    // The visible controls are the final source of truth at Save time. This also
+    // protects metadata-only edits if a browser change event was not dispatched.
+    if (changed) {
+        currentTemplate.MetadataDirty = true;
+        if (cachedTemplate) cachedTemplate.MetadataDirty = true;
+        templateCache.Dirty = true;
+    }
+}
 async function saveAllTemplate()
 {
+    syncVisibleTemplateMetadataBeforeSave();
     // Flush the currently visible builder DOM into the canonical draft object before
     // constructing the Save All payload. This prevents recently moved/added Sub-sections
     // and their child Item parent IDs from being omitted by a stale cached structure.
