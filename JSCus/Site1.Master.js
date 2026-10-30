@@ -1,4 +1,51 @@
-﻿const sidebarCollapse = document.getElementById('sidebarCollapse');
+﻿// App version is also published in /app-version.txt. Bump both values for each deployment.
+const APP_BUILD_VERSION = "20261030.1";
+
+(function () {
+    const masterScript = document.querySelector('script[src*="Site1.Master.js"]');
+    if (!masterScript || window.__appVersionCheckStarted) return;
+    window.__appVersionCheckStarted = true;
+
+    const versionUrl = new URL("../app-version.txt", masterScript.src).href;
+    let reloadPromptShown = false;
+    let checkInProgress = false;
+
+    async function checkForAppUpdate() {
+        if (checkInProgress || document.visibilityState === "hidden" || !navigator.onLine) return;
+        checkInProgress = true;
+        try {
+            const response = await fetch(versionUrl + "?check=" + Date.now(), {
+                cache: "no-store",
+                credentials: "same-origin"
+            });
+            if (!response.ok) return;
+            const serverVersion = (await response.text()).trim();
+            if (!serverVersion || serverVersion === APP_BUILD_VERSION || reloadPromptShown) return;
+
+            reloadPromptShown = true;
+            const hasUnsavedInspection = typeof currentInspectionRecord !== "undefined" &&
+                currentInspectionRecord &&
+                (currentInspectionRecord.SyncStatus !== "SYNCED" || currentInspectionRecord.Status === "DRAFT");
+            const message = hasUnsavedInspection
+                ? "Versi aplikasi terbaru tersedia. Simpan draft inspeksi dan pastikan perubahan tersimpan sebelum memuat ulang halaman. Muat ulang sekarang?"
+                : "Versi aplikasi terbaru tersedia. Muat ulang halaman untuk menggunakan versi terbaru?";
+            if (window.confirm(message)) window.location.reload();
+            else reloadPromptShown = false;
+        } catch (error) {
+            // Version check is best-effort; it must not interrupt offline work.
+        } finally {
+            checkInProgress = false;
+        }
+    }
+
+    window.addEventListener("online", checkForAppUpdate);
+    window.setInterval(checkForAppUpdate, 60000);
+    window.addEventListener("DOMContentLoaded", function () {
+        window.setTimeout(checkForAppUpdate, 5000);
+    });
+})();
+
+const sidebarCollapse = document.getElementById('sidebarCollapse');
 const sidebar = document.getElementById('sidebar');
 const content = document.getElementById('content');
 const overlay = document.getElementById('overlay');
