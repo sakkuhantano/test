@@ -973,7 +973,9 @@ ORDER BY InspectionTypeDetailName, InspectionTypeDetailCode",
             templateType = (templateType ?? "W").Trim().ToUpperInvariant();
             companyScope = (companyScope ?? "S").Trim().ToUpperInvariant();
             inspectionTypeCode = (inspectionTypeCode ?? "").Trim().ToUpperInvariant();
-            inspectionTypeDetailCode = (inspectionTypeDetailCode ?? "").Trim().ToUpperInvariant();
+            inspectionTypeDetailCode = String.Join(";", (inspectionTypeDetailCode ?? "").Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries)
+                .Select(x => x.Trim().ToUpperInvariant()).Where(x => x.Length > 0)
+                .Distinct(StringComparer.OrdinalIgnoreCase));
 
             if (templateType != "W" && templateType != "I")
                 return new { success = false, message = "Invalid template type." };
@@ -986,22 +988,17 @@ ORDER BY InspectionTypeDetailName, InspectionTypeDetailCode",
                 inspectionTypeCode = "";
                 inspectionTypeDetailCode = "";
             }
-            if (inspectionTypeDetailCode.Length > 20)
-                return new { success = false, message = "Inspection Detail code is too long." };
+            if (inspectionTypeDetailCode.Length > 500)
+                return new { success = false, message = "Inspection Detail selection is too long." };
 
             using (var br = new WAL.BR.CF())
             {
                 DataTable dt = br.EQuery(@"
 SELECT T.IDTemplate, T.SectionID, T.CompanyID, T.LocationID,
-       InspectionSectionID=I.SectionID,
-       InspectionDetailCode=D.InspectionTypeDetailCode
+       InspectionSectionID=I.SectionID
 FROM dbo.PIP_M_CheckListWOPM T
 LEFT JOIN dbo.PIP_M_InspectionType I
   ON I.InspectionTypeCode=@InspectionTypeCode AND I.IsActive=1
-LEFT JOIN dbo.PIP_M_InspectionTypeDetail D
-  ON D.InspectionTypeCode=@InspectionTypeCode
- AND D.InspectionTypeDetailCode=@InspectionTypeDetailCode
- AND D.IsActive=1
 WHERE T.IDTemplate=@IDTemplate
   AND (
        EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation CurrentPermission
@@ -1033,8 +1030,23 @@ WHERE T.IDTemplate=@IDTemplate
                     (row["InspectionSectionID"] == DBNull.Value ||
                      !String.Equals(GF.GetString(row["SectionID"]), GF.GetString(row["InspectionSectionID"]), StringComparison.OrdinalIgnoreCase)))
                     return new { success = false, message = "Inspection Type must belong to the same Section as the selected root." };
-                if (templateType == "I" && inspectionTypeDetailCode.Length > 0 && row["InspectionDetailCode"] == DBNull.Value)
-                    return new { success = false, message = "Inspection Detail must be active and belong to the selected Inspection Type." };
+                if (templateType == "I" && inspectionTypeDetailCode.Length > 0)
+                {
+                    DataTable invalidDetails = br.EQueryP(@"
+SELECT X.val
+FROM dbo.SplitStringConvertToTable(@InspectionTypeDetailCode, ';') X
+LEFT JOIN dbo.PIP_M_InspectionTypeDetail D
+  ON D.InspectionTypeCode=@InspectionTypeCode
+ AND D.InspectionTypeDetailCode=LTRIM(RTRIM(X.val))
+ AND D.IsActive=1
+WHERE LTRIM(RTRIM(X.val))<>'' AND D.InspectionTypeDetailCode IS NULL",
+                        new SqlParameter[] {
+                            new SqlParameter("@InspectionTypeCode", inspectionTypeCode),
+                            new SqlParameter("@InspectionTypeDetailCode", inspectionTypeDetailCode)
+                        });
+                    if (invalidDetails.Rows.Count > 0)
+                        return new { success = false, message = "Setiap Inspection Detail harus aktif dan termasuk Inspection Type yang dipilih." };
+                }
 
                 br.EQuery(@"
 SET XACT_ABORT ON;
