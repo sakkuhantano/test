@@ -377,9 +377,15 @@
             <div class="inspection-muted">Misalnya lantai, toilet pria/wanita, dan jadwal jam inspeksi.</div>
         </div>
         <div class="mb-3">
-            <label for="selInspectionDetail" class="form-label small fw-semibold">Detail / Lokasi / Jadwal</label>
+            <label for="selInspectionDetail" class="form-label small fw-semibold">Inspection Detail</label>
             <select id="selInspectionDetail" class="form-select form-select-sm" disabled>
                 <option value="">Pilih detail...</option>
+            </select>
+        </div>
+        <div class="mb-3">
+            <label for="selInspectionScheduleTime" class="form-label small fw-semibold">Schedule Time</label>
+            <select id="selInspectionScheduleTime" class="form-select form-select-sm" disabled>
+                <option value="">Pilih jam...</option>
             </select>
             <div id="inspectionScheduleHint" class="inspection-muted mt-1"></div>
         </div>
