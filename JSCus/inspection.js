@@ -2917,17 +2917,17 @@ function renderInspectionApprovalQueue() {
         const end = formatInspectionClock(row.EndDateTime);
         const range = (start && start !== "-" ? start : "-") + " – " + (end && end !== "-" ? end : "-");
         const selectCell = hasSelectionColumn
-            ? '<td><input type="checkbox" class="form-check-input" data-approval-select value="' + id + '" aria-label="Select inspection ' + escInspection(row.InspectionNo || id) + '"></td>'
+            ? '<td class="approval-select-cell"><input type="checkbox" class="form-check-input" data-approval-select value="' + id + '" aria-label="Select inspection ' + escInspection(row.InspectionNo || id) + '"></td>'
             : '';
         return '<tr>' +
             selectCell +
-            '<td><button type="button" class="btn btn-link p-0 text-nowrap" data-approval-id="' + id + '">' + escInspection(row.InspectionNo || ("Inspection #" + id)) + '</button></td>' +
-            '<td>' + escInspection(row.InspectionTypeName || row.InspectionTypeCode || "") + '</td>' +
-            '<td>' + escInspection(row.InspectionTypeDetailName || row.InspectionTypeDetailCode || "") + '</td>' +
-            '<td class="text-nowrap">' + escInspection(formatInspectionDateDMY(row.InspectionDate) || "") + '</td>' +
-            '<td class="text-nowrap">' + escInspection(row.ScheduledTime || "-") + '</td>' +
-            '<td class="text-nowrap">' + escInspection(range) + '</td>' +
-            '<td>' + escInspection(row.TechnicianName || row.OwnerEmployeeName || row.OwnerEmployeeID || "") + '</td>' +
+            '<td data-label="Transaction No."><button type="button" class="btn btn-link p-0 text-wrap fw-semibold" data-approval-id="' + id + '">' + escInspection(row.InspectionNo || ("Inspection #" + id)) + '</button></td>' +
+            '<td data-label="Inspection Type">' + escInspection(row.InspectionTypeName || row.InspectionTypeCode || "") + '</td>' +
+            '<td data-label="Inspection Detail">' + escInspection(row.InspectionTypeDetailName || row.InspectionTypeDetailCode || "") + '</td>' +
+            '<td data-label="Date">' + escInspection(formatInspectionDateDMY(row.InspectionDate) || "") + '</td>' +
+            '<td data-label="Scheduled">' + escInspection(row.ScheduledTime || "-") + '</td>' +
+            '<td data-label="Start – End">' + escInspection(range) + '</td>' +
+            '<td data-label="Technician">' + escInspection(row.TechnicianName || row.OwnerEmployeeName || row.OwnerEmployeeID || "") + '</td>' +
             '</tr>';
     }).join("");
     updateInspectionApprovalSelectAll();
