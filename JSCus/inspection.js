@@ -181,6 +181,26 @@ function wireInspectionEvents() {
         updateInspectionParameterTabGate();
     });
     document.getElementById("selInspectionTemplate").addEventListener("change", function () {
+        const typeCode = document.getElementById("selInspectionType").value;
+        const details = inspectionDetails.filter(x =>
+            x.InspectionTypeCode === typeCode &&
+            x.CompanyID === inspectionCompanyID &&
+            x.LocationID === inspectionLocationID
+        );
+        const detailSelect = document.getElementById("selInspectionDetail");
+        const previousDetail = detailSelect.value;
+        detailSelect.innerHTML = '<option value="">Pilih detail...</option>' +
+            details.map(detail =>
+                '<option value="' + escInspection(detail.InspectionTypeDetailCode) + '">' +
+                escInspection(detail.InspectionTypeDetailName) + '</option>'
+            ).join("");
+        detailSelect.disabled = !this.value || details.length === 0;
+        if (previousDetail && details.some(detail => String(detail.InspectionTypeDetailCode) === previousDetail)) {
+            detailSelect.value = previousDetail;
+        }
+        const selectedDetail = details.find(detail => detail.InspectionTypeDetailCode === detailSelect.value);
+        populateInspectionScheduleTimeOptions(selectedDetail);
+        refreshInspectionDetailAvailability();
         updateStartButton();
         refreshInspectionScheduleOptions();
         updateInspectionParameterTabGate();
@@ -378,9 +398,11 @@ function refreshInspectionDetailAvailability() {
             String(x.InspectionTypeDetailCode || "") === String(detailCode || "")
         );
         const baseLabel = detail ? detail.InspectionTypeDetailName : option.textContent;
+        const selectedTemplateId = Number(document.getElementById("selInspectionTemplate").value);
         const templates = inspectionTemplates.filter(template =>
             String(template.InspectionTypeCode || "") === String(typeCode || "") &&
-            (!type || String(template.SectionID || "") === String(type.SectionID || ""))
+            (!type || String(template.SectionID || "") === String(type.SectionID || "")) &&
+            (!selectedTemplateId || Number(template.IDTemplate) === selectedTemplateId)
         );
 
         // Keep the existing duplicate key semantics: each configured template has
@@ -426,25 +448,26 @@ function refreshInspectionDetailAvailability() {
 function onInspectionTypeChanged() {
     const typeCode = document.getElementById("selInspectionType").value;
     const type = inspectionTypes.find(x => x.InspectionTypeCode === typeCode);
-    const details = inspectionDetails.filter(x =>
+    const templates = inspectionTemplates.filter(x =>
         x.InspectionTypeCode === typeCode &&
-        x.CompanyID === inspectionCompanyID &&
-        x.LocationID === inspectionLocationID
+        (!type || x.SectionID === type.SectionID)
     );
-    const detailSelect = document.getElementById("selInspectionDetail");
-
-    detailSelect.innerHTML = '<option value="">Pilih detail...</option>' +
-        details.map(detail =>
-            '<option value="' + escInspection(detail.InspectionTypeDetailCode) + '">' +
-            escInspection(detail.InspectionTypeDetailName) + '</option>'
+    const templateSelect = document.getElementById("selInspectionTemplate");
+    templateSelect.innerHTML = '<option value="">Pilih template...</option>' +
+        templates.map(template =>
+            '<option value="' + escInspection(template.IDTemplate) + '">' +
+            escInspection(template.TemplateNo + " - " + template.TemplateName + " (v" + template.Version + ")") +
+            '</option>'
         ).join("");
-    detailSelect.disabled = !typeCode || details.length === 0;
-    refreshInspectionDetailAvailability();
+    templateSelect.disabled = !typeCode || templates.length === 0;
+
+    const detailSelect = document.getElementById("selInspectionDetail");
+    detailSelect.innerHTML = '<option value="">Pilih detail...</option>';
+    detailSelect.disabled = true;
     resetInspectionScheduleTimeOptions();
     document.getElementById("inspectionScheduleHint").textContent = type
-        ? "Section: " + type.SectionID + ". Pilih template untuk melihat slot hari ini yang sudah terisi/kosong."
+        ? "Section: " + type.SectionID + ". Pilih template terlebih dahulu, lalu detail dan jam jadwal."
         : "";
-    resetTemplateOptions();
     updateStartButton();
     refreshInspectionScheduleOptions();
 }
@@ -457,19 +480,7 @@ function onInspectionDetailChanged() {
         x.InspectionTypeDetailCode === detailCode
     );
     populateInspectionScheduleTimeOptions(detail);
-    const type = inspectionTypes.find(x => x.InspectionTypeCode === typeCode);
-    const templates = inspectionTemplates.filter(x =>
-        x.InspectionTypeCode === typeCode &&
-        (!type || x.SectionID === type.SectionID)
-    );
-    const templateSelect = document.getElementById("selInspectionTemplate");
-    templateSelect.innerHTML = '<option value="">Pilih template...</option>' +
-        templates.map(template =>
-            '<option value="' + escInspection(template.IDTemplate) + '">' +
-            escInspection(template.TemplateNo + " - " + template.TemplateName + " (v" + template.Version + ")") +
-            '</option>'
-        ).join("");
-    templateSelect.disabled = !detailCode || templates.length === 0;
+    refreshInspectionDetailAvailability();
     updateStartButton();
     refreshInspectionScheduleOptions();
 }
