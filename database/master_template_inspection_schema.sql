@@ -71,7 +71,12 @@ END;
 IF COL_LENGTH('dbo.PIP_M_CheckListWOPM', 'InspectionTypeDetailCode') IS NULL
 BEGIN
     ALTER TABLE dbo.PIP_M_CheckListWOPM
-    ADD InspectionTypeDetailCode VARCHAR(20) NULL;
+    ADD InspectionTypeDetailCode VARCHAR(500) NULL;
+END
+ELSE
+BEGIN
+    ALTER TABLE dbo.PIP_M_CheckListWOPM
+    ALTER COLUMN InspectionTypeDetailCode VARCHAR(500) NULL;
 END;
 
 IF COL_LENGTH('dbo.PIP_M_CheckListWOPM', 'CompanyScope') IS NULL
