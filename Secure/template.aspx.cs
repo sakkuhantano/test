@@ -286,6 +286,7 @@ SELECT a.IDTemplate,
        a.SectionID,
        a.TemplateType,
        a.InspectionTypeCode,
+       ISNULL(a.InspectionTypeDetailCode,'') InspectionTypeDetailCode,
        a.CompanyScope,
        HasActiveVersion = CAST(
            CASE WHEN EXISTS (
@@ -340,6 +341,7 @@ WHERE a.SectionID = @SectionID
                     TemplateType = GF.GetString(row["TemplateType"]) == ""
                         ? "W" : GF.GetString(row["TemplateType"]),
                     InspectionTypeCode = GF.GetString(row["InspectionTypeCode"]),
+                    InspectionTypeDetailCode = GF.GetString(row["InspectionTypeDetailCode"]),
                     CompanyScope = GF.GetString(row["CompanyScope"]) == ""
                         ? "S" : GF.GetString(row["CompanyScope"]),
                     IsActive = Convert.ToBoolean(row.Field<Boolean>("IsActive")),
@@ -940,7 +942,29 @@ ORDER BY InspectionTypeName",
         }
 
         [WebMethod]
-        public static object SaveTemplateMetadata(string idTemplate, string templateType, string inspectionTypeCode, string companyScope, string updateUser, string companyId, string locationId)
+        public static object GetInspectionTypeDetails(string inspectionTypeCode)
+        {
+            inspectionTypeCode = (inspectionTypeCode ?? "").Trim().ToUpperInvariant();
+            using (var br = new WAL.BR.CF())
+            {
+                DataTable dt = br.EQuery(@"
+SELECT InspectionTypeDetailCode, InspectionTypeDetailName
+FROM dbo.PIP_M_InspectionTypeDetail
+WHERE InspectionTypeCode=@InspectionTypeCode AND IsActive=1
+ORDER BY InspectionTypeDetailName, InspectionTypeDetailCode",
+                    "@InspectionTypeCode=" + inspectionTypeCode);
+                var rows = dt.AsEnumerable().Select(row => new
+                {
+                    InspectionTypeDetailCode = GF.GetString(row["InspectionTypeDetailCode"]),
+                    InspectionTypeDetailName = GF.GetString(row["InspectionTypeDetailName"])
+                }).ToList();
+                JavaScriptSerializer serializer = new JavaScriptSerializer();
+                return serializer.Serialize(rows);
+            }
+        }
+
+        [WebMethod]
+        public static object SaveTemplateMetadata(string idTemplate, string templateType, string inspectionTypeCode, string inspectionTypeDetailCode, string companyScope, string updateUser, string companyId, string locationId)
         {
             int id;
             if (!Int32.TryParse(idTemplate, out id) || id <= 0)
@@ -949,6 +973,7 @@ ORDER BY InspectionTypeName",
             templateType = (templateType ?? "W").Trim().ToUpperInvariant();
             companyScope = (companyScope ?? "S").Trim().ToUpperInvariant();
             inspectionTypeCode = (inspectionTypeCode ?? "").Trim().ToUpperInvariant();
+            inspectionTypeDetailCode = (inspectionTypeDetailCode ?? "").Trim().ToUpperInvariant();
 
             if (templateType != "W" && templateType != "I")
                 return new { success = false, message = "Invalid template type." };
@@ -957,16 +982,26 @@ ORDER BY InspectionTypeName",
             if (templateType == "I" && inspectionTypeCode.Length == 0)
                 return new { success = false, message = "Inspection Type is required for an Inspection template." };
             if (templateType == "W")
+            {
                 inspectionTypeCode = "";
+                inspectionTypeDetailCode = "";
+            }
+            if (inspectionTypeDetailCode.Length > 20)
+                return new { success = false, message = "Inspection Detail code is too long." };
 
             using (var br = new WAL.BR.CF())
             {
                 DataTable dt = br.EQuery(@"
 SELECT T.IDTemplate, T.SectionID, T.CompanyID, T.LocationID,
-       InspectionSectionID=I.SectionID
+       InspectionSectionID=I.SectionID,
+       InspectionDetailCode=D.InspectionTypeDetailCode
 FROM dbo.PIP_M_CheckListWOPM T
 LEFT JOIN dbo.PIP_M_InspectionType I
   ON I.InspectionTypeCode=@InspectionTypeCode AND I.IsActive=1
+LEFT JOIN dbo.PIP_M_InspectionTypeDetail D
+  ON D.InspectionTypeCode=@InspectionTypeCode
+ AND D.InspectionTypeDetailCode=@InspectionTypeDetailCode
+ AND D.IsActive=1
 WHERE T.IDTemplate=@IDTemplate
   AND (
        EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation CurrentPermission
@@ -987,6 +1022,7 @@ WHERE T.IDTemplate=@IDTemplate
   )",
                     "@IDTemplate=" + id + GF.Str2 +
                     "@InspectionTypeCode=" + inspectionTypeCode + GF.Str2 +
+                    "@InspectionTypeDetailCode=" + inspectionTypeDetailCode + GF.Str2 +
                     "@CompanyID=" + companyId + GF.Str2 + "@LocationID=" + locationId + GF.Str2 +
                     "@UpdateUser=" + updateUser);
                 if (dt.Rows.Count == 0)
@@ -997,6 +1033,8 @@ WHERE T.IDTemplate=@IDTemplate
                     (row["InspectionSectionID"] == DBNull.Value ||
                      !String.Equals(GF.GetString(row["SectionID"]), GF.GetString(row["InspectionSectionID"]), StringComparison.OrdinalIgnoreCase)))
                     return new { success = false, message = "Inspection Type must belong to the same Section as the selected root." };
+                if (templateType == "I" && inspectionTypeDetailCode.Length > 0 && row["InspectionDetailCode"] == DBNull.Value)
+                    return new { success = false, message = "Inspection Detail must be active and belong to the selected Inspection Type." };
 
                 br.EQuery(@"
 SET XACT_ABORT ON;
@@ -1004,6 +1042,7 @@ BEGIN TRANSACTION;
 UPDATE dbo.PIP_M_CheckListWOPM
 SET TemplateType=@TemplateType,
     InspectionTypeCode=@InspectionTypeCode,
+    InspectionTypeDetailCode=@InspectionTypeDetailCode,
     CompanyScope=@CompanyScope,
     UpdateUser=@UpdateUser,
     UpdateDate=GETDATE()
@@ -1031,6 +1070,7 @@ END;
 COMMIT TRANSACTION;",
                     "@TemplateType=" + templateType + GF.Str2 +
                     "@InspectionTypeCode=" + inspectionTypeCode + GF.Str2 +
+                    "@InspectionTypeDetailCode=" + inspectionTypeDetailCode + GF.Str2 +
                     "@CompanyScope=" + companyScope + GF.Str2 +
                     "@UpdateUser=" + updateUser + GF.Str2 +
                     "@IDTemplate=" + id + GF.Str2 +
