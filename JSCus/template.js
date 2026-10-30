@@ -5950,19 +5950,28 @@ async function refreshInspectionDetailDropdown(template)
     const select = document.getElementById("propInspectionDetail");
     if (!select || !template) return;
     const typeCode = template.InspectionTypeCode || "";
-    const selectedCode = template.InspectionTypeDetailCode || "";
+    const selectedCodes = String(template.InspectionTypeDetailCode || "").split(";").map(x => x.trim()).filter(Boolean);
+    const selectedSet = new Set(selectedCodes);
     select.disabled = isReadonlyMode || !typeCode;
-    select.innerHTML = '<option value="">-- All Inspection Details --</option>';
+    select.multiple = true;
+    select.size = 6;
+    select.innerHTML = "";
     if (!typeCode) return;
     try {
         const raw = await promisifyPageMethod(PageMethods.GetInspectionTypeDetails, typeCode);
         const details = JSON.parse(raw || "[]");
         details.forEach(function(item) {
-            select.add(new Option(item.InspectionTypeDetailCode + " - " + item.InspectionTypeDetailName, item.InspectionTypeDetailCode));
+            const option = new Option(item.InspectionTypeDetailCode + " - " + item.InspectionTypeDetailName, item.InspectionTypeDetailCode);
+            option.selected = selectedSet.has(String(item.InspectionTypeDetailCode));
+            select.add(option);
         });
-        if (selectedCode && !details.some(function(x) { return x.InspectionTypeDetailCode === selectedCode; }))
-            select.add(new Option(selectedCode + " (inactive/unavailable)", selectedCode));
-        select.value = selectedCode;
+        selectedCodes.forEach(function(code) {
+            if (!details.some(function(x) { return String(x.InspectionTypeDetailCode) === code; })) {
+                const option = new Option(code + " (inactive/unavailable)", code);
+                option.selected = true;
+                select.add(option);
+            }
+        });
     } catch (ex) {
         select.innerHTML = '<option value="">Failed to load inspection details</option>';
         console.error(ex);
@@ -6113,9 +6122,9 @@ async function appendTemplateMetadataControls(template)
                     '<div class="form-text">Filtered by SectionID ' + escapeHtml(template.SectionID || '') + '.</div>' +
                 '</div>' +
                 '<div class="mb-3" id="inspectionDetailField" style="display:none;">' +
-                    '<label class="form-label">Inspection Detail <span class="text-muted">(optional)</span></label>' +
-                    '<select id="propInspectionDetail" class="form-select form-select-compact" ' + (isReadonlyMode ? 'disabled' : '') + '><option value="">-- All Inspection Details --</option></select>' +
-                    '<div class="form-text">Kosongkan untuk mengizinkan semua detail pada Inspection Type ini.</div>' +
+                    '<label class="form-label">Inspection Detail <span class="text-muted">(optional, multiple)</span></label>' +
+                    '<select id="propInspectionDetail" class="form-select form-select-compact" multiple size="6" ' + (isReadonlyMode ? 'disabled' : '') + '></select>' +
+                    '<div class="form-text">Pilih satu atau beberapa detail. Tidak ada pilihan = semua detail. Kode disimpan dipisahkan dengan semicolon (;).</div>' +
                 '</div>' +
                 '<div class="mb-3">' +
                     '<label class="form-label">Company Scope</label>' +
@@ -6179,7 +6188,10 @@ async function appendTemplateMetadataControls(template)
     });
 
     inspectionDetailSelect.addEventListener('change', function() {
-        template.InspectionTypeDetailCode = this.value || '';
+        template.InspectionTypeDetailCode = Array.from(this.selectedOptions)
+            .map(option => option.value)
+            .filter(Boolean)
+            .join(';');
         markMetadataDirty();
     });
 
