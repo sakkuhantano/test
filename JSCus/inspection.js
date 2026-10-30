@@ -79,9 +79,27 @@ document.addEventListener("DOMContentLoaded", async function () {
         document.getElementById("txtInspectionDate").setAttribute("aria-readonly", "true");
         wireInspectionEvents();
         await loadInspectionCache();
-        // Sync may pull a supervisor-voided transaction back into the technician's Draft list.
-        window.addEventListener("syncCompleted", function () {
-            refreshSavedInspectionList().catch(err => console.error("Unable to refresh inspections after sync:", err));
+
+        // Populate the cross-device server slot cache as soon as the Inspection page opens.
+        // Offline users continue with the local cache; online users see slots used by other technicians.
+        if (navigator.onLine && typeof downloadTodayInspectionSlots === "function") {
+            try {
+                await downloadTodayInspectionSlots();
+            } catch (scheduleError) {
+                console.warn("Initial Inspection slot refresh failed:", scheduleError);
+            }
+        }
+
+        // Sync may add/remove server transactions; refresh the shared slot cache before repainting the list.
+        window.addEventListener("syncCompleted", async function () {
+            try {
+                if (navigator.onLine && typeof downloadTodayInspectionSlots === "function") {
+                    await downloadTodayInspectionSlots();
+                }
+                await refreshSavedInspectionList();
+            } catch (err) {
+                console.error("Unable to refresh inspections after sync:", err);
+            }
         });
         await refreshSavedInspectionList();
 
