@@ -148,7 +148,7 @@ namespace Web
                         return new { success = false, message = "Portal login ticket does not contain valid user credentials." };
 
                     DataTable dtUser = oUser.EQuery(
-                        @"SELECT TOP 1 UserID
+                        @"SELECT TOP 2 UserID
                           FROM UTL_User
                           WHERE EmployeeID = @EmployeeID
                             AND [Password] = @Password
