@@ -165,7 +165,7 @@ namespace Web
             }
             catch (Exception ex)
             {
-                return new { success = false, message = "Portal login failed: " + ex.Message };
+                return new { success = false, message = "Portal login could not be completed." };
             }
         }
 
@@ -244,6 +244,7 @@ VALUES (ISNULL((SELECT MAX(ID) FROM UserSession),0)+1, @UserID, @BrowserGuid, @S
                                 token = v_token,
                                 serverguid = v_serverguid,
                                 companylist = _arrList,
+                                userid = p_userid,
                                 username = v_username,
                                 curcompany = v_currcompany,
                                 curcompanyname = v_currcompanyname,
