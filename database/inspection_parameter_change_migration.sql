@@ -326,8 +326,16 @@ BEGIN
         RETURN;
     END;
 
+    /* EQueryP may already own a transaction. Use a savepoint when nested so this
+       procedure never rolls back the caller's transaction on a handled conflict. */
+    DECLARE @V_EntryTranCount INT;
+    SET @V_EntryTranCount = @@TRANCOUNT;
+
     BEGIN TRY
-        BEGIN TRANSACTION;
+        IF @V_EntryTranCount = 0
+            BEGIN TRANSACTION;
+        ELSE
+            SAVE TRANSACTION InspectionSyncSave;
 
         /* One scheduled inspection per company/location, section, date, type, detail, time, and template.
            ClientInspectionID is excluded so syncing an existing offline record remains an update. */
@@ -516,7 +524,9 @@ BEGIN
                CAST(ISNULL(NULLIF(P.C4,''),'0') AS INT), @p_UpdateUser, GETDATE()
         FROM PhotoRows P;
 
-        COMMIT TRANSACTION;
+        IF @V_EntryTranCount = 0
+            COMMIT TRANSACTION;
+
         SELECT @V_InspectionID AS InspectionID,
                @p_ClientInspectionID AS ClientInspectionID,
                InspectionNo
@@ -524,7 +534,16 @@ BEGIN
         WHERE InspectionID=@V_InspectionID;
     END TRY
     BEGIN CATCH
-        IF XACT_STATE() <> 0 ROLLBACK TRANSACTION;
+        IF XACT_STATE() = 1
+        BEGIN
+            IF @V_EntryTranCount = 0
+                ROLLBACK TRANSACTION;
+            ELSE
+                ROLLBACK TRANSACTION InspectionSyncSave;
+        END
+        ELSE IF XACT_STATE() = -1 AND @V_EntryTranCount = 0
+            ROLLBACK TRANSACTION;
+
         DECLARE @V_ErrorMessage NVARCHAR(4000);
         DECLARE @V_ErrorSeverity INT;
         DECLARE @V_ErrorState INT;
