@@ -851,7 +851,8 @@ async function renderInspectionForm(record, readOnly) {
     populateInspectionParameters(record);
     showInspectionEditorTab("checklist");
     const canDeleteVoidedInspection = isVoidedServerRecord;
-    const canDeleteDraft = canDeleteVoidedInspection || (!currentInspectionReadOnly &&
+    const canDeleteConflictInspection = record.SyncStatus === "CONFLICT";
+    const canDeleteDraft = canDeleteVoidedInspection || canDeleteConflictInspection || (!currentInspectionReadOnly &&
         record.Status === "DRAFT" && record.SyncStatus !== "SYNCED" &&
         record.SyncStatus !== "CONFLICT" && record.SyncStatus !== "DELETE_PENDING" &&
         inspectionRecords.some(item => item.LocalInspectionID === record.LocalInspectionID));
