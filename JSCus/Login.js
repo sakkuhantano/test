@@ -13,13 +13,21 @@ document.addEventListener('DOMContentLoaded', function() {
     txt_Login_UserID.focus();
 });
 
-window.addEventListener("load",async function () {
+window.addEventListener("load", async function () {
+    // Portal-selected identity takes precedence over a cached UTL1 session.
+    var infoID = new URLSearchParams(window.location.search).get("InfoID");
+    if (infoID) {
+        window.history.replaceState({}, document.title, window.location.pathname);
+        F_LoginByPortal(infoID);
+        return;
+    }
+
     var data = getLoginData();
     if (data) {
-		var success = await validateSession(data.browserGuid, data.serverGuid, data.token);
-		if (success) {
-			window.location.href = "Secure/dashboard.aspx";
-		}
+        var success = await validateSession(data.browserGuid, data.serverGuid, data.token);
+        if (success) {
+            window.location.href = "Secure/dashboard.aspx";
+        }
         //await getEmployees();
     }
 });
@@ -62,6 +70,68 @@ passwordInput.addEventListener('keydown', function (e) {
         F_Login();
     }
 });
+
+
+ // Login from the main portal using its one-time SysWebInfo ticket.
+function F_LoginByPortal(infoID) {
+    loginButton.classList.add('btn-loading');
+    loginButton.disabled = true;
+    var browserGuid = generateGUID();
+    var deviceName = navigator.userAgent;
+
+    fetch('Login.aspx/F_LoginByInfoID', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            infoID: infoID,
+            p_browserGuid: browserGuid,
+            p_deviceName: deviceName
+        })
+    })
+    .then(response => response.json())
+    .then(async result => {
+        const data = result.d;
+        if (data.success) {
+            var obj = {
+                userid: data.userid || "",
+                browserGuid: browserGuid,
+                serverGuid: data.serverguid,
+                token: data.token,
+                username: data.username,
+                curcompany: data.curcompany,
+                companylist: data.companylist,
+                curcompanyname: data.curcompanyname,
+                employeeid: data.employeeid,
+                role: data.role,
+                jobtitle: data.jobtitle,
+                email: data.email,
+                profitcenter: data.profitcenter,
+                theme: data.theme,
+                section: data.section,
+                lastsyncw: "",
+                lastMeterPeriod: "",
+                lastMeterSync: "1900-01-02"
+            };
+            setLoginData(obj);
+            await initIndexedDB();
+            await saveCompanyList(data.companylist);
+            if (data.curcompany) {
+                const parts = data.curcompany.split(';');
+                if (parts.length === 2) await setLastSyncData(parts[0], parts[1]);
+            }
+            showToast(data.message || "Login successful");
+            window.location.href = "Secure/dashboard.aspx";
+        } else {
+            showToast(data.message || "Portal login failed", 'error');
+            F_PS();
+        }
+    })
+    .catch(err => {
+        console.error(err);
+        showToast('Server error, try again', 'error');
+        F_PS();
+    });
+}
 
 // Login Button Handler
 loginButton.addEventListener('click', function() {
