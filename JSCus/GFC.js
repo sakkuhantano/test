@@ -1321,8 +1321,13 @@ async function uploadPendingInspections() {
             const store = tx.objectStore("inspection_records");
             ownedRecords.filter(record => conflicts.some(x => x.ClientInspectionID === record.LocalInspectionID)).forEach(record => {
                 const outcome = conflicts.find(x => x.ClientInspectionID === record.LocalInspectionID);
+                const technicalReason = outcome ? (outcome.message || "Server menolak transaksi ini.") : "Server menolak transaksi ini.";
+                const lowerReason = technicalReason.toLowerCase();
                 record.SyncStatus = "CONFLICT";
-                record.ConflictReason = outcome ? (outcome.message || "Server menolak transaksi ini.") : "Server menolak transaksi ini.";
+                record.ConflictTechnicalReason = technicalReason;
+                record.ConflictReason = /already exists|duplicate|another inspection/.test(lowerReason)
+                    ? "Jadwal inspeksi yang sama sudah tercatat di server. Periksa data inspeksi yang sudah ada sebelum mencoba mengirim ulang."
+                    : "Inspeksi belum dapat dikirim karena data tidak sesuai dengan kondisi di server. Silakan periksa kembali atau hubungi supervisor.";
                 record.LastSyncAt = new Date().toISOString();
                 store.put(record);
             });
