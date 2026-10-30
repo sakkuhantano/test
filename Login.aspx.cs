@@ -135,7 +135,6 @@ namespace Web
                           WHERE ID = @InfoID
                             AND Type = 'LinkApp'
                             AND AppID = 'WebApp'
-                            AND DBName = 'MULIA'
                             AND ExpiredDate > GETDATE()",
                         "@InfoID=" + infoID);
 
