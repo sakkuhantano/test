@@ -837,19 +837,17 @@ async function renderInspectionForm(record, readOnly) {
     document.getElementById("btnDeleteInspectionDraft").classList.toggle("d-none", !canDeleteDraft);
     document.getElementById("btnSaveInspectionDraft").classList.toggle("d-none", currentInspectionReadOnly);
     document.getElementById("btnCompleteInspection").classList.toggle("d-none", currentInspectionReadOnly);
-    document.getElementById("inspectionFormTitle").textContent =
-        record.InspectionTypeName + " — " + record.InspectionTypeDetailName;
     const transactionNo = record.InspectionNo
         ? record.InspectionNo
         : "TEMP-" + String(record.LocalInspectionID || "").replace(/-/g, "").substring(0, 8).toUpperCase();
     const startTime = formatInspectionClock(record.StartDateTime);
     const endTime = formatInspectionClock(record.EndDateTime);
-    document.getElementById("inspectionFormSubtitle").textContent =
-        "No. " + transactionNo + "\n" +
-        record.TemplateNo + " / v" + record.TemplateVersion +
-        " • Jadwal " + (record.ScheduledTime || "-") +
-        " • " + formatInspectionDateDMY(record.InspectionDate) + "\n" +
-        startTime + " - " + endTime;
+    setInspectionFormHeader(transactionNo, [
+        (record.InspectionTypeName || "Inspection") + " — " + (record.InspectionTypeDetailName || ""),
+        (record.TemplateNo || "-") + " / v" + (record.TemplateVersion || "-"),
+        "Jadwal " + (record.ScheduledTime || "-") + " • " + (formatInspectionDateDMY(record.InspectionDate) || "-"),
+        startTime + " - " + endTime
+    ]);
     document.getElementById("txtInspectionSummary").value = record.Summary || "";
     const followUpValue = record.FollowUp === "Recommend Follow Up" ? "Recommend Follow Up" : "No Follow Up";
     const existingFollowUpWONo = String(record.FollowUpWONo || "").trim();
@@ -1786,11 +1784,12 @@ async function openServerSubmittedInspection(inspectionId) {
         document.getElementById("btnDeleteInspectionDraft").classList.add("d-none");
         document.getElementById("btnSaveInspectionDraft").classList.add("d-none");
         document.getElementById("btnCompleteInspection").classList.add("d-none");
-        document.getElementById("inspectionFormTitle").textContent =
-            (h.InspectionTypeName || "Inspection") + " — " + (h.InspectionTypeDetailName || "");
-        document.getElementById("inspectionFormSubtitle").textContent =
-            "No. " + (h.InspectionNo || inspectionId) + " • " + formatInspectionDateDMY(h.InspectionDate) +
-            " • " + (h.ScheduledTime || "-") + "\n" + formatInspectionClock(h.StartDateTime) + " - " + formatInspectionClock(h.EndDateTime);
+        setInspectionFormHeader(h.InspectionNo || ("Inspection #" + inspectionId), [
+            (h.InspectionTypeName || "Inspection") + " — " + (h.InspectionTypeDetailName || ""),
+            (h.TemplateNo || "-") + " / v" + (h.TemplateVersion || "-"),
+            "Jadwal " + (h.ScheduledTime || "-") + " • " + (formatInspectionDateDMY(h.InspectionDate) || "-"),
+            formatInspectionClock(h.StartDateTime) + " - " + formatInspectionClock(h.EndDateTime)
+        ]);
         document.getElementById("txtInspectionSummary").value = h.Summary || "";
         document.getElementById("txtInspectionSummary").readOnly = true;
         document.querySelectorAll('input[name="inspectionFollowUp"]').forEach(input => {
@@ -1994,6 +1993,27 @@ function updateInspectionParameterTabGate() {
     button.setAttribute("aria-disabled", complete ? "false" : "true");
     button.title = complete ? "" : "Lengkapi semua parameter inspeksi terlebih dahulu.";
 }
+function setInspectionFormHeader(transactionNo, infoLines) {
+    const title = document.getElementById("inspectionFormTitle");
+    const infoButton = document.getElementById("btnInspectionFormInfo");
+    if (title) title.textContent = transactionNo || "Inspection";
+    if (!infoButton || !window.bootstrap || !bootstrap.Popover) return;
+    const existing = bootstrap.Popover.getInstance(infoButton);
+    if (existing) existing.dispose();
+    const content = (infoLines || []).filter(Boolean).map(line =>
+        '<div class="mb-1">' + escInspection(line) + '</div>'
+    ).join("");
+    infoButton.disabled = !content;
+    if (!content) return;
+    bootstrap.Popover.getOrCreateInstance(infoButton, {
+        container: "body",
+        trigger: "focus",
+        placement: "bottom",
+        html: true,
+        content: content
+    });
+}
+
 function populateInspectionParameters(record) {
     const typeSelect = document.getElementById("selInspectionType");
     typeSelect.value = record.InspectionTypeCode || "";
