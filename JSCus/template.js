@@ -5945,35 +5945,74 @@ async function refreshInspectionTypeDropdown(template)
         console.error(ex);
     }
 }
-async function refreshInspectionDetailDropdown(template)
-{
+function getTemplateInspectionDetailCodes(template) {
+    return String(template && template.InspectionTypeDetailCode || "")
+        .split(";").map(code => code.trim()).filter(Boolean);
+}
+
+function renderTemplateInspectionDetailTags(template, details) {
+    const host = document.getElementById("propInspectionDetailTags");
+    if (!host) return;
+    const selectedCodes = getTemplateInspectionDetailCodes(template);
+    const detailMap = new Map((details || []).map(item => [
+        String(item.InspectionTypeDetailCode),
+        String(item.InspectionTypeDetailName || "")
+    ]));
+    host.innerHTML = "";
+    if (!selectedCodes.length) {
+        host.innerHTML = '<span class="text-muted small">Semua Inspection Detail diperbolehkan.</span>';
+        return;
+    }
+    selectedCodes.forEach(function(code) {
+        const tag = document.createElement("span");
+        tag.className = "badge rounded-pill bg-primary-subtle text-primary border d-inline-flex align-items-center gap-2 px-3 py-2";
+        const label = document.createElement("span");
+        label.textContent = detailMap.has(code) ? code + " - " + detailMap.get(code) : code + " (inactive/unavailable)";
+        tag.appendChild(label);
+        if (!isReadonlyMode) {
+            const remove = document.createElement("button");
+            remove.type = "button";
+            remove.className = "btn-close";
+            remove.setAttribute("aria-label", "Remove " + code);
+            remove.style.fontSize = ".55rem";
+            remove.addEventListener("click", function() {
+                const remaining = getTemplateInspectionDetailCodes(template).filter(x => x !== code);
+                template.InspectionTypeDetailCode = remaining.join(";");
+                template.MetadataDirty = true;
+                templateCache.Dirty = true;
+                refreshInspectionDetailDropdown(template);
+            });
+            tag.appendChild(remove);
+        }
+        host.appendChild(tag);
+    });
+}
+
+async function refreshInspectionDetailDropdown(template) {
     const select = document.getElementById("propInspectionDetail");
     if (!select || !template) return;
     const typeCode = template.InspectionTypeCode || "";
-    const selectedCodes = String(template.InspectionTypeDetailCode || "").split(";").map(x => x.trim()).filter(Boolean);
-    const selectedSet = new Set(selectedCodes);
+    const selectedCodes = getTemplateInspectionDetailCodes(template);
     select.disabled = isReadonlyMode || !typeCode;
-    select.multiple = true;
-    select.size = 6;
-    select.innerHTML = "";
-    if (!typeCode) return;
+    select.innerHTML = '<option value="">-- Select Inspection Detail --</option>';
+    const addButton = document.getElementById("btnAddInspectionDetail");
+    if (addButton) addButton.disabled = isReadonlyMode || !typeCode;
+    if (!typeCode) {
+        renderTemplateInspectionDetailTags(template, []);
+        return;
+    }
     try {
         const raw = await promisifyPageMethod(PageMethods.GetInspectionTypeDetails, typeCode);
         const details = JSON.parse(raw || "[]");
         details.forEach(function(item) {
-            const option = new Option(item.InspectionTypeDetailCode + " - " + item.InspectionTypeDetailName, item.InspectionTypeDetailCode);
-            option.selected = selectedSet.has(String(item.InspectionTypeDetailCode));
-            select.add(option);
+            const code = String(item.InspectionTypeDetailCode);
+            if (selectedCodes.indexOf(code) >= 0) return;
+            select.add(new Option(code + " - " + item.InspectionTypeDetailName, code));
         });
-        selectedCodes.forEach(function(code) {
-            if (!details.some(function(x) { return String(x.InspectionTypeDetailCode) === code; })) {
-                const option = new Option(code + " (inactive/unavailable)", code);
-                option.selected = true;
-                select.add(option);
-            }
-        });
+        renderTemplateInspectionDetailTags(template, details);
     } catch (ex) {
         select.innerHTML = '<option value="">Failed to load inspection details</option>';
+        renderTemplateInspectionDetailTags(template, []);
         console.error(ex);
     }
 }
@@ -6123,8 +6162,12 @@ async function appendTemplateMetadataControls(template)
                 '</div>' +
                 '<div class="mb-3" id="inspectionDetailField" style="display:none;">' +
                     '<label class="form-label">Inspection Detail <span class="text-muted">(optional, multiple)</span></label>' +
-                    '<select id="propInspectionDetail" class="form-select form-select-compact" multiple size="6" ' + (isReadonlyMode ? 'disabled' : '') + '></select>' +
-                    '<div class="form-text">Pilih satu atau beberapa detail. Tidak ada pilihan = semua detail. Kode disimpan dipisahkan dengan semicolon (;).</div>' +
+                    '<div id="propInspectionDetailTags" class="d-flex flex-wrap gap-2 border rounded p-2 mb-2" style="min-height:42px;"></div>' +
+                    '<div class="input-group input-group-sm">' +
+                        '<select id="propInspectionDetail" class="form-select form-select-compact" ' + (isReadonlyMode ? 'disabled' : '') + '><option value="">-- Select Inspection Detail --</option></select>' +
+                        '<button type="button" id="btnAddInspectionDetail" class="btn btn-outline-primary" ' + (isReadonlyMode ? 'disabled' : '') + '>Add</button>' +
+                    '</div>' +
+                    '<div class="form-text">Pilih detail lalu klik Add. Klik × pada tag untuk menghapus. Tidak ada tag = semua detail. Kode disimpan dipisahkan dengan semicolon (;).</div>' +
                 '</div>' +
                 '<div class="mb-3">' +
                     '<label class="form-label">Company Scope</label>' +
@@ -6187,12 +6230,15 @@ async function appendTemplateMetadataControls(template)
         await refreshInspectionDetailDropdown(template);
     });
 
-    inspectionDetailSelect.addEventListener('change', function() {
-        template.InspectionTypeDetailCode = Array.from(this.selectedOptions)
-            .map(option => option.value)
-            .filter(Boolean)
-            .join(';');
+    document.getElementById('btnAddInspectionDetail').addEventListener('click', function() {
+        const code = inspectionDetailSelect.value;
+        if (!code) return;
+        const selected = getTemplateInspectionDetailCodes(template);
+        if (selected.indexOf(code) >= 0) return;
+        selected.push(code);
+        template.InspectionTypeDetailCode = selected.join(';');
         markMetadataDirty();
+        refreshInspectionDetailDropdown(template);
     });
 
     // Reload the eligible employee list whenever the Employees tab is opened,
