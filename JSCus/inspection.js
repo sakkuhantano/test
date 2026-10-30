@@ -391,71 +391,74 @@ function onInspectionDetailChanged() {
 function refreshInspectionScheduleOptions() {
     const select = document.getElementById("selInspectionDetail");
     const typeCode = document.getElementById("selInspectionType").value;
+    const type = inspectionTypes.find(x => String(x.InspectionTypeCode || "") === String(typeCode || ""));
     const templateId = Number(document.getElementById("selInspectionTemplate").value);
     const selectedDate = document.getElementById("txtInspectionDate").value || localDateString(new Date());
     const today = localDateString(new Date());
     let emptyCount = 0;
     let slotCount = 0;
+    let occupiedCount = 0;
+
     Array.from(select.options).forEach(option => {
         if (!option.value) return;
+
+        // Re-evaluate every time the template/date/type changes. Do not leave a stale
+        // disabled state from a previous selection.
+        option.disabled = false;
+
         const parts = option.value.split("|");
         const detailCode = parts[0] || "";
         const time = parts[1] || "";
-        const detail = inspectionDetails.find(x => x.InspectionTypeCode === typeCode &&
-            x.InspectionTypeDetailCode === detailCode);
+        const detail = inspectionDetails.find(x =>
+            String(x.InspectionTypeCode || "") === String(typeCode || "") &&
+            String(x.InspectionTypeDetailCode || "") === String(detailCode || "")
+        );
         const baseLabel = detail
             ? (time ? detail.InspectionTypeDetailName + " • " + time : detail.InspectionTypeDetailName)
             : (time ? option.textContent.split(" • ")[0] + " • " + time : option.textContent);
-        if (!time) {
-            if (!templateId || selectedDate !== today) {
-                option.textContent = baseLabel;
-                return;
-            }
-            const noTimeMatches = record =>
-                parseInspectionDate(record.InspectionDate) === selectedDate &&
-                record.CompanyID === inspectionCompanyID &&
-                record.LocationID === inspectionLocationID &&
-                record.SectionID === (inspectionTypes.find(x => x.InspectionTypeCode === typeCode) || {}).SectionID &&
-                record.InspectionTypeCode === typeCode &&
-                record.InspectionTypeDetailCode === detailCode &&
-                !String(record.ScheduledTime || "") &&
-                Number(record.IDTemplate) === templateId;
-            const noTimeLocal = inspectionRecords.find(noTimeMatches);
-            const noTimeServer = serverSlotRecords.find(noTimeMatches);
-            option.textContent = baseLabel + ((noTimeLocal || noTimeServer) ? " • TERISI" : " • TANPA JADWAL");
-            return;
-        }
-        if (!templateId || selectedDate !== today) {
-            // Keep each dropdown option focused on the detail/time label.
-            // Template/slot guidance belongs in the hint area, not repeated on every option.
+
+        // The slot key is the complete business key: date + company/location +
+        // section + template + inspection type + detail + scheduled time.
+        const matchesKey = record =>
+            parseInspectionDate(record.InspectionDate) === selectedDate &&
+            String(record.CompanyID || "") === String(inspectionCompanyID || "") &&
+            String(record.LocationID || "") === String(inspectionLocationID || "") &&
+            String(record.SectionID || "") === String(type ? type.SectionID : "") &&
+            String(record.InspectionTypeCode || "") === String(typeCode || "") &&
+            String(record.InspectionTypeDetailCode || "") === String(detailCode || "") &&
+            String(record.ScheduledTime || "") === String(time || "") &&
+            Number(record.IDTemplate) === templateId;
+
+        if (!templateId || !type || selectedDate !== today) {
             option.textContent = baseLabel;
             return;
         }
-        const matchesKey = record =>
-            parseInspectionDate(record.InspectionDate) === selectedDate &&
-            record.CompanyID === inspectionCompanyID &&
-            record.LocationID === inspectionLocationID &&
-            record.SectionID === (inspectionTypes.find(x => x.InspectionTypeCode === typeCode) || {}).SectionID &&
-            record.InspectionTypeCode === typeCode &&
-            record.InspectionTypeDetailCode === detailCode &&
-            String(record.ScheduledTime || "") === time &&
-            Number(record.IDTemplate) === templateId;
+
         const local = inspectionRecords.find(matchesKey);
         const server = serverSlotRecords.find(matchesKey);
         slotCount++;
-        if (local && (local.SyncStatus === "CONFLICT" || local.SyncStatus === "DELETE_PENDING")) {
-            option.textContent = baseLabel + " • KONFLIK";
-        } else if (local || server) {
-            option.textContent = baseLabel + " • TERISI";
+
+        if (local || server) {
+            option.disabled = true;
+            occupiedCount++;
+            if (local && (local.SyncStatus === "CONFLICT" || local.SyncStatus === "DELETE_PENDING")) {
+                option.textContent = baseLabel + " • KONFLIK";
+            } else if (server) {
+                option.textContent = baseLabel + " • SUDAH DIINSPEKSI" +
+                    (server.TechnicianName ? " (" + server.TechnicianName + ")" : "");
+            } else {
+                option.textContent = baseLabel + " • DRAFT DI PERANGKAT INI";
+            }
         } else {
-            option.textContent = baseLabel + " • KOSONG";
+            option.textContent = baseLabel + " • TERSEDIA";
             emptyCount++;
         }
     });
+
     const hint = document.getElementById("inspectionScheduleHint");
     if (hint && templateId && selectedDate === today) {
         hint.textContent = slotCount
-            ? emptyCount + " slot kosong dari " + slotCount + " jadwal hari ini untuk template yang dipilih."
+            ? emptyCount + " slot tersedia, " + occupiedCount + " sudah terisi/diinspeksi dari " + slotCount + " jadwal."
             : "Tidak ada jadwal waktu terkonfigurasi untuk detail ini.";
     }
 }
