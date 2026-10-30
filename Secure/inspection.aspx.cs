@@ -156,7 +156,11 @@ WHERE T.IDTemplate=@IDTemplate
   AND T.InspectionTypeCode=@InspectionTypeCode
   AND (
        ISNULL(T.InspectionTypeDetailCode,'')=''
-       OR T.InspectionTypeDetailCode=@InspectionTypeDetailCode
+       OR EXISTS (
+           SELECT 1
+           FROM dbo.SplitStringConvertToTable(T.InspectionTypeDetailCode, ';') AllowedDetail
+           WHERE LTRIM(RTRIM(AllowedDetail.val))=@InspectionTypeDetailCode
+       )
   )",
                             new SqlParameter[] {
                                 new SqlParameter("@IDTemplate", TokenInt(record, "IDTemplate")),
