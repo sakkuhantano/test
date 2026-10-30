@@ -315,13 +315,24 @@ SELECT ID FROM @AutoNumResult;",
                 {
                     System.Diagnostics.Trace.TraceError("SyncInspections failed at stage '{0}' for ClientInspectionID={1}, userId={2}: {3}",
                         syncStage, clientId, userId, ex.ToString());
+                    string userMessage;
+                    if (ex.Message.IndexOf("An inspection already exists for this date", StringComparison.OrdinalIgnoreCase) >= 0)
+                    {
+                        userMessage = "Jadwal inspeksi ini sudah memiliki data di server. Silakan periksa data inspeksi yang sudah tersimpan.";
+                    }
+                    else
+                    {
+                        // Keep technical details in the server log; do not expose them to technicians.
+                        userMessage = "Sinkronisasi belum berhasil. Silakan coba lagi. Jika masih terjadi, hubungi supervisor.";
+                    }
+
                     outcomes.Add(new
                     {
                         ClientInspectionID = clientId,
                         success = false,
                         InspectionID = 0,
                         InspectionNo = "",
-                        message = "Stage [" + syncStage + "]: " + ex.Message
+                        message = userMessage
                     });
                 }
             }
