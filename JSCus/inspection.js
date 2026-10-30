@@ -211,7 +211,7 @@ function wireInspectionEvents() {
             } else {
                 detailSelect.value = "";
             }
-            detailSelect.disabled = true;
+            detailSelect.disabled = pinnedDetailCodes.length === 1;
         } else {
             detailSelect.disabled = !this.value || details.length === 0;
             if (previousDetail && details.some(detail => String(detail.InspectionTypeDetailCode) === previousDetail))
