@@ -184,13 +184,15 @@ function wireInspectionEvents() {
         const typeCode = document.getElementById("selInspectionType").value;
         const selectedTemplate = inspectionTemplates.find(x => Number(x.IDTemplate) === Number(this.value));
         const pinnedDetailCodes = String(selectedTemplate && selectedTemplate.InspectionTypeDetailCode || "")
-            .split(";").map(x => x.trim()).filter(Boolean);
+            .split(";").map(x => x.trim().toUpperCase()).filter(Boolean)
+            .filter((code, index, all) => all.indexOf(code) === index);
+        const normalizeDetailCode = value => String(value || "").trim().toUpperCase();
         const pinnedDetailSet = new Set(pinnedDetailCodes);
         const details = inspectionDetails.filter(x =>
             x.InspectionTypeCode === typeCode &&
             x.CompanyID === inspectionCompanyID &&
             x.LocationID === inspectionLocationID &&
-            (!pinnedDetailSet.size || pinnedDetailSet.has(String(x.InspectionTypeDetailCode)))
+            (!pinnedDetailSet.size || pinnedDetailSet.has(normalizeDetailCode(x.InspectionTypeDetailCode)))
         );
         const detailSelect = document.getElementById("selInspectionDetail");
         const previousDetail = detailSelect.value;
@@ -200,13 +202,13 @@ function wireInspectionEvents() {
                 escInspection(detail.InspectionTypeDetailName) + '</option>'
             ).join("");
         pinnedDetailCodes.forEach(function(code) {
-            if (!details.some(detail => String(detail.InspectionTypeDetailCode) === code))
+            if (!details.some(detail => normalizeDetailCode(detail.InspectionTypeDetailCode) === code))
                 detailSelect.add(new Option(code + " (tidak tersedia di lokasi ini)", code));
         });
         if (pinnedDetailSet.size) {
             if (pinnedDetailCodes.length === 1) {
                 detailSelect.value = pinnedDetailCodes[0];
-            } else if (previousDetail && pinnedDetailSet.has(previousDetail)) {
+            } else if (previousDetail && pinnedDetailSet.has(normalizeDetailCode(previousDetail))) {
                 detailSelect.value = previousDetail;
             } else {
                 detailSelect.value = "";
@@ -214,10 +216,10 @@ function wireInspectionEvents() {
             detailSelect.disabled = pinnedDetailCodes.length === 1;
         } else {
             detailSelect.disabled = !this.value || details.length === 0;
-            if (previousDetail && details.some(detail => String(detail.InspectionTypeDetailCode) === previousDetail))
+            if (previousDetail && details.some(detail => normalizeDetailCode(detail.InspectionTypeDetailCode) === normalizeDetailCode(previousDetail)))
                 detailSelect.value = previousDetail;
         }
-        const selectedDetail = details.find(detail => detail.InspectionTypeDetailCode === detailSelect.value);
+        const selectedDetail = details.find(detail => normalizeDetailCode(detail.InspectionTypeDetailCode) === normalizeDetailCode(detailSelect.value));
         populateInspectionScheduleTimeOptions(selectedDetail);
         refreshInspectionDetailAvailability();
         updateStartButton();
