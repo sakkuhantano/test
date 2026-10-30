@@ -374,13 +374,17 @@
 
         <div class="inspection-step mb-3">
             <div class="fw-bold">2. Inspection Detail</div>
-            <div class="inspection-muted">Misalnya lantai, toilet pria/wanita, dan jadwal jam inspeksi.</div>
+            <div class="inspection-muted">Pilih lokasi atau objek yang akan diperiksa.</div>
         </div>
         <div class="mb-3">
             <label for="selInspectionDetail" class="form-label small fw-semibold">Inspection Detail</label>
             <select id="selInspectionDetail" class="form-select form-select-sm" disabled>
                 <option value="">Pilih detail...</option>
             </select>
+        </div>
+        <div class="inspection-step mb-3">
+            <div class="fw-bold">3. Schedule Time</div>
+            <div class="inspection-muted">Pilih jam sesuai jadwal detail. Jika tidak ada jadwal, bagian ini boleh kosong.</div>
         </div>
         <div class="mb-3">
             <label for="selInspectionScheduleTime" class="form-label small fw-semibold">Schedule Time</label>
@@ -391,7 +395,7 @@
         </div>
 
         <div class="inspection-step mb-3">
-            <div class="fw-bold">3. Template</div>
+            <div class="fw-bold">4. Template</div>
             <div class="inspection-muted">Hanya template Inspection yang sesuai Type dan Section.</div>
         </div>
         <div class="mb-3">
