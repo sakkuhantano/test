@@ -5969,7 +5969,7 @@ function renderTemplateInspectionDetailTags(template, details) {
         const tag = document.createElement("span");
         tag.className = "badge rounded-pill bg-primary-subtle text-primary border d-inline-flex align-items-center gap-2 px-3 py-2";
         const label = document.createElement("span");
-        label.textContent = detailMap.has(code) ? code + " - " + detailMap.get(code) : code + " (inactive/unavailable)";
+        label.textContent = code;
         tag.appendChild(label);
         {
             // Inspection Detail metadata remains editable even when the selected
