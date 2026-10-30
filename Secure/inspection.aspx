@@ -493,6 +493,6 @@
         </div>
         <div class="inspection-photo-viewer-footer"><span id="inspectionPhotoViewerCount">1 / 1</span><div class="small">Gunakan panah atau geser foto ke kiri/kanan</div></div>
     </div>
-<script type="text/javascript" src="../JSCus/inspection.js?v=20261030.1"></script>
-<script type="text/javascript" src="../JSCus/inspectionApprovalOffline.js?v=20261030.1"></script>
+<script type="text/javascript" src="../JSCus/inspection.js"></script>
+<script type="text/javascript" src="../JSCus/inspectionApprovalOffline.js"></script>
 </asp:Content>
