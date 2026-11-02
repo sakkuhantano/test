@@ -37,7 +37,8 @@ body {
     font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
     background-color: var(--surface-color);
     color: var(--on-surface);
-    overflow-x: hidden;
+    /* Keep horizontal clipping without creating an overflow scroll container that breaks position: sticky. */
+    overflow-x: clip;
     min-height: 100vh;
 }
 [data-bs-theme="dark"] body {
