@@ -646,7 +646,17 @@ async function getCheckList() {
         );
         let result = await response.json();
         if (!result) return;
-        let templates = result.d;
+        // Normalize the version-level photo rule before writing either WO template cache.
+        // getCheckList() is the Work Order (templateType W) download path.
+        let templates = (result.d || []).map(function (template) {
+            const photoRequirement = String(
+                template.PhotoRequirement || template.photoRequirement || "BOTH"
+            ).toUpperCase();
+            return Object.assign({}, template, {
+                PhotoRequirement: ["NONE", "BEFORE", "AFTER", "BOTH"].includes(photoRequirement)
+                    ? photoRequirement : "BOTH"
+            });
+        });
         //let sections = result.d.data.sections;
         //let items = result.d.data.items;
         //let groups = result.d.data.groups;
