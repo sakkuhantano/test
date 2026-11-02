@@ -61,6 +61,7 @@
     .inspection-saved-row:last-child { border-bottom: 0; }
     #inspectionChecklistHost input, #inspectionChecklistHost select, #inspectionChecklistHost textarea { min-height: 38px; }
     .inspection-editor-sticky { position: -webkit-sticky; position: sticky; top: 64px; z-index: 1025; background: var(--bs-body-bg); padding: .35rem 0 .4rem; border-bottom: 1px solid var(--bs-border-color); }
+    .inspection-editor-sticky-spacer { width: 100%; pointer-events: none; }
     /* Popovers are appended to body, so keep them above the sticky inspection header. */
     .popover { z-index: 1120 !important; }
     .inspection-form-header { padding-left: .55rem; }
