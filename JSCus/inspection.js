@@ -28,6 +28,7 @@ let inspectionFollowUpSections = [
 
 document.addEventListener("DOMContentLoaded", async function () {
     wireInspectionScrollTools();
+    wireInspectionEditorStickyHeader();
     try {
         inspectionLogin = getLoginData();
         inspectionTechnicianName = inspectionLogin && (inspectionLogin.name || inspectionLogin.Name || inspectionLogin.employeename || inspectionLogin.employeeName) || "";
@@ -2628,6 +2629,89 @@ function updateInspectionScrollTools() {
     // Hide only the direction that cannot move farther; show both while between the ends.
     scrollUp.classList.toggle("d-none", atTop);
     scrollDown.classList.toggle("d-none", atBottom);
+}
+
+function wireInspectionEditorStickyHeader() {
+    const panel = document.getElementById("inspectionInputPanel");
+    const header = document.getElementById("inspectionEditorStickyHeader");
+    const masterNav = document.querySelector(".top-navbar");
+    if (!panel || !header || header.dataset.fixedScrollWired === "1") return;
+    header.dataset.fixedScrollWired = "1";
+
+    let spacer = null;
+    let anchorTop = null;
+
+    function clearFixedState() {
+        header.style.position = "";
+        header.style.top = "";
+        header.style.left = "";
+        header.style.width = "";
+        header.style.zIndex = "";
+        if (spacer) spacer.style.display = "none";
+    }
+
+    function updateFixedHeader() {
+        if (panel.classList.contains("d-none") || !header.getClientRects().length) {
+            clearFixedState();
+            anchorTop = null;
+            return;
+        }
+
+        if (!spacer) {
+            spacer = document.createElement("div");
+            spacer.className = "inspection-editor-sticky-spacer";
+            spacer.style.display = "none";
+            header.parentNode.insertBefore(spacer, header);
+        }
+
+        const navBottom = masterNav && masterNav.getClientRects().length
+            ? Math.max(0, masterNav.getBoundingClientRect().bottom)
+            : 0;
+
+        if (anchorTop === null) {
+            anchorTop = spacer.getBoundingClientRect().top + window.pageYOffset;
+        }
+
+        const shouldFix = window.pageYOffset >= anchorTop - navBottom;
+        if (!shouldFix) {
+            clearFixedState();
+            return;
+        }
+
+        const reference = spacer.getBoundingClientRect();
+        spacer.style.display = "block";
+        spacer.style.height = header.offsetHeight + "px";
+        header.style.position = "fixed";
+        header.style.top = navBottom + "px";
+        header.style.left = reference.left + "px";
+        header.style.width = reference.width + "px";
+        header.style.zIndex = "1045";
+    }
+
+    window.addEventListener("scroll", updateFixedHeader, { passive: true });
+    window.addEventListener("resize", function () {
+        anchorTop = null;
+        updateFixedHeader();
+    });
+    document.addEventListener("shown.bs.tab", updateFixedHeader);
+
+    const panelObserver = new MutationObserver(function () {
+        anchorTop = null;
+        window.requestAnimationFrame(updateFixedHeader);
+    });
+    panelObserver.observe(panel, { attributes: true, attributeFilter: ["class"] });
+
+    if (typeof ResizeObserver !== "undefined") {
+        const headerObserver = new ResizeObserver(function () {
+            if (spacer && spacer.style.display !== "none") {
+                spacer.style.height = header.offsetHeight + "px";
+                updateFixedHeader();
+            }
+        });
+        headerObserver.observe(header);
+    }
+
+    updateFixedHeader();
 }
 
 function wireInspectionScrollTools() {
