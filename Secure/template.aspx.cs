@@ -127,7 +127,7 @@ SELECT IDSection, SectionName, DisplayOrder
 FROM PIP_M_CheckListWOPM_Section WHERE IDVersion = @IDVersion ORDER BY DisplayOrder;
 
 SELECT A.IDItem, A.IDSection, A.IDSubSection, A.ItemLabel, A.ItemType, A.DisplayOrder, A.Unit, 
-        a.IsRemark1Required, a.IsRemark2Required, a.IsRemark1Mandatory, a.IsRemark2Mandatory, a.Remark1Text, a.Remark2Text, a.IsUseDefaultRemark1, a.IsUseDefaultRemark2, A.IsValueRequired, a.ShowUnitInRange, 
+        a.IsRemark1Required, a.IsRemark2Required, a.IsRemark1Mandatory, a.IsRemark2Mandatory, ISNULL(a.PhotoRequirement,'NONE') PhotoRequirement, a.Remark1Text, a.Remark2Text, a.IsUseDefaultRemark1, a.IsUseDefaultRemark2, A.IsValueRequired, a.ShowUnitInRange, 
         UseDefaultOption=CAST((CASE WHEN a.ItemType='OPTION' AND ISNULL(a.OptionList,'')='' THEN 1 ELSE 0 END) AS BIT), 
         a.OptionList OptionListRaw, a.RemarkRequiredOptions RemarkRequiredOptionsRaw, a.MinValue, a.MaxValue, a.MinTolerance, a.MaxTolerance, a.ModelCode, a.IsToleranceRequired
 FROM PIP_M_CheckListWOPM_Item A JOIN PIP_M_CheckListWOPM_Section B ON B.IDSection = A.IDSection 
@@ -222,6 +222,7 @@ WHERE SEC.IDVersion=@IDVersion ORDER BY SS.DisplayOrder;",
                                         Remark1Text = itemRow["Remark1Text"] == DBNull.Value ? "Remark" : itemRow["Remark1Text"].ToString(),
                                         Remark2Text = itemRow["Remark2Text"] == DBNull.Value ? "Remark" : itemRow["Remark2Text"].ToString(),
                                         IsValueRequired = Convert.ToBoolean(itemRow["IsValueRequired"]),
+                                         PhotoRequirement = GF.GetString(itemRow["PhotoRequirement"]),
                                         ShowUnitInRange = Convert.ToBoolean(itemRow["ShowUnitInRange"]),
                                         UseDefaultOption = Convert.ToBoolean(itemRow["UseDefaultOption"]),
                                         //UseTolerance = (GF.GetDecimal(itemRow["MinTolerance"]) != 0 || GF.GetDecimal(itemRow["MaxTolerance"]) != 0),
@@ -800,7 +801,7 @@ WHERE a.SectionID = @SectionID
                                             iRow["C21"] = item.ContainsKey("RuntimeSubSectionID") ? item["RuntimeSubSectionID"] : 0;
                                             iRow["C23"] = item.ContainsKey("IsUseDefaultRemark1") && Convert.ToBoolean(item["IsUseDefaultRemark1"]) ? "1" : "0";
                                             iRow["C24"] = item.ContainsKey("IsUseDefaultRemark2") && Convert.ToBoolean(item["IsUseDefaultRemark2"]) ? "1" : "0";
-                                            iRow["C25"] = (item.ContainsKey("IsRemark1Mandatory") && Convert.ToBoolean(item["IsRemark1Mandatory"]) ? "1" : "0") + "|" + (item.ContainsKey("IsRemark2Mandatory") && Convert.ToBoolean(item["IsRemark2Mandatory"]) ? "1" : "0");
+                                            iRow["C25"] = (item.ContainsKey("IsRemark1Mandatory") && Convert.ToBoolean(item["IsRemark1Mandatory"]) ? "1" : "0") + "|" + (item.ContainsKey("IsRemark2Mandatory") && Convert.ToBoolean(item["IsRemark2Mandatory"]) ? "1" : "0") + "|" + (item.ContainsKey("PhotoRequirement") ? GF.GetString(item["PhotoRequirement"]) : "NONE");
                                             iRow["C22"] = item.ContainsKey("DisplayOrder") ? item["DisplayOrder"] : 0;
                                             dtItem.Rows.Add(iRow);
 
