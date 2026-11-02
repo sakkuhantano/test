@@ -1,0 +1,824 @@
+﻿<%@ Master Language="C#" AutoEventWireup="true" CodeBehind="Site_BS_5.master.cs" Inherits="WAL.Site_BS_5" %>
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head runat="server">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <title><asp:Literal ID="lit_Title" runat="server" Text="" /></title>
+    <%--<link rel="shortcut icon" type="image/x-icon" href="../../WebFolder/images/muliaLogo_32x32.png" />--%>
+    <link rel="shortcut icon" type="image/x-icon" href="../../WebFolder/Images/Icon_128x128-R.png" />
+
+    <link rel="stylesheet" type="text/css" href="../../WebFolder/bootstrap-5.3.0-dist/css/bootstrap.min.css"/>
+
+    <link rel="stylesheet" type="text/css" href="../../WebFolder/fontawesome-free-6.4.0-web/css/all.min.css"/>
+    <link rel="stylesheet" type="text/css" href="../../WebFolder/bootstrap-icons-1.10.5/font/bootstrap-icons.min.css"/>
+
+    <script type="text/javascript" src="../../WebFolder/jquery/jquery-3.7.0.min.js"></script>
+    <script type="text/javascript" src="../../WebFolder/bootstrap-5.3.0-dist/js/bootstrap.bundle.min.js"></script>
+
+    <link rel="Stylesheet" type="text/css" href="../../WebFolder/Css/styles_2.css" />
+    <script type="text/javascript" src="../../WebFolder/Scripts/JScript.js"></script>
+    <script type="text/javascript" src="../../WebFolder/Scripts/SetTimeoutPostbackPage.js"></script>
+    <script type="text/javascript"> stopTimer(); startTimer("''"); </script>
+
+    <style>
+        /*
+        #navbarSupportedContent .nav-link:hover::after {
+            content:'';
+            display:block;
+            border-bottom:1px solid #0b63dc;
+            width:50%;
+            margin:auto;
+        }
+        */
+        #navbarSupportedContent .nav-link:hover {
+            color:white;
+        }
+        #navbarSupportedContent .nav-link {
+            color:#ccc;
+        }
+        #navbarSupportedContent .dropdown-item:hover {
+            color:white;
+        }
+        #navbarSupportedContent .dropdown-item {
+            color:#ccc;
+        }
+        #navbarSupportedContent .dropdown-menu {
+            margin-top: 0;
+            background-color: #000000;
+	        background-image: linear-gradient(147deg, #000000 0%, #2c3e50 74%);
+            /*background-color: #2c3e50;*/
+            color:white;
+            border:0px solid black;
+        }
+        #navbarSupportedContent .dropdown-menu .dropdown-toggle {
+            margin-top: 0;
+            background-color: #000000;
+	        background-image: linear-gradient(147deg, #000000 0%, #2c3e50 74%);
+            /*background-color: #2c3e50;*/
+            color:white;
+            border:0px solid black;
+        }
+        #navbarSupportedContent .dropdown-menu .dropdown-toggle::after {
+            vertical-align: middle;
+            border-left: 4px solid;
+            border-bottom: 4px solid transparent;
+            border-top: 4px solid transparent;
+        }
+        #navbarSupportedContent .dropdown-menu .dropdown .dropdown-menu {
+            left: 100%;
+            top: 0%;
+            margin:0 20px;
+            /*border-width: 0;*/
+        }
+        #navbarSupportedContent .dropdown-menu .dropdown .dropdown-menu.left {
+            right: 100%;
+            left: auto;
+        }
+
+        #navbarSupportedContent .dropdown-menu > li a:hover,
+        #navbarSupportedContent .dropdown-menu > li.show {
+	        /*background: #007bff;*/
+	        /*color: white;*/
+            background-image: linear-gradient( 109.6deg,  rgba(44,83,131,1) 18.9%, rgba(95,175,201,1) 91.1% );
+        }
+        #navbarSupportedContent .dropdown-menu > li.show > a{
+	        /*color: white;*/
+        }
+
+        @media (min-width: 768px) {
+            #navbarSupportedContent .dropdown-menu .dropdown .dropdown-menu {
+                margin:0;
+                /*border-width: 1px;*/
+                /*background-color: #000000;*/
+	            /*background-image: linear-gradient(147deg, #000000 0%, #2c3e50 74%);*/
+                color:white;
+            }
+            /*#navbarSupportedContent .nav-link:hover {
+                border-bottom:1px solid lightblue;
+                padding-bottom:7px;
+            }*/
+        }
+    </style>
+    <script type="text/javascript">
+        //document.getElementById("navbarSupportedContent").style.marginLeft = "-5px";
+
+        (function ($) {
+            var defaults = {
+                sm: 540,
+                md: 720,
+                lg: 960,
+                xl: 1140,
+                navbar_expand: 'lg',
+                animation: true,
+                animateIn: 'fadeIn',
+            };
+            $.fn.bootnavbar = function (options) {
+
+                var screen_width = $(document).width();
+                settings = $.extend(defaults, options);
+
+                //alert(screen_width + ' ' + settings.lg);
+
+                //if (screen_width >= settings.lg) {
+                $(this).find('.dropdown').hover(function () {
+                    $(this).addClass('show');
+                    $(this).find('.dropdown-menu').first().addClass('show');
+                    if (settings.animation) {
+                        $(this).find('.dropdown-menu').first().addClass('animated ' + settings.animateIn);
+                    }
+                }, function () {
+                    $(this).removeClass('show');
+                    $(this).find('.dropdown-menu').first().removeClass('show');
+                });
+                //}
+
+                $('.dropdown-menu a.dropdown-toggle').on('click', function (e) {
+                    if (!$(this).next().hasClass('show')) {
+                        $(this).parents('.dropdown-menu').first().find('.show').removeClass("show");
+                    }
+                    var $subMenu = $(this).next(".dropdown-menu");
+                    $subMenu.toggleClass('show');
+
+                    $(this).parents('li.nav-item.dropdown.show').on('hidden.bs.dropdown', function (e) {
+                        $('.dropdown-submenu .show').removeClass("show");
+                    });
+
+                    return false;
+                });
+            };
+        })(jQuery);
+        $(function () {
+            $('#main_navbar').bootnavbar();
+        })
+    </script>
+
+
+    <style>
+        /*::-webkit-scrollbar {
+          width: 1px;
+        }*/
+        body {
+		    overscroll-behavior-y: contain;
+	    }
+
+        #main_navbar_toggler {
+            display:none;
+        }
+
+        #main_navbar_toggler svg {
+            /*margin-bottom:2px;*/
+        }
+        
+        #tbl_content1 {
+            width:99%;
+        }
+
+        @media only screen and (max-width: 768px) {
+            #row_menu_header {
+                margin-bottom:10px;
+            }
+
+
+            #main_navbar_toggler {
+                display:block;
+            }
+            #main_navbar_toggler svg {
+                /*margin-bottom:0px;*/
+            }
+
+
+            #div_col_toolbar1 {
+                overflow:auto;
+                white-space: nowrap;
+                width:97vw;
+            }
+            #div_col_toolbar1::-webkit-scrollbar {
+                display: none;
+            }
+            #div_col_toolbar1 {
+                -ms-overflow-style: none;  
+                scrollbar-width: none;  
+            }  
+
+
+            #tbl_content1 {
+                width:98%;
+            }
+        }
+
+        @media only screen and (min-width: 768px) {
+            #main_navbar {
+                margin-left:-5px;
+            }
+        }
+    </style>
+    <script>
+
+    </script>
+
+    <asp:ContentPlaceHolder ID="head" runat="server"></asp:ContentPlaceHolder>
+</head>
+<body>
+    <form id="form1" runat="server">
+    <div>
+        <table id="tbl_site_Utama" class="CUS-fz-5" border="0" cellspacing="0" cellpadding="0" style="margin:auto;width:100%;height:100vh;">
+        <asp:Panel ID="pnlUC_Menu" runat="server" Visible="true">
+        <tr style="height:3px;vertical-align:top;">
+            <td>
+                <div id="div_menu_site" class="row justify-content-center rounded shadow-sm bg-custom3" style="margin:auto;width:99%;">
+                    <%--<div class="col" style="max-width:1366px;">--%>
+                    <div class="col" style="max-width:1280px;">
+                        <div id="row_menu_header" class="row fw-bold" style="margin-top:10px;border:0px solid red;">
+                            <div class="col-7" style="border:0px solid yellow;">
+                                <table width="100%" cellpadding="0" cellspacing="0">
+                                <tr class="text-white">
+                                    <td width="3px">
+                                        <img src="../../WebFolder/Images/muliaLogo.png" align='absmiddle' width="35px" height="25px"  alt="" border="0" />
+                                    </td>
+                                    <td width="3px">
+                                    </td>
+                                    <td>
+                                        <asp:label id="lblCompanyID" 
+                                                   runat="server" 
+                                                   Visible="true"
+                                                   ></asp:label>
+                                        <asp:label id="lblCompanyName" runat="server" Visible="false"></asp:label>
+                                        &nbsp;-&nbsp;
+			                            <asp:label id="lblLocationID" 
+                                                   runat="server" 
+                                                   Visible="true"
+                                                   ></asp:label>
+			                            <asp:label id="lblLocationName" runat="server" Visible="false"></asp:label>
+			
+			                            <asp:Panel ID="pnlActivePeriod" runat="server" Visible="false">
+			                                <asp:label id="lblActivePeriodCap" runat="server" Font-Size="11px" Text="Active Periode "></asp:label>
+			                                <asp:label id="lblActivePeriodV" runat="server" Font-Size="11px" Text=""></asp:label>
+			                            </asp:Panel>
+                                        <script>
+                                            F_BS_5_tooltip("<%=lblCompanyID.ClientID%>", '<span class="CUS-fz-5"> <%=lblCompanyName.Text%> </span>');
+                                            F_BS_5_tooltip("<%=lblLocationID.ClientID%>", '<span class="CUS-fz-5"> <%=lblLocationName.Text%> </span>');
+                                        </script>
+                                    </td>
+                                </tr>
+                                </table>
+                            </div>
+                            <%--<div class="col-2 text-end">
+                                
+                            </div>--%>
+                            <div class="col-5 text-end d-flex justify-content-end align-content-center">
+                                <asp:label id="lblCaption" runat="server" Visible="false"></asp:label>
+                                <div class="btn-group">
+                                    <%--<asp:LinkButton ID="lbtn_DD_User" 
+                                                    runat="server"
+                                                    class="btn btn-sm btn-outline-light border-0 rounded fz-custom2 btn-custom2"
+                                                    type="button" 
+                                                    data-bs-toggle="dropdown" 
+                                                    data-bs-auto-close="true" 
+                                                    aria-expanded="false"          
+                                                    OnClientClick="return false;"
+                                                    >                                        
+                                    </asp:LinkButton>--%>
+                                    <a id="lbtn_DD_User" 
+                                       href=""
+                                       class="btn btn-sm btn-outline-light border-0 rounded fz-custom2 btn-custom2"
+                                       type="button" 
+                                       data-bs-toggle="dropdown" 
+                                       data-bs-auto-close="true" 
+                                       aria-expanded="false"          
+                                       >
+                                        <span id="spn_DD_User">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-person-fill" viewBox="0 0 16 16">
+                                                <path d="M3 14s-1 0-1-1 1-4 6-4 6 3 6 4-1 1-1 1H3Zm5-6a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/>
+                                            </svg> 
+                                            <%--<span class="align-middle"><%=lblEmployeeID.Text%></span>--%>
+                                            <asp:label id="lblEmployeeID" Class="align-middle" runat="server" ></asp:label>
+                                        </span>
+                                    </a>
+                                    <script>
+                                        F_BS_5_tooltip("spn_DD_User", '<span class="CUS-fz-5"> <%=lblUserName.Text%> </span>');
+                                    </script>
+                                    <ul class="dropdown-menu dropdown-menu-right shadow fz-custom1">
+                                        <li>
+                                            <asp:LinkButton ID="lbtnLogout" 
+                                                            runat="server"
+                                                            class="dropdown-item"
+                                                            OnClick="lbtnLogout_Click"
+                                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-power" viewBox="0 0 16 16">
+                                                  <path d="M7.5 1v7h1V1h-1z"/>
+                                                  <path d="M3 8.812a4.999 4.999 0 0 1 2.578-4.375l-.485-.874A6 6 0 1 0 11 3.616l-.501.865A5 5 0 1 1 3 8.812z"/>
+                                                </svg>
+                                                Logout
+                                                <%--<i class="fas fa-sign-out-alt"></i> --%>
+                                            </asp:LinkButton>
+                                        </li>
+                                    </ul>
+                                </div>      
+                                <style>
+                                .iconlineBurger {
+                                  width: 19px;
+                                  height: 2px;
+                                  background-color: white;
+                                  margin: 5px 1px;
+                                }
+                                </style>          
+                                <a id="main_navbar_toggler" href="" class="navbar-toggler text-white align-middle" style="font-size:20px;" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent"
+                                    aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+                                    <%--<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-three-dots-vertical" viewBox="0 0 16 16">
+                                      <path d="M9.5 13a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0zm0-5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0zm0-5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0z"/>
+                                    </svg>--%>
+                                    <div class="iconlineBurger"></div>
+                                    <div class="iconlineBurger"></div>
+                                    <div class="iconlineBurger"></div>
+                                </a>
+                            </div>
+                        </div>
+                        <div id="div_row_main_navbar" class="row" style="border:0px solid red;">
+                            <div class="col">
+                                <nav id="main_navbar" class="navbar navbar-dark navbar-expand-md p-0 fz-custom3" style="border:0px solid yellow;">
+                                    <%--<a href=""></a>
+                                    <a id="main_navbar_toggler" class="navbar-toggler border-0 text-white me-2 py-0 px-0 mt-1 mb-2" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent"
+                                        aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+                                        <i class="fas fa-bars" style="cursor:pointer"></i>
+                                    </a>--%>
+                                    <asp:Literal ID="lit_menu" runat="server" Visible="false"></asp:Literal>
+                                    <asp:Literal ID="lit_menu_2" runat="server" Visible="true"></asp:Literal>
+                                </nav>      
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <asp:label id="lblBussinessID" runat="server" Visible="false"></asp:label>
+                <asp:label id="lblUserID" runat="server" Visible="false"></asp:label>
+                <asp:label id="lblUserName" runat="server" Visible="false"></asp:label>
+			    <asp:label id="lblpwd" runat="server" Visible="false"></asp:label>
+                <asp:label id="lblCompanyID_Asli" runat="server" Visible="false"></asp:label>
+                <asp:label id="lblLocationID_Asli" runat="server" Visible="false"></asp:label>
+			    <asp:label id="lblUserGroupID" runat="server" Visible="false"></asp:label>
+			    <asp:label id="lblHomeCurrencyID" runat="server" style="display:none;"></asp:label>
+			    <asp:label id="lblHomeDecimal" runat="server" style="display:none;"></asp:label>
+			    <asp:label id="lblForeignCurrencyID" runat="server" style="display:none;"></asp:label>
+			    <asp:label id="lblForeignDecimal" runat="server" style="display:none;"></asp:label>
+			    <asp:label id="lblBuildingType" runat="server" Visible="false"></asp:label>
+
+                <asp:label id="lblIsAllowExportReport" runat="server" Visible="false"></asp:label>
+                <asp:label id="lblParentEmployeeID" runat="server" Visible="false"></asp:label>
+                <asp:label id="lblParentePDR" runat="server" Visible="false"></asp:label>
+			    <asp:label id="lblProfitCenterNo" runat="server" Visible="false"></asp:label>
+			    <asp:label id="lblProfitCenterName" runat="server" Visible="false"></asp:label>
+                <asp:label id="lblCCEmailPC" runat="server" Visible="false"></asp:label>
+			    <asp:label id="lblJobTitleID" runat="server" Visible="false"></asp:label>
+			    <asp:label id="lblJobTitleName" runat="server" Visible="false"></asp:label>
+			    <asp:label id="lblEmailAddress" runat="server" Visible="false"></asp:label>
+                <asp:label id="lblCCEmail" runat="server" Visible="false"></asp:label>
+                <asp:CheckBox id="chk_IsByPassLogonUser" runat="server" Checked="false" Visible="false" />
+            </td>
+        </tr>
+        </asp:Panel>
+        <tr>
+            <td>
+                <%--max-width:1366px;--%>
+                <table id="tbl_content1" border="0" cellspacing="0" cellpadding="0" style="height:100%;margin:auto;max-width:1280px;">
+                <asp:Panel ID="pnl_TB" runat="server" Visible="false">
+                <tr id="tr_space_toolbar1" style="height:5px;"><td></td></tr>
+                <tr style="height:3px;vertical-align:top;">
+                    <td>
+                        <div id="div_row_toolbar1" class="row w-100 border rounded shadow-sm" style="margin:auto;">
+                            <div id="div_col_toolbar1" >
+                                <asp:linkbutton Runat="server" 
+                                                id="lbtn_TB_Back"                             
+                                                CssClass="btn btn-sm CUS-btn-outline-PColor-1 my-1 px-3 CUS-fz-4 CUS-BorRad-4"                            
+                                                OnClick="TB_Toolbar_Click"
+                                                OnPreRender="lbtn_PreRender"
+                                                Visible="false"
+                                                Style="margin-left:1px;margin-right:1px;padding-left:11px;padding-right:11px;"
+                                                >
+                                    <asp:Literal ID="lit_TB_Back_Icon" runat="server" Text=""></asp:Literal>
+                                    <asp:Literal ID="lit_TB_Back_Text" runat="server" Text="Back"></asp:Literal>                
+                                    <asp:CheckBox ID="chk_TB_Back_IsMsg" runat="server" Checked="false" Visible="false"></asp:CheckBox>                
+                                    <asp:Literal ID="lit_TB_Back_Msg" runat="server" Visible="false"></asp:Literal>                
+                                </asp:linkbutton>
+
+                                <asp:linkbutton Runat="server" 
+                                                id="lbtn_TB_New" 
+                                                CssClass="btn btn-sm CUS-btn-outline-PColor-1 my-1 px-3 CUS-fz-4 CUS-BorRad-4"                            
+                                                OnClick="TB_Toolbar_Click"
+                                                OnPreRender="lbtn_PreRender"
+                                                Visible="false"
+                                                Style="margin-left:1px;margin-right:1px;padding-left:11px;padding-right:11px;"
+                                                >
+                                    <asp:Literal ID="lit_TB_New_Icon" runat="server" Text=""></asp:Literal>
+                                    <asp:Literal ID="lit_TB_New_Text" runat="server" Text="New"></asp:Literal>
+                                    <asp:CheckBox ID="chk_TB_New_IsMsg" runat="server" Checked="false" Visible="false"></asp:CheckBox>                
+                                    <asp:Literal ID="lit_TB_New_Msg" runat="server" Visible="false"></asp:Literal>                
+                                </asp:linkbutton>
+
+                                <asp:linkbutton Runat="server" 
+                                                id="lbtn_TB_Save" 
+                                                CssClass="btn btn-sm CUS-btn-outline-PColor-1 my-1 px-3 CUS-fz-4 CUS-BorRad-4"                            
+                                                OnClick="TB_Toolbar_Click"
+                                                OnPreRender="lbtn_PreRender"
+                                                Visible="false"
+                                                Style="margin-left:1px;margin-right:1px;padding-left:11px;padding-right:11px;"
+                                                >
+                                    <asp:Literal ID="lit_TB_Save_Icon" runat="server" Text=""></asp:Literal>
+                                    <asp:Literal ID="lit_TB_Save_Text" runat="server" Text="Save"></asp:Literal>
+                                    <asp:CheckBox ID="chk_TB_Save_IsMsg" runat="server" Checked="true" Visible="false"></asp:CheckBox>                
+                                    <asp:Literal ID="lit_TB_Save_Msg" runat="server" Visible="false"></asp:Literal>                
+                                </asp:linkbutton>
+
+                                <asp:linkbutton Runat="server" 
+                                                id="lbtn_TB_Delete" 
+                                                CssClass="btn btn-sm CUS-btn-outline-PColor-1 my-1 px-3 CUS-fz-4 CUS-BorRad-4"                            
+                                                OnClick="TB_Toolbar_Click"
+                                                OnPreRender="lbtn_PreRender"
+                                                Visible="false"
+                                                Style="margin-left:1px;margin-right:1px;padding-left:11px;padding-right:11px;"
+                                                >
+                                    <asp:Literal ID="lit_TB_Delete_Icon" runat="server" Text=""></asp:Literal>
+                                    <asp:Literal ID="lit_TB_Delete_Text" runat="server" Text="Delete"></asp:Literal>
+                                    <asp:CheckBox ID="chk_TB_Delete_IsMsg" runat="server" Checked="true" Visible="false"></asp:CheckBox>                
+                                    <asp:Literal ID="lit_TB_Delete_Msg" runat="server" Visible="false"></asp:Literal>                
+                                </asp:linkbutton>
+
+                                <asp:linkbutton Runat="server" 
+                                                id="lbtn_TB_Refresh" 
+                                                CssClass="btn btn-sm CUS-btn-outline-PColor-1 my-1 px-3 CUS-fz-4 CUS-BorRad-4"                            
+                                                OnClick="TB_Toolbar_Click"
+                                                OnPreRender="lbtn_PreRender"
+                                                Visible="false"
+                                                Style="margin-left:1px;margin-right:1px;padding-left:11px;padding-right:11px;"
+                                                >
+                                    <asp:Literal ID="lit_TB_Refresh_Icon" runat="server" Text=""></asp:Literal>
+                                    <asp:Literal ID="lit_TB_Refresh_Text" runat="server" Text="Refresh"></asp:Literal>
+                                    <asp:CheckBox ID="chk_TB_Refresh_IsMsg" runat="server" Checked="false" Visible="false"></asp:CheckBox>                
+                                    <asp:Literal ID="lit_TB_Refresh_Msg" runat="server" Visible="false"></asp:Literal>                
+                                </asp:linkbutton>
+
+                                <asp:linkbutton Runat="server" 
+                                                id="lbtn_TB_Process" 
+                                                CssClass="btn btn-sm CUS-btn-outline-PColor-1 my-1 px-3 CUS-fz-4 CUS-BorRad-4"                            
+                                                OnClick="TB_Toolbar_Click"
+                                                OnPreRender="lbtn_PreRender"
+                                                Visible="false"
+                                                Style="margin-left:1px;margin-right:1px;padding-left:11px;padding-right:11px;"
+                                                >
+                                    <asp:Literal ID="lit_TB_Process_Icon" runat="server" Text=""></asp:Literal>
+                                    <asp:Literal ID="lit_TB_Process_Text" runat="server" Text="Process"></asp:Literal>
+                                    <asp:CheckBox ID="chk_TB_Process_IsMsg" runat="server" Checked="true" Visible="false"></asp:CheckBox>                
+                                    <asp:Literal ID="lit_TB_Process_Msg" runat="server" Visible="false"></asp:Literal>                
+                                </asp:linkbutton>
+
+                                <asp:linkbutton Runat="server" 
+                                                id="lbtn_TB_Approve" 
+                                                CssClass="btn btn-sm CUS-btn-outline-PColor-1 my-1 px-3 CUS-fz-4 CUS-BorRad-4"                            
+                                                OnClick="TB_Toolbar_Click"
+                                                OnPreRender="lbtn_PreRender"
+                                                Visible="false"
+                                                Style="margin-left:1px;margin-right:1px;padding-left:11px;padding-right:11px;"
+                                                >
+                                    <asp:Literal ID="lit_TB_Approve_Icon" runat="server" Text=""></asp:Literal>
+                                    <asp:Literal ID="lit_TB_Approve_Text" runat="server" Text="Approve"></asp:Literal>
+                                    <asp:CheckBox ID="chk_TB_Approve_IsMsg" runat="server" Checked="true" Visible="false"></asp:CheckBox>                
+                                    <asp:Literal ID="lit_TB_Approve_Msg" runat="server" Visible="false"></asp:Literal>                
+                                </asp:linkbutton>
+
+                                <asp:linkbutton Runat="server" 
+                                                id="lbtn_TB_Void" 
+                                                CssClass="btn btn-sm CUS-btn-outline-PColor-1 my-1 px-3 CUS-fz-4 CUS-BorRad-4"                            
+                                                OnClick="TB_Toolbar_Click"
+                                                OnPreRender="lbtn_PreRender"
+                                                Visible="false"
+                                                Style="margin-left:1px;margin-right:1px;padding-left:11px;padding-right:11px;"
+                                                >
+                                    <asp:Literal ID="lit_TB_Void_Icon" runat="server" Text=""></asp:Literal>
+                                    <asp:Literal ID="lit_TB_Void_Text" runat="server" Text="Void"></asp:Literal>
+                                    <asp:CheckBox ID="chk_TB_Void_IsMsg" runat="server" Checked="true" Visible="false"></asp:CheckBox>                
+                                    <asp:Literal ID="lit_TB_Void_Msg" runat="server" Visible="false"></asp:Literal>                
+                                </asp:linkbutton>
+
+                                <asp:linkbutton Runat="server" 
+                                                id="lbtn_TB_Complete" 
+                                                CssClass="btn btn-sm CUS-btn-outline-PColor-1 my-1 px-3 CUS-fz-4 CUS-BorRad-4"                            
+                                                OnClick="TB_Toolbar_Click"
+                                                OnPreRender="lbtn_PreRender"
+                                                Visible="false"
+                                                Style="margin-left:1px;margin-right:1px;padding-left:11px;padding-right:11px;"
+                                                >
+                                    <asp:Literal ID="lit_TB_Complete_Icon" runat="server" Text=""></asp:Literal>
+                                    <asp:Literal ID="lit_TB_Complete_Text" runat="server" Text="Complete"></asp:Literal>
+                                    <asp:CheckBox ID="chk_TB_Complete_IsMsg" runat="server" Checked="true" Visible="false"></asp:CheckBox>                
+                                    <asp:Literal ID="lit_TB_Complete_Msg" runat="server" Visible="false"></asp:Literal>                
+                                </asp:linkbutton>
+
+                                <asp:linkbutton Runat="server" 
+                                                id="lbtn_TB_Send" 
+                                                CssClass="btn btn-sm CUS-btn-outline-PColor-1 my-1 px-3 CUS-fz-4 CUS-BorRad-4"                            
+                                                OnClick="TB_Toolbar_Click"
+                                                OnPreRender="lbtn_PreRender"
+                                                Visible="false"
+                                                Style="margin-left:1px;margin-right:1px;padding-left:11px;padding-right:11px;"
+                                                >
+                                    <asp:Literal ID="lit_TB_Send_Icon" runat="server" Text=""></asp:Literal>
+                                    <asp:Literal ID="lit_TB_Send_Text" runat="server" Text="Send"></asp:Literal>
+                                    <asp:CheckBox ID="chk_TB_Send_IsMsg" runat="server" Checked="true" Visible="false"></asp:CheckBox>                
+                                    <asp:Literal ID="lit_TB_Send_Msg" runat="server" Visible="false"></asp:Literal>                
+                                </asp:linkbutton>
+
+                                <asp:linkbutton Runat="server" 
+                                                id="lbtn_TB_Print" 
+                                                CssClass="btn btn-sm CUS-btn-outline-PColor-1 my-1 px-3 CUS-fz-4 CUS-BorRad-4"                            
+                                                OnClick="TB_Toolbar_Click"
+                                                OnPreRender="lbtn_PreRender"
+                                                Visible="false"
+                                                Style="margin-left:1px;margin-right:1px;padding-left:11px;padding-right:11px;padding-top:3.6px;padding-bottom:3.6px;"
+                                                >
+                                    <asp:Literal ID="lit_TB_Print_Icon" runat="server" Text=""></asp:Literal>
+                                    <asp:Literal ID="lit_TB_Print_Text" runat="server" Text="Print"></asp:Literal>
+                                    <asp:CheckBox ID="chk_TB_Print_IsMsg" runat="server" Checked="true" Visible="false"></asp:CheckBox>
+                                    <asp:Literal ID="lit_TB_Print_Msg" runat="server" Visible="false"></asp:Literal>
+                                </asp:linkbutton>
+
+                                <asp:linkbutton Runat="server" 
+                                                id="lbtn_TB_Previous" 
+                                                CssClass="btn btn-sm CUS-btn-outline-PColor-1 my-1 px-3 CUS-fz-4 CUS-BorRad-4"                            
+                                                OnClick="TB_Toolbar_Click"
+                                                OnPreRender="lbtn_PreRender"
+                                                Visible="false"
+                                                Style="margin-left:1px;margin-right:1px;padding-left:11px;padding-right:11px;"
+                                                >
+                                    <asp:Literal ID="lit_TB_Previous_Icon" runat="server" Text=""></asp:Literal>
+                                    <asp:Literal ID="lit_TB_Previous_Text" runat="server" Text="Previous"></asp:Literal>
+                                    <asp:CheckBox ID="chk_TB_Previous_IsMsg" runat="server" Checked="false" Visible="false"></asp:CheckBox>
+                                    <asp:Literal ID="lit_TB_Previous_Msg" runat="server" Visible="false"></asp:Literal>
+                                </asp:linkbutton>
+
+                                <asp:linkbutton Runat="server" 
+                                                id="lbtn_TB_Next" 
+                                                CssClass="btn btn-sm CUS-btn-outline-PColor-1 my-1 px-3 CUS-fz-4 CUS-BorRad-4"                            
+                                                OnClick="TB_Toolbar_Click"
+                                                OnPreRender="lbtn_PreRender"
+                                                Visible="false"
+                                                Style="margin-left:1px;margin-right:1px;padding-left:11px;padding-right:11px;"
+                                                >
+                                    <asp:Literal ID="lit_TB_Next_Icon" runat="server" Text=""></asp:Literal>
+                                    <asp:Literal ID="lit_TB_Next_Text" runat="server" Text="Next"></asp:Literal>
+                                    <asp:CheckBox ID="chk_TB_Next_IsMsg" runat="server" Checked="false" Visible="false"></asp:CheckBox>
+                                    <asp:Literal ID="lit_TB_Next_Msg" runat="server" Visible="false"></asp:Literal>
+                                </asp:linkbutton>
+
+                                <asp:linkbutton ID="lbtn_TB_Custom_1" 
+                                                runat="server" 
+                                                CssClass="btn btn-sm CUS-btn-outline-PColor-1 my-1 px-3 CUS-fz-4 CUS-BorRad-4"                            
+                                                OnClick="TB_Toolbar_Click"
+                                                OnPreRender="lbtn_PreRender"
+                                                Visible="false"
+                                                Style="margin-left:1px;margin-right:1px;padding-left:11px;padding-right:11px;"
+                                                >
+                                    <asp:Literal ID="lit_TB_Custom_1_Icon" runat="server" Text=""></asp:Literal>
+                                    <asp:Literal ID="lit_TB_Custom_1_Text" runat="server" Text="Custom_1"></asp:Literal>
+                                    <asp:CheckBox ID="chk_TB_Custom_1_IsMsg" runat="server" Checked="false" Visible="false"></asp:CheckBox>
+                                    <asp:Literal ID="lit_TB_Custom_1_Msg" runat="server" Visible="false"></asp:Literal>
+                                </asp:linkbutton>
+                        
+                                <asp:linkbutton ID="lbtn_TB_Custom_2" 
+                                                runat="server" 
+                                                CssClass="btn btn-sm CUS-btn-outline-PColor-1 my-1 px-3 CUS-fz-4 CUS-BorRad-4"                            
+                                                OnClick="TB_Toolbar_Click"
+                                                OnPreRender="lbtn_PreRender"
+                                                Visible="false"
+                                                Style="margin-left:1px;margin-right:1px;padding-left:11px;padding-right:11px;"
+                                                >
+                                    <asp:Literal ID="lit_TB_Custom_2_Icon" runat="server" Text=""></asp:Literal>
+                                    <asp:Literal ID="lit_TB_Custom_2_Text" runat="server" Text="Custom_2"></asp:Literal>
+                                    <asp:CheckBox ID="chk_TB_Custom_2_IsMsg" runat="server" Checked="false" Visible="false"></asp:CheckBox>
+                                    <asp:Literal ID="lit_TB_Custom_2_Msg" runat="server" Visible="false"></asp:Literal>
+                                </asp:linkbutton>
+
+                                <asp:linkbutton ID="lbtn_TB_Custom_3" 
+                                                runat="server" 
+                                                CssClass="btn btn-sm CUS-btn-outline-PColor-1 my-1 px-3 CUS-fz-4 CUS-BorRad-4"                            
+                                                OnClick="TB_Toolbar_Click"
+                                                OnPreRender="lbtn_PreRender"
+                                                Visible="false"
+                                                Style="margin-left:1px;margin-right:1px;padding-left:11px;padding-right:11px;"
+                                                >
+                                    <asp:Literal ID="lit_TB_Custom_3_Icon" runat="server" Text=""></asp:Literal>
+                                    <asp:Literal ID="lit_TB_Custom_3_Text" runat="server" Text="Custom_3"></asp:Literal>
+                                    <asp:CheckBox ID="chk_TB_Custom_3_IsMsg" runat="server" Checked="false" Visible="false"></asp:CheckBox>
+                                    <asp:Literal ID="lit_TB_Custom_3_Msg" runat="server" Visible="false"></asp:Literal>
+                                </asp:linkbutton>
+
+                                <asp:linkbutton ID="lbtn_TB_Custom_4" 
+                                                runat="server" 
+                                                CssClass="btn btn-sm CUS-btn-outline-PColor-1 my-1 px-3 CUS-fz-4 CUS-BorRad-4"                            
+                                                OnClick="TB_Toolbar_Click"
+                                                OnPreRender="lbtn_PreRender"
+                                                Visible="false"
+                                                Style="margin-left:1px;margin-right:1px;padding-left:11px;padding-right:11px;"
+                                                >
+                                    <asp:Literal ID="lit_TB_Custom_4_Icon" runat="server" Text=""></asp:Literal>
+                                    <asp:Literal ID="lit_TB_Custom_4_Text" runat="server" Text="Custom_4"></asp:Literal>
+                                    <asp:CheckBox ID="chk_TB_Custom_4_IsMsg" runat="server" Checked="false" Visible="false"></asp:CheckBox>
+                                    <asp:Literal ID="lit_TB_Custom_4_Msg" runat="server" Visible="false"></asp:Literal>                
+                                </asp:linkbutton>
+
+                                <asp:linkbutton ID="lbtn_TB_Custom_5" 
+                                                runat="server" 
+                                                CssClass="btn btn-sm CUS-btn-outline-PColor-1 my-1 px-3 CUS-fz-4 CUS-BorRad-4"                            
+                                                OnClick="TB_Toolbar_Click"
+                                                OnPreRender="lbtn_PreRender"
+                                                Visible="false"
+                                                Style="margin-left:1px;margin-right:1px;padding-left:11px;padding-right:11px;"
+                                                >
+                                    <asp:Literal ID="lit_TB_Custom_5_Icon" runat="server" Text=""></asp:Literal>
+                                    <asp:Literal ID="lit_TB_Custom_5_Text" runat="server" Text="Custom_5"></asp:Literal>
+                                    <asp:CheckBox ID="chk_TB_Custom_5_IsMsg" runat="server" Checked="false" Visible="false"></asp:CheckBox>
+                                    <asp:Literal ID="lit_TB_Custom_5_Msg" runat="server" Visible="false"></asp:Literal>
+                                </asp:linkbutton>
+
+                                <asp:linkbutton ID="lbtn_TB_Custom_6" 
+                                                runat="server" 
+                                                CssClass="btn btn-sm CUS-btn-outline-PColor-1 my-1 px-3 CUS-fz-4 CUS-BorRad-4"                            
+                                                OnClick="TB_Toolbar_Click"
+                                                OnPreRender="lbtn_PreRender"
+                                                Visible="false"
+                                                Style="margin-left:1px;margin-right:1px;padding-left:11px;padding-right:11px;"
+                                                >
+                                    <asp:Literal ID="lit_TB_Custom_6_Icon" runat="server" Text=""></asp:Literal>
+                                    <asp:Literal ID="lit_TB_Custom_6_Text" runat="server" Text="Custom_6"></asp:Literal>
+                                    <asp:CheckBox ID="chk_TB_Custom_6_IsMsg" runat="server" Checked="false" Visible="false"></asp:CheckBox>
+                                    <asp:Literal ID="lit_TB_Custom_6_Msg" runat="server" Visible="false"></asp:Literal>
+                                </asp:linkbutton>
+
+                                <asp:linkbutton ID="lbtn_TB_Custom_7" 
+                                                runat="server" 
+                                                CssClass="btn btn-sm CUS-btn-outline-PColor-1 my-1 px-3 CUS-fz-4 CUS-BorRad-4"                            
+                                                OnClick="TB_Toolbar_Click"
+                                                OnPreRender="lbtn_PreRender"
+                                                Visible="false"
+                                                Style="margin-left:1px;margin-right:1px;padding-left:11px;padding-right:11px;"
+                                                >
+                                    <asp:Literal ID="lit_TB_Custom_7_Icon" runat="server" Text=""></asp:Literal>
+                                    <asp:Literal ID="lit_TB_Custom_7_Text" runat="server" Text="Custom_7"></asp:Literal>
+                                    <asp:CheckBox ID="chk_TB_Custom_7_IsMsg" runat="server" Checked="false" Visible="false"></asp:CheckBox>
+                                    <asp:Literal ID="lit_TB_Custom_7_Msg" runat="server" Visible="false"></asp:Literal>
+                                </asp:linkbutton>
+
+                                <asp:linkbutton ID="lbtn_TB_Custom_8" 
+                                                runat="server" 
+                                                CssClass="btn btn-sm CUS-btn-outline-PColor-1 my-1 px-3 CUS-fz-4 CUS-BorRad-4"                            
+                                                OnClick="TB_Toolbar_Click"
+                                                OnPreRender="lbtn_PreRender"
+                                                Visible="false"
+                                                Style="margin-left:1px;margin-right:1px;padding-left:11px;padding-right:11px;"
+                                                >
+                                    <asp:Literal ID="lit_TB_Custom_8_Icon" runat="server" Text=""></asp:Literal>
+                                    <asp:Literal ID="lit_TB_Custom_8_Text" runat="server" Text="Custom_8"></asp:Literal>
+                                    <asp:CheckBox ID="chk_TB_Custom_8_IsMsg" runat="server" Checked="false" Visible="false"></asp:CheckBox>
+                                    <asp:Literal ID="lit_TB_Custom_8_Msg" runat="server" Visible="false"></asp:Literal>
+                                </asp:linkbutton>
+
+                                <asp:linkbutton ID="lbtn_TB_Custom_9" 
+                                                runat="server" 
+                                                CssClass="btn btn-sm CUS-btn-outline-PColor-1 my-1 px-3 CUS-fz-4 CUS-BorRad-4"                            
+                                                OnClick="TB_Toolbar_Click"
+                                                OnPreRender="lbtn_PreRender"
+                                                Visible="false"
+                                                Style="margin-left:1px;margin-right:1px;padding-left:11px;padding-right:11px;"
+                                                >
+                                    <asp:Literal ID="lit_TB_Custom_9_Icon" runat="server" Text=""></asp:Literal>
+                                    <asp:Literal ID="lit_TB_Custom_9_Text" runat="server" Text="Custom_9"></asp:Literal>
+                                    <asp:CheckBox ID="chk_TB_Custom_9_IsMsg" runat="server" Checked="false" Visible="false"></asp:CheckBox>
+                                    <asp:Literal ID="lit_TB_Custom_9_Msg" runat="server" Visible="false"></asp:Literal>
+                                </asp:linkbutton>
+
+                                <asp:linkbutton ID="lbtn_TB_Custom_10" 
+                                                runat="server" 
+                                                CssClass="btn btn-sm CUS-btn-outline-PColor-1 my-1 px-3 CUS-fz-4 CUS-BorRad-4"                            
+                                                OnClick="TB_Toolbar_Click"
+                                                OnPreRender="lbtn_PreRender"
+                                                Visible="false"
+                                                Style="margin-left:1px;margin-right:1px;padding-left:11px;padding-right:11px;"
+                                                >
+                                    <asp:Literal ID="lit_TB_Custom_10_Icon" runat="server" Text=""></asp:Literal>
+                                    <asp:Literal ID="lit_TB_Custom_10_Text" runat="server" Text="Custom_10"></asp:Literal>
+                                    <asp:CheckBox ID="chk_TB_Custom_10_IsMsg" runat="server" Checked="false" Visible="false"></asp:CheckBox>
+                                    <asp:Literal ID="lit_TB_Custom_10_Msg" runat="server" Visible="false"></asp:Literal>
+                                </asp:linkbutton>
+
+                                <asp:linkbutton ID="lbtn_TB_Custom_11" 
+                                                runat="server" 
+                                                CssClass="btn btn-sm CUS-btn-outline-PColor-1 my-1 px-3 CUS-fz-4 CUS-BorRad-4"                            
+                                                OnClick="TB_Toolbar_Click"
+                                                OnPreRender="lbtn_PreRender"
+                                                Visible="false"
+                                                Style="margin-left:1px;margin-right:1px;padding-left:11px;padding-right:11px;"
+                                                >
+                                    <asp:Literal ID="lit_TB_Custom_11_Icon" runat="server" Text=""></asp:Literal>
+                                    <asp:Literal ID="lit_TB_Custom_11_Text" runat="server" Text="Custom_11"></asp:Literal>
+                                    <asp:CheckBox ID="chk_TB_Custom_11_IsMsg" runat="server" Checked="false" Visible="false"></asp:CheckBox>
+                                    <asp:Literal ID="lit_TB_Custom_11_Msg" runat="server" Visible="false"></asp:Literal>
+                                </asp:linkbutton>
+
+                                <asp:linkbutton ID="lbtn_TB_Custom_12" 
+                                                runat="server" 
+                                                CssClass="btn btn-sm CUS-btn-outline-PColor-1 my-1 px-3 CUS-fz-4 CUS-BorRad-4"                            
+                                                OnClick="TB_Toolbar_Click"
+                                                OnPreRender="lbtn_PreRender"
+                                                Visible="false"
+                                                Style="margin-left:1px;margin-right:1px;padding-left:11px;padding-right:11px;"
+                                                >
+                                    <asp:Literal ID="lit_TB_Custom_12_Icon" runat="server" Text=""></asp:Literal>
+                                    <asp:Literal ID="lit_TB_Custom_12_Text" runat="server" Text="Custom_12"></asp:Literal>
+                                    <asp:CheckBox ID="chk_TB_Custom_12_IsMsg" runat="server" Checked="false" Visible="false"></asp:CheckBox>
+                                    <asp:Literal ID="lit_TB_Custom_12_Msg" runat="server" Visible="false"></asp:Literal>
+                                </asp:linkbutton>
+
+                                <asp:linkbutton ID="lbtn_TB_Custom_13" 
+                                                runat="server" 
+                                                CssClass="btn btn-sm CUS-btn-outline-PColor-1 my-1 px-3 CUS-fz-4 CUS-BorRad-4"                            
+                                                OnClick="TB_Toolbar_Click"
+                                                OnPreRender="lbtn_PreRender"
+                                                Visible="false"
+                                                Style="margin-left:1px;margin-right:1px;padding-left:11px;padding-right:11px;"
+                                                >
+                                    <asp:Literal ID="lit_TB_Custom_13_Icon" runat="server" Text=""></asp:Literal>
+                                    <asp:Literal ID="lit_TB_Custom_13_Text" runat="server" Text="Custom_13"></asp:Literal>
+                                    <asp:CheckBox ID="chk_TB_Custom_13_IsMsg" runat="server" Checked="false" Visible="false"></asp:CheckBox>
+                                    <asp:Literal ID="lit_TB_Custom_13_Msg" runat="server" Visible="false"></asp:Literal>
+                                </asp:linkbutton>
+
+                                <asp:linkbutton ID="lbtn_TB_Custom_14" 
+                                                runat="server" 
+                                                CssClass="btn btn-sm CUS-btn-outline-PColor-1 my-1 px-3 CUS-fz-4 CUS-BorRad-4"                            
+                                                OnClick="TB_Toolbar_Click"
+                                                OnPreRender="lbtn_PreRender"
+                                                Visible="false"
+                                                Style="margin-left:1px;margin-right:1px;padding-left:11px;padding-right:11px;"
+                                                >
+                                    <asp:Literal ID="lit_TB_Custom_14_Icon" runat="server" Text=""></asp:Literal>
+                                    <asp:Literal ID="lit_TB_Custom_14_Text" runat="server" Text="Custom_14"></asp:Literal>
+                                    <asp:CheckBox ID="chk_TB_Custom_14_IsMsg" runat="server" Checked="false" Visible="false"></asp:CheckBox>
+                                    <asp:Literal ID="lit_TB_Custom_14_Msg" runat="server" Visible="false"></asp:Literal>
+                                </asp:linkbutton>
+
+                                <asp:linkbutton ID="lbtn_TB_Custom_15" 
+                                                runat="server" 
+                                                CssClass="btn btn-sm CUS-btn-outline-PColor-1 my-1 px-3 CUS-fz-4 CUS-BorRad-4"                            
+                                                OnClick="TB_Toolbar_Click"
+                                                OnPreRender="lbtn_PreRender"
+                                                Visible="false"
+                                                Style="margin-left:1px;margin-right:1px;padding-left:11px;padding-right:11px;"
+                                                >
+                                    <asp:Literal ID="lit_TB_Custom_15_Icon" runat="server" Text=""></asp:Literal>
+                                    <asp:Literal ID="lit_TB_Custom_15_Text" runat="server" Text="Custom_15"></asp:Literal>
+                                    <asp:CheckBox ID="chk_TB_Custom_15_IsMsg" runat="server" Checked="false" Visible="false"></asp:CheckBox>
+                                    <asp:Literal ID="lit_TB_Custom_15_Msg" runat="server" Visible="false"></asp:Literal>
+                                </asp:linkbutton>
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+                </asp:Panel>
+                <tr id="tr_space_PlaceHolder1" style="height:6px;"><td></td></tr>
+                <tr style="vertical-align:top;">
+                    <td>
+                        <asp:ContentPlaceHolder ID="ContentPlaceHolder1" runat="server"></asp:ContentPlaceHolder>
+                    </td>
+                </tr>
+                </table>
+            </td>
+        </tr>
+        <tr id="tr_Site_S_Bottom" style="height:3px;"><td></td></tr>
+        </table>
+
+        <asp:HiddenField runat="server" ID="hf_MP_Position" Value="" />
+        <script type="text/javascript">
+            $(function () {
+                var f = $("#<%=hf_MP_Position.ClientID%>");
+                window.onload = function () {
+                    var position = parseInt(f.val());
+                    if (!isNaN(position)) {
+                        //$(window).scrollTop(position);
+                        window.scrollTo({
+                            top: position,
+                            left: 0,
+                            behavior: 'instant'
+                        });
+                    }
+                };
+                window.onscroll = function () {
+                    f.val($(window).scrollTop());
+                };
+            });
+        </script>
+    </div>
+    </form>
+</body>
+</html>
