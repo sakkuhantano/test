@@ -217,7 +217,13 @@ ORDER BY s.DisplayOrder, CASE WHEN ISNULL(i.IDSubSection,0)=0 THEN i.DisplayOrde
                                     isRemark2Required = Convert.ToBoolean(row["VersionIsRemark2Required"]) && (Convert.ToBoolean(item["IsUseDefaultRemark2"]) || Convert.ToBoolean(item["IsRemark2Required"])),
                                     isRemark1Mandatory = Convert.ToBoolean(item["IsRemark1Mandatory"]),
                                     isRemark2Mandatory = Convert.ToBoolean(item["IsRemark2Mandatory"]),
-                                    remarkRequiredOptions = !(Convert.ToBoolean(row["VersionIsRemark1Required"]) || Convert.ToBoolean(row["VersionIsRemark2Required"])) ? new string[0] : (String.IsNullOrWhiteSpace(GF.GetString(row["VersionRemarkRequiredOptions"])) ? new string[0] : GF.GetString(row["VersionRemarkRequiredOptions"]).Split(';')),
+                                    // Default OPTION list inherits the version-level rule.
+                                    // Custom OPTION list uses the item's own selected required options.
+                                    remarkRequiredOptions = !(Convert.ToBoolean(row["VersionIsRemark1Required"]) || Convert.ToBoolean(row["VersionIsRemark2Required"]))
+                                        ? new string[0]
+                                        : (itemType == "OPTION" && String.IsNullOrWhiteSpace(GF.GetString(item["OptionList"]))
+                                            ? (String.IsNullOrWhiteSpace(GF.GetString(row["VersionRemarkRequiredOptions"])) ? new string[0] : GF.GetString(row["VersionRemarkRequiredOptions"]).Split(';'))
+                                            : (String.IsNullOrWhiteSpace(GF.GetString(item["ItemRemarkRequiredOptions"])) ? new string[0] : GF.GetString(item["ItemRemarkRequiredOptions"]).Split(';'))),
                                     remark1Text = Convert.ToBoolean(item["IsUseDefaultRemark1"]) ? GF.GetString(row["VersionRemark1Text"]) : (item["Remark1Text"] == DBNull.Value ? "Remark" : item["Remark1Text"].ToString()),
                                     remark2Text = Convert.ToBoolean(item["IsUseDefaultRemark2"]) ? GF.GetString(row["VersionRemark2Text"]) : (item["Remark2Text"] == DBNull.Value ? "Remark" : item["Remark2Text"].ToString()),
                                     isToleranceRequired = GF.GetBoolean(item["IsToleranceRequired"]),
