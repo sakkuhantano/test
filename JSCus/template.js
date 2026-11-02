@@ -532,7 +532,7 @@ function createNewVersion()
         StatusOption:[],
         RemarkRequiredOptions:[],
         GroupEquipment:"",
-        PhotoRequirement:"NONE"
+        PhotoRequirement:"BOTH"
     };
 }
 function createNewTemplate(sectionId)
