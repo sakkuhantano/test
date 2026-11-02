@@ -727,6 +727,8 @@ async function getInspectionData() {
         if (!templateResponse.ok) throw new Error("Download Inspection templates failed");
         const templateResult = await templateResponse.json();
         const templates = (templateResult.d || []).map(function (template) {
+            // Persist the version-level photo rule alongside the exact template version.
+            const photoRequirement = String(template.PhotoRequirement || template.photoRequirement || "BOTH").toUpperCase();
             // Keep the detail restriction as an explicit, normalized field in IndexedDB.
             // WebMethod JSON property casing can differ between older deployed builds.
             const detailCodes = template.InspectionTypeDetailCode != null
@@ -737,7 +739,8 @@ async function getInspectionData() {
                     .map(function (code) { return code.trim().toUpperCase(); })
                     .filter(Boolean)
                     .filter(function (code, index, all) { return all.indexOf(code) === index; })
-                    .join(";")
+                    .join(";"),
+                PhotoRequirement: ["NONE", "BEFORE", "AFTER", "BOTH"].includes(photoRequirement) ? photoRequirement : "BOTH"
             });
         });
         // Keep each detail as one IndexedDB row; ScheduleTime contains sorted HH:mm values separated by semicolons.
