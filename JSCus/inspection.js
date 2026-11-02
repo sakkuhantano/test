@@ -789,6 +789,7 @@ async function startNewInspection() {
         TemplateName: template.TemplateName,
         TemplateVersion: String(template.Version || ""),
         TemplateSnapshot: JSON.parse(JSON.stringify(template)),
+        PhotoRequirement: normalizeInspectionPhotoRequirement(template.PhotoRequirement),
         InspectionDate: inspectionDate,
         StartDateTime: localDateTimeString(new Date()),
         EndDateTime: "",
@@ -866,11 +867,29 @@ function formatInspectionClock(value) {
         String(date.getMinutes()).padStart(2, "0");
 }
 
+function normalizeInspectionPhotoRequirement(value) {
+    const requirement = String(value || "BOTH").toUpperCase();
+    return ["NONE", "BEFORE", "AFTER", "BOTH"].includes(requirement) ? requirement : "BOTH";
+}
+
+function applyInspectionPhotoRequirement(record) {
+    const requirement = normalizeInspectionPhotoRequirement(
+        record && (record.PhotoRequirement || (record.TemplateSnapshot && record.TemplateSnapshot.PhotoRequirement))
+    );
+    const beforePanel = document.getElementById("btnAddInspectionBeforePhoto")?.closest(".inspection-photo-panel");
+    const afterPanel = document.getElementById("inspectionAfterPhotoPanel") ||
+        document.getElementById("btnAddInspectionAfterPhoto")?.closest(".inspection-photo-panel");
+    if (beforePanel) beforePanel.classList.toggle("d-none", requirement !== "BEFORE" && requirement !== "BOTH");
+    if (afterPanel) afterPanel.classList.toggle("d-none", requirement !== "AFTER" && requirement !== "BOTH");
+    return requirement;
+}
+
 async function renderInspectionForm(record, readOnly) {
     currentInspectionRecord = record;
     const photosAtOpen = await getInspectionPhotos(record.LocalInspectionID);
     inspectionPhotoBaseline = photosAtOpen.map(photo => Object.assign({}, photo));
     showInspectionInputScreen();
+    applyInspectionPhotoRequirement(record);
     const isVoidedServerRecord = isVoidedServerInspectionRecord(record);
     currentInspectionReadOnly = !isVoidedServerRecord && (!!readOnly || record.Status === "DONE");
     document.getElementById("inspectionEditorTabs").classList.remove("d-none");
@@ -2185,7 +2204,8 @@ async function applyInspectionParameters() {
         String(record.InspectionTypeDetailCode || "") !== String(detail.InspectionTypeDetailCode || "") ||
         String(record.ScheduledTime || "") !== String(scheduledTime || "") ||
         Number(record.IDTemplate) !== Number(template.IDTemplate) ||
-        Number(record.IDVersion) !== Number(template.IDVersion);
+        Number(record.IDVersion) !== Number(template.IDVersion) ||
+        normalizeInspectionPhotoRequirement(record.PhotoRequirement || (record.TemplateSnapshot && record.TemplateSnapshot.PhotoRequirement)) !== normalizeInspectionPhotoRequirement(template.PhotoRequirement);
     if (!changed) return true;
 
     const photos = await getInspectionPhotos(record.LocalInspectionID);
@@ -2222,6 +2242,7 @@ async function applyInspectionParameters() {
         TemplateName: template.TemplateName,
         TemplateVersion: String(template.Version || ""),
         TemplateSnapshot: JSON.parse(JSON.stringify(template)),
+        PhotoRequirement: normalizeInspectionPhotoRequirement(template.PhotoRequirement),
         SyncStatus: "PENDING",
         UpdatedAt: new Date().toISOString()
     });
@@ -2234,6 +2255,7 @@ async function applyInspectionParameters() {
     record.NextPhotoSeqNo = 1;
 
     const host = document.getElementById("inspectionChecklistHost");
+    applyInspectionPhotoRequirement(record);
     host.innerHTML = renderInspectionSections(template, [], currentInspectionReadOnly, "inspectionSection");
     updateInspectionRemarkPanels();
     await renderInspectionPhotos();
