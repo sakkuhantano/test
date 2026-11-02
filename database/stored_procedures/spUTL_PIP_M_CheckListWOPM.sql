@@ -20,12 +20,13 @@ DECLARE @tbl_Template TABLE
 INSERT @tbl_Template SELECT * FROM @p_dt_Template
 
 DECLARE @tbl_Version TABLE 
-(IDVersion INT, RuntimeVersionID INT, RuntimeTemplateID INT, [Version] VARCHAR(10), Remark VARCHAR(255), [Status] VARCHAR(10), EffectiveDate SMALLDATETIME, StatusOption VARCHAR(50), GroupEquipment VARCHAR(10), SummarySampleText VARCHAR(500), RemarkRequiredOptions VARCHAR(8000), IsRemark1Required BIT, Remark1Text VARCHAR(100), IsRemark2Required BIT, Remark2Text VARCHAR(100))
+(IDVersion INT, RuntimeVersionID INT, RuntimeTemplateID INT, [Version] VARCHAR(10), Remark VARCHAR(255), [Status] VARCHAR(10), EffectiveDate SMALLDATETIME, StatusOption VARCHAR(50), GroupEquipment VARCHAR(10), SummarySampleText VARCHAR(500), RemarkRequiredOptions VARCHAR(8000), IsRemark1Required BIT, Remark1Text VARCHAR(100), IsRemark2Required BIT, Remark2Text VARCHAR(100), PhotoRequirement VARCHAR(10))
 INSERT @tbl_Version SELECT C1, C2, C3, C4, C5, C6, CAST(C7 AS SMALLDATETIME), C8, C9, C10, C11,
  CASE WHEN LEFT(ISNULL(C12,''),2)='1|' THEN 1 ELSE 0 END,
  CASE WHEN LEFT(ISNULL(C12,''),2)='1|' AND CHARINDEX('|',ISNULL(C12,''))>0 THEN SUBSTRING(C12,3,100) ELSE '' END,
  CASE WHEN LEFT(ISNULL(C13,''),2)='1|' THEN 1 ELSE 0 END,
- CASE WHEN LEFT(ISNULL(C13,''),2)='1|' AND CHARINDEX('|',ISNULL(C13,''))>0 THEN SUBSTRING(C13,3,100) ELSE '' END
+ CASE WHEN LEFT(ISNULL(C13,''),2)='1|' AND CHARINDEX('|',ISNULL(C13,''))>0 THEN SUBSTRING(C13,3,CASE WHEN CHARINDEX('|',C13+'|',3)>0 THEN CHARINDEX('|',C13+'|',3)-3 ELSE 100 END) ELSE '' END,
+ CASE WHEN CHARINDEX('|',ISNULL(C13,''),3)>0 AND UPPER(SUBSTRING(C13,CHARINDEX('|',C13,3)+1,10)) IN ('NONE','BEFORE','AFTER','BOTH') THEN UPPER(SUBSTRING(C13,CHARINDEX('|',C13,3)+1,10)) ELSE 'NONE' END
  FROM @p_dt_Version
 
 DECLARE @tbl_Section TABLE 
@@ -37,8 +38,8 @@ DECLARE @tbl_SubSection TABLE
 INSERT @tbl_SubSection SELECT C1, C2, C3, C4, C5 FROM @p_dt_SubSection
 
 DECLARE @tbl_Item TABLE 
-(IDItem INT, RuntimeItemID INT, RuntimeSectionID INT, ItemLabel VARCHAR(500), ItemType VARCHAR(20), Unit VARCHAR(20), IsRemark1Required BIT, IsRemark2Required BIT, IsValueRequired BIT, ShowUnitInRange BIT, OptionList VARCHAR(200), MinValue DECIMAL, MaxValue DECIMAL, DisplayOrder INT, MinTolerance MONEY, MaxTolerance MONEY, ModelCode VARCHAR(50), IsToleranceRequired BIT, RemarkRequiredOptions VARCHAR(8000), Remark1Text VARCHAR(100), Remark2Text VARCHAR(100), RuntimeSubSectionID INT, IsUseDefaultRemark1 BIT, IsUseDefaultRemark2 BIT, IsRemark1Mandatory BIT, IsRemark2Mandatory BIT, PhotoRequirement VARCHAR(10))
-INSERT @tbl_Item SELECT C1, C2, C3, C4, C5, C6, C7, C18, C8, C9, C10, C11, C12, ISNULL(NULLIF(C22, 0), ROW_NUMBER() OVER ( PARTITION BY C3 ORDER BY (SELECT NULL))), C13, C14, C15, CAST(C16 AS BIT), C17, CASE WHEN CAST(ISNULL(NULLIF(C7, ''), '0') AS BIT)=1 THEN ISNULL(NULLIF(C19, ''), 'Remark') ELSE '' END, CASE WHEN CAST(ISNULL(NULLIF(C18, ''), '0') AS BIT)=1 THEN ISNULL(NULLIF(C20, ''), 'Remark') ELSE '' END, ISNULL(C21, 0), CAST(ISNULL(NULLIF(C23,''),'0') AS BIT), CAST(ISNULL(NULLIF(C24,''),'0') AS BIT), CAST(ISNULL(NULLIF(PARSENAME(REPLACE(ISNULL(C25,'0|0'),'|','.'), CASE WHEN LEN(ISNULL(C25,''))-LEN(REPLACE(ISNULL(C25,''),'|',''))>=2 THEN 3 ELSE 2 END),''),'0') AS BIT), CAST(ISNULL(NULLIF(PARSENAME(REPLACE(ISNULL(C25,'0|0'),'|','.'), CASE WHEN LEN(ISNULL(C25,''))-LEN(REPLACE(ISNULL(C25,''),'|',''))>=2 THEN 2 ELSE 1 END),''),'0') AS BIT), CASE WHEN LEN(ISNULL(C25,''))-LEN(REPLACE(ISNULL(C25,''),'|',''))>=2 THEN ISNULL(NULLIF(PARSENAME(REPLACE(ISNULL(C25,'0|0|NONE'),'|','.'),1),''),'NONE') ELSE 'NONE' END FROM @p_dt_Item
+(IDItem INT, RuntimeItemID INT, RuntimeSectionID INT, ItemLabel VARCHAR(500), ItemType VARCHAR(20), Unit VARCHAR(20), IsRemark1Required BIT, IsRemark2Required BIT, IsValueRequired BIT, ShowUnitInRange BIT, OptionList VARCHAR(200), MinValue DECIMAL, MaxValue DECIMAL, DisplayOrder INT, MinTolerance MONEY, MaxTolerance MONEY, ModelCode VARCHAR(50), IsToleranceRequired BIT, RemarkRequiredOptions VARCHAR(8000), Remark1Text VARCHAR(100), Remark2Text VARCHAR(100), RuntimeSubSectionID INT, IsUseDefaultRemark1 BIT, IsUseDefaultRemark2 BIT, IsRemark1Mandatory BIT, IsRemark2Mandatory BIT)
+INSERT @tbl_Item SELECT C1, C2, C3, C4, C5, C6, C7, C18, C8, C9, C10, C11, C12, ISNULL(NULLIF(C22, 0), ROW_NUMBER() OVER ( PARTITION BY C3 ORDER BY (SELECT NULL))), C13, C14, C15, CAST(C16 AS BIT), C17, CASE WHEN CAST(ISNULL(NULLIF(C7, ''), '0') AS BIT)=1 THEN ISNULL(NULLIF(C19, ''), 'Remark') ELSE '' END, CASE WHEN CAST(ISNULL(NULLIF(C18, ''), '0') AS BIT)=1 THEN ISNULL(NULLIF(C20, ''), 'Remark') ELSE '' END, ISNULL(C21, 0), CAST(ISNULL(NULLIF(C23,''),'0') AS BIT), CAST(ISNULL(NULLIF(C24,''),'0') AS BIT), CAST(ISNULL(NULLIF(PARSENAME(REPLACE(ISNULL(C25,'0|0'),'|','.'), CASE WHEN LEN(ISNULL(C25,''))-LEN(REPLACE(ISNULL(C25,''),'|',''))>=2 THEN 3 ELSE 2 END),''),'0') AS BIT), CAST(ISNULL(NULLIF(PARSENAME(REPLACE(ISNULL(C25,'0|0'),'|','.'), CASE WHEN LEN(ISNULL(C25,''))-LEN(REPLACE(ISNULL(C25,''),'|',''))>=2 THEN 2 ELSE 1 END),''),'0') AS BIT) FROM @p_dt_Item
 
 DECLARE @tbl_Group TABLE
 (IDGroup INT, RuntimeGroupID INT, RuntimeItemID INT, GroupName VARCHAR(100), FieldList VARCHAR(100), Unit VARCHAR(20), DisplayOrder INT)
@@ -251,7 +252,8 @@ SET
     V.StatusOption = S.StatusOption, V.UpdateUser=@p_UpdateUser, V.UpdateDate=GETDATE(), 
     V.GroupEquipment=S.GroupEquipment, V.SummarySampleText=S.SummarySampleText, V.RemarkRequiredOptions=S.RemarkRequiredOptions,
     V.IsRemark1Required=S.IsRemark1Required, V.Remark1Text=CASE WHEN S.IsRemark1Required=1 THEN ISNULL(NULLIF(S.Remark1Text,''),'Remark') ELSE '' END,
-    V.IsRemark2Required=S.IsRemark2Required, V.Remark2Text=CASE WHEN S.IsRemark2Required=1 THEN ISNULL(NULLIF(S.Remark2Text,''),'Remark') ELSE '' END
+    V.IsRemark2Required=S.IsRemark2Required, V.Remark2Text=CASE WHEN S.IsRemark2Required=1 THEN ISNULL(NULLIF(S.Remark2Text,''),'Remark') ELSE '' END,
+    V.PhotoRequirement=S.PhotoRequirement
 FROM PIP_M_CheckListWOPM_version V
 JOIN @tbl_Version S ON V.IDVersion = S.IDVersion
 WHERE S.IDVersion > 0 
@@ -265,7 +267,7 @@ USING (
         v.[Status],
         v.EffectiveDate,
         v.StatusOption,
-        v.GroupEquipment, v.SummarySampleText, v.RemarkRequiredOptions, v.IsRemark1Required, v.Remark1Text, v.IsRemark2Required, v.Remark2Text,
+        v.GroupEquipment, v.SummarySampleText, v.RemarkRequiredOptions, v.IsRemark1Required, v.Remark1Text, v.IsRemark2Required, v.Remark2Text, v.PhotoRequirement,
         tmpl.IDTemplate, -- Hubungkan dengan tabel map untuk mendapatkan IDTemplate asli database
         (SELECT ISNULL(MAX(IDVersion), 0) FROM PIP_M_CheckListWOPM_version) 
         + ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) AS NewIDVersion
@@ -282,9 +284,9 @@ ON 1 = 0 -- Trik agar selalu memicu aksi INSERT
 WHEN NOT MATCHED THEN
     -- Sebutkan nama kolom target di tabel PIP_M_CheckListWOPM_version
     -- Kolom IDVersion tidak ditulis karena IDENTITY ON
-    INSERT (IDTemplate, IDVersion, [Version], StatusOption, EffectiveDate, Remark, [Status], EntryUser, EntryDate, UpdateUser, UpdateDate, GroupEquipment, SummarySampleText, RemarkRequiredOptions, IsRemark1Required, Remark1Text, IsRemark2Required, Remark2Text)
+    INSERT (IDTemplate, IDVersion, [Version], StatusOption, EffectiveDate, Remark, [Status], EntryUser, EntryDate, UpdateUser, UpdateDate, GroupEquipment, SummarySampleText, RemarkRequiredOptions, IsRemark1Required, Remark1Text, IsRemark2Required, Remark2Text, PhotoRequirement)
     -- Masukkan nilai yang berasal dari blok USING (source)
-    VALUES (source.IDTemplate, source.NewIDVersion, source.[Version], source.StatusOption, source.EffectiveDate, source.Remark, source.[Status], @p_UpdateUser, GETDATE(), @p_UpdateUser, GETDATE(), source.GroupEquipment, source.SummarySampleText, source.RemarkRequiredOptions, source.IsRemark1Required, CASE WHEN source.IsRemark1Required=1 THEN ISNULL(NULLIF(source.Remark1Text,''),'Remark') ELSE '' END, source.IsRemark2Required, CASE WHEN source.IsRemark2Required=1 THEN ISNULL(NULLIF(source.Remark2Text,''),'Remark') ELSE '' END)
+    VALUES (source.IDTemplate, source.NewIDVersion, source.[Version], source.StatusOption, source.EffectiveDate, source.Remark, source.[Status], @p_UpdateUser, GETDATE(), @p_UpdateUser, GETDATE(), source.GroupEquipment, source.SummarySampleText, source.RemarkRequiredOptions, source.IsRemark1Required, CASE WHEN source.IsRemark1Required=1 THEN ISNULL(NULLIF(source.Remark1Text,''),'Remark') ELSE '' END, source.IsRemark2Required, CASE WHEN source.IsRemark2Required=1 THEN ISNULL(NULLIF(source.Remark2Text,''),'Remark') ELSE '' END, source.PhotoRequirement)
 OUTPUT 
 	'Version' Entity,
     source.RuntimeVersionID,  -- Dari tabel asal
@@ -401,7 +403,6 @@ SET
     I.IsUseDefaultRemark2=S.IsUseDefaultRemark2,
     I.IsRemark1Mandatory=S.IsRemark1Mandatory,
     I.IsRemark2Mandatory=S.IsRemark2Mandatory,
-    I.PhotoRequirement=S.PhotoRequirement,
     I.IDSubSection = CASE WHEN ISNULL(S.RuntimeSubSectionID,0)=0 THEN NULL ELSE SubS.IDSubSection END
 FROM PIP_M_CheckListWOPM_item I
 JOIN @tbl_Item S JOIN @tbl_Section SS ON SS.RuntimeSectionID=S.RuntimeSectionID ON I.IDItem = S.IDItem
@@ -427,7 +428,7 @@ USING (
         v.RuntimeSectionID,
         v.ItemLabel, v.ItemType, V.Unit, V.IsRemark1Required, V.IsRemark2Required, V.IsValueRequired, V.ShowUnitInRange,
         v.OptionList, v.MinValue, v.MaxValue, v.DisplayOrder,
-        tmpl.IDSection, subMap.IDSubSection, v.MinTolerance, v.MaxTolerance, v.ModelCode, v.IsToleranceRequired, v.RemarkRequiredOptions, v.Remark1Text, v.Remark2Text, v.IsUseDefaultRemark1, v.IsUseDefaultRemark2, v.IsRemark1Mandatory, v.IsRemark2Mandatory, v.PhotoRequirement,
+        tmpl.IDSection, subMap.IDSubSection, v.MinTolerance, v.MaxTolerance, v.ModelCode, v.IsToleranceRequired, v.RemarkRequiredOptions, v.Remark1Text, v.Remark2Text, v.IsUseDefaultRemark1, v.IsUseDefaultRemark2, v.IsRemark1Mandatory, v.IsRemark2Mandatory,
         (SELECT ISNULL(MAX(IDItem), 0) FROM PIP_M_CheckListWOPM_item) 
         + ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) AS NewIDItem
     FROM @tbl_Item v
@@ -442,10 +443,10 @@ USING (
 ON 1 = 0 -- Trik agar selalu memicu aksi INSERT
 WHEN NOT MATCHED THEN
     INSERT (IDSection,IDSubSection,IDItem,ItemLabel,ItemType,OptionList,MinValue,MaxValue,Unit,
-            ShowUnitInRange,IsValueRequired,IsRemark1Required,IsRemark2Required,Remark1Text,Remark2Text,DisplayOrder,MinTolerance,MaxTolerance,ModelCode,IsToleranceRequired,RemarkRequiredOptions,IsUseDefaultRemark1,IsUseDefaultRemark2,IsRemark1Mandatory,IsRemark2Mandatory,PhotoRequirement)
+            ShowUnitInRange,IsValueRequired,IsRemark1Required,IsRemark2Required,Remark1Text,Remark2Text,DisplayOrder,MinTolerance,MaxTolerance,ModelCode,IsToleranceRequired,RemarkRequiredOptions,IsUseDefaultRemark1,IsUseDefaultRemark2,IsRemark1Mandatory,IsRemark2Mandatory)
     VALUES (source.IDSection, source.IDSubSection, source.NewIDItem, source.ItemLabel, source.ItemType, source.OptionList, source.MinValue, source.MaxValue, source.Unit,
             source.ShowUnitInRange, source.IsValueRequired, source.IsRemark1Required, source.IsRemark2Required, source.Remark1Text, source.Remark2Text, source.DisplayOrder,
-            source.MinTolerance, source.MaxTolerance, source.ModelCode,source.IsToleranceRequired,source.RemarkRequiredOptions,source.IsUseDefaultRemark1,source.IsUseDefaultRemark2,source.IsRemark1Mandatory,source.IsRemark2Mandatory,source.PhotoRequirement)
+            source.MinTolerance, source.MaxTolerance, source.ModelCode,source.IsToleranceRequired,source.RemarkRequiredOptions,source.IsUseDefaultRemark1,source.IsUseDefaultRemark2,source.IsRemark1Mandatory,source.IsRemark2Mandatory)
 OUTPUT
 	'Item' Entity, 
     source.RuntimeItemID,  
