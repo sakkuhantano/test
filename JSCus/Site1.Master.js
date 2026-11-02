@@ -2160,8 +2160,12 @@ async function uploadWOGroup(workOrders, mode) {
                 }
             }
 
-            let before = await getPhotosByWO(wo.KeyHD, "BEFORE");
-            let after = await getPhotosByWO(wo.KeyHD, "AFTER");
+            const requirementValue = String((wo.TemplateJSON && wo.TemplateJSON.PhotoRequirement) || "BOTH").toUpperCase();
+            const photoRequirement = ["NONE", "BEFORE", "AFTER", "BOTH"].includes(requirementValue) ? requirementValue : "BOTH";
+            let before = photoRequirement === "BEFORE" || photoRequirement === "BOTH"
+                ? await getPhotosByWO(wo.KeyHD, "BEFORE") : [];
+            let after = photoRequirement === "AFTER" || photoRequirement === "BOTH"
+                ? await getPhotosByWO(wo.KeyHD, "AFTER") : [];
             before = await convertPhotosToBase64(before);
             after = await convertPhotosToBase64(after);
             before.forEach(photo => itemPayload.photos.push({
