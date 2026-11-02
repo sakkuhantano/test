@@ -507,7 +507,6 @@ function createNewItem()
         Remark1Text:"",
         Remark2Text:"",
         IsValueRequired:false,
-        PhotoRequirement:"NONE",
         ShowUnitInRange:false,
         UseDefaultOption:false,
         OptionList:"",
@@ -532,7 +531,8 @@ function createNewVersion()
         Remark2Text:"",
         StatusOption:[],
         RemarkRequiredOptions:[],
-        GroupEquipment:""
+        GroupEquipment:"",
+        PhotoRequirement:"NONE"
     };
 }
 function createNewTemplate(sectionId)
@@ -2713,6 +2713,12 @@ function showVersionPropertiesEvent(version) {
                 });
             });
 
+        const photoRequirementSelect = document.getElementById("propVersionPhotoRequirement");
+        if (photoRequirementSelect) photoRequirementSelect.addEventListener("change", function () {
+            version.PhotoRequirement = ["NONE", "BEFORE", "AFTER", "BOTH"].includes(this.value) ? this.value : "NONE";
+            markCurrentVersionDirty();
+        });
+
         document
             .getElementById("propTemplateGroupEquipment")
             .addEventListener(
@@ -2873,6 +2879,16 @@ function showVersionProperties(version, isNewTemplate)
                     </label>
                     <div id="versionOptionTags" class="tag-input-container" data-field="StatusOption">
                     </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label text-xs fw-bold mb-1">Photo Requirement</label>
+                    <select id="propVersionPhotoRequirement" class="form-select form-control-compact" ${isReadonlyMode ? 'disabled' : ''}>
+                        <option value="NONE" ${version.PhotoRequirement === 'NONE' ? 'selected' : ''}>No photo</option>
+                        <option value="BEFORE" ${version.PhotoRequirement === 'BEFORE' ? 'selected' : ''}>Before only</option>
+                        <option value="AFTER" ${version.PhotoRequirement === 'AFTER' ? 'selected' : ''}>After only</option>
+                        <option value="BOTH" ${version.PhotoRequirement === 'BOTH' ? 'selected' : ''}>Before &amp; After</option>
+                    </select>
+                    <div class="form-text text-xs">Applies to every checklist item in this Template Version.</div>
                 </div>
                 <div class="mb-3">
                     <label class="form-label text-xs fw-bold mb-1">Summary Sample Text</label>
@@ -3244,6 +3260,7 @@ function normalizeVersionStructure(data)
 
     data.VersionInfo.GroupEquipment =
         data.VersionInfo.GroupEquipment || "";
+    data.VersionInfo.PhotoRequirement = ["NONE", "BEFORE", "AFTER", "BOTH"].includes(data.VersionInfo.PhotoRequirement) ? data.VersionInfo.PhotoRequirement : "NONE";
     data.VersionInfo.SummarySampleText = data.VersionInfo.SummarySampleText || "";
     data.VersionInfo.IsRemark1Required = !!data.VersionInfo.IsRemark1Required;
     data.VersionInfo.IsRemark2Required = !!data.VersionInfo.IsRemark2Required;
@@ -3933,17 +3950,6 @@ function showItemProperties(itemData)
                     </div>
                 </div>
 
-                <div class="mb-3">
-                    <label class="form-label text-xs fw-bold mb-1">Photo Requirement</label>
-                    <select id="propPhotoRequirement" class="form-select form-select-sm" data-field="PhotoRequirement" ${isReadonlyMode ? 'disabled' : ''}>
-                        <option value="NONE" ${(itemData.PhotoRequirement || 'NONE') === 'NONE' ? 'selected' : ''}>No photo</option>
-                        <option value="BEFORE" ${itemData.PhotoRequirement === 'BEFORE' ? 'selected' : ''}>Before only</option>
-                        <option value="AFTER" ${itemData.PhotoRequirement === 'AFTER' ? 'selected' : ''}>After only</option>
-                        <option value="BOTH" ${itemData.PhotoRequirement === 'BOTH' ? 'selected' : ''}>Before &amp; After</option>
-                    </select>
-                    <div class="form-text text-xs">Applies to this checklist item in this Template Version.</div>
-                </div>
-
                 <div class="form-check form-switch mb-2">
                     <input
                         id="propMandatoryValue"
@@ -4613,14 +4619,6 @@ function showItemProperties(itemData)
             }
         );
     }
-    const photoRequirementSelect = document.getElementById("propPhotoRequirement");
-    if (photoRequirementSelect) {
-        photoRequirementSelect.addEventListener("change", function () {
-            itemData.PhotoRequirement = ["NONE", "BEFORE", "AFTER", "BOTH"].includes(this.value) ? this.value : "NONE";
-            markCurrentVersionDirty();
-        });
-    }
-
     const chkValue =
         document.getElementById(
             "propMandatoryValue"
