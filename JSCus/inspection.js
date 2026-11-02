@@ -907,7 +907,7 @@ function applyInspectionPhotoRequirement(record) {
 
 async function renderInspectionForm(record, readOnly) {
     currentInspectionRecord = record;
-    if (!readOnly && record.Status !== "DONE") {
+    if (!readOnly && (record.Status !== "DONE" || isVoidedServerInspectionRecord(record))) {
         await cleanupInspectionPhotosByRequirement(record.LocalInspectionID,
             record.PhotoRequirement || (record.TemplateSnapshot && record.TemplateSnapshot.PhotoRequirement));
     }
