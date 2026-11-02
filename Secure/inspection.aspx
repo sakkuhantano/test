@@ -68,7 +68,6 @@
     .inspection-approval-sticky { position: -webkit-sticky; position: sticky; top: 64px; z-index: 1025; background: var(--bs-body-bg); padding: .35rem 0 .4rem; border-bottom: 1px solid var(--bs-border-color); }
     /* Keep the complete inspection heading, tabs, and section navigation pinned below the master header. */
     #inspectionApprovalStickyHeader { position: -webkit-sticky !important; position: sticky !important; top: 112px !important; z-index: 1080 !important; background: var(--bs-body-bg); }
-    .inspection-section-nav { position: -webkit-sticky; position: sticky; top: 108px; z-index: 1075; }
     .inspection-section-nav-host { width: 100%; }
     /* Bootstrap modal defaults sit below the sticky inspection header (z-index 1080). Keep dialogs and their backdrop above it. */
     .modal-backdrop { z-index: 1090 !important; }
@@ -83,7 +82,7 @@
     #inspectionEditorTabs { white-space: nowrap; }
     #inspectionEditorTabs .nav-link.active { font-weight: 700; }
     .inspection-section-nav-host { min-width: 0; }
-    .inspection-section-nav-host .inspection-section-nav { width: 100%; max-width: 100%; min-height: 58px; margin-bottom: 0 !important; padding: .6rem !important; }
+    .inspection-section-nav-host .inspection-section-nav { position: static; width: 100%; max-width: 100%; min-height: 58px; margin-bottom: 0 !important; padding: .6rem !important; }
     .inspection-section-nav-tabs { min-width: 0; overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; -webkit-overflow-scrolling: touch; touch-action: pan-x; padding: .15rem 0 .35rem; }
     .inspection-section-nav-tabs .d-inline-flex { gap: .35rem; width: max-content; min-width: 100%; min-height: 42px; align-items: center; }
     .inspection-section-tab { display: inline-flex; align-items: center; min-height: 40px; white-space: nowrap; padding: .55rem .75rem; border-radius: .45rem; color: var(--bs-secondary-color); text-decoration: none; font-size: .875rem; font-weight: 600; border: 1px solid transparent; }
@@ -95,7 +94,6 @@
         .inspection-approval-sticky { top: 58px; }
         #inspectionEditorStickyHeader { top: 58px !important; }
         #inspectionApprovalStickyHeader { top: 104px !important; }
-        .inspection-section-nav { top: 90px; }
         .inspection-form-heading { width: 100%; }
         .inspection-section-nav-host { width: 100%; max-width: 100%; }
         .inspection-section-nav-host .inspection-section-nav { width: 100%; }
@@ -560,7 +558,7 @@
     <div id="inspectionNotice" class="alert alert-info py-2 small mb-3">
         Pilih Inspection Type, template, detail inspeksi, lalu jam jadwal. Data tersimpan di perangkat dan hanya disinkronkan oleh teknisi pemiliknya.
     </div>
-    <div id="inspectionEditorStickyHeader" class="inspection-editor-sticky mb-2"><div class="inspection-form-header d-flex align-items-center gap-2 mb-2"><h6 id="inspectionFormTitle" class="mb-0 text-truncate flex-shrink-1">Checklist</h6><button type="button" id="btnInspectionFormInfo" class="btn btn-sm btn-outline-secondary py-0 px-2 flex-shrink-0" aria-label="Informasi inspeksi" title="Informasi inspeksi"><i class="bi bi-info-circle-fill"></i></button></div><ul id="inspectionEditorTabs" class="nav nav-tabs mb-2 d-none" role="tablist"><li class="nav-item"><button type="button" id="btnInspectionParamTab" class="nav-link" role="tab">PARAM</button></li><li class="nav-item"><button type="button" id="btnInspectionChecklistTab" class="nav-link active" role="tab">CHECKLIST</button></li></ul></div>
+    <div id="inspectionEditorStickyHeader" class="inspection-editor-sticky mb-2"><div class="inspection-form-header d-flex align-items-center gap-2 mb-2"><h6 id="inspectionFormTitle" class="mb-0 text-truncate flex-shrink-1">Checklist</h6><button type="button" id="btnInspectionFormInfo" class="btn btn-sm btn-outline-secondary py-0 px-2 flex-shrink-0" aria-label="Informasi inspeksi" title="Informasi inspeksi"><i class="bi bi-info-circle-fill"></i></button></div><ul id="inspectionEditorTabs" class="nav nav-tabs mb-2 d-none" role="tablist"><li class="nav-item"><button type="button" id="btnInspectionParamTab" class="nav-link" role="tab">PARAM</button></li><li class="nav-item"><button type="button" id="btnInspectionChecklistTab" class="nav-link active" role="tab">CHECKLIST</button></li></ul><div id="inspectionSectionNavHost" class="inspection-section-nav-host d-none"></div></div>
     <div id="inspectionParamsPane">
     <div id="inspectionStartPanel" class="inspection-card p-3 mb-3">
         <div class="inspection-step mb-3">
@@ -615,7 +613,6 @@
     </div>
     </div>
     <div id="inspectionChecklistPane" class="d-none">
-    <div id="inspectionSectionNavHost" class="inspection-section-nav-host d-none"></div>
     <div id="inspectionFormPanel" class="inspection-card p-3 mb-3 d-none">
         <div class="inspection-photo-panel mb-3"><div class="fw-bold mb-2"><i class="bi bi-camera-fill me-2"></i>FIELD DOCUMENTATION BEFORE</div><div id="inspectionPhotoBeforeList" class="d-flex flex-wrap gap-2 mb-2"></div><div class="d-flex align-items-center justify-content-between gap-2"><label class="inspection-muted mb-0">Ambil foto sebelum inspeksi</label><button type="button" id="btnAddInspectionBeforePhoto" class="btn btn-sm btn-outline-primary" onclick="document.getElementById('inspectionPhotoBeforeInput').click()"><i class="bi bi-camera"></i> Take Picture</button><input id="inspectionPhotoBeforeInput" type="file" accept="image/*" capture="environment" multiple hidden /></div><div id="inspectionBeforePhotoCount" class="inspection-muted mt-1">0 foto</div></div>
         <div id="inspectionChecklistGateMessage" class="alert alert-warning py-2 small"></div><div id="inspectionChecklistHost"></div>
