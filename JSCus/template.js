@@ -2715,7 +2715,7 @@ function showVersionPropertiesEvent(version) {
 
         const photoRequirementSelect = document.getElementById("propVersionPhotoRequirement");
         if (photoRequirementSelect) photoRequirementSelect.addEventListener("change", function () {
-            version.PhotoRequirement = ["NONE", "BEFORE", "AFTER", "BOTH"].includes(this.value) ? this.value : "NONE";
+            version.PhotoRequirement = ["NONE", "BEFORE", "AFTER", "BOTH"].includes(this.value) ? this.value : "BOTH";
             markCurrentVersionDirty();
         });
 
@@ -3260,7 +3260,7 @@ function normalizeVersionStructure(data)
 
     data.VersionInfo.GroupEquipment =
         data.VersionInfo.GroupEquipment || "";
-    data.VersionInfo.PhotoRequirement = ["NONE", "BEFORE", "AFTER", "BOTH"].includes(data.VersionInfo.PhotoRequirement) ? data.VersionInfo.PhotoRequirement : "NONE";
+    data.VersionInfo.PhotoRequirement = ["NONE", "BEFORE", "AFTER", "BOTH"].includes(data.VersionInfo.PhotoRequirement) ? data.VersionInfo.PhotoRequirement : "BOTH";
     data.VersionInfo.SummarySampleText = data.VersionInfo.SummarySampleText || "";
     data.VersionInfo.IsRemark1Required = !!data.VersionInfo.IsRemark1Required;
     data.VersionInfo.IsRemark2Required = !!data.VersionInfo.IsRemark2Required;
