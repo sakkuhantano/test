@@ -648,14 +648,27 @@ async function getCheckList() {
         if (!result) return;
         // Normalize the version-level photo rule before writing either WO template cache.
         // getCheckList() is the Work Order (templateType W) download path.
-        let templates = (result.d || []).map(function (template) {
-            const photoRequirement = String(
-                template.PhotoRequirement || template.photoRequirement || "BOTH"
-            ).toUpperCase();
-            return Object.assign({}, template, {
+        const serverTemplates = Array.isArray(result.d) ? result.d : [];
+        let templates = serverTemplates.map(function (template) {
+            // Keep the complete server template (including all item-level remark,
+            // mandatory and IsValueRequired fields); only normalize the version rule.
+            const rawPhotoRequirement = template.PhotoRequirement != null
+                ? template.PhotoRequirement
+                : template.photoRequirement;
+            const photoRequirement = String(rawPhotoRequirement || "BOTH").trim().toUpperCase();
+            const normalizedTemplate = Object.assign({}, template, {
                 PhotoRequirement: ["NONE", "BEFORE", "AFTER", "BOTH"].includes(photoRequirement)
                     ? photoRequirement : "BOTH"
             });
+            return normalizedTemplate;
+        });
+        console.log("WO template sync:", {
+            received: serverTemplates.length,
+            photoRequirementFields: templates.filter(t => Object.prototype.hasOwnProperty.call(t, "PhotoRequirement")).length,
+            sample: templates.slice(0, 3).map(t => ({
+                TemplateNo: t.TemplateNo,
+                PhotoRequirement: t.PhotoRequirement
+            }))
         });
         //let sections = result.d.data.sections;
         //let items = result.d.data.items;
