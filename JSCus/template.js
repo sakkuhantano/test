@@ -507,6 +507,7 @@ function createNewItem()
         Remark1Text:"",
         Remark2Text:"",
         IsValueRequired:false,
+        PhotoRequirement:"NONE",
         ShowUnitInRange:false,
         UseDefaultOption:false,
         OptionList:"",
@@ -3932,6 +3933,17 @@ function showItemProperties(itemData)
                     </div>
                 </div>
 
+                <div class="mb-3">
+                    <label class="form-label text-xs fw-bold mb-1">Photo Requirement</label>
+                    <select id="propPhotoRequirement" class="form-select form-select-sm" data-field="PhotoRequirement" ${isReadonlyMode ? 'disabled' : ''}>
+                        <option value="NONE" ${(itemData.PhotoRequirement || 'NONE') === 'NONE' ? 'selected' : ''}>No photo</option>
+                        <option value="BEFORE" ${itemData.PhotoRequirement === 'BEFORE' ? 'selected' : ''}>Before only</option>
+                        <option value="AFTER" ${itemData.PhotoRequirement === 'AFTER' ? 'selected' : ''}>After only</option>
+                        <option value="BOTH" ${itemData.PhotoRequirement === 'BOTH' ? 'selected' : ''}>Before &amp; After</option>
+                    </select>
+                    <div class="form-text text-xs">Applies to this checklist item in this Template Version.</div>
+                </div>
+
                 <div class="form-check form-switch mb-2">
                     <input
                         id="propMandatoryValue"
@@ -4601,6 +4613,14 @@ function showItemProperties(itemData)
             }
         );
     }
+    const photoRequirementSelect = document.getElementById("propPhotoRequirement");
+    if (photoRequirementSelect) {
+        photoRequirementSelect.addEventListener("change", function () {
+            itemData.PhotoRequirement = ["NONE", "BEFORE", "AFTER", "BOTH"].includes(this.value) ? this.value : "NONE";
+            markCurrentVersionDirty();
+        });
+    }
+
     const chkValue =
         document.getElementById(
             "propMandatoryValue"
