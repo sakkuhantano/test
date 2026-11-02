@@ -84,7 +84,7 @@ WHERE a.UserID = @UserID
             using (var br = new WAL.BR.CF())
             {
                 DataTable dt = br.EQuery(@"
-SELECT a.IDVersion, a.Version, a.[Status], a.EffectiveDate, a.StatusOption, a.Remark, RuntimeVersionID=a.IDVersion, a.GroupEquipment, a.RemarkRequiredOptions, a.SummarySampleText, a.IsRemark1Required, a.Remark1Text, a.IsRemark2Required, a.Remark2Text
+SELECT a.IDVersion, a.Version, a.[Status], a.EffectiveDate, a.StatusOption, a.Remark, RuntimeVersionID=a.IDVersion, a.GroupEquipment, a.RemarkRequiredOptions, a.SummarySampleText, a.IsRemark1Required, a.Remark1Text, a.IsRemark2Required, a.Remark2Text, ISNULL(a.PhotoRequirement,'NONE') PhotoRequirement
 FROM PIP_M_CheckListWOPM_Version a WHERE a.IDTemplate=@IDTemplate", "@IDTemplate=" + idTemplate);
                 var versionList = dt.AsEnumerable().Select(row => new
                 {
@@ -104,7 +104,8 @@ FROM PIP_M_CheckListWOPM_Version a WHERE a.IDTemplate=@IDTemplate", "@IDTemplate
                     IsRemark1Required = Convert.ToBoolean(row["IsRemark1Required"]),
                     Remark1Text = GF.GetString(row["Remark1Text"]),
                     IsRemark2Required = Convert.ToBoolean(row["IsRemark2Required"]),
-                    Remark2Text = GF.GetString(row["Remark2Text"])
+                    Remark2Text = GF.GetString(row["Remark2Text"]),
+                    PhotoRequirement = new[] { "NONE", "BEFORE", "AFTER", "BOTH" }.Contains(GF.GetString(row["PhotoRequirement"]).ToUpperInvariant()) ? GF.GetString(row["PhotoRequirement"]).ToUpperInvariant() : "NONE"
                 }).ToList();
 
                 JavaScriptSerializer serializer = new JavaScriptSerializer();
