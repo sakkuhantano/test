@@ -119,7 +119,7 @@ FROM PIP_M_CheckListWOPM_Version a WHERE a.IDTemplate=@IDTemplate", "@IDTemplate
             using (var br = new WAL.BR.CF())
             {
                 DataSet ds = br.EQuery_DS(@"
-SELECT IDVersion, A.IDTemplate, B.TemplateNo, B.TemplateName, A.Version, A.Status, A.EffectiveDate, A.Remark, A.StatusOption StatusOptionRaw, A.GroupEquipment, A.RemarkRequiredOptions RemarkRequiredOptionsRaw, A.SummarySampleText, A.IsRemark1Required, A.Remark1Text, A.IsRemark2Required, A.Remark2Text
+SELECT IDVersion, A.IDTemplate, B.TemplateNo, B.TemplateName, A.Version, A.Status, A.EffectiveDate, A.Remark, A.StatusOption StatusOptionRaw, A.GroupEquipment, A.RemarkRequiredOptions RemarkRequiredOptionsRaw, A.SummarySampleText, A.IsRemark1Required, A.Remark1Text, A.IsRemark2Required, A.Remark2Text, ISNULL(A.PhotoRequirement,'NONE') PhotoRequirement
 FROM PIP_M_CheckListWOPM_Version A JOIN PIP_M_CheckListWOPM B ON B.IDTemplate = A.IDTemplate 
 WHERE IDVersion = @IDVersion;
 
@@ -127,7 +127,7 @@ SELECT IDSection, SectionName, DisplayOrder
 FROM PIP_M_CheckListWOPM_Section WHERE IDVersion = @IDVersion ORDER BY DisplayOrder;
 
 SELECT A.IDItem, A.IDSection, A.IDSubSection, A.ItemLabel, A.ItemType, A.DisplayOrder, A.Unit, 
-        a.IsRemark1Required, a.IsRemark2Required, a.IsRemark1Mandatory, a.IsRemark2Mandatory, ISNULL(a.PhotoRequirement,'NONE') PhotoRequirement, a.Remark1Text, a.Remark2Text, a.IsUseDefaultRemark1, a.IsUseDefaultRemark2, A.IsValueRequired, a.ShowUnitInRange, 
+        a.IsRemark1Required, a.IsRemark2Required, a.IsRemark1Mandatory, a.IsRemark2Mandatory, a.Remark1Text, a.Remark2Text, a.IsUseDefaultRemark1, a.IsUseDefaultRemark2, A.IsValueRequired, a.ShowUnitInRange, 
         UseDefaultOption=CAST((CASE WHEN a.ItemType='OPTION' AND ISNULL(a.OptionList,'')='' THEN 1 ELSE 0 END) AS BIT), 
         a.OptionList OptionListRaw, a.RemarkRequiredOptions RemarkRequiredOptionsRaw, a.MinValue, a.MaxValue, a.MinTolerance, a.MaxTolerance, a.ModelCode, a.IsToleranceRequired
 FROM PIP_M_CheckListWOPM_Item A JOIN PIP_M_CheckListWOPM_Section B ON B.IDSection = A.IDSection 
@@ -169,6 +169,7 @@ WHERE SEC.IDVersion=@IDVersion ORDER BY SS.DisplayOrder;",
                         Remark1Text = GF.GetString(versionRow["Remark1Text"]),
                         IsRemark2Required = Convert.ToBoolean(versionRow["IsRemark2Required"]),
                         Remark2Text = GF.GetString(versionRow["Remark2Text"]),
+                        PhotoRequirement = new[] { "NONE", "BEFORE", "AFTER", "BOTH" }.Contains(GF.GetString(versionRow["PhotoRequirement"]).ToUpperInvariant()) ? GF.GetString(versionRow["PhotoRequirement"]).ToUpperInvariant() : "NONE",
                         RemarkRequiredOptions = String.IsNullOrWhiteSpace(GF.GetString(versionRow["RemarkRequiredOptionsRaw"])) ? new string[0] : GF.GetString(versionRow["RemarkRequiredOptionsRaw"]).Split(';'),
                         // Mengubah string koma "OK;MF;NA" dari DB menjadi array ["OK","MF","NA"]
                         StatusOption = versionRow["StatusOptionRaw"] == DBNull.Value ? new string[0] : versionRow["StatusOptionRaw"].ToString().Split(';')
@@ -222,7 +223,6 @@ WHERE SEC.IDVersion=@IDVersion ORDER BY SS.DisplayOrder;",
                                         Remark1Text = itemRow["Remark1Text"] == DBNull.Value ? "Remark" : itemRow["Remark1Text"].ToString(),
                                         Remark2Text = itemRow["Remark2Text"] == DBNull.Value ? "Remark" : itemRow["Remark2Text"].ToString(),
                                         IsValueRequired = Convert.ToBoolean(itemRow["IsValueRequired"]),
-                                         PhotoRequirement = GF.GetString(itemRow["PhotoRequirement"]),
                                         ShowUnitInRange = Convert.ToBoolean(itemRow["ShowUnitInRange"]),
                                         UseDefaultOption = Convert.ToBoolean(itemRow["UseDefaultOption"]),
                                         //UseTolerance = (GF.GetDecimal(itemRow["MinTolerance"]) != 0 || GF.GetDecimal(itemRow["MaxTolerance"]) != 0),
@@ -711,7 +711,7 @@ WHERE a.SectionID = @SectionID
                                 vRow["C10"] = vInfo.ContainsKey("SummarySampleText") ? GF.GetString(vInfo["SummarySampleText"]) : "";
                                 vRow["C11"] = versionRemarkRequiredOptionsStr;
                                 vRow["C12"] = (vInfo.ContainsKey("IsRemark1Required") && Convert.ToBoolean(vInfo["IsRemark1Required"]) ? "1" : "0") + "|" + (vInfo.ContainsKey("Remark1Text") ? GF.GetString(vInfo["Remark1Text"]) : "Remark");
-                                vRow["C13"] = (vInfo.ContainsKey("IsRemark2Required") && Convert.ToBoolean(vInfo["IsRemark2Required"]) ? "1" : "0") + "|" + (vInfo.ContainsKey("Remark2Text") ? GF.GetString(vInfo["Remark2Text"]) : "Remark");
+                                vRow["C13"] = (vInfo.ContainsKey("IsRemark2Required") && Convert.ToBoolean(vInfo["IsRemark2Required"]) ? "1" : "0") + "|" + (vInfo.ContainsKey("Remark2Text") ? GF.GetString(vInfo["Remark2Text"]) : "Remark") + "|" + (vInfo.ContainsKey("PhotoRequirement") ? GF.GetString(vInfo["PhotoRequirement"]) : "NONE");
                                 dtVersion.Rows.Add(vRow);
                             }
 
@@ -801,7 +801,7 @@ WHERE a.SectionID = @SectionID
                                             iRow["C21"] = item.ContainsKey("RuntimeSubSectionID") ? item["RuntimeSubSectionID"] : 0;
                                             iRow["C23"] = item.ContainsKey("IsUseDefaultRemark1") && Convert.ToBoolean(item["IsUseDefaultRemark1"]) ? "1" : "0";
                                             iRow["C24"] = item.ContainsKey("IsUseDefaultRemark2") && Convert.ToBoolean(item["IsUseDefaultRemark2"]) ? "1" : "0";
-                                            iRow["C25"] = (item.ContainsKey("IsRemark1Mandatory") && Convert.ToBoolean(item["IsRemark1Mandatory"]) ? "1" : "0") + "|" + (item.ContainsKey("IsRemark2Mandatory") && Convert.ToBoolean(item["IsRemark2Mandatory"]) ? "1" : "0") + "|" + (item.ContainsKey("PhotoRequirement") ? GF.GetString(item["PhotoRequirement"]) : "NONE");
+                                            iRow["C25"] = (item.ContainsKey("IsRemark1Mandatory") && Convert.ToBoolean(item["IsRemark1Mandatory"]) ? "1" : "0") + "|" + (item.ContainsKey("IsRemark2Mandatory") && Convert.ToBoolean(item["IsRemark2Mandatory"]) ? "1" : "0");
                                             iRow["C22"] = item.ContainsKey("DisplayOrder") ? item["DisplayOrder"] : 0;
                                             dtItem.Rows.Add(iRow);
 
