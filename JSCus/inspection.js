@@ -1129,12 +1129,15 @@ function renderInspectionSections(template, savedItems, readOnly, idPrefix) {
             (sectionIndex + 1) + '. ' + escInspection(section.sectionName || section.SectionName || "Checklist") + '<i class="bi bi-chevron-down float-end"></i></button>' +
             '<div id="' + sectionCollapseId + '" class="collapse show">' + contentHtml + '</div></section>';
     }).join("");
-    if (prefix === "inspectionSection" || prefix === "inspectionApprovalSection") {
-        const navHostId = prefix === "inspectionSection" ? "inspectionSectionNavHost" : "inspectionApprovalSectionNavHost";
+    if (prefix === "inspectionSection" || prefix === "serverSubmittedInspectionSection" || prefix === "inspectionApprovalSection") {
+        const isApproval = prefix === "inspectionApprovalSection";
+        const navHostId = isApproval ? "inspectionApprovalSectionNavHost" : "inspectionSectionNavHost";
         const navHost = document.getElementById(navHostId);
         if (navHost) {
             navHost.innerHTML = navHtml;
-            navHost.classList.toggle("d-none", prefix === "inspectionSection" ? document.getElementById("btnInspectionParamTab").classList.contains("active") : !document.getElementById("inspectionApprovalChecklistTab").classList.contains("active"));
+            navHost.classList.toggle("d-none", isApproval
+                ? !document.getElementById("inspectionApprovalChecklistTab").classList.contains("active")
+                : document.getElementById("btnInspectionParamTab").classList.contains("active"));
         }
         return sectionsHtml;
     }
