@@ -1641,19 +1641,19 @@ function compressImage(file, options) {
     return new Promise((resolve, reject) => {
         if (!options) {
             options = {
-                maxWidth:1280,
-                maxHeight:1280,
-                maxSize:800*1024,   // 800 KB
-                quality:0.75,
-                minQuality:0.30
+                maxWidth:640,
+                maxHeight:640,
+                maxSize:100*1024,   // 100 KB target for inspection photos
+                quality:0.70,
+                minQuality:0.25
             };
         }
 
         let maxSide = options.maxWidth;
-        if (file.size > 8 * 1024 * 1024)
-            maxSide = 1024;
-        else if (file.size > 15 * 1024 * 1024)
-            maxSide = 800;
+        if (file.size > 15 * 1024 * 1024)
+            maxSide = Math.min(maxSide, 800);
+        else if (file.size > 8 * 1024 * 1024)
+            maxSide = Math.min(maxSide, 1024);
         const MAX_WIDTH = maxSide;
         const MAX_HEIGHT = maxSide;         
         const MAX_SIZE = options.maxSize;     
