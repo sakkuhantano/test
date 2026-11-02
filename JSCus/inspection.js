@@ -1853,9 +1853,11 @@ async function openServerSubmittedInspection(inspectionId) {
         host.innerHTML = renderInspectionSections(template, items, true, "serverSubmittedInspectionSection");
         const renderPhotos = type => {
             const photos = (result.photos || []).filter(p => String(p.Type || "").toUpperCase() === type);
-            return photos.length ? '<div class="inspection-photo-panel mb-3"><div class="fw-bold mb-2">FIELD DOCUMENTATION ' + type + '</div><div class="d-flex flex-wrap gap-2">' +
-                photos.map((p,i) => '<button type="button" class="inspection-photo-item inspection-approval-photo-item" data-approval-photo-type="' + type + '" data-server-photo-index="' + i + '"><img src="' + escInspection(p.Data || "") + '" alt="Inspection ' + type + '" loading="lazy"></button>').join("") +
-                '</div></div>' : '<div class="text-muted small mb-3">Foto ' + type + ' belum tersedia.</div>';
+            return photos.length
+                ? '<div class="d-flex flex-wrap gap-2">' +
+                    photos.map((p,i) => '<button type="button" class="inspection-photo-item inspection-approval-photo-item" data-approval-photo-type="' + type + '" data-server-photo-index="' + i + '"><img src="' + escInspection(p.Data || "") + '" alt="Inspection ' + type + '" loading="lazy"></button>').join("") +
+                  '</div>'
+                : '<div class="text-muted small mb-2">Foto ' + type + ' belum tersedia.</div>';
         };
         document.getElementById("inspectionPhotoBeforeList").innerHTML = renderPhotos("BEFORE");
         document.getElementById("inspectionPhotoAfterList").innerHTML = renderPhotos("AFTER");
