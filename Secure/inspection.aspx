@@ -252,6 +252,102 @@
         #inspectionScrollUp { bottom: 4rem; top: auto; }
         #inspectionScrollDown { bottom: .75rem; top: auto; }
     }
+
+    /* Draft and Submitted lists: turn the six-column grid into readable cards on phones. */
+    @media (max-width: 575.98px) {
+        #inspectionDraftList,
+        #inspectionSubmittedList,
+        .inspection-record-table-wrap {
+            width: 100%;
+            max-width: 100%;
+            min-width: 0;
+        }
+        .inspection-record-table-wrap {
+            overflow: visible;
+            margin: 0;
+        }
+        .inspection-record-table {
+            display: block;
+            width: 100%;
+            border: 0;
+            margin-bottom: 0;
+        }
+        .inspection-record-table thead { display: none; }
+        .inspection-record-table tbody {
+            display: flex;
+            flex-direction: column;
+            gap: .65rem;
+        }
+        .inspection-record-table tbody tr.inspection-record-main-row {
+            display: block;
+            width: 100%;
+            padding: .55rem .7rem;
+            border: 1px solid var(--bs-border-color);
+            border-radius: .65rem;
+            background: var(--bs-body-bg);
+            box-shadow: 0 .1rem .25rem rgba(0,0,0,.04);
+        }
+        .inspection-record-table tbody tr.inspection-record-main-row td {
+            display: grid;
+            grid-template-columns: minmax(6.5rem, 38%) minmax(0, 1fr);
+            align-items: start;
+            gap: .5rem;
+            width: 100%;
+            min-width: 0;
+            padding: .32rem 0 !important;
+            border: 0;
+            font-size: .82rem;
+            white-space: normal;
+            overflow-wrap: anywhere;
+            word-break: break-word;
+        }
+        .inspection-record-table tbody tr.inspection-record-main-row td::before {
+            content: attr(data-label);
+            color: var(--bs-secondary-color);
+            font-size: .74rem;
+            font-weight: 600;
+        }
+        .inspection-record-table tbody tr.inspection-record-main-row td:first-child {
+            display: block;
+            padding-bottom: .45rem !important;
+            margin-bottom: .2rem;
+            border-bottom: 1px solid var(--bs-border-color);
+            font-weight: 600;
+        }
+        .inspection-record-table tbody tr.inspection-record-main-row td:first-child::before {
+            content: none;
+        }
+        .inspection-record-table tbody tr.inspection-record-main-row td:first-child button {
+            display: inline-block;
+            max-width: 100%;
+            text-align: left;
+            white-space: normal !important;
+            overflow-wrap: anywhere;
+        }
+        .inspection-record-table tbody tr.inspection-record-main-row td:last-child button {
+            max-width: 100%;
+            white-space: normal;
+        }
+        .inspection-record-table tbody tr.inspection-grid-message-row {
+            display: block;
+            width: 100%;
+            margin-top: -.55rem;
+            padding: .45rem .7rem;
+            border: 1px solid var(--bs-warning-border-subtle);
+            border-radius: .55rem;
+            background: var(--bs-warning-bg-subtle);
+        }
+        .inspection-record-table tbody tr.inspection-grid-message-row td {
+            display: block;
+            width: 100%;
+            padding: 0 !important;
+            border: 0;
+            white-space: normal !important;
+            overflow-wrap: anywhere;
+            word-break: break-word;
+        }
+    }
+
 </style>
 </asp:Content>
 
