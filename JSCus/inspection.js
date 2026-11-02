@@ -867,6 +867,27 @@ function formatInspectionClock(value) {
         String(date.getMinutes()).padStart(2, "0");
 }
 
+async function cleanupInspectionPhotosByRequirement(localInspectionId, requirement) {
+    const normalized = normalizeInspectionPhotoRequirement(requirement);
+    const keep = normalized === "BOTH" ? ["BEFORE", "AFTER"] :
+        normalized === "BEFORE" ? ["BEFORE"] : normalized === "AFTER" ? ["AFTER"] : [];
+    await new Promise((resolve, reject) => {
+        const tx = db.transaction("inspection_photos", "readwrite");
+        const store = tx.objectStore("inspection_photos");
+        const index = store.index("LocalInspectionID");
+        const req = index.openCursor(IDBKeyRange.only(localInspectionId));
+        req.onsuccess = () => {
+            const cursor = req.result;
+            if (!cursor) return;
+            const type = String(cursor.value.Type || "").toUpperCase();
+            if (["BEFORE", "AFTER"].includes(type) && !keep.includes(type)) cursor.delete();
+            cursor.continue();
+        };
+        tx.oncomplete = resolve;
+        tx.onerror = () => reject(tx.error || new Error("Gagal membersihkan foto inspeksi yang tidak diaktifkan."));
+        tx.onabort = () => reject(tx.error || new Error("Pembersihan foto inspeksi dibatalkan."));
+    });
+}
 function normalizeInspectionPhotoRequirement(value) {
     const requirement = String(value || "BOTH").toUpperCase();
     return ["NONE", "BEFORE", "AFTER", "BOTH"].includes(requirement) ? requirement : "BOTH";
@@ -886,6 +907,10 @@ function applyInspectionPhotoRequirement(record) {
 
 async function renderInspectionForm(record, readOnly) {
     currentInspectionRecord = record;
+    if (!readOnly && record.Status !== "DONE") {
+        await cleanupInspectionPhotosByRequirement(record.LocalInspectionID,
+            record.PhotoRequirement || (record.TemplateSnapshot && record.TemplateSnapshot.PhotoRequirement));
+    }
     const photosAtOpen = await getInspectionPhotos(record.LocalInspectionID);
     inspectionPhotoBaseline = photosAtOpen.map(photo => Object.assign({}, photo));
     showInspectionInputScreen();
@@ -1497,14 +1522,20 @@ async function saveInspection(status) {
             showToast("Pilih Responsible Section dan isi deskripsi pekerjaan untuk Follow Up.", "warning");
             return;
         }
-        const hasBefore = photos.some(p => p.Type === "BEFORE");
-        const hasAfter = photos.some(p => p.Type === "AFTER");
-        if (!hasBefore || !hasAfter) {
-            showToast(!hasBefore && !hasAfter
+        const requirement = normalizeInspectionPhotoRequirement(
+            currentInspectionRecord.PhotoRequirement ||
+            (currentInspectionRecord.TemplateSnapshot && currentInspectionRecord.TemplateSnapshot.PhotoRequirement)
+        );
+        const hasBefore = photos.some(p => String(p.Type || "").toUpperCase() === "BEFORE");
+        const hasAfter = photos.some(p => String(p.Type || "").toUpperCase() === "AFTER");
+        const missingBefore = (requirement === "BEFORE" || requirement === "BOTH") && !hasBefore;
+        const missingAfter = (requirement === "AFTER" || requirement === "BOTH") && !hasAfter;
+        if (missingBefore || missingAfter) {
+            showToast(missingBefore && missingAfter
                 ? "Foto BEFORE dan AFTER wajib diisi (minimal 1 foto untuk masing-masing)."
-                : !hasBefore ? "Foto BEFORE wajib diisi (minimal 1 foto)." : "Foto AFTER wajib diisi (minimal 1 foto).", "warning");
+                : missingBefore ? "Foto BEFORE wajib diisi (minimal 1 foto)." : "Foto AFTER wajib diisi (minimal 1 foto).", "warning");
             showInspectionEditorTab("checklist");
-            const target = document.getElementById(!hasBefore ? "inspectionPhotoBeforeInput" : "inspectionPhotoAfterInput");
+            const target = document.getElementById(missingBefore ? "inspectionPhotoBeforeInput" : "inspectionPhotoAfterInput");
             if (target) target.scrollIntoView({ behavior: "smooth", block: "center" });
             return;
         }
@@ -2530,7 +2561,7 @@ function handleInspectionPhotoViewerKeydown(event) {
     }
 }
 
-async function handleInspectionPhotoInput(event,type){const input=event.target,files=Array.from(input.files||[]);input.value="";if(!currentInspectionRecord||currentInspectionReadOnly||!files.length)return;const existing=await getInspectionPhotos(currentInspectionRecord.LocalInspectionID);let nextSeq=Math.max(Number(currentInspectionRecord.NextPhotoSeqNo||1),existing.reduce((max,p)=>Math.max(max,Number(p.SeqNo||p.OrderNo||0)),0)+1);let added=0;for(const file of files){if(!file.type.startsWith("image/")){showInspectionNotice("File harus berupa gambar.","warning");continue;}try{if(typeof compressImage!=="function")throw new Error("Fungsi kompresi foto belum tersedia. Refresh aplikasi sebelum mencoba lagi.");const blob=await compressImage(file,{maxWidth:640,maxHeight:640,maxSize:100*1024,quality:.70,minQuality:.25});const baseName=(file.name||("inspection-"+type.toLowerCase())).replace(/\\.[^.]+$/,"");await new Promise((resolve,reject)=>{const tx=db.transaction("inspection_photos","readwrite");tx.objectStore("inspection_photos").add({LocalInspectionID:currentInspectionRecord.LocalInspectionID,Type:type,FileName:baseName+".jpg",Blob:blob,SeqNo:nextSeq,CreatedAt:new Date().toISOString()});tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error||new Error("Gagal menyimpan foto."));});nextSeq++;added++;}catch(err){console.error(err);showInspectionNotice("Foto gagal disimpan: "+(err.message||err),"danger");}}if(added){currentInspectionRecord.NextPhotoSeqNo=nextSeq;currentInspectionRecord.SyncStatus="PENDING";currentInspectionRecord.UpdatedAt=new Date().toISOString();}await renderInspectionPhotos();await updateInspectionChecklistGate();scheduleInspectionAutosave();}
+async function handleInspectionPhotoInput(event,type){const input=event.target,files=Array.from(input.files||[]);input.value="";if(!currentInspectionRecord||currentInspectionReadOnly||!files.length)return;const requirement=normalizeInspectionPhotoRequirement(currentInspectionRecord.PhotoRequirement||(currentInspectionRecord.TemplateSnapshot&&currentInspectionRecord.TemplateSnapshot.PhotoRequirement));if((type==="BEFORE"&&!(requirement==="BEFORE"||requirement==="BOTH"))||(type==="AFTER"&&!(requirement==="AFTER"||requirement==="BOTH"))){showInspectionNotice("Foto "+type+" tidak diaktifkan pada Template Version ini.","warning");return;}const existing=await getInspectionPhotos(currentInspectionRecord.LocalInspectionID);let nextSeq=Math.max(Number(currentInspectionRecord.NextPhotoSeqNo||1),existing.reduce((max,p)=>Math.max(max,Number(p.SeqNo||p.OrderNo||0)),0)+1);let added=0;for(const file of files){if(!file.type.startsWith("image/")){showInspectionNotice("File harus berupa gambar.","warning");continue;}try{if(typeof compressImage!=="function")throw new Error("Fungsi kompresi foto belum tersedia. Refresh aplikasi sebelum mencoba lagi.");const blob=await compressImage(file,{maxWidth:640,maxHeight:640,maxSize:100*1024,quality:.70,minQuality:.25});const baseName=(file.name||("inspection-"+type.toLowerCase())).replace(/\\.[^.]+$/,"");await new Promise((resolve,reject)=>{const tx=db.transaction("inspection_photos","readwrite");tx.objectStore("inspection_photos").add({LocalInspectionID:currentInspectionRecord.LocalInspectionID,Type:type,FileName:baseName+".jpg",Blob:blob,SeqNo:nextSeq,CreatedAt:new Date().toISOString()});tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error||new Error("Gagal menyimpan foto."));});nextSeq++;added++;}catch(err){console.error(err);showInspectionNotice("Foto gagal disimpan: "+(err.message||err),"danger");}}if(added){currentInspectionRecord.NextPhotoSeqNo=nextSeq;currentInspectionRecord.SyncStatus="PENDING";currentInspectionRecord.UpdatedAt=new Date().toISOString();}await renderInspectionPhotos();await updateInspectionChecklistGate();scheduleInspectionAutosave();}
 async function handleInspectionPhotoDelete(event){const b=event.target.closest("[data-delete-inspection-photo]");if(!b||!currentInspectionRecord||currentInspectionReadOnly)return;const confirmed=await showConfirmation({title:"Hapus Foto",message:"Hapus foto ini?",yesText:"Hapus"});if(!confirmed)return;const existing=await getInspectionPhotos(currentInspectionRecord.LocalInspectionID);const nextSeq=Math.max(Number(currentInspectionRecord.NextPhotoSeqNo||1),existing.reduce((max,p)=>Math.max(max,Number(p.SeqNo||p.OrderNo||0)),0)+1);currentInspectionRecord.NextPhotoSeqNo=nextSeq;currentInspectionRecord.SyncStatus="PENDING";currentInspectionRecord.UpdatedAt=new Date().toISOString();await new Promise((resolve,reject)=>{const tx=db.transaction("inspection_photos","readwrite");tx.objectStore("inspection_photos").delete(Number(b.dataset.deleteInspectionPhoto));tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error||new Error("Hapus foto gagal."));});await renderInspectionPhotos();await updateInspectionChecklistGate();scheduleInspectionAutosave();}
 async function updateInspectionChecklistGate() {
     updateInspectionParameterTabGate();
