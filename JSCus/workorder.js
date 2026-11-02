@@ -3133,12 +3133,12 @@ async function validateExtra() {
         }
     }
 
-    if (valid && beforePhotos.length === 0) {
+    if (valid && (photoRequirement === "BEFORE" || photoRequirement === "BOTH") && beforePhotos.length === 0) {
 		showToast('Foto BEFORE wajib attach');
         valid = false;
     }
 
-    if (valid && afterPhotos.length === 0) {
+    if (valid && (photoRequirement === "AFTER" || photoRequirement === "BOTH") && afterPhotos.length === 0) {
 		showToast('Foto AFTER wajib attach');
         valid = false;
     }
