@@ -1723,20 +1723,20 @@ function renderInspectionRecordTable(records, host, submitted) {
         const technicianName = record.TechnicianName && record.TechnicianName !== record.OwnerEmployeeID
             ? record.TechnicianName
             : (record.OwnerEmployeeID === inspectionLogin.employeeid ? inspectionTechnicianName : "");
-        const mainRow = '<tr>' +
-            '<td class="text-nowrap">' + numberHtml + '</td>' +
-            '<td class="text-nowrap">' + escInspection(inspectionDateTime) + '</td>' +
-            '<td class="text-nowrap">' + escInspection(startEnd) + '</td>' +
-            '<td>' + escInspection(record.InspectionTypeName || "—") + '</td>' +
-            '<td>' + escInspection(record.InspectionTypeDetailName || "—") + '</td>' +
-            '<td>' + escInspection(technicianName || "—") + deleteHtml + '</td>' +
+        const mainRow = '<tr class="inspection-record-main-row">' +
+            '<td data-label="Inspection No.">' + numberHtml + '</td>' +
+            '<td data-label="Inspection Date/Time">' + escInspection(inspectionDateTime) + '</td>' +
+            '<td data-label="Start/End">' + escInspection(startEnd) + '</td>' +
+            '<td data-label="Inspection Type">' + escInspection(record.InspectionTypeName || "—") + '</td>' +
+            '<td data-label="Location/Area">' + escInspection(record.InspectionTypeDetailName || "—") + '</td>' +
+            '<td data-label="Technician">' + escInspection(technicianName || "—") + deleteHtml + '</td>' +
             '</tr>';
         const messageRow = conflictHtml
             ? '<tr class="inspection-grid-message-row"><td colspan="6" class="small" style="white-space:normal;overflow-wrap:anywhere;word-break:break-word;padding-top:0.25rem;padding-bottom:0.5rem;">' + conflictHtml + '</td></tr>'
             : "";
         return mainRow + messageRow;
     }).join("");
-    host.innerHTML = '<div class="table-responsive"><table class="table table-sm table-hover align-middle mb-0">' +
+    host.innerHTML = '<div class="table-responsive inspection-record-table-wrap"><table class="table table-sm table-hover align-middle mb-0 inspection-record-table">' +
         header + '<tbody>' + rows + '</tbody></table></div>';
     if (!host.dataset.sortWired) {
         host.dataset.sortWired = "1";
