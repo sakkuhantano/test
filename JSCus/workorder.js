@@ -791,10 +791,15 @@ function updateWorkOrderRemarkPanels(template) {
     });
 }
 
+function normalizeWOPhotoRequirement(value) {
+    const requirement = String(value || "BOTH").toUpperCase();
+    return ["NONE", "BEFORE", "AFTER", "BOTH"].includes(requirement) ? requirement : "BOTH";
+}
+
 async function renderChecklist(template, isEntryMode) {
 	
     let html = `
-<div class="accordion-item border-secondary" id="section_0">
+<div class="accordion-item border-secondary" id="section_0" style="${normalizeWOPhotoRequirement(template.PhotoRequirement) === "BEFORE" || normalizeWOPhotoRequirement(template.PhotoRequirement) === "BOTH" ? "" : "display:none;"}">
     <div class="accordion-header">
         <div class="accordion-button">
             <i class="bi bi-camera-fill me-2 text-secondary"></i>
@@ -1131,7 +1136,7 @@ async function renderChecklist(template, isEntryMode) {
     const nextId = Math.max(...template.sections.map(sec => sec.idSection)) + 1;
 
     html += `
-<div class="accordion-item border-secondary" id="section_${nextId}">
+<div class="accordion-item border-secondary" id="section_${nextId}" style="${normalizeWOPhotoRequirement(template.PhotoRequirement) === "AFTER" || normalizeWOPhotoRequirement(template.PhotoRequirement) === "BOTH" ? "" : "display:none;"}">
     <!-- HEADER (non-clickable) -->
     <div class="accordion-header">
         <div class="accordion-button">
