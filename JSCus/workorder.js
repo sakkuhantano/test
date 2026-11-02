@@ -2232,6 +2232,7 @@ async function openWO(keyHD, el) {
             return;
         }
         currentWO.TemplateJSON = template;
+        await cleanupWOPhotosByRequirement(currentWO.KeyHD, template.PhotoRequirement);
     	// if (!template) {
     	// 	console.error(
     	// 		"Template not found:",
@@ -3099,8 +3100,11 @@ async function validateExtra() {
     let checkedFollowUp = (document.querySelector("[data-role='followup'] input[data-role='followup']:checked")?.value) || '';
     let followup = checkedFollowUp ?? ''
 
-	let beforePhotos = await getPhotosByWO(currentWO.KeyHD, "BEFORE");
-	let afterPhotos  = await getPhotosByWO(currentWO.KeyHD, "AFTER");
+    const photoRequirement = normalizeWOPhotoRequirement(currentTemplate && currentTemplate.PhotoRequirement);
+    let beforePhotos = photoRequirement === "BEFORE" || photoRequirement === "BOTH"
+        ? await getPhotosByWO(currentWO.KeyHD, "BEFORE") : [];
+    let afterPhotos = photoRequirement === "AFTER" || photoRequirement === "BOTH"
+        ? await getPhotosByWO(currentWO.KeyHD, "AFTER") : [];
 
     let valid = true;
 
@@ -3401,7 +3405,31 @@ async function normalizeOrder(keyHD, type) {
         store.put(p);
     });
 }
+async function cleanupWOPhotosByRequirement(keyHD, requirement) {
+    const allowed = normalizeWOPhotoRequirement(requirement);
+    const keep = allowed === "BOTH" ? ["BEFORE", "AFTER"] :
+        allowed === "BEFORE" ? ["BEFORE"] : allowed === "AFTER" ? ["AFTER"] : [];
+    const photos = await getPhotosByWO(keyHD);
+    const removeIds = photos.filter(photo =>
+        ["BEFORE", "AFTER"].includes(String(photo.Type || "").toUpperCase()) &&
+        !keep.includes(String(photo.Type || "").toUpperCase())
+    ).map(photo => photo.ID);
+    if (!removeIds.length) return;
+    await new Promise((resolve, reject) => {
+        const tx = db.transaction("wo_photos", "readwrite");
+        const store = tx.objectStore("wo_photos");
+        removeIds.forEach(id => store.delete(id));
+        tx.oncomplete = resolve;
+        tx.onerror = () => reject(tx.error || new Error("Gagal membersihkan foto Work Order yang tidak diaktifkan."));
+        tx.onabort = () => reject(tx.error || new Error("Pembersihan foto Work Order dibatalkan."));
+    });
+}
 async function savePhoto(keyHD, type, blob, fileName) {
+
+    const requirement = normalizeWOPhotoRequirement(currentTemplate && currentTemplate.PhotoRequirement);
+    const allowed = type === "BEFORE" ? requirement === "BEFORE" || requirement === "BOTH" :
+        type === "AFTER" ? requirement === "AFTER" || requirement === "BOTH" : true;
+    if (!allowed) throw new Error("Jenis foto " + type + " tidak diaktifkan pada Template Version ini.");
 
     // 🔥 ambil jumlah existing dari DB
     let existing = await getPhotosByWO(keyHD, type);
