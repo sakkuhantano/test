@@ -2658,29 +2658,28 @@ function wireInspectionEditorStickyHeader() {
         }
 
         if (!spacer) {
+            anchorTop = header.getBoundingClientRect().top + window.pageYOffset;
             spacer = document.createElement("div");
             spacer.className = "inspection-editor-sticky-spacer";
             spacer.style.display = "none";
             header.parentNode.insertBefore(spacer, header);
+        } else if (anchorTop === null) {
+            anchorTop = header.getBoundingClientRect().top + window.pageYOffset;
         }
 
         const navBottom = masterNav && masterNav.getClientRects().length
             ? Math.max(0, masterNav.getBoundingClientRect().bottom)
             : 0;
-
-        if (anchorTop === null) {
-            anchorTop = spacer.getBoundingClientRect().top + window.pageYOffset;
-        }
-
         const shouldFix = window.pageYOffset >= anchorTop - navBottom;
+
         if (!shouldFix) {
             clearFixedState();
             return;
         }
 
-        const reference = spacer.getBoundingClientRect();
         spacer.style.display = "block";
         spacer.style.height = header.offsetHeight + "px";
+        const reference = spacer.getBoundingClientRect();
         header.style.position = "fixed";
         header.style.top = navBottom + "px";
         header.style.left = reference.left + "px";
@@ -2689,10 +2688,7 @@ function wireInspectionEditorStickyHeader() {
     }
 
     window.addEventListener("scroll", updateFixedHeader, { passive: true });
-    window.addEventListener("resize", function () {
-        anchorTop = null;
-        updateFixedHeader();
-    });
+    window.addEventListener("resize", updateFixedHeader);
     document.addEventListener("shown.bs.tab", updateFixedHeader);
 
     const panelObserver = new MutationObserver(function () {
