@@ -1192,10 +1192,15 @@ async function uploadPendingInspections() {
         const ready = []; let waiting = 0;
         for (const record of ownedRecords) {
             const photos = await new Promise((resolve,reject)=>{const tx=db.transaction("inspection_photos","readonly");const req=tx.objectStore("inspection_photos").index("LocalInspectionID").getAll(IDBKeyRange.only(record.LocalInspectionID));req.onsuccess=()=>resolve(req.result||[]);req.onerror=()=>reject(req.error);});
-            if (photos.some(p=>p.Type==="BEFORE")) ready.push(record); else waiting++;
+            const requirementValue = String(record.PhotoRequirement || (record.TemplateSnapshot && record.TemplateSnapshot.PhotoRequirement) || "BOTH").toUpperCase();
+            const requirement = ["NONE", "BEFORE", "AFTER", "BOTH"].includes(requirementValue) ? requirementValue : "BOTH";
+            const requiredTypes = requirement === "BOTH" ? ["BEFORE", "AFTER"] :
+                requirement === "BEFORE" ? ["BEFORE"] : requirement === "AFTER" ? ["AFTER"] : [];
+            if (requiredTypes.every(type => photos.some(photo => String(photo.Type || "").toUpperCase() === type))) ready.push(record);
+            else waiting++;
         }
         ownedRecords=ready;
-        if(waiting) showToast(waiting+" draft Inspection belum sync karena foto BEFORE wajib diambil terlebih dahulu.","warning");
+        if(waiting) showToast(waiting+" Inspection belum sync karena foto yang diwajibkan oleh Template Version belum lengkap.","warning");
     }
 
     if (pendingInCompany.length > pendingInScope.length) {
@@ -1212,7 +1217,11 @@ async function uploadPendingInspections() {
     const payload = await Promise.all(ownedRecords.map(async record => {
         let photos=[];
         if(db.objectStoreNames.contains("inspection_photos")) photos=await new Promise((resolve,reject)=>{const tx=db.transaction("inspection_photos","readonly");const req=tx.objectStore("inspection_photos").index("LocalInspectionID").getAll(IDBKeyRange.only(record.LocalInspectionID));req.onsuccess=()=>resolve(req.result||[]);req.onerror=()=>reject(req.error);});
-        const orderedPhotos = photos.slice().sort((a,b) =>
+        const requirementValue = String(record.PhotoRequirement || (record.TemplateSnapshot && record.TemplateSnapshot.PhotoRequirement) || "BOTH").toUpperCase();
+        const requirement = ["NONE", "BEFORE", "AFTER", "BOTH"].includes(requirementValue) ? requirementValue : "BOTH";
+        const allowedPhotoTypes = requirement === "BOTH" ? ["BEFORE", "AFTER"] :
+            requirement === "BEFORE" ? ["BEFORE"] : requirement === "AFTER" ? ["AFTER"] : [];
+        const orderedPhotos = photos.filter(photo => allowedPhotoTypes.includes(String(photo.Type || "").toUpperCase())).sort((a,b) =>
             Number(a.SeqNo || a.OrderNo || 0) - Number(b.SeqNo || b.OrderNo || 0) ||
             (String(a.Type || "").toUpperCase() === "BEFORE" ? 0 : 1) -
             (String(b.Type || "").toUpperCase() === "BEFORE" ? 0 : 1)
