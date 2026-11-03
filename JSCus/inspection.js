@@ -599,11 +599,18 @@ function refreshInspectionScheduleOptions() {
             return currentInspectionId > 0 && candidateInspectionId > 0 &&
                 currentInspectionId === candidateInspectionId;
         };
+        const isCurrentLocal = inspectionRecords.some(record => matchesKey(record) && isCurrentInspection(record));
+        const isCurrentServer = serverSlotRecords.some(record => matchesKey(record) && isCurrentInspection(record));
         const local = inspectionRecords.find(record => matchesKey(record) && !isCurrentInspection(record));
         const server = serverSlotRecords.find(record => matchesKey(record) && !isCurrentInspection(record));
         slotCount++;
 
-        if (local || server) {
+        // The selected record's own slot is neither available nor occupied by
+        // another inspection. Keep its saved time label neutral when reopened.
+        if (isCurrentLocal || isCurrentServer) {
+            option.textContent = baseLabel;
+            emptyCount++;
+        } else if (local || server) {
             option.disabled = true;
             occupiedCount++;
             if (local && (local.SyncStatus === "CONFLICT" || local.SyncStatus === "DELETE_PENDING")) {
