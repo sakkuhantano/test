@@ -499,7 +499,7 @@ async function startScan() {
             backToList();
         },
         function (err) {
-            alert(err);
+            showToast(err, "error");
             // backToList();
         }
     );
