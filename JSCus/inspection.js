@@ -587,8 +587,20 @@ function refreshInspectionScheduleOptions() {
             return;
         }
 
-        const local = inspectionRecords.find(matchesKey);
-        const server = serverSlotRecords.find(matchesKey);
+        // When reopening an existing inspection (especially from SUBMITTED),
+        // its own slot must not be treated as occupied by another transaction.
+        const isCurrentInspection = record => {
+            if (!record || !currentInspectionRecord) return false;
+            const currentLocalId = String(currentInspectionRecord.LocalInspectionID || "");
+            const candidateLocalId = String(record.LocalInspectionID || "");
+            if (currentLocalId && candidateLocalId && currentLocalId === candidateLocalId) return true;
+            const currentInspectionId = Number(currentInspectionRecord.InspectionID || 0);
+            const candidateInspectionId = Number(record.InspectionID || 0);
+            return currentInspectionId > 0 && candidateInspectionId > 0 &&
+                currentInspectionId === candidateInspectionId;
+        };
+        const local = inspectionRecords.find(record => matchesKey(record) && !isCurrentInspection(record));
+        const server = serverSlotRecords.find(record => matchesKey(record) && !isCurrentInspection(record));
         slotCount++;
 
         if (local || server) {
