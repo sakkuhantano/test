@@ -1,4 +1,4 @@
-CREATE PROCEDURE spUTL_PIP_M_CheckListWOPM
+ALTER PROCEDURE spUTL_PIP_M_CheckListWOPM
 (
 	@p_CompanyID VARCHAR(10), @p_LocationID VARCHAR(3),
 	@p_dt_Template AS [Type_N_Tbl_C5] READONLY,
@@ -53,7 +53,7 @@ INSERT @tbl_DelVersion SELECT * FROM @p_dt_DelVersion
 
 DECLARE @tbl_Identity TABLE (Entity VARCHAR(50), RuntimeID INT, ID INT)
 
-DECLARE @p_IsDebug BIT = 1
+DECLARE @p_IsDebug BIT = 0
 IF @p_IsDebug=1
 BEGIN
 	IF EXISTS (SELECT * FROM INFORMATION_SCHEMA.TABLES AS t WHERE t.TABLE_NAME='tmpDebug_PIP_M_CheckListWOPM')
@@ -234,8 +234,8 @@ USING (
 ) AS source
 ON 1 = 0 
 WHEN NOT MATCHED THEN
-    INSERT (IDTemplate, TemplateNo, TemplateName, SectionID, IsActive, EntryUser, EntryDate, UpdateUser, UpdateDate, CompanyID, LocationID, CompanyLocationList, EmployeeList)
-    VALUES (source.NewIDTemplate, source.templateno, source.templatename, source.sectionid, 1, @p_UpdateUser, GETDATE(), @p_UpdateUser, GETDATE(), @p_CompanyID, @p_LocationID, @p_CompanyID + @p_LocationID, '')
+    INSERT (IDTemplate, TemplateNo, TemplateName, SectionID, IsActive, EntryUser, EntryDate, UpdateUser, UpdateDate, CompanyLocationList, EmployeeList)
+    VALUES (source.NewIDTemplate, source.templateno, source.templatename, source.sectionid, 1, @p_UpdateUser, GETDATE(), @p_UpdateUser, GETDATE(), @p_CompanyID + @p_LocationID, '')
 OUTPUT 
     'Template' Entity,
     source.runtimetemplateid,   
@@ -517,20 +517,3 @@ END
 SELECT * FROM @tbl_Identity    
 
 --- end processsing
-
-
-GO
-/* Clean legacy default labels from rows where the remark fields are disabled. */
-UPDATE dbo.PIP_M_CheckListWOPM_version
-SET Remark1Text=''
-WHERE ISNULL(IsRemark1Required,0)=0 AND ISNULL(Remark1Text,'')<>'';
-UPDATE dbo.PIP_M_CheckListWOPM_version
-SET Remark2Text=''
-WHERE ISNULL(IsRemark2Required,0)=0 AND ISNULL(Remark2Text,'')<>'';
-UPDATE dbo.PIP_M_CheckListWOPM_item
-SET Remark1Text=''
-WHERE ISNULL(IsRemark1Required,0)=0 AND ISNULL(Remark1Text,'')<>'';
-UPDATE dbo.PIP_M_CheckListWOPM_item
-SET Remark2Text=''
-WHERE ISNULL(IsRemark2Required,0)=0 AND ISNULL(Remark2Text,'')<>'';
-GO
