@@ -4055,7 +4055,7 @@ async function submitVoidWO(type) {
             result = result.d;
 
             if (!result.success) {
-                alert(result.message);
+                showToast(result.message, "error");
             }
             // await promisifyPageMethod(
             //     PageMethods.approvevoidWorkOrder,
@@ -4076,9 +4076,10 @@ async function submitVoidWO(type) {
         backToList();
     }
     catch (ex) {
-        alert(
+        showToast(
             "FETCH ERROR\n\n" +
-            ex.toString()
+            ex.toString(),
+            "error"
         );
         // console.error(ex);
         // showToast("Failed to void work order","danger");
