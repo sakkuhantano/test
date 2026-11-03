@@ -2017,7 +2017,12 @@ function restoreInspectionMasterDropdowns() {
 function resetInspectionSelection() {
     restoreInspectionMasterDropdowns();
     showInspectionInputScreen(true);
-    showInspectionNotice("Pilih Inspection Type, detail inspeksi, lalu template. Data tersimpan di perangkat dan hanya disinkronkan oleh teknisi pemiliknya.", "info");
+    const notice = document.getElementById("inspectionNotice");
+    if (notice) {
+        notice.className = "alert alert-info py-2 small mb-3";
+        notice.classList.remove("d-none");
+        notice.textContent = "Pilih Inspection Type, template, detail inspeksi, lalu jam jadwal. Data tersimpan di perangkat dan hanya disinkronkan oleh teknisi pemiliknya.";
+    }
     currentInspectionRecord = null;
     currentInspectionReadOnly = false;
     document.getElementById("inspectionEditorTabs").classList.add("d-none");
