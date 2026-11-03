@@ -989,7 +989,7 @@ ORDER BY InspectionTypeDetailName, InspectionTypeDetailCode",
             using (var br = new WAL.BR.CF())
             {
                 DataTable dt = br.EQuery(@"
-SELECT T.IDTemplate, T.SectionID, T.CompanyID, T.LocationID,
+SELECT T.IDTemplate, T.SectionID,
        InspectionSectionID=I.SectionID
 FROM dbo.PIP_M_CheckListWOPM T
 LEFT JOIN dbo.PIP_M_InspectionType I
