@@ -445,7 +445,7 @@ WHERE a.SectionID = @SectionID
             {
                 // 1. Validasi Duplikasi Nomor Template
                 string queryTemplate = @"
-            SELECT * FROM PIP_M_CheckListWOPM
+            SELECT IDTemplate FROM PIP_M_CheckListWOPM
             WHERE TemplateNo=@TemplateNo AND IDTemplate<>@IDTemplate";
 
                 string paramsTemplate = "@TemplateNo=" + templateNo + GF.Str2 +
