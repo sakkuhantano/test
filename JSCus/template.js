@@ -1148,6 +1148,46 @@ function renderTemplateExplorerRoot(data)
         `);
 
     });
+
+    // A whole Template (not an individual Version) can be copied to another Section.
+    container.querySelectorAll(".accordion-item").forEach(function(sectionItem) {
+        const header = sectionItem.querySelector(".category-header");
+        if (!header) return;
+        const targetSectionId = String(header.id || "").replace("rootHeader_", "");
+        if (!targetSectionId) return;
+
+        sectionItem.addEventListener("dragover", function(event) {
+            const types = event.dataTransfer ? Array.from(event.dataTransfer.types || []) : [];
+            if (!types.includes("application/x-pip-template")) return;
+            event.preventDefault();
+            event.dataTransfer.dropEffect = "copy";
+            sectionItem.classList.add("border", "border-primary");
+        });
+        sectionItem.addEventListener("dragleave", function(event) {
+            if (!sectionItem.contains(event.relatedTarget))
+                sectionItem.classList.remove("border", "border-primary");
+        });
+        sectionItem.addEventListener("drop", async function(event) {
+            sectionItem.classList.remove("border", "border-primary");
+            const raw = event.dataTransfer &&
+                event.dataTransfer.getData("application/x-pip-template");
+            if (!raw) return;
+            event.preventDefault();
+            event.stopPropagation();
+            let source;
+            try { source = JSON.parse(raw); } catch (_) { return; }
+            if (!source || !source.sectionId || !source.templateRuntimeId) return;
+            if (String(source.sectionId) === targetSectionId) {
+                showToast("Pilih Section tujuan yang berbeda.", "warning");
+                return;
+            }
+            await cloneTemplateToSection(
+                source.sectionId,
+                source.templateRuntimeId,
+                targetSectionId
+            );
+        });
+    });
 }
 function showTemplateRootMenu(event, sectionId, btn)
 {
@@ -1519,6 +1559,32 @@ function renderTemplates(data, container, sectionId)
             'beforeend',
             html
         );
+
+        const templateRoot = container.lastElementChild;
+        if (templateRoot) {
+            templateRoot.draggable = true;
+            templateRoot.setAttribute("draggable", "true");
+            templateRoot.title = "Drag this Template to another Section to copy its Active Version";
+            templateRoot.addEventListener("dragstart", function(event) {
+                // A nested Active Version keeps its existing, separate drag behavior.
+                if (event.target && event.target.closest(".template-version-item")) return;
+                if (!event.dataTransfer) return;
+                const payload = JSON.stringify({
+                    sectionId: String(sectionId),
+                    templateRuntimeId: String(tpl.Template.RuntimeTemplateID)
+                });
+                event.dataTransfer.effectAllowed = "copy";
+                event.dataTransfer.setData("application/x-pip-template", payload);
+                event.dataTransfer.setData("text/plain", payload);
+                templateRoot.classList.add("opacity-50");
+            });
+            templateRoot.addEventListener("dragend", function() {
+                templateRoot.classList.remove("opacity-50");
+                document.querySelectorAll(".accordion-item.border-primary").forEach(function(node) {
+                    node.classList.remove("border", "border-primary");
+                });
+            });
+        }
     });
     //-----------------------------------
     // Restore versions for new templates
@@ -8262,6 +8328,59 @@ function renderContextMenu(x, y, items) {
     menu.style.top = `${y}px`;
     menu.classList.remove('d-none');
 }
+async function cloneTemplateToSection(sourceSectionId, sourceRuntimeTemplateId, targetSectionId)
+{
+    const sourceSection = getSectionCache(sourceSectionId);
+    const sourceNode = sourceSection && sourceSection.Templates[sourceRuntimeTemplateId];
+    if (!sourceNode) {
+        showToast("Source Template could not be found.");
+        return;
+    }
+
+    const activeVersionNode = Object.values(sourceNode.Versions || {}).find(function(node) {
+        return String(node.VersionInfo && node.VersionInfo.Status || "").toLowerCase() === "active";
+    });
+    if (!activeVersionNode) {
+        showToast("Template ini tidak memiliki Active Version untuk disalin.", "warning");
+        return;
+    }
+
+    // Load only the Active Version structure. Historical versions are deliberately ignored.
+    if (!activeVersionNode.Structure && Number(activeVersionNode.VersionInfo.IDVersion) > 0) {
+        try {
+            const json = await promisifyPageMethod(
+                PageMethods.GetVersionStructure,
+                String(activeVersionNode.VersionInfo.IDVersion)
+            );
+            const loaded = JSON.parse(json || "{}");
+            if (loaded && loaded.VersionInfo && Array.isArray(loaded.Sections)) {
+                activeVersionNode.Structure = loaded;
+                activeVersionNode.VersionInfo = Object.assign({}, activeVersionNode.VersionInfo, loaded.VersionInfo);
+            }
+        } catch (err) {
+            console.error("Could not load Active Version for Template copy:", err);
+        }
+    }
+    if (!activeVersionNode.Structure || !activeVersionNode.Structure.VersionInfo) {
+        showToast("Active Version structure gagal dimuat. Buka Template tersebut lalu coba lagi.", "warning");
+        return;
+    }
+
+    const confirmed = await showConfirmation({
+        title: "Copy Template to Section",
+        message: "Copy Template beserta Active Version saja ke Section " + targetSectionId + " sebagai Template baru dengan Draft Version? History Version lama tidak akan ikut disalin. Template sumber tetap utuh."
+    });
+    if (!confirmed) return;
+
+    // cloneTemplate uses the selected-template state. Point it explicitly at the dragged
+    // source so the currently open Template cannot accidentally be copied instead.
+    currentTemplate = sourceNode.Template;
+    currentVersions = [activeVersionNode];
+    currentVersion = activeVersionNode.VersionInfo;
+    currentVersionData = activeVersionNode.Structure;
+    await cloneTemplate(targetSectionId);
+}
+
 async function cloneTemplate(targetSectionId)
 {
     removeExistingContextMenu();
