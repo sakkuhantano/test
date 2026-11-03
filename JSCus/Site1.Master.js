@@ -29,7 +29,13 @@ const APP_BUILD_VERSION = "20261030.1";
             const message = hasUnsavedInspection
                 ? "Versi aplikasi terbaru tersedia. Simpan draft inspeksi dan pastikan perubahan tersimpan sebelum memuat ulang halaman. Muat ulang sekarang?"
                 : "Versi aplikasi terbaru tersedia. Muat ulang halaman untuk menggunakan versi terbaru?";
-            if (window.confirm(message)) window.location.reload();
+            const confirmed = await window.showConfirmation({
+                title: "Update aplikasi",
+                message: message,
+                yesText: "Muat Ulang",
+                cancelText: "Nanti"
+            });
+            if (confirmed) window.location.reload();
             else reloadPromptShown = false;
         } catch (error) {
             // Version check is best-effort; it must not interrupt offline work.
@@ -666,7 +672,7 @@ async function countApproval() {
         document.getElementById("lblVoid").innerText = `${rejected}`;
     }
     catch(ex) {
-        alert(ex.message);        
+        showToast(ex.message, "error");        
     }
 }
 async function countPendingWO() {
