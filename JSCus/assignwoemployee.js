@@ -1713,7 +1713,7 @@ async function executeWOSearch(useCurrentContext = false) {
         );
 
         if (!result.Success) {
-            alert(result.Message);
+            showToast(result.Message, "error");
             return;
         }
 
@@ -1745,7 +1745,7 @@ async function executeWOSearch(useCurrentContext = false) {
     }
     catch (ex) {
         console.error(ex);
-        alert("Terjadi kesalahan saat mengambil Work Order.");
+        showToast("Terjadi kesalahan saat mengambil Work Order.", "error");
     }
     finally {
         $("#btnSearch").prop("disabled", false);
