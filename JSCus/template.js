@@ -1764,6 +1764,11 @@ function showTemplateMenu(event,sectionId,idTemplate)
 
         </div>
 
+        <div class="context-item" onclick="cloneTemplateToAnotherSection('${sectionId}', ${idTemplate})">
+            <i class="bi bi-folder-symlink"></i>
+            Copy to Another Section
+        </div>
+
     `;
 
     document.body.appendChild(
@@ -8328,6 +8333,14 @@ function renderContextMenu(x, y, items) {
     menu.style.top = `${y}px`;
     menu.classList.remove('d-none');
 }
+async function cloneTemplateToAnotherSection(sourceSectionId, sourceRuntimeTemplateId)
+{
+    hideContextMenu();
+    const targetSectionId = await chooseCloneTargetSection(sourceSectionId);
+    if (!targetSectionId) return;
+    await cloneTemplateToSection(sourceSectionId, sourceRuntimeTemplateId, targetSectionId);
+}
+
 async function cloneTemplateToSection(sourceSectionId, sourceRuntimeTemplateId, targetSectionId)
 {
     const sourceSection = getSectionCache(sourceSectionId);
@@ -8337,47 +8350,58 @@ async function cloneTemplateToSection(sourceSectionId, sourceRuntimeTemplateId, 
         return;
     }
 
-    const activeVersionNode = Object.values(sourceNode.Versions || {}).find(function(node) {
-        return String(node.VersionInfo && node.VersionInfo.Status || "").toLowerCase() === "active";
-    });
-    if (!activeVersionNode) {
-        showToast("Template ini tidak memiliki Active Version untuk disalin.", "warning");
+    const versionNodes = Object.values(sourceNode.Versions || {});
+    let sourceVersionNode = null;
+    if (currentTemplate &&
+        String(currentTemplate.RuntimeTemplateID) === String(sourceRuntimeTemplateId) &&
+        String(currentTemplate.SectionID) === String(sourceSectionId) &&
+        currentVersion) {
+        sourceVersionNode = versionNodes.find(function(node) {
+            return String(node.VersionInfo && node.VersionInfo.RuntimeVersionID) === String(currentVersion.RuntimeVersionID);
+        }) || null;
+    }
+    if (!sourceVersionNode) {
+        sourceVersionNode = versionNodes.find(function(node) {
+            return String(node.VersionInfo && node.VersionInfo.Status || "").toLowerCase() === "draft";
+        }) || versionNodes.find(function(node) {
+            return String(node.VersionInfo && node.VersionInfo.Status || "").toLowerCase() === "active";
+        }) || null;
+    }
+    if (!sourceVersionNode) {
+        showToast("Template ini tidak memiliki Current Version berstatus Draft atau Active untuk disalin.", "warning");
         return;
     }
 
-    // Load only the Active Version structure. Historical versions are deliberately ignored.
-    if (!activeVersionNode.Structure && Number(activeVersionNode.VersionInfo.IDVersion) > 0) {
+    // Load only the current Version structure. Archived history is deliberately ignored.
+    if (!sourceVersionNode.Structure && Number(sourceVersionNode.VersionInfo.IDVersion) > 0) {
         try {
-            const json = await promisifyPageMethod(
-                PageMethods.GetVersionStructure,
-                String(activeVersionNode.VersionInfo.IDVersion)
-            );
+            const json = await promisifyPageMethod(PageMethods.GetVersionStructure, String(sourceVersionNode.VersionInfo.IDVersion));
             const loaded = JSON.parse(json || "{}");
             if (loaded && loaded.VersionInfo && Array.isArray(loaded.Sections)) {
-                activeVersionNode.Structure = loaded;
-                activeVersionNode.VersionInfo = Object.assign({}, activeVersionNode.VersionInfo, loaded.VersionInfo);
+                sourceVersionNode.Structure = loaded;
+                sourceVersionNode.VersionInfo = Object.assign({}, sourceVersionNode.VersionInfo, loaded.VersionInfo);
             }
         } catch (err) {
-            console.error("Could not load Active Version for Template copy:", err);
+            console.error("Could not load current Version for Template copy:", err);
         }
     }
-    if (!activeVersionNode.Structure || !activeVersionNode.Structure.VersionInfo) {
-        showToast("Active Version structure gagal dimuat. Buka Template tersebut lalu coba lagi.", "warning");
+    if (!sourceVersionNode.Structure || !sourceVersionNode.Structure.VersionInfo) {
+        showToast("Current Version structure gagal dimuat. Buka Template tersebut lalu coba lagi.", "warning");
         return;
     }
 
     const confirmed = await showConfirmation({
         title: "Copy Template to Section",
-        message: "Copy Template beserta Active Version saja ke Section " + targetSectionId + " sebagai Template baru dengan Draft Version? History Version lama tidak akan ikut disalin. Template sumber tetap utuh."
+        message: "Copy Template beserta Current Version saja ke Section " + targetSectionId + " sebagai Template baru dengan Draft Version? History Version lama tidak akan ikut disalin. Template sumber tetap utuh."
     });
     if (!confirmed) return;
 
     // cloneTemplate uses the selected-template state. Point it explicitly at the dragged
     // source so the currently open Template cannot accidentally be copied instead.
     currentTemplate = sourceNode.Template;
-    currentVersions = [activeVersionNode];
-    currentVersion = activeVersionNode.VersionInfo;
-    currentVersionData = activeVersionNode.Structure;
+    currentVersions = [sourceVersionNode];
+    currentVersion = sourceVersionNode.VersionInfo;
+    currentVersionData = sourceVersionNode.Structure;
     await cloneTemplate(targetSectionId);
 }
 
