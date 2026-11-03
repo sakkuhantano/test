@@ -106,6 +106,25 @@ namespace Web
 
         }
         [WebMethod]
+        public static bool F_Logout(string browserGuid, string serverGuid, string token)
+        {
+            using (var br = new WAL.BR.CF())
+            {
+                br.EQuery(
+                    @"UPDATE UserSession
+                      SET IsActive = 0
+                      WHERE BrowserGuid = @BrowserGuid
+                        AND ServerGuid = @ServerGuid
+                        AND Token = @Token
+                        AND IsActive = 1",
+                    "@BrowserGuid=" + browserGuid + GF.Str2 +
+                    "@ServerGuid=" + serverGuid + GF.Str2 +
+                    "@Token=" + token);
+                return true;
+            }
+        }
+
+        [WebMethod]
         public static object F_Login(string p_userid, string p_password, string p_browserGuid, string p_deviceName)
         {
             string passwordHash;
@@ -227,9 +246,18 @@ namespace Web
                         try
                         {
                             oUser.EQuery(
-    @"UPDATE UserSession SET IsActive=0 WHERE IsActive=1 AND UserID=@UserID
+    @"SET XACT_ABORT ON;
+BEGIN TRANSACTION;
+DECLARE @NewID INT;
+-- Serialize ID allocation so simultaneous logins cannot calculate the same ID.
+SELECT @NewID = ISNULL(MAX(ID), 0) FROM UserSession WITH (TABLOCKX, HOLDLOCK);
+-- End the previous session for this user, then remove all inactive sessions.
+UPDATE UserSession SET IsActive = 0 WHERE IsActive = 1 AND UserID = @UserID;
+DELETE FROM UserSession WHERE ISNULL(IsActive, 0) = 0;
+SELECT @NewID = ISNULL(MAX(ID), 0) + 1 FROM UserSession;
 INSERT UserSession (ID, UserID, BrowserGuid, ServerGuid, Token, LoginTime, ExpireTime, IsActive, DeviceName, LastSyncMaster, LastSyncWO)
-VALUES (ISNULL((SELECT MAX(ID) FROM UserSession),0)+1, @UserID, @BrowserGuid, @ServerGuid, @Token, GETDATE(), DATEADD(DAY,2,GETDATE()),1,@DeviceName,'','')
+VALUES (@NewID, @UserID, @BrowserGuid, @ServerGuid, @Token, GETDATE(), DATEADD(DAY,2,GETDATE()),1,@DeviceName,'','');
+COMMIT TRANSACTION;
 ", "@UserID=" + p_userid + GF.Str2 +
        "@BrowserGuid=" + p_browserGuid + GF.Str2 +
        "@ServerGuid=" + v_serverguid + GF.Str2 +
