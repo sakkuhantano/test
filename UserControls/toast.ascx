@@ -69,6 +69,8 @@
             duration = arg3 || 3000;
         }
 
+        if (type === "danger") type = "error";
+
         if (!message) return;
 
         // Hentikan timeout sebelumnya
