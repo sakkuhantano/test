@@ -3038,7 +3038,7 @@ async function loadTemplateVersions(idTemplate)
     catch(ex)
     {
         console.error(ex);
-        alert('Failed load versions');
+        showToast('Failed load versions', "error");
     }
 }
 function renderTemplateVersions(data,container)
@@ -3559,7 +3559,7 @@ async function loadVersionStructure(templateId, versionId, el)
     {
         if (loadRequestId !== versionStructureLoadRequestId) return;
         console.error("loadVersionStructure error:", ex);
-        alert('Failed load version structure');
+        showToast('Failed load version structure', "error");
     }
     finally
     {
@@ -6354,7 +6354,7 @@ async function renderTemplateCompanyAssignments(template)
                     hideLoading();
                     if (!result.success) {
                         this.checked = oldValue;
-                        alert(result.message || 'Unable to update company/location assignment.');
+                        showToast(result.message || 'Unable to update company/location assignment.', "error");
                         return;
                     }
                     if (template.TemplateType === 'I') await renderTemplateEmployeeAssignments(template);
@@ -6362,7 +6362,7 @@ async function renderTemplateCompanyAssignments(template)
                 } catch (ex) {
                     hideLoading();
                     this.checked = oldValue;
-                    alert(ex.message || ex);
+                    showToast(ex.message || ex, "error");
                 }
             });
             tdCheck.appendChild(check);
@@ -6467,14 +6467,14 @@ async function renderTemplateEmployeeAssignments(template)
                     hideLoading();
                     if (!result.success) {
                         this.checked = oldValue;
-                        alert(result.message || 'Unable to update employee assignment.');
+                        showToast(result.message || 'Unable to update employee assignment.', "error");
                     } else {
                         row.IsAssigned = this.checked;
                     }
                 } catch (ex) {
                     hideLoading();
                     this.checked = oldValue;
-                    alert(ex.message || ex);
+                    showToast(ex.message || ex, "error");
                 }
             });
             tdCheck.appendChild(check);
@@ -6638,7 +6638,7 @@ async function loadGroupEquipment(forceReload)
     {
         groupEquipmentCache=[];
         console.error(ex);
-        alert("Failed load Group Equipment");
+        showToast("Failed load Group Equipment", "error");
     }
 
     // return new Promise(function(resolve,reject){
@@ -8060,7 +8060,7 @@ async function deleteDraftVersion(idVersion)
     catch(ex)
     {
         console.error(ex);
-        alert(ex.message);
+        showToast(ex.message, "error");
     }
 }
 function canPublishVersion(versionNode)
@@ -9919,7 +9919,7 @@ async function saveAllTemplate()
             if (!result || !result.success)
             {
                 hideLoading();
-                alert((result && result.message) || "Save All Template returned no success response.");
+                showToast((result && result.message) || "Save All Template returned no success response.", "error");
                 return;
             }
 
@@ -10007,7 +10007,7 @@ async function saveAllTemplate()
             (ex && ex.get_message) ||
             (typeof ex === "string" ? ex : "");
         console.error("Save All Template failed:", ex);
-        alert(detail || "Save All Template failed. See the browser console for the server error details.");
+        showToast(detail || "Save All Template failed. See the browser console for the server error details.", "error");
     }
 }
 async function publishVersion()
@@ -10093,9 +10093,9 @@ async function publishVersion()
             ex
         );
 
-        alert(
+        showToast(
             ex.message
-        );
+        , "error");
     }
 }
 
@@ -10156,7 +10156,7 @@ async function loadModel(groupEquipment, forceReload)
     {
         modelCache = [];
         console.error(ex);
-        alert("Failed load Model Code");
+        showToast("Failed load Model Code", "error");
     }
 
     // return new Promise(function(resolve, reject){
