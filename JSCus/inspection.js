@@ -2633,10 +2633,19 @@ async function queueConflictInspectionDelete(localId) {
 }
 
 function showInspectionNotice(message, type) {
+    // Use the site's shared toast so notices remain visible even when the
+    // inline Inspection notice panel is hidden or unavailable.
+    if (typeof showToast === "function") {
+        const toastType = type === "danger" ? "error" : (type || "info");
+        showToast(message, toastType);
+        return;
+    }
+
+    // Fallback for pages where the shared toast control is not loaded.
     const notice = document.getElementById("inspectionNotice");
     if (!notice) return;
     notice.className = "alert alert-" + (type || "info") + " py-2 small mb-3";
-    notice.classList.toggle("d-none", !inspectionNoticeEnabled);
+    notice.classList.remove("d-none");
     notice.textContent = message;
 }
 
