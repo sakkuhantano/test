@@ -9076,9 +9076,7 @@ async function validateCurrentTemplate() {
                     Template:
                         currentTemplate,
                     Version:
-                        draft.Structure,
-                    CompanyID: companyId,
-                    LocationID: locationId
+                        draft.Structure
                 };
     const check = await promisifyPageMethod(
         PageMethods
