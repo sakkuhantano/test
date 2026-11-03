@@ -1045,9 +1045,9 @@ async function loadTemplateExplorer()
     {
         console.error(ex);
 
-        alert(
+        showToast(
             ex.message || ex
-        );
+        , "error");
     }
 }
 async function reloadExplorer() {
@@ -1087,7 +1087,7 @@ async function reloadExplorer() {
 
         console.error(ex);
 
-        alert(ex.message);
+        showToast(ex.message, "error");
     }
 }
 function renderTemplateExplorerRoot(data)
