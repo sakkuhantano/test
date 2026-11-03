@@ -38,7 +38,7 @@ let sectionFollowUp =
 document.addEventListener("DOMContentLoaded",async function () {
         if(!validatePageAccess())
             return;
-		currentMode = getQueryString("mode");
+        currentMode = getQueryString("mode");
         document.addEventListener("dbReady", async function () {
         if (currentMode == "approval") {
             document.getElementById("btnScan").classList.add("d-none");
@@ -56,15 +56,15 @@ document.addEventListener("DOMContentLoaded",async function () {
         }, { once: true });
 
         // setWOHeaderPosition();
-		// backToList();
-		
+        // backToList();
+        
     }
-);		
+);      
 // document.addEventListener(
     // "dbReady",
     // async function () {
-		// if (!validatePageAccess())
-			// return;
+        // if (!validatePageAccess())
+            // return;
         // await initWorkOrderPage();
         // backToList();
     // }
@@ -86,33 +86,33 @@ async function filterTab(button) {
     let statuses = status.split(";");
     // remove active dari semua tab
     document.querySelectorAll(".tab-btn").forEach(btn =>
-		btn.classList.remove("active")
-	);
+        btn.classList.remove("active")
+    );
     // set active ke tombol yg diklik
     button.classList.add("active");
     // filter data
-	if (currentMode === "entry") {
+    if (currentMode === "entry") {
     filteredWO = allWorkOrders.filter(x =>
-		statuses.includes(x.Status) &&
+        statuses.includes(x.Status) &&
         getLoginData().section.includes(x.SectionID)
-	);
-	}
-	else {
+    );
+    }
+    else {
         if (document.querySelector('#lblConnection').innerText.toUpperCase() === "ONLINE") {
             await initApprovalWO(status);
         }
-	}
+    }
     // reset page
     renderPage(1);
     defaultTab = button;
 }
 async function updateApprovalTabCounters() {
-	var data=getLoginData();
-	const result = await promisifyPageMethod(
-		PageMethods.getApprovalCounters, data.curcompany, data.section
-	);	
-	let pending = result.pending || 0;
-	let rejected = result.rejected || 0;
+    var data=getLoginData();
+    const result = await promisifyPageMethod(
+        PageMethods.getApprovalCounters, data.curcompany, data.section
+    );  
+    let pending = result.pending || 0;
+    let rejected = result.rejected || 0;
 
     const localStores = await new Promise((resolve, reject) => {
 
@@ -142,9 +142,9 @@ async function updateApprovalTabCounters() {
     // Pastikan angka tidak minus jika terjadi anomali data
     if (pending < 0) pending = 0;
 
-	document.getElementById("countTab1").innerText = `(${pending})`;
-	document.getElementById("countTab2").innerText = "";
-	document.getElementById("countTab3").innerText = `(${rejected})`;
+    document.getElementById("countTab1").innerText = `(${pending})`;
+    document.getElementById("countTab2").innerText = "";
+    document.getElementById("countTab3").innerText = `(${rejected})`;
 }
 function updateTabCounters() {
     let pending =
@@ -155,14 +155,14 @@ function updateTabCounters() {
         allWorkOrders.filter(x =>
             x.Status === "DRAFT"
         ).length;
-	let statuses = ["DONE","SYNCED"];
+    let statuses = ["DONE","SYNCED"];
     let completed =
         allWorkOrders.filter(x =>
-			statuses.includes(x.Status)
+            statuses.includes(x.Status)
         ).length;
-	document.getElementById("countTab1").innerText = `(${pending})`;
-	document.getElementById("countTab2").innerText = `(${draft})`;
-	document.getElementById("countTab3").innerText = `(${completed})`;
+    document.getElementById("countTab1").innerText = `(${pending})`;
+    document.getElementById("countTab2").innerText = `(${draft})`;
+    document.getElementById("countTab3").innerText = `(${completed})`;
 }
 function renderPage(page) {
 
@@ -207,7 +207,7 @@ function createRow(wo) {
 
     return `
     <div class="work-order-item clickable-row"
-	data-wo-id="${wo.KeyHD}"
+    data-wo-id="${wo.KeyHD}"
     data-wono="${wo.WONo}"
     data-equipment="${wo.EquipmentCode}"
     data-description="${wo.Description}"
@@ -324,28 +324,28 @@ function updatePrevNextState() {
 // function setWOHeaderPosition() {
 //     const master = document.getElementById("masterHeader");
 //     const height = master.getBoundingClientRect().height;
-// 	const woListPage = document.getElementById("woListPage");
-// 	const woDetailPage = document.getElementById("woDetailPage");
+//  const woListPage = document.getElementById("woListPage");
+//  const woDetailPage = document.getElementById("woDetailPage");
 
 //     if (woListPage) {
-// 		woListPage.style.marginTop = "70px";
-// 	}
+//      woListPage.style.marginTop = "70px";
+//  }
 //     if (woDetailPage) {
-// 		woDetailPage.style.marginTop = "120px";
-// 	}
+//      woDetailPage.style.marginTop = "120px";
+//  }
 // }
 function backToList() {
     document.getElementById("woDetailPage").classList.add("page-hidden");
-	// document.getElementById("headDetailPage").style.setProperty("display", "none", "important");
-	// document.getElementById("headDetailPage1").style.setProperty("display", "none", "important");
-	document.getElementById("headDetailPage").classList.add("page-hidden");
-	document.getElementById("headDetailPage1").classList.add("page-hidden");
+    // document.getElementById("headDetailPage").style.setProperty("display", "none", "important");
+    // document.getElementById("headDetailPage1").style.setProperty("display", "none", "important");
+    document.getElementById("headDetailPage").classList.add("page-hidden");
+    document.getElementById("headDetailPage1").classList.add("page-hidden");
     document.getElementById("scanPage").classList.add("page-hidden");
     document.getElementById("woListPage").classList.remove("page-hidden");
-	document.getElementById("headListPage").classList.remove("page-hidden");
-	document.getElementById("scrollTools").style.display = "block";
+    document.getElementById("headListPage").classList.remove("page-hidden");
+    document.getElementById("scrollTools").style.display = "block";
     // setTimeout(setWOHeaderPosition, 50);
-	//document.getElementById("woListPage").style.pointerEvents = "auto";
+    //document.getElementById("woListPage").style.pointerEvents = "auto";
     filterTab(defaultTab);
 }
 function highlightSearch(keyword) {
@@ -467,14 +467,14 @@ function clearSearch() {
 async function startScan() {
     document.getElementById("woListPage").classList.add("page-hidden");
     document.getElementById("woDetailPage").classList.add("page-hidden");
-	document.getElementById("scrollTools").style.display = "none";
+    document.getElementById("scrollTools").style.display = "none";
     document.getElementById("scanPage").classList.remove("page-hidden");
-	document.getElementById("headDetailPage").classList.add("page-hidden");
-	document.getElementById("headDetailPage1").classList.add("page-hidden");
-	document.getElementById("headListPage").classList.add("page-hidden");
-	// document.getElementById("headDetailPage").style.setProperty("display", "none", "important");
-	// document.getElementById("headDetailPage1").style.setProperty("display", "none", "important");
-	// document.getElementById("headListPage").style.setProperty("display", "none", "important");
+    document.getElementById("headDetailPage").classList.add("page-hidden");
+    document.getElementById("headDetailPage1").classList.add("page-hidden");
+    document.getElementById("headListPage").classList.add("page-hidden");
+    // document.getElementById("headDetailPage").style.setProperty("display", "none", "important");
+    // document.getElementById("headDetailPage1").style.setProperty("display", "none", "important");
+    // document.getElementById("headListPage").style.setProperty("display", "none", "important");
     
     /*
     html5QrCode = new Html5Qrcode("scannerVideo");
@@ -499,7 +499,7 @@ async function startScan() {
             backToList();
         },
         function (err) {
-            showToast(err, "error");
+            alert(err);
             // backToList();
         }
     );
@@ -522,35 +522,35 @@ async function startScan() {
 // fungsi UI
 // ------------------------------------------
 $(window).on('scroll', function () {
-	if (!isScrolling) {
-		window.requestAnimationFrame(function () {
+    if (!isScrolling) {
+        window.requestAnimationFrame(function () {
 
-			let scrollTop = $(window).scrollTop();
-			let windowHeight = $(window).height();
-			let docHeight = $(document).height();
+            let scrollTop = $(window).scrollTop();
+            let windowHeight = $(window).height();
+            let docHeight = $(document).height();
 
-			$('#lbtn_BackToTop').toggle(scrollTop > 50);
-			$('#lbtn_BackToBottom').toggle(scrollTop + windowHeight < docHeight - 50);
+            $('#lbtn_BackToTop').toggle(scrollTop > 50);
+            $('#lbtn_BackToBottom').toggle(scrollTop + windowHeight < docHeight - 50);
 
-			isScrolling = false;
-		});
+            isScrolling = false;
+        });
 
-		isScrolling = true;
-	}
+        isScrolling = true;
+    }
 
 });
 // scroll body to 0px on click
 $('#lbtn_BackToTop').click(function () {
-	$('body,html').animate({
-		scrollTop: 0
-	}, 100);
-	return false;
+    $('body,html').animate({
+        scrollTop: 0
+    }, 100);
+    return false;
 });
 $('#lbtn_BackToBottom').click(function () {
-	$('body,html').animate({
-		scrollTop: $(document).height()
-	}, 100);
-	return false;
+    $('body,html').animate({
+        scrollTop: $(document).height()
+    }, 100);
+    return false;
 });
 setTimeout(() => {
     document
@@ -573,30 +573,30 @@ document.querySelectorAll('[data-bs-toggle="dropdown"]').forEach(el => {
 function renderHeaderWO(wo) {
 
     let headerHtml = `
-	<div class="d-flex align-items-center justify-content-between gap-2 mt-2 shadow-sm w-100">
-		<div class="d-flex align-items-center gap-2 gap-sm-3">
-			<h1 class="h6 mb-0 fw-bold text-primary">
-			<a href="#"
-			   class="text-decoration-none"
-			   data-bs-toggle="modal"
-			   data-bs-target="#woEmployeeModal">
-				Work Order #${wo.WONo}
-			</a>
-			</h1>
+    <div class="d-flex align-items-center justify-content-between gap-2 mt-2 shadow-sm w-100">
+        <div class="d-flex align-items-center gap-2 gap-sm-3">
+            <h1 class="h6 mb-0 fw-bold text-primary">
+            <a href="#"
+               class="text-decoration-none"
+               data-bs-toggle="modal"
+               data-bs-target="#woEmployeeModal">
+                Work Order #${wo.WONo}
+            </a>
+            </h1>
 
-			<p class="small text-muted mb-0 fw-semibold" style="font-size: 0.75rem;">
-				${wo.EquipmentCode} | ${wo.Description || ""} | ${wo.TemplateWOPM || ""}
-			</p>
-		</div>
-		<div class="d-flex align-items-center gap-2 gap-md-3">
-			<button class="btn btn-sm btn-outline-secondary" onclick="backToList()">
+            <p class="small text-muted mb-0 fw-semibold" style="font-size: 0.75rem;">
+                ${wo.EquipmentCode} | ${wo.Description || ""} | ${wo.TemplateWOPM || ""}
+            </p>
+        </div>
+        <div class="d-flex align-items-center gap-2 gap-md-3">
+            <button class="btn btn-sm btn-outline-secondary" onclick="backToList()">
                 <i class="bi bi-arrow-left"></i>
-			</button>
-		</div>
-	</div>`;
-	document.getElementById("headDetailPage").innerHTML = headerHtml;
-	// document.getElementById("headDetailPage").innerHTML = currentWO.HeaderHTML;
-	
+            </button>
+        </div>
+    </div>`;
+    document.getElementById("headDetailPage").innerHTML = headerHtml;
+    // document.getElementById("headDetailPage").innerHTML = currentWO.HeaderHTML;
+    
     // =========================
     // NAV TAB (DARI SECTION)
     // =========================
@@ -658,44 +658,44 @@ function renderHeaderWO(wo) {
 
 
     let navHtml = `
-	<div class="d-flex align-items-center gap-2 w-100">
-		<!-- LEFT -->
-		<div style="flex: 1 1 auto; min-width: 0;">
-			<nav class="nav-fixed-tabs">
-				<div class="horizontal-scroll">
-					<div class="d-inline-flex">
-						${tabHtml}
-					</div>
-				</div>
-			</nav>
-		</div>
-		<!-- RIGHT -->
-		<div style="flex: 0 0 auto; display: flex; align-items: center; height: 100%;">
-			<div class="dropdown dropstart flex-shrink-0">
-				<button id="btnDropdownSection"
-						class="btn btn-outline-secondary rounded-circle shadow-sm border p-0 d-flex align-items-center justify-content-center"
-						data-bs-toggle="dropdown"
-						style="width: 34px; height: 34px; margin-right: 8px;">
-					<i class="bi bi-list text-primary"></i>
-				</button>
-				<ul class="dropdown-menu shadow border-0 mt-2">
-					${dropdownHtml}
-				</ul>
-			</div>
-		</div>
-	</div>
+    <div class="d-flex align-items-center gap-2 w-100">
+        <!-- LEFT -->
+        <div style="flex: 1 1 auto; min-width: 0;">
+            <nav class="nav-fixed-tabs">
+                <div class="horizontal-scroll">
+                    <div class="d-inline-flex">
+                        ${tabHtml}
+                    </div>
+                </div>
+            </nav>
+        </div>
+        <!-- RIGHT -->
+        <div style="flex: 0 0 auto; display: flex; align-items: center; height: 100%;">
+            <div class="dropdown dropstart flex-shrink-0">
+                <button id="btnDropdownSection"
+                        class="btn btn-outline-secondary rounded-circle shadow-sm border p-0 d-flex align-items-center justify-content-center"
+                        data-bs-toggle="dropdown"
+                        style="width: 34px; height: 34px; margin-right: 8px;">
+                    <i class="bi bi-list text-primary"></i>
+                </button>
+                <ul class="dropdown-menu shadow border-0 mt-2">
+                    ${dropdownHtml}
+                </ul>
+            </div>
+        </div>
+    </div>
 
-	<!-- PROGRESS -->
-	<div class="progress mt-2 w-100" style="height: 4px; z-index: 1; position: relative;">
-		<div id="progressBar"
-			 class="progress-bar bg-primary"
-			 role="progressbar"
-			 style="width: 0%">
-		</div>
-	</div>`;
+    <!-- PROGRESS -->
+    <div class="progress mt-2 w-100" style="height: 4px; z-index: 1; position: relative;">
+        <div id="progressBar"
+             class="progress-bar bg-primary"
+             role="progressbar"
+             style="width: 0%">
+        </div>
+    </div>`;
 
     document.getElementById("headDetailPage1").innerHTML = navHtml;
-	// document.getElementById("headDetailPage1").innerHTML = currentWO.Header1HTML;
+    // document.getElementById("headDetailPage1").innerHTML = currentWO.Header1HTML;
     
     let employees = currentWO.EmployeeJSON;
     if (employees) {
@@ -737,7 +737,7 @@ function renderHeaderWO(wo) {
     document.getElementById("woEmployeeModal").innerHTML = empHTML;
 
     }
-	// document.getElementById("woEmployeeModal").innerHTML = currentWO.EmployeeHTML;
+    // document.getElementById("woEmployeeModal").innerHTML = currentWO.EmployeeHTML;
 }
 function isWorkOrderVersionRemarkEnabled(item, remarkNumber, templateOverride) {
     const itemKey = remarkNumber === 1 ? "versionIsRemark1Required" : "versionIsRemark2Required";
@@ -797,7 +797,7 @@ function normalizeWOPhotoRequirement(value) {
 }
 
 async function renderChecklist(template, isEntryMode) {
-	
+    
     let html = `
 <div class="accordion-item border-secondary" id="section_0" style="${normalizeWOPhotoRequirement(template.PhotoRequirement) === "BEFORE" || normalizeWOPhotoRequirement(template.PhotoRequirement) === "BOTH" ? "" : "display:none;"}">
     <div class="accordion-header">
@@ -860,8 +860,8 @@ async function renderChecklist(template, isEntryMode) {
                     <div class="row g-3">
         `;
 
-		let V_Value = "";
-		let V_Remark1 = "";
+        let V_Value = "";
+        let V_Remark1 = "";
         let V_Remark2 = "";
         let V_GroupValues = null;
 
@@ -930,8 +930,8 @@ async function renderChecklist(template, isEntryMode) {
                     <input class="btn-check" data-role="option"
                            name="opt_${item.idItem}" 
                            id="opt_${item.idItem}_${i}" value="${opt.trim()}"
-						   ${opt.trim() === V_Value ? "checked" : ""}
-						   ${!isEntryMode ? "disabled" : ""}
+                           ${opt.trim() === V_Value ? "checked" : ""}
+                           ${!isEntryMode ? "disabled" : ""}
                            type="radio">
                     <label class="btn btn-outline-primary" 
                            for="opt_${item.idItem}_${i}">
@@ -1635,84 +1635,84 @@ if (currentWO.ReasonVoid != "") {
     initFollowUpEvents();
     initCharCounters();
 
-	// document.getElementById("containerCheckList").innerHTML = currentWO.CheckListHTML;
-	// let containerReason = document.getElementById("voidReasonContainer");
-	if (isEntryMode || (currentMode === "approval" && currentWO.IsSampling)) {
+    // document.getElementById("containerCheckList").innerHTML = currentWO.CheckListHTML;
+    // let containerReason = document.getElementById("voidReasonContainer");
+    if (isEntryMode || (currentMode === "approval" && currentWO.IsSampling)) {
         await initPhotoSection();
-		// let checklist = await getChecklistByWO(currentWO.KeyHD);
-		// if (checklist) {
-		// 	populateChecklist(currentTemplate, checklist);
-		// }
+        // let checklist = await getChecklistByWO(currentWO.KeyHD);
+        // if (checklist) {
+        //  populateChecklist(currentTemplate, checklist);
+        // }
         disableEnableEntryMode();
 
-		// document.querySelectorAll(`input,textarea,select,button.btn-delete`)
-		// 	.forEach(el => {
-		// 		// skip OK button nanti
-		// 		if (el.id === "btnOK")
-		// 			return;
-		// 		if (el.tagName === "TEXTAREA") {
-		// 			el.readOnly = true;
-		// 		}
-		// 		else {
-		// 			el.disabled = true;
-		// 		}
-		// 	});
-		// =====================================
-		// DISABLE PHOTO UPLOAD
-		// =====================================
+        // document.querySelectorAll(`input,textarea,select,button.btn-delete`)
+        //  .forEach(el => {
+        //      // skip OK button nanti
+        //      if (el.id === "btnOK")
+        //          return;
+        //      if (el.tagName === "TEXTAREA") {
+        //          el.readOnly = true;
+        //      }
+        //      else {
+        //          el.disabled = true;
+        //      }
+        //  });
+        // =====================================
+        // DISABLE PHOTO UPLOAD
+        // =====================================
 
-		// document
-		// 	.querySelectorAll(".upload-box")
-		// 	.forEach(box => {
-		// 		box.classList.add("upload-box-readonly");
-		// 		box.style.pointerEvents = "none";
-		// 	});
-		// =====================================
-		// REMOVE DELETE BUTTON
-		// =====================================
-		// document.querySelectorAll(".btn-delete")
-		// 	.forEach(btn => {
-		// 		btn.remove();
-		// 	});
-		// =====================================
-		// HIDE BUTTONS
-		// =====================================
-		// let btnAction1 = document.getElementById("btnAction1");
-		// let btnAction2 = document.getElementById("btnAction2");
-		// btnAction1?.classList.add("d-none");
-		// btnAction2?.classList.add("d-none");
-		// =====================================
-		// CREATE OK BUTTON
-		// =====================================
-		// let footer = btnAction2?.parentElement;
-		// if (footer && !document.getElementById("btnOK")) {
-		// 	let btnOK =
-		// 		document.createElement(
-		// 			"button"
-		// 		);
-		// 	// copy class dari btnAction2
-		// 	btnOK.className =
-		// 		btnAction2.className;
-		// 	btnOK.classList.remove("d-none");
-		// 	btnOK.id = "btnOK";
-		// 	btnOK.innerHTML = `
-		// 		<i class="bi bi-check-circle me-1"></i>
-		// 		OK
-		// 	`;
-		// 	btnOK.addEventListener(
-		// 		"click",
-		// 		() => {
-		// 			backToList();
-		// 		}
-		// 	);
+        // document
+        //  .querySelectorAll(".upload-box")
+        //  .forEach(box => {
+        //      box.classList.add("upload-box-readonly");
+        //      box.style.pointerEvents = "none";
+        //  });
+        // =====================================
+        // REMOVE DELETE BUTTON
+        // =====================================
+        // document.querySelectorAll(".btn-delete")
+        //  .forEach(btn => {
+        //      btn.remove();
+        //  });
+        // =====================================
+        // HIDE BUTTONS
+        // =====================================
+        // let btnAction1 = document.getElementById("btnAction1");
+        // let btnAction2 = document.getElementById("btnAction2");
+        // btnAction1?.classList.add("d-none");
+        // btnAction2?.classList.add("d-none");
+        // =====================================
+        // CREATE OK BUTTON
+        // =====================================
+        // let footer = btnAction2?.parentElement;
+        // if (footer && !document.getElementById("btnOK")) {
+        //  let btnOK =
+        //      document.createElement(
+        //          "button"
+        //      );
+        //  // copy class dari btnAction2
+        //  btnOK.className =
+        //      btnAction2.className;
+        //  btnOK.classList.remove("d-none");
+        //  btnOK.id = "btnOK";
+        //  btnOK.innerHTML = `
+        //      <i class="bi bi-check-circle me-1"></i>
+        //      OK
+        //  `;
+        //  btnOK.addEventListener(
+        //      "click",
+        //      () => {
+        //          backToList();
+        //      }
+        //  );
 
-		// 	footer.appendChild(btnOK);
-		// }
-		// if (currentWO.ReasonVoid == "") {
-		// 	containerReason?.classList.add("d-none");
-		// }
-		
-	} else {
+        //  footer.appendChild(btnOK);
+        // }
+        // if (currentWO.ReasonVoid == "") {
+        //  containerReason?.classList.add("d-none");
+        // }
+        
+    } else {
         document.getElementById("btnDeletePreview").classList.add("d-none");
         document.querySelectorAll(".photo-list img")
             .forEach(img => {
@@ -2044,13 +2044,13 @@ async function confirmSaveDone(t) {
     buttons.forEach(btn => btn.disabled = true);
 
     try {
-		if (t === 1) {
-			await onSaveDraft();
-		}
+        if (t === 1) {
+            await onSaveDraft();
+        }
         else {
-			await onDone();
+            await onDone();
             //backToList();
-		}
+        }
     } finally {
         buttons.forEach(btn => btn.disabled = false);
         clearValidationUI();
@@ -2168,11 +2168,11 @@ async function initWorkOrderPage() {
             document.querySelector('.tab-btn[data-status="PENDING"]');
         filterTab(defaultTab);
         resolve(allWorkOrders);
-		};
+        };
     request.onerror = function () {
         reject(request.error);
-		};
-	});
+        };
+    });
 }
 async function openWO(keyHD, el) {
     startTime = new Date().toISOString();
@@ -2208,12 +2208,12 @@ async function openWO(keyHD, el) {
         }
     }
 
-	if (wo && (currentMode === "entry" || (currentMode === "approval" && isSampling === "YES"))) 
+    if (wo && (currentMode === "entry" || (currentMode === "approval" && isSampling === "YES"))) 
     {
-    	currentWO = wo;
+        currentWO = wo;
         if (!currentWO.DataCheckListJSON)
             currentWO.DataCheckListJSON = await getChecklistByWO(currentWO.KeyHD);
-    	let template = currentWO.TemplateJSON &&
+        let template = currentWO.TemplateJSON &&
             (!currentWO.TemplateVersion || String(currentWO.TemplateJSON.Version || "") === String(currentWO.TemplateVersion))
             ? currentWO.TemplateJSON
             : await getTemplate(
@@ -2233,23 +2233,23 @@ async function openWO(keyHD, el) {
         }
         currentWO.TemplateJSON = template;
         await cleanupWOPhotosByRequirement(currentWO.KeyHD, template.PhotoRequirement);
-    	// if (!template) {
-    	// 	console.error(
-    	// 		"Template not found:",
-    	// 		wo.TemplateWOPM
-    	// 	);
-    	// 	return;
-    	// }	
+        // if (!template) {
+        //  console.error(
+        //      "Template not found:",
+        //      wo.TemplateWOPM
+        //  );
+        //  return;
+        // }    
         //let template = currentWO.TemplateJSON[0];
-    	itemMap = {};
-    	template.sections.forEach(sec => {
-    		sec.items.forEach(item => {
-    			itemMap[item.idItem] = item;
-    		});
-    	});
-    	currentTemplate = template;	
-	}
-	else {
+        itemMap = {};
+        template.sections.forEach(sec => {
+            sec.items.forEach(item => {
+                itemMap[item.idItem] = item;
+            });
+        });
+        currentTemplate = template; 
+    }
+    else {
         showLoading();
         var data=getLoginData();
         wo = allWorkOrders.find(x => x.KeyHD == keyHD);
@@ -2260,43 +2260,43 @@ async function openWO(keyHD, el) {
             currentTemplate = result.data[0].TemplateJSON;  
             currentWO =  result.data[0];
         }
-		hideLoading();
-	}
-	
-	renderHeaderWO(currentWO);
-	await renderChecklist(currentTemplate, (currentMode === "entry"));
-	document.getElementById("woListPage").classList.add("page-hidden");
-	//document.getElementById("headListPage").style.setProperty("display", "none", "important");
-	document.getElementById("headListPage").classList.add("page-hidden");
-	document.getElementById("woDetailPage").classList.remove("page-hidden");
-	document.getElementById("headDetailPage").classList.remove("page-hidden");
-	document.getElementById("headDetailPage1").classList.remove("page-hidden");
-	document.getElementById("scrollTools").style.display = "block";
-	//document.getElementById("woListPage").style.pointerEvents = "none";
-	setTimeout(function() {
-		let firstSection = document.querySelector(".accordion-item");
+        hideLoading();
+    }
+    
+    renderHeaderWO(currentWO);
+    await renderChecklist(currentTemplate, (currentMode === "entry"));
+    document.getElementById("woListPage").classList.add("page-hidden");
+    //document.getElementById("headListPage").style.setProperty("display", "none", "important");
+    document.getElementById("headListPage").classList.add("page-hidden");
+    document.getElementById("woDetailPage").classList.remove("page-hidden");
+    document.getElementById("headDetailPage").classList.remove("page-hidden");
+    document.getElementById("headDetailPage1").classList.remove("page-hidden");
+    document.getElementById("scrollTools").style.display = "block";
+    //document.getElementById("woListPage").style.pointerEvents = "none";
+    setTimeout(function() {
+        let firstSection = document.querySelector(".accordion-item");
 
-		if (firstSection) {
-			let headerHeight = getHeaderOffset(); // kamu sudah punya ini
+        if (firstSection) {
+            let headerHeight = getHeaderOffset(); // kamu sudah punya ini
 
-			let y = firstSection.getBoundingClientRect().top 
-				  + window.pageYOffset 
-				  - headerHeight 
-				  - 10;
+            let y = firstSection.getBoundingClientRect().top 
+                  + window.pageYOffset 
+                  - headerHeight 
+                  - 10;
 
-			window.scrollTo({
-				top: y,
-				behavior: "smooth"
-			});
-		}
-		document.querySelectorAll('[data-bs-toggle="popover"]').forEach(el => {
-				new bootstrap.Popover(el, {
-					container: 'body'
-				});
-			});
-		// setWOHeaderPosition();
-	}, 100);
-	
+            window.scrollTo({
+                top: y,
+                behavior: "smooth"
+            });
+        }
+        document.querySelectorAll('[data-bs-toggle="popover"]').forEach(el => {
+                new bootstrap.Popover(el, {
+                    container: 'body'
+                });
+            });
+        // setWOHeaderPosition();
+    }, 100);
+    
 }
 async function getChecklistByWO(keyHD) {
     return new Promise((resolve, reject) => {
@@ -2316,7 +2316,7 @@ async function getChecklistByWO(keyHD) {
 // function populateChecklist(template, data) {
 
 //     if (!data) return;
-	
+    
 //     data.Items.forEach(saved => {
 
 //         let container = document.querySelector(
@@ -2324,7 +2324,7 @@ async function getChecklistByWO(keyHD) {
 //         );
 
 //         if (!container) return;
-		
+        
 //         switch (saved.Type) {
 
 //             // =====================
@@ -2391,9 +2391,9 @@ async function getChecklistByWO(keyHD) {
 //         if (remarkEl) {
 //             remarkEl.value = saved.Remark || "";
 //         }
-		
+        
 //     });
-	
+    
 //     // =====================
 //     // SUMMARY
 //     // =====================
@@ -2697,7 +2697,7 @@ async function saveToIndexedDB(payload) {
                 StartTime: (existing ? existing.StartTime ?? startTime : startTime),
                 EndTime: (payload.Status === "DONE" ? new Date().toISOString() : "")
             };
-			let getReq1 = woStore.get(payload.KeyHD);
+            let getReq1 = woStore.get(payload.KeyHD);
             getReq1.onsuccess = function () {
                 const dataWO = getReq1.result;
                 const login = getLoginData();
@@ -2752,7 +2752,7 @@ async function saveToIndexedDB(payload) {
 }
 async function onDone() {
 
-	valid = await validateExtra();
+    valid = await validateExtra();
     if (!valid) {
         return;
     }
@@ -2771,7 +2771,7 @@ async function onDone() {
 
         // 3. UI update
         //removeWOFromList(currentWO.KeyHD);
-		await initWorkOrderPage();
+        await initWorkOrderPage();
         backToList();
 
         showToast("WO Done");
@@ -2832,11 +2832,11 @@ function validateChecklist() {
     document.querySelectorAll("[data-item-id]").forEach(container => {
 
         let item = itemMap[container.dataset.itemId];
-		if (!item) {
-			console.warn("Item not found",container.dataset.itemId);
-			return;
-		}
-		
+        if (!item) {
+            console.warn("Item not found",container.dataset.itemId);
+            return;
+        }
+        
         let error = validateItem(item, container);
 
         let valueEl = container.querySelector("[data-role='value']");
@@ -2846,10 +2846,10 @@ function validateChecklist() {
         valueEl?.classList.remove("is-invalid");
         remarkEl?.classList.remove("is-invalid");
 
-		// 🔥 hanya cek kalau belum ada error
-		if (error) {
+        // 🔥 hanya cek kalau belum ada error
+        if (error) {
 
-			allValid = false;
+            allValid = false;
             applyValidationUI(container, error);
             if (!firstErrorElement)
                 firstErrorElement = container;
@@ -2864,7 +2864,7 @@ function validateChecklist() {
                 valueEl?.classList.add("is-invalid");
             }
 
-		}
+        }
 
     });
 
@@ -3113,7 +3113,7 @@ async function validateExtra() {
         valid = false;
     }
     if (valid && (!summary || summary.trim() === "")) {
-		showToast('Final Summary wajib diisi');
+        showToast('Final Summary wajib diisi');
         valid = false;
     }
     if(valid && (summary || '').length > 500) {
@@ -3134,12 +3134,12 @@ async function validateExtra() {
     }
 
     if (valid && (photoRequirement === "BEFORE" || photoRequirement === "BOTH") && beforePhotos.length === 0) {
-		showToast('Foto BEFORE wajib attach');
+        showToast('Foto BEFORE wajib attach');
         valid = false;
     }
 
     if (valid && (photoRequirement === "AFTER" || photoRequirement === "BOTH") && afterPhotos.length === 0) {
-		showToast('Foto AFTER wajib attach');
+        showToast('Foto AFTER wajib attach');
         valid = false;
     }
 
@@ -3265,7 +3265,7 @@ async function addPhotoToUI(blob, container, id) {
     let btn = document.createElement("button");
     btn.innerHTML = "&times;";
     btn.className = "btn-delete";
-	btn.type = "button";
+    btn.type = "button";
 
     btn.onclick = async (e) => {
         e.stopPropagation(); // 🔥 penting
@@ -3275,7 +3275,7 @@ async function addPhotoToUI(blob, container, id) {
         });
 
         if (!ok) return;
-		let id = wrapper.dataset.id;
+        let id = wrapper.dataset.id;
         await deletePhoto(Number(id));
         wrapper.remove();
         disableEnableEntryMode();
@@ -3549,66 +3549,66 @@ document.addEventListener("drop", async e => {
 //         e.preventDefault();
 //     });
 
-// 	container.addEventListener("drop", async e => {
+//  container.addEventListener("drop", async e => {
 
-// 		e.preventDefault();
+//      e.preventDefault();
 
-// 		container.classList.remove("drag-hover");
+//      container.classList.remove("drag-hover");
 
-// 		let files = Array.from(e.dataTransfer.files);
+//      let files = Array.from(e.dataTransfer.files);
 
-// 		let existing =
-// 			container.querySelectorAll(".photo-item").length;
+//      let existing =
+//          container.querySelectorAll(".photo-item").length;
 
-// 		for (let file of files) {
+//      for (let file of files) {
 
-// 			// 🔥 LIMIT TOTAL FOTO
-// 			if (existing >= MAX_FILES) {
-// 				showToast("Maksimal " + MAX_FILES.toString() + " foto");
-// 				break;
-// 			}
+//          // 🔥 LIMIT TOTAL FOTO
+//          if (existing >= MAX_FILES) {
+//              showToast("Maksimal " + MAX_FILES.toString() + " foto");
+//              break;
+//          }
 
-// 			// 🔥 VALIDASI TYPE
-// 			if (!file.type.startsWith("image/")) {
-// 				showToast("File harus berupa gambar");
-// 				continue;
-// 			}
+//          // 🔥 VALIDASI TYPE
+//          if (!file.type.startsWith("image/")) {
+//              showToast("File harus berupa gambar");
+//              continue;
+//          }
 
-// 			// 🔥 VALIDASI SIZE
-// 			if (file.size > MAX_SIZE) {
-// 				showToast("Ukuran foto maksimal 2MB");
-// 				continue;
-// 			}
+//          // 🔥 VALIDASI SIZE
+//          if (file.size > MAX_SIZE) {
+//              showToast("Ukuran foto maksimal 2MB");
+//              continue;
+//          }
 
-// 			try {
+//          try {
 
-// 				let blob = await compressImage(file);
+//              let blob = await compressImage(file);
 
-// 				let id = await savePhoto(
-// 					currentWO.KeyHD,
-// 					type,
-// 					blob,
-// 					file.name
-// 				);
+//              let id = await savePhoto(
+//                  currentWO.KeyHD,
+//                  type,
+//                  blob,
+//                  file.name
+//              );
 
-// 				addPhotoToUI(blob, container, id);
+//              addPhotoToUI(blob, container, id);
 
-// 				existing++;
+//              existing++;
 
-// 			} catch (err) {
+//          } catch (err) {
 
-// 				console.error(err);
-// 				showToast("Gagal upload foto");
+//              console.error(err);
+//              showToast("Gagal upload foto");
 
-// 			}
-// 		}
-// 	});
+//          }
+//      }
+//  });
 // });
 async function initPhotoSection() {
 
     //initPhotoUpload(wo);
     initPhotoSortable();
-	clearPhotoUI();
+    clearPhotoUI();
     await loadExistingPhotos(currentWO);
 }
 function clearPhotoUI() {
@@ -3713,7 +3713,7 @@ function openPreview(imgEl, id, wrapper) {
     currentPreviewWrapper = wrapper;
 
     previewList = Array.from(items);
-	let counter = document.querySelector(".preview-counter");
+    let counter = document.querySelector(".preview-counter");
     previewIndex = previewList.findIndex(i => i === imgEl);
     // 🔥 cari index yg diklik
     showPreview();
@@ -3780,10 +3780,10 @@ function updatePreviewCounter() {
         counter.innerText = "0 / 0";
         return;
     }
-	counter.innerText =
+    counter.innerText =
         (previewIndex + 1) +
         " / " +
-        previewList.length;	
+        previewList.length; 
 }
 function nextPhoto() {
 
@@ -3801,22 +3801,22 @@ function prevPhoto() {
     }
 }
 document.getElementById("btnPrevImage").addEventListener("click", function () {
-	if (previewList.length === 0) return;
-	previewIndex--;
-	if (previewIndex < 0) {
-		previewIndex = previewList.length - 1;
-	}
-	showPreview();
-	updatePreviewCounter();
+    if (previewList.length === 0) return;
+    previewIndex--;
+    if (previewIndex < 0) {
+        previewIndex = previewList.length - 1;
+    }
+    showPreview();
+    updatePreviewCounter();
 });
 document.getElementById("btnNextImage").addEventListener("click", function () {
-	if (previewList.length === 0) return;
-	previewIndex++;
-	if (previewIndex >= previewList.length) {
-		previewIndex = 0;
-	}
-	showPreview();
-	updatePreviewCounter();
+    if (previewList.length === 0) return;
+    previewIndex++;
+    if (previewIndex >= previewList.length) {
+        previewIndex = 0;
+    }
+    showPreview();
+    updatePreviewCounter();
 });
 // touch start
 document.getElementById("previewImage").addEventListener("touchstart",
@@ -3872,18 +3872,18 @@ document.querySelectorAll(".photo-upload").forEach(container => {
 function validatePageAccess() {
     const requestedMode =
         getQueryString("mode");
-	const validModes = ["entry","approval"];
-	if(!requestedMode || !validModes.includes(requestedMode)) {
-		showToast(
-			"Invalid page mode.",
-			"warning"
-		);
-		setTimeout(function () {
-			window.location.href =
-				"dashboard.aspx";
-		}, 1000);
-		return false;
-	}		
+    const validModes = ["entry","approval"];
+    if(!requestedMode || !validModes.includes(requestedMode)) {
+        showToast(
+            "Invalid page mode.",
+            "warning"
+        );
+        setTimeout(function () {
+            window.location.href =
+                "dashboard.aspx";
+        }, 1000);
+        return false;
+    }       
     // =====================================
     // ENTRY MODE (TECHNICIAN)
     // =====================================
@@ -3917,7 +3917,7 @@ function validatePageAccess() {
             return false;
         }
     }
-	return true;
+    return true;
 }
 
 async function approveVoid(type) {
@@ -3939,7 +3939,7 @@ async function approveVoid(type) {
         }
     }
 
-	let _title = (type == "1" ? "Approve" : "Void");
+    let _title = (type == "1" ? "Approve" : "Void");
     let confirm = await showConfirmation({
         title: _title + " Work Order",
         message: "Are you sure want to " + _title + " this work order?",
@@ -3948,25 +3948,25 @@ async function approveVoid(type) {
 
     if (!confirm)
         return;
-	if (type == "0") {
-		document.getElementById("txtVoidReason").value = "";
-		document.getElementById("voidReasonError").classList.add("d-none");
+    if (type == "0") {
+        document.getElementById("txtVoidReason").value = "";
+        document.getElementById("voidReasonError").classList.add("d-none");
 
-		let modalEl = document.getElementById("voidReasonModal");
-		let modal = new bootstrap.Modal(modalEl);
+        let modalEl = document.getElementById("voidReasonModal");
+        let modal = new bootstrap.Modal(modalEl);
 
-		modalEl.addEventListener(
-			"shown.bs.modal",
-			function () {
-				document.getElementById("txtVoidReason").focus();
-			},
-			{ once: true }
-		);
+        modalEl.addEventListener(
+            "shown.bs.modal",
+            function () {
+                document.getElementById("txtVoidReason").focus();
+            },
+            { once: true }
+        );
 
-		modal.show();
-		return;
-	}
-	await submitVoidWO(type);
+        modal.show();
+        return;
+    }
+    await submitVoidWO(type);
 }
 async function submitVoidToIndexedDb(type, reason) {
     return new Promise((resolve, reject) => {
@@ -4021,20 +4021,20 @@ async function submitVoidToIndexedDb(type, reason) {
     });
 }
 async function submitVoidWO(type) {
-	let reason = "";
-	if (type == "0") {
-		reason = document.getElementById("txtVoidReason").value.trim();
-		if (!reason) {
-			document.getElementById("voidReasonError").classList.remove("d-none");
-			showToast("Reason is required","danger");
-			return;
-		}
+    let reason = "";
+    if (type == "0") {
+        reason = document.getElementById("txtVoidReason").value.trim();
+        if (!reason) {
+            document.getElementById("voidReasonError").classList.remove("d-none");
+            showToast("Reason is required","danger");
+            return;
+        }
         if((reason || '').length > 255) {
             showToast('Reason Void maximum 255 characters');
             return;
         }
 
-	}
+    }
     try {
         let remarkspv = document.querySelector("[data-role='remarkspv']").value;
         if (currentWO.IsSampling) {
@@ -4055,7 +4055,7 @@ async function submitVoidWO(type) {
             result = result.d;
 
             if (!result.success) {
-                showToast(result.message, "error");
+                alert(result.message);
             }
             // await promisifyPageMethod(
             //     PageMethods.approvevoidWorkOrder,
@@ -4076,10 +4076,9 @@ async function submitVoidWO(type) {
         backToList();
     }
     catch (ex) {
-        showToast(
+        alert(
             "FETCH ERROR\n\n" +
-            ex.toString(),
-            "error"
+            ex.toString()
         );
         // console.error(ex);
         // showToast("Failed to void work order","danger");

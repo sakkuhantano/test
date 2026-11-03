@@ -1,4 +1,3 @@
-
 let currentSection = null;
 let currentItem = null;
 let currentTemplates = [];
@@ -1045,9 +1044,9 @@ async function loadTemplateExplorer()
     {
         console.error(ex);
 
-        showToast(
+        alert(
             ex.message || ex
-        , "error");
+        );
     }
 }
 async function reloadExplorer() {
@@ -1087,7 +1086,7 @@ async function reloadExplorer() {
 
         console.error(ex);
 
-        showToast(ex.message, "error");
+        alert(ex.message);
     }
 }
 function renderTemplateExplorerRoot(data)
@@ -3038,7 +3037,7 @@ async function loadTemplateVersions(idTemplate)
     catch(ex)
     {
         console.error(ex);
-        showToast('Failed load versions', "error");
+        alert('Failed load versions');
     }
 }
 function renderTemplateVersions(data,container)
@@ -3559,7 +3558,7 @@ async function loadVersionStructure(templateId, versionId, el)
     {
         if (loadRequestId !== versionStructureLoadRequestId) return;
         console.error("loadVersionStructure error:", ex);
-        showToast('Failed load version structure', "error");
+        alert('Failed load version structure');
     }
     finally
     {
@@ -6354,7 +6353,7 @@ async function renderTemplateCompanyAssignments(template)
                     hideLoading();
                     if (!result.success) {
                         this.checked = oldValue;
-                        showToast(result.message || 'Unable to update company/location assignment.', "error");
+                        alert(result.message || 'Unable to update company/location assignment.');
                         return;
                     }
                     if (template.TemplateType === 'I') await renderTemplateEmployeeAssignments(template);
@@ -6362,7 +6361,7 @@ async function renderTemplateCompanyAssignments(template)
                 } catch (ex) {
                     hideLoading();
                     this.checked = oldValue;
-                    showToast(ex.message || ex, "error");
+                    alert(ex.message || ex);
                 }
             });
             tdCheck.appendChild(check);
@@ -6467,14 +6466,14 @@ async function renderTemplateEmployeeAssignments(template)
                     hideLoading();
                     if (!result.success) {
                         this.checked = oldValue;
-                        showToast(result.message || 'Unable to update employee assignment.', "error");
+                        alert(result.message || 'Unable to update employee assignment.');
                     } else {
                         row.IsAssigned = this.checked;
                     }
                 } catch (ex) {
                     hideLoading();
                     this.checked = oldValue;
-                    showToast(ex.message || ex, "error");
+                    alert(ex.message || ex);
                 }
             });
             tdCheck.appendChild(check);
@@ -6638,7 +6637,7 @@ async function loadGroupEquipment(forceReload)
     {
         groupEquipmentCache=[];
         console.error(ex);
-        showToast("Failed load Group Equipment", "error");
+        alert("Failed load Group Equipment");
     }
 
     // return new Promise(function(resolve,reject){
@@ -8060,7 +8059,7 @@ async function deleteDraftVersion(idVersion)
     catch(ex)
     {
         console.error(ex);
-        showToast(ex.message, "error");
+        alert(ex.message);
     }
 }
 function canPublishVersion(versionNode)
@@ -9919,7 +9918,7 @@ async function saveAllTemplate()
             if (!result || !result.success)
             {
                 hideLoading();
-                showToast((result && result.message) || "Save All Template returned no success response.", "error");
+                alert((result && result.message) || "Save All Template returned no success response.");
                 return;
             }
 
@@ -10007,7 +10006,7 @@ async function saveAllTemplate()
             (ex && ex.get_message) ||
             (typeof ex === "string" ? ex : "");
         console.error("Save All Template failed:", ex);
-        showToast(detail || "Save All Template failed. See the browser console for the server error details.", "error");
+        alert(detail || "Save All Template failed. See the browser console for the server error details.");
     }
 }
 async function publishVersion()
@@ -10093,9 +10092,9 @@ async function publishVersion()
             ex
         );
 
-        showToast(
+        alert(
             ex.message
-        , "error");
+        );
     }
 }
 
@@ -10156,7 +10155,7 @@ async function loadModel(groupEquipment, forceReload)
     {
         modelCache = [];
         console.error(ex);
-        showToast("Failed load Model Code", "error");
+        alert("Failed load Model Code");
     }
 
     // return new Promise(function(resolve, reject){

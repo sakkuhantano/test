@@ -29,13 +29,7 @@ const APP_BUILD_VERSION = "20261030.1";
             const message = hasUnsavedInspection
                 ? "Versi aplikasi terbaru tersedia. Simpan draft inspeksi dan pastikan perubahan tersimpan sebelum memuat ulang halaman. Muat ulang sekarang?"
                 : "Versi aplikasi terbaru tersedia. Muat ulang halaman untuk menggunakan versi terbaru?";
-            const confirmed = await window.showConfirmation({
-                title: "Update aplikasi",
-                message: message,
-                yesText: "Muat Ulang",
-                cancelText: "Nanti"
-            });
-            if (confirmed) window.location.reload();
+            if (window.confirm(message)) window.location.reload();
             else reloadPromptShown = false;
         } catch (error) {
             // Version check is best-effort; it must not interrupt offline work.
@@ -115,7 +109,7 @@ window.appFeatures = {
     WTR: getLoginData().role.IsWTR,
     technician: getLoginData().role.IsWO,
     supervisor: getLoginData().role.IsSPV
-};		
+};      
 function toggleSidebar() {
     if (window.innerWidth >= 992) {
         sidebar.classList.toggle('collapsed');
@@ -165,29 +159,29 @@ document.addEventListener(
         await checkLogin();
         loadSidebarMenu();
         initSidebarState();
-		// INIT DB
-		await initIndexedDB();
+        // INIT DB
+        await initIndexedDB();
         await window.updateGlobalInspectionConflictBadge();
         await loadCompanyDropdown();
-		loadCompanyName();
+        loadCompanyName();
 
         //debugger;
-		// if(!appFeatures.technician && !appFeatures.ELC && !appFeatures.WTR && !appFeatures.GAS) {
+        // if(!appFeatures.technician && !appFeatures.ELC && !appFeatures.WTR && !appFeatures.GAS) {
         //     document.querySelector('#connectionStatus div').classList.add("d-none");
-		// 	// document
-		// 	// 	.getElementById("connectionStatus")
-		// 	// 	?.classList.add("d-none");
-		// 	// hide sync button
-		// 	document
-		// 		.getElementById("btnSync")
-		// 		?.classList.add("d-none");
+        //  // document
+        //  //  .getElementById("connectionStatus")
+        //  //  ?.classList.add("d-none");
+        //  // hide sync button
+        //  document
+        //      .getElementById("btnSync")
+        //      ?.classList.add("d-none");
 
-		// 	// hide pending sync badge
-		// 	document
-		// 		.getElementById("syncBadge")
-		// 		?.classList.add("d-none");		
-		// } 
-		// else 
+        //  // hide pending sync badge
+        //  document
+        //      .getElementById("syncBadge")
+        //      ?.classList.add("d-none");      
+        // } 
+        // else 
         // {
             document.querySelector('#connectionStatus div').classList.remove("d-none");            
             const summary =
@@ -198,7 +192,7 @@ document.addEventListener(
             }
 
             await updateTotalPendingSync(summary);
-			await updateConnectionStatus();
+            await updateConnectionStatus();
             setInterval(async () => {
               try {
                 let status = await checkConnectionStatus();
@@ -216,35 +210,35 @@ document.addEventListener(
             //     }
             // }, 180000); 
                         
-		// }
-		
+        // }
+        
         //var syncPanel = document.getElementById("syncPanel");
         //if (syncPanel) {
         //    syncPanel.addEventListener("show.bs.offcanvas",function () {
         //        showSyncDetail();
         //    });
         //}
-		document.getElementById("btnConfirmYes")?.addEventListener("click", function () {
-		    hideConfirmation();
-		    if (confirmResolve) {
-		        confirmResolve(true);
-		        confirmResolve = null;
-		    }
-		});
+        document.getElementById("btnConfirmYes")?.addEventListener("click", function () {
+            hideConfirmation();
+            if (confirmResolve) {
+                confirmResolve(true);
+                confirmResolve = null;
+            }
+        });
 
-		document.getElementById("btnConfirmCancel")?.addEventListener("click", function () {
-		    hideConfirmation();
-		    if (confirmResolve) {
-		        confirmResolve(false);
-		        confirmResolve = null;
-		    }
-		});
+        document.getElementById("btnConfirmCancel")?.addEventListener("click", function () {
+            hideConfirmation();
+            if (confirmResolve) {
+                confirmResolve(false);
+                confirmResolve = null;
+            }
+        });
 
-		document.getElementById("globalConfirmOverlay")?.addEventListener("click", function (e) {
-		    if (e.target.id === "globalConfirmOverlay") {
-		        document.getElementById("btnConfirmCancel").click();
-		    }
-		});
+        document.getElementById("globalConfirmOverlay")?.addEventListener("click", function (e) {
+            if (e.target.id === "globalConfirmOverlay") {
+                document.getElementById("btnConfirmCancel").click();
+            }
+        });
         if (page.indexOf("dashboard.aspx") >= 0) {
             const login = getLoginData().role;
             const inspectionShortcut = document.getElementById("btnDashboardInspection");
@@ -466,7 +460,7 @@ async function loadCompanyDropdown() {
         </li>`;
 
     //var list = await getCompanyList();
-	var list = getLoginData().companylist;
+    var list = getLoginData().companylist;
     var current = document.getElementById("lblCompanyLocation").innerText;
     var hasPending = (getTotalPendingSync() > 0);
     var offline = !navigator.onLine;
@@ -672,7 +666,7 @@ async function countApproval() {
         document.getElementById("lblVoid").innerText = `${rejected}`;
     }
     catch(ex) {
-        showToast(ex.message, "error");        
+        alert(ex.message);        
     }
 }
 async function countPendingWO() {
@@ -754,43 +748,43 @@ async function countPendingSyncWO() {
 }
 // async function getTotalPendingSync() {
 //     var total = 0;
-// 	var pending = 0;
+//  var pending = 0;
 //     var login = getLoginData();
 //     if (!login)
 //         return 0;
 //     var role = login.role;
-// 	var page = window.location.pathname.toLowerCase();
+//  var page = window.location.pathname.toLowerCase();
 
 //     if (role.IsWTR) {
-// 		pending = await countPendingSyncMeter("WTR");
+//      pending = await countPendingSyncMeter("WTR");
 //         total += pending;
-// 		if (page.indexOf("dashboard.aspx") >= 0) {
-// 			document.getElementById("syncWater").textContent = pending;
-// 		}
-// 	}
+//      if (page.indexOf("dashboard.aspx") >= 0) {
+//          document.getElementById("syncWater").textContent = pending;
+//      }
+//  }
 //     if (role.IsELC) {
-// 		pending = await countPendingSyncMeter("ELC");
+//      pending = await countPendingSyncMeter("ELC");
 //         total += pending;
-// 		if (page.indexOf("dashboard.aspx") >= 0) {
-// 			document.getElementById("syncElectric").textContent = pending;
-// 		}
-// 	}
+//      if (page.indexOf("dashboard.aspx") >= 0) {
+//          document.getElementById("syncElectric").textContent = pending;
+//      }
+//  }
 
 //     if (role.IsGAS) {
-// 		pending = await countPendingSyncMeter("GAS");
+//      pending = await countPendingSyncMeter("GAS");
 //         total += pending;
-// 		if (page.indexOf("dashboard.aspx") >= 0) {
-// 			document.getElementById("syncGas").textContent = pending;
-// 		}
-// 	}
-	
+//      if (page.indexOf("dashboard.aspx") >= 0) {
+//          document.getElementById("syncGas").textContent = pending;
+//      }
+//  }
+    
 //     if (role.IsWO) {
-// 		pending = await countPendingSyncWO();
+//      pending = await countPendingSyncWO();
 //         total += pending;
-// 		if (page.indexOf("dashboard.aspx") >= 0) {
-// 			document.getElementById("syncWO").textContent = pending;
-// 		}
-// 	}
+//      if (page.indexOf("dashboard.aspx") >= 0) {
+//          document.getElementById("syncWO").textContent = pending;
+//      }
+//  }
 //     return total;
 // }
 async function calculateMeterSyncStatistics() {
