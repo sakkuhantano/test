@@ -441,11 +441,6 @@ WHERE a.SectionID = @SectionID
                     }
                 }
             }
-            string companyId = root["CompanyID"].ToString();
-            string locationId = root["LocationID"].ToString();
-
-
-
             using (var br = new WAL.BR.CF())
             {
                 // 1. Validasi Duplikasi Nomor Template
@@ -473,14 +468,12 @@ WHERE a.SectionID = @SectionID
             SELECT A.* FROM PIP_M_CheckListWOPM_Version A
             INNER JOIN PIP_M_CheckListWOPM B ON A.IDTemplate=B.IDTemplate
             WHERE B.SectionID=@SectionID AND B.TemplateNo=@TemplateNo
-            AND A.Version=@Version AND A.IDVersion<>@IDVersion AND B.CompanyID=@CompanyID AND B.LocationID=@LocationID";
+            AND A.Version=@Version AND A.IDVersion<>@IDVersion";
 
                 string paramsVersion = "@SectionID=" + sectionID + GF.Str2 +
                                        "@TemplateNo=" + templateNo + GF.Str2 +
                                        "@Version=" + version + GF.Str2 +
-                                       "@IDVersion=" + idVersion + GF.Str2 +
-                                       "@CompanyID=" + companyId + GF.Str2 +
-                                       "@LocationID=" + locationId;
+                                       "@IDVersion=" + idVersion;
 
                 if (br.EQuery(queryVersion, paramsVersion).Rows.Count > 0)
                 {
