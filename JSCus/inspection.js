@@ -15,6 +15,19 @@ let inspectionPhotoViewerState = { type: "", photos: [], index: 0, objectUrl: nu
 let inspectionPhotoBaseline = null;
 let inspectionNoticeEnabled = false;
 let inspectionGridSort = { key: "inspectionDate", direction: "asc" };
+function getInspectionTemplateDetailCodes(template) {
+    return String(template && template.InspectionTypeDetailCode || "")
+        .split(";")
+        .map(code => code.trim().toUpperCase())
+        .filter(Boolean);
+}
+
+function isInspectionTemplateDetailAllowed(template, detailCode) {
+    const allowedCodes = getInspectionTemplateDetailCodes(template);
+    return !allowedCodes.length ||
+        allowedCodes.indexOf(String(detailCode || "").trim().toUpperCase()) >= 0;
+}
+
 let inspectionFollowUpSections = [
     { Code: "ACON", Name: "Air Cond." },
     { Code: "COMM", Name: "Comm." },
@@ -635,10 +648,8 @@ function updateStartButton() {
     );
     const templateId = Number(document.getElementById("selInspectionTemplate").value);
     const template = inspectionTemplates.find(x => Number(x.IDTemplate) === templateId);
-    const allowedDetailCodes = String(template && template.InspectionTypeDetailCode || "")
-        .split(";").map(x => x.trim()).filter(Boolean);
     const detailMatchesTemplate = !!template &&
-        (!allowedDetailCodes.length || allowedDetailCodes.includes(String(detailCode || "")));
+        isInspectionTemplateDetailAllowed(template, detailCode);
     const hasScheduledTimes = getInspectionScheduleTimes(detail).length > 0;
     const scheduledTime = document.getElementById("selInspectionScheduleTime").value;
     const enabled = !!typeCode && !!detail && !!detailCode && detailMatchesTemplate &&
@@ -658,8 +669,7 @@ async function startNewInspection() {
     const template = inspectionTemplates.find(x => Number(x.IDTemplate) === templateId);
 
     if (!type || !detail || !template ||
-        (String(template.InspectionTypeDetailCode || "").split(";").map(x => x.trim()).filter(Boolean).length > 0 &&
-         !String(template.InspectionTypeDetailCode).split(";").map(x => x.trim()).includes(String(detail.InspectionTypeDetailCode))) ||
+        !isInspectionTemplateDetailAllowed(template, detail.InspectionTypeDetailCode) ||
         (getInspectionScheduleTimes(detail).length > 0 && !scheduledTime)) {
         showInspectionNotice("Pilih Inspection Type, detail, jam jadwal (jika tersedia), dan template yang valid.", "warning");
         return;
@@ -2088,8 +2098,7 @@ function isInspectionParameterSelectionComplete() {
         (!hasScheduledTimes || !!scheduleTime) &&
         template.TemplateType === "I" &&
         template.InspectionTypeCode === typeCode &&
-        (!String(template.InspectionTypeDetailCode || "").split(";").map(x => x.trim()).filter(Boolean).length ||
-         String(template.InspectionTypeDetailCode).split(";").map(x => x.trim()).includes(String(detailCode))) &&
+        isInspectionTemplateDetailAllowed(template, detailCode) &&
         template.SectionID === type.SectionID;
 }
 function updateInspectionParameterTabGate() {
@@ -2145,7 +2154,8 @@ function populateInspectionParameters(record) {
     document.getElementById("txtInspectionDate").disabled = true;
     typeSelect.disabled = currentInspectionReadOnly;
     const selectedTemplate = inspectionTemplates.find(x => Number(x.IDTemplate) === Number(templateSelect.value));
-    detailSelect.disabled = currentInspectionReadOnly || !templateSelect.value || !!(selectedTemplate && selectedTemplate.InspectionTypeDetailCode);
+    detailSelect.disabled = currentInspectionReadOnly || !templateSelect.value ||
+        getInspectionTemplateDetailCodes(selectedTemplate).length === 1;
     scheduleTimeSelect.disabled = currentInspectionReadOnly || !getInspectionScheduleTimes(
         inspectionDetails.find(x => x.InspectionTypeCode === (record.InspectionTypeCode || "") &&
             x.InspectionTypeDetailCode === (record.InspectionTypeDetailCode || ""))
@@ -2202,8 +2212,7 @@ async function applyInspectionParameters() {
     if (!type || !detail || !template ||
         template.TemplateType !== "I" ||
         template.InspectionTypeCode !== typeCode ||
-        (template.InspectionTypeDetailCode &&
-         String(template.InspectionTypeDetailCode) !== String(detailCode)) ||
+        !isInspectionTemplateDetailAllowed(template, detailCode) ||
         template.SectionID !== type.SectionID) {
         showInspectionNotice("Pilih Inspection Type, detail, dan template Inspection yang sesuai.", "warning");
         updateInspectionParameterTabGate();
