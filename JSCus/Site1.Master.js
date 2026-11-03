@@ -2535,7 +2535,30 @@ async function logoutRoutine() {
 
         }
 
-        // hapus session login
+        // Nonaktifkan sesi di server jika koneksi tersedia. Logout lokal tetap berjalan saat offline.
+        const login = getLoginData();
+        if (login && navigator.onLine) {
+            try {
+                const response = await fetch("../Login.aspx/F_Logout", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        browserGuid: login.browserGuid,
+                        serverGuid: login.serverGuid,
+                        token: login.token
+                    })
+                });
+                if (!response.ok) throw new Error("HTTP " + response.status);
+                const result = await response.json();
+                if (!result || result.d !== true)
+                    throw new Error("Server tidak mengonfirmasi logout.");
+            } catch (logoutError) {
+                // Sesi server akan dibersihkan saat login berikutnya jika logout gagal/offline.
+                console.warn("Server logout could not be confirmed:", logoutError);
+            }
+        }
+
+        // Hapus sesi lokal setelah upaya logout server.
         localStorage.removeItem("loginData");
         // optional:
         //sessionStorage.clear();
