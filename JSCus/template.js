@@ -8350,6 +8350,40 @@ async function cloneTemplateToSection(sourceSectionId, sourceRuntimeTemplateId, 
         return;
     }
 
+    // A collapsed Template has no Version nodes in cache yet. Load its Version
+    // metadata directly, without expanding the Template in the explorer.
+    if (Number(sourceNode.Template.IDTemplate) > 0) {
+        try {
+            const result = await promisifyPageMethod(
+                PageMethods.GetTemplateVersions,
+                String(sourceNode.Template.IDTemplate)
+            );
+            const versions = JSON.parse(result || "[]");
+            versions.forEach(function(version) {
+                let node = Object.values(sourceNode.Versions || {}).find(function(existing) {
+                    return Number(existing.VersionInfo && existing.VersionInfo.IDVersion) === Number(version.IDVersion);
+                });
+                if (node) {
+                    const runtimeVersionId = node.VersionInfo.RuntimeVersionID;
+                    node.VersionInfo = Object.assign({}, version, {
+                        RuntimeVersionID: runtimeVersionId
+                    });
+                } else {
+                    const runtimeVersionId = version.RuntimeVersionID || generateRuntimeID();
+                    version.RuntimeVersionID = runtimeVersionId;
+                    sourceNode.Versions[runtimeVersionId] = {
+                        VersionInfo: version,
+                        Structure: null
+                    };
+                }
+            });
+        } catch (err) {
+            console.error("Could not load Version list for Template copy:", err);
+            showToast("Gagal memuat daftar Version Template. Silakan coba lagi.", "warning");
+            return;
+        }
+    }
+
     const versionNodes = Object.values(sourceNode.Versions || {});
     let sourceVersionNode = null;
     if (currentTemplate &&
@@ -8386,7 +8420,7 @@ async function cloneTemplateToSection(sourceSectionId, sourceRuntimeTemplateId, 
         }
     }
     if (!sourceVersionNode.Structure || !sourceVersionNode.Structure.VersionInfo) {
-        showToast("Current Version structure gagal dimuat. Buka Template tersebut lalu coba lagi.", "warning");
+        showToast("Current Version structure gagal dimuat. Silakan coba lagi.", "warning");
         return;
     }
 
