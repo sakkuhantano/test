@@ -108,7 +108,6 @@ FROM dbo.PIP_M_CheckListWOPM
 WHERE IDTemplate=@IDTemplate
   AND (
        ISNULL(CompanyScope,'S')='A'
-       OR ISNULL(CompanyLocationList,'')=''
        OR (';' + ISNULL(CompanyLocationList,'') + ';' LIKE '%;' + @CompanyID + @LocationID + ';%')
   )",
                     "@IDTemplate=" + id + GF.Str2 +
@@ -1478,7 +1477,7 @@ IF NOT EXISTS
                         AND LoginCompany.LocationID=swl.LocationID)
        )
 )
-    RAISERROR('The company/location is inactive or you do not have PIP permission for it.',16,1);
+    RAISERROR('The company/location is inactive or you do not have INSPEC permission for it.',16,1);
 IF (';' + ISNULL((SELECT CompanyLocationList FROM dbo.PIP_M_CheckListWOPM WHERE IDTemplate=@IDTemplate),'') + ';' NOT LIKE '%;' + @CompanyID + @LocationID + ';%')
  UPDATE dbo.PIP_M_CheckListWOPM SET CompanyLocationList=CASE WHEN ISNULL(CompanyLocationList,'')='' THEN @CompanyID+@LocationID ELSE CompanyLocationList+';'+@CompanyID+@LocationID END WHERE IDTemplate=@IDTemplate",
                         "@IDTemplate=" + id + GF.Str2 +
@@ -1579,6 +1578,7 @@ JOIN dbo.PIP_M_CheckListWOPM T ON T.IDTemplate=@IDTemplate
 
 WHERE E.SectionID=T.SectionID
   AND E.SectionID=@SectionID
+  AND T.TemplateType='I'
   AND ISNULL(E.TerminationDate,'')=''
   AND (
        EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation CurrentPermission
