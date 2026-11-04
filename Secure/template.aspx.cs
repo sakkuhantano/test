@@ -35,6 +35,14 @@ namespace UTL1.Secure
             return (source ?? "").Split(new char[] { ';' }, StringSplitOptions.RemoveEmptyEntries).Select(x => x.Trim()).Where(x => x != "").Distinct(StringComparer.OrdinalIgnoreCase).ToList();
         }
 
+        private static void RequireAllowedSection(string sectionId)
+        {
+            DataRow user = RequireMenuAccess(INSPEC_MENU_ID);
+            string employeeId = Convert.ToString(user["EmployeeID"]).Trim();
+            List<string> allowed = GetAllowedSections(employeeId);
+            if (String.IsNullOrWhiteSpace(sectionId) || !allowed.Contains(sectionId.Trim(), StringComparer.OrdinalIgnoreCase))
+                throw new HttpException(403, "You do not have access to this Section.");
+        }
         private void SetClientContext(DataRow user)
         {
             string employeeId = Convert.ToString(user["EmployeeID"]).Trim();
@@ -85,7 +93,13 @@ namespace UTL1.Secure
             string locationId,
             string employeeId)
         {
-            RequireMenuAccess(INSPEC_MENU_ID);
+            DataRow inspecUser = RequireMenuAccess(INSPEC_MENU_ID);
+            userId = Convert.ToString(inspecUser["UserID"]).Trim();
+            employeeId = Convert.ToString(inspecUser["EmployeeID"]).Trim();
+            companyId = Convert.ToString(inspecUser["CompanyID"]).Trim();
+            locationId = Convert.ToString(inspecUser["LocationID"]).Trim();
+            string sectionList = String.Join(";", GetAllowedSections(employeeId).ToArray());
+            if (String.IsNullOrWhiteSpace(sectionList)) return new JavaScriptSerializer().Serialize(new object[0]);
             using (var br = new WAL.BR.CF())
             {
                 DataTable dt = br.EQuery(@"
@@ -99,26 +113,26 @@ SELECT aa.val SectionID,
                  OR (';' + ISNULL(bb.CompanyLocationList, '') + ';' LIKE '%;' + @CompanyID + @LocationID + ';%')
              )
        ), 0)
-FROM dbo.UTL_User a
-CROSS APPLY dbo.SplitStringConvertToTable(a.Section, ';') aa
-WHERE a.UserID = @UserID
+FROM dbo.SplitStringConvertToTable(@SectionList, ';') aa
+WHERE 1=1
   AND (
       EXISTS (
           SELECT 1
           FROM dbo.SysWebUserCompanyLocation perm
-          WHERE perm.AppID = 'PIP'
+          WHERE perm.AppID = 'INSPEC'
             AND perm.UserID = @EmployeeID
             AND perm.CompanyID = @CompanyID
             AND perm.LocationID = @LocationID
       )
       OR EXISTS (
           SELECT 1
-          FROM dbo.F_SelectOneLogin('pip', @UserID, '') loginCompany
+          FROM dbo.F_SelectOneLogin('INSPEC', @UserID, '') loginCompany
           WHERE loginCompany.CompanyID = @CompanyID
             AND loginCompany.LocationID = @LocationID
       )
   )",
-                    "@UserID=" + userId
+                    "@SectionList=" + sectionList
+                    + GF.Str2 + "@UserID=" + userId
                     + GF.Str2 + "@CompanyID=" + companyId
                     + GF.Str2 + "@LocationID=" + locationId
                     + GF.Str2 + "@EmployeeID=" + employeeId);
@@ -339,7 +353,12 @@ WHERE SEC.IDVersion=@IDVersion ORDER BY SS.DisplayOrder;",
             string employeeId,
             string userId)
         {
-            RequireMenuAccess(INSPEC_MENU_ID);
+            DataRow inspecUser = RequireMenuAccess(INSPEC_MENU_ID);
+            userId = Convert.ToString(inspecUser["UserID"]).Trim();
+            employeeId = Convert.ToString(inspecUser["EmployeeID"]).Trim();
+            companyId = Convert.ToString(inspecUser["CompanyID"]).Trim();
+            locationId = Convert.ToString(inspecUser["LocationID"]).Trim();
+            RequireAllowedSection(sectionId);
             using (var br = new WAL.BR.CF())
             {
                 DataTable dt = br.EQuery(@"
@@ -1064,7 +1083,7 @@ LEFT JOIN dbo.PIP_M_InspectionType I
 WHERE T.IDTemplate=@IDTemplate
   AND (
        EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation CurrentPermission
-               WHERE CurrentPermission.AppID='PIP' AND CurrentPermission.UserID=@UpdateUser
+               WHERE CurrentPermission.AppID='INSPEC' AND CurrentPermission.UserID=@UpdateUser
                  AND CurrentPermission.CompanyID=@CompanyID
                  AND CurrentPermission.LocationID=@LocationID)
        OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', @UpdateUser, '') LoginCompany
@@ -1178,7 +1197,7 @@ FROM
        AND (
            EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation perm
                    WHERE perm.CompanyID=swl.CompanyID AND perm.LocationID=swl.LocationID
-                     AND perm.UserID=@UserID AND perm.AppID='PIP')
+                     AND perm.UserID=@UserID AND perm.AppID='INSPEC')
            OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', @UserID, '') LoginCompany
                       WHERE LoginCompany.CompanyID=swl.CompanyID
                         AND LoginCompany.LocationID=swl.LocationID)
@@ -1360,7 +1379,6 @@ JOIN dbo.PIP_M_CheckListWOPM T ON T.IDTemplate=@IDTemplate
 WHERE E.SectionID=T.SectionID
   AND E.SectionID=@SectionID
   AND ISNULL(E.TerminationDate,'')=''
-  AND EXISTS (SELECT 1 FROM dbo.UTL_User U WHERE U.EmployeeID=E.EmployeeID)
   AND (
        EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation CurrentPermission
                WHERE CurrentPermission.AppID='PIP' AND CurrentPermission.UserID=e.EmployeeID
@@ -1462,7 +1480,6 @@ IF @Action='REMOVE' AND
          FROM dbo.M_HRD_Employee E
          WHERE E.SectionID=(SELECT SectionID FROM dbo.PIP_M_CheckListWOPM WHERE IDTemplate=@IDTemplate)
            AND ISNULL(E.TerminationDate,'')=''
-           AND EXISTS (SELECT 1 FROM dbo.UTL_User U WHERE U.EmployeeID=E.EmployeeID)
            AND (
                EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation CurrentPermission
                        WHERE CurrentPermission.AppID='PIP' AND CurrentPermission.UserID=E.EmployeeID
