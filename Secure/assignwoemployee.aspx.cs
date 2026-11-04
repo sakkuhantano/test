@@ -401,7 +401,7 @@ FROM dbo.SplitStringConvertToTable(@EmployeeList,';') X
 JOIN dbo.M_HRD_Employee E ON E.EmployeeID=LTRIM(RTRIM(X.val))
 WHERE E.SectionID=@SectionID
   AND E.CompanyID=@CompanyID
-  AND ISNULL(E.TerminationDate,'')=''",
+  AND E.TerminationDate=''",
                             "@EmployeeList=" + employeeList + GF.Str2 +
                             "@SectionID=" + searchParts[2] + GF.Str2 +
                             "@CompanyID=" + UserValue(inspecUser, "CompanyID"));
