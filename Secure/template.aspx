@@ -2,6 +2,8 @@
 <%@ MasterType VirtualPath="~/MasterPages/Site_BS_5.Master" %>
 <asp:Content ID="Content1" ContentPlaceHolderID="head" runat="server">
     <link rel="Stylesheet" type="text/css" href="../CSSCus/template.css" />
+
+    <script type="text/javascript">window.INSPEC_CONTEXT = <%= ClientContextJson ?? "{}" %>;</script>
 </asp:Content>
 
 <asp:Content ID="Content2" ContentPlaceHolderID="ContentPlaceHolder1" runat="server">
