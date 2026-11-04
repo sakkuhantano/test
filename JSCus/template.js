@@ -56,11 +56,7 @@ let companyId = null;
 let locationId = null;
 
 function validatePageAccess() {
-    // debugger;
-    const isSPV = getLoginData().role.IsSPV;
-    if(!isSPV) {
-        return false;
-    }       
+    // Access is enforced server-side by WAL.PB.AllowRead and each Session-enabled WebMethod.
     return true;
 }
 
