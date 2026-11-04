@@ -382,6 +382,31 @@ UpdateUser: "sa"
                 searchParts[1] = UserValue(inspecUser, "LocationID");
                 searchParts[2] = searchParts[2].Trim();
                 V_ParamSearch = String.Join(";", searchParts);
+                if (mode != "ADD" && mode != "REPLACE" && mode != "REMOVE")
+                    throw new HttpException(400, "Invalid assignment mode.");
+
+                string employeeList = root.ContainsKey("EmployeeList") ? Convert.ToString(root["EmployeeList"]) : "";
+                List<string> requestedEmployees = (employeeList ?? "").Split(new char[] { ';' }, StringSplitOptions.RemoveEmptyEntries)
+                    .Select(x => x.Trim()).Where(x => x.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+                if (requestedEmployees.Count > 0)
+                {
+                    using (var validateCF = new WAL.BR.CF())
+                    {
+                        DataTable validEmployees = validateCF.EQuery(@"
+SELECT COUNT(DISTINCT E.EmployeeID) ValidCount
+FROM dbo.SplitStringConvertToTable(@EmployeeList,';') X
+JOIN dbo.M_HRD_Employee E ON E.EmployeeID=LTRIM(RTRIM(X.val))
+WHERE E.SectionID=@SectionID
+  AND E.CompanyID=@CompanyID
+  AND ISNULL(E.TerminationDate,'')=''",
+                            "@EmployeeList=" + employeeList + GF.Str2 +
+                            "@SectionID=" + searchParts[2] + GF.Str2 +
+                            "@CompanyID=" + UserValue(inspecUser, "CompanyID"));
+                        int validCount = validEmployees.Rows.Count > 0 ? Convert.ToInt32(validEmployees.Rows[0]["ValidCount"]) : 0;
+                        if (validCount != requestedEmployees.Count)
+                            throw new HttpException(403, "One or more selected employees are not eligible for this Section/company.");
+                    }
+                }
                 string V_ErrMsg = "";
                 using (var cf = new WAL.BR.CF())
                 {
@@ -390,7 +415,7 @@ UpdateUser: "sa"
                     {
                         new SqlParameter("@p_Tipe", "3"),
                         new SqlParameter("@p_UpdateUser", updateUser),
-                        new SqlParameter("@p_EmployeeAssigned", Convert.ToString(root["EmployeeList"])),
+                        new SqlParameter("@p_EmployeeAssigned", employeeList),
                         new SqlParameter("@p_SearchParam", V_ParamSearch),
                         new SqlParameter("@p_AssignMode", mode),
                         new SqlParameter("@p_Dt", dtWO)
