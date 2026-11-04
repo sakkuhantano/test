@@ -16,7 +16,7 @@ namespace UTL1.Secure
 {
     public partial class template : WAL.PB
     {
-        private const string INSPEC_MENU_ID = "12010";
+        private const string INSPEC_MENU_ID = "10011";
 
         public string ClientContextJson { get; private set; }
 
