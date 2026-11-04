@@ -76,8 +76,7 @@ namespace UTL1.Secure
             if (base.AllowRead(INSPEC_MENU_ID) != 1)
                 throw new Exception(WAL.GF.MSG_ACCESS_DENIED);
 
-            if (!IsPostBack)
-                SetClientContext(RequireMenuAccess(INSPEC_MENU_ID));
+            SetClientContext(RequireMenuAccess(INSPEC_MENU_ID));
         }
         [WebMethod(EnableSession = true)]
         public static object GetTemplateExplorerRoot(
