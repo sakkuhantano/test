@@ -103,6 +103,7 @@
             }*/
         }
     </style>
+
     <script type="text/javascript">
         //document.getElementById("navbarSupportedContent").style.marginLeft = "-5px";
 
@@ -155,6 +156,57 @@
             $('#main_navbar').bootnavbar();
         })
     </script>
+
+    <%--<script type="text/javascript">
+        //document.getElementById("navbarSupportedContent").style.marginLeft = "-5px";
+
+        (function ($) {
+            var defaults = {
+                sm: 540,
+                md: 720,
+                lg: 960,
+                xl: 1140,
+                navbar_expand: 'lg',
+                animation: true,
+                animateIn: 'fadeIn',
+            };
+            $.fn.bootnavbar = function (options) {
+
+                var screen_width = $(document).width();
+                settings = $.extend(defaults, options);
+
+                if (screen_width >= settings.lg) {
+                    $(this).find('.dropdown').hover(function () {
+                        $(this).addClass('show');
+                        $(this).find('.dropdown-menu').first().addClass('show');
+                        if (settings.animation) {
+                            $(this).find('.dropdown-menu').first().addClass('animated ' + settings.animateIn);
+                        }
+                    }, function () {
+                        $(this).removeClass('show');
+                        $(this).find('.dropdown-menu').first().removeClass('show');
+                    });
+                }
+
+                $('.dropdown-menu a.dropdown-toggle').on('click', function (e) {
+                    if (!$(this).next().hasClass('show')) {
+                        $(this).parents('.dropdown-menu').first().find('.show').removeClass("show");
+                    }
+                    var $subMenu = $(this).next(".dropdown-menu");
+                    $subMenu.toggleClass('show');
+
+                    $(this).parents('li.nav-item.dropdown.show').on('hidden.bs.dropdown', function (e) {
+                        $('.dropdown-submenu .show').removeClass("show");
+                    });
+
+                    return false;
+                });
+            };
+        })(jQuery);
+        $(function () {
+            $('#main_navbar').bootnavbar();
+        })
+    </script>--%>
 
 
     <style>
@@ -800,6 +852,7 @@
 
         <asp:HiddenField runat="server" ID="hf_MP_Position" Value="" />
         <script type="text/javascript">
+            <%--
             $(function () {
                 var f = $("#<%=hf_MP_Position.ClientID%>");
                 window.onload = function () {
@@ -817,6 +870,23 @@
                     f.val($(window).scrollTop());
                 };
             });
+            --%>
+
+            window.onload = function () {
+                var position = parseInt($("#<%=hf_MP_Position.ClientID%>").val());
+                if (!isNaN(position)) {
+                    //$(window).scrollTop(position);
+                    window.scrollTo({
+                        top: position,
+                        left: 0,
+                        behavior: 'instant'
+                    });
+                }
+            };
+
+            window.onscroll = function () {
+                $("#<%=hf_MP_Position.ClientID%>").val($(window).scrollTop());
+            };
         </script>
     </div>
     </form>
