@@ -43,7 +43,7 @@
         if (!window.bootstrap || !bootstrap.Modal) return Promise.resolve(window.confirm(options.message || "Are you sure?"));
         return new Promise(function (resolve) {
             var el = modal(options.title || "Confirm", "<div></div>", [
-                { text: options.noText || "Cancel", result: "no", cls: "btn btn-outline-secondary btn-sm" },
+                { text: options.cancelText || options.noText || "Cancel", result: "no", cls: "btn btn-outline-secondary btn-sm" },
                 { text: options.yesText || "Yes", result: "yes", cls: "btn btn-primary btn-sm" }
             ]);
             el.querySelector(".modal-body div").textContent = options.message || "";
