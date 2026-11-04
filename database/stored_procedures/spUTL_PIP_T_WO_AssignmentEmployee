@@ -1,0 +1,254 @@
+CREATE PROCEDURE spUTL_PIP_T_WO_AssignmentEmployee
+(
+	@p_Tipe VARCHAR(2), -- '1': Search, '2': Employee List, '3': Assign/Save, 4:Employee List all WO
+	@p_SearchParam VARCHAR(8000)='', -- CompanyID;LocationID;Section;Year;Week;Status;IsGlobal;Keyword;StartRow;EndRow;SelectAll;ExcludedWO
+	@p_UpdateUser VARCHAR(50)='',
+	@p_EmployeeAssigned VARCHAR(8000)='',
+	@p_AssignMode VARCHAR(10)='', -- ADD,REPLACE,REMOVE
+	@p_Dt [dbo].[Type_Tbl_C2] READONLY -- C1: KeyHD, C2: EmployeeAssigned
+)
+AS
+-- spUTL_PIP_T_WO_AssignmentEmployee @p_Tipe='1', @p_SearchParam='I00020022;L01;ACON;2025;37;;0;;1;20'
+SET NOCOUNT ON
+
+DECLARE @V_CompanyID VARCHAR(10), @V_LocationID VARCHAR(3), @V_Section VARCHAR(10)
+DECLARE @V_Year VARCHAR(4), @V_Week VARCHAR(2), @V_Status VARCHAR(1), @V_IsGlobal VARCHAR(1)
+DECLARE @V_Keyword VARCHAR(8000), @V_StartRow INT, @V_EndRow INT
+
+SET @V_CompanyID = (SELECT a.val FROM dbo.SplitStringConvertToTable(@p_SearchParam,';') a WHERE a.id=1)
+SET @V_LocationID = (SELECT a.val FROM dbo.SplitStringConvertToTable(@p_SearchParam,';') a WHERE a.id=2)
+SET @V_Section = (SELECT a.val FROM dbo.SplitStringConvertToTable(@p_SearchParam,';') a WHERE a.id=3)
+
+DECLARE @V_TblWOSearch TABLE 
+(KeyHD INT, WONo VARCHAR(10), EquipmentCode VARCHAR(10), SectionID VARCHAR(10), EquipmentName VARCHAR(200), LocationNo VARCHAR(10),
+[Status] VARCHAR(50), EmployeeAssigned VARCHAR(8000), isCompleteDC BIT, RowNo INT, JumlahWO INT, 
+JumlahComplete INT, JumlahAssigned INT)
+
+IF @p_Tipe IN ('1','3')
+BEGIN
+SET @V_Year = (SELECT a.val FROM dbo.SplitStringConvertToTable(@p_SearchParam,';') a WHERE a.id=4)
+SET @V_Week = (SELECT a.val FROM dbo.SplitStringConvertToTable(@p_SearchParam,';') a WHERE a.id=5)
+SET @V_Status = (SELECT a.val FROM dbo.SplitStringConvertToTable(@p_SearchParam,';') a WHERE a.id=6)
+SET @V_IsGlobal = (SELECT a.val FROM dbo.SplitStringConvertToTable(@p_SearchParam,';') a WHERE a.id=7)
+SET @V_Keyword = (SELECT a.val FROM dbo.SplitStringConvertToTable(@p_SearchParam,';') a WHERE a.id=8)
+SET @V_StartRow = (SELECT CAST(a.val AS INT) FROM dbo.SplitStringConvertToTable(@p_SearchParam,';') a WHERE a.id=9)
+SET @V_EndRow = (SELECT CAST(a.val AS INT) FROM dbo.SplitStringConvertToTable(@p_SearchParam,';') a WHERE a.id=10)
+END
+
+IF @p_Tipe='1'
+BEGIN
+DECLARE @Token TABLE (Keyword VARCHAR(8000))
+DECLARE @xml XML
+SET @xml =
+CAST(
+'<x><i>' +
+REPLACE(@V_Keyword,'*','</i><i>') +
+'</i></x>'
+AS XML)
+INSERT INTO @Token
+SELECT LTRIM(RTRIM(T.c.value('.','varchar(100)')))
+FROM @xml.nodes('/x/i') T(c)
+WHERE LTRIM(RTRIM(T.c.value('.','varchar(100)'))) <> ''
+
+CREATE TABLE #TampWO (KeyHD INT, WONo VARCHAR(10), EquipmentCode VARCHAR(10), SectionID VARCHAR(10), EquipmentName VARCHAR(200),
+                      LocationNo VARCHAR(10), [Status] VARCHAR(20), EmployeeAssigned VARCHAR(8000), isCompleteDC BIT, RowNo INT) 
+INSERT INTO #TampWO
+SELECT a.KeyHD, a.WONo, a.EquipmentCode, a.SectionID, RTRIM(pme.EquipmentName) EquipmentName, RTRIM(a.LocationNo) LocationNo,
+[Status]=CASE WHEN ISNULL(a.EmployeeAssigned,'')='' THEN 'UNASSIGNED' ELSE 'ASSIGNED' END, ISNULL(a.EmployeeAssigned,'') EmployeeAssigned,
+a.isCompleteDC,
+ROW_NUMBER() OVER (ORDER BY a.WONo DESC ) AS RowNo
+FROM PIP_M_D_SchedulePM d JOIN PIP_M_H_SchedulePM h ON h.KeyHD = d.KeyHD
+JOIN pip_t_wo a ON a.CompanyID=h.CompanyID AND a.LocationID=h.LocationID AND d.WONo=a.WONo
+JOIN PIP_M_Equipment AS pme ON pme.CompanyID = a.CompanyID AND pme.LocationID = a.LocationID AND pme.EquipmentCode = a.EquipmentCode
+WHERE a.WOType='P' AND a.SectionID=@V_Section AND a.CompanyID=@V_CompanyID AND a.LocationID=@V_LocationID
+AND (@V_IsGlobal=1 OR (h.[Year]=@V_Year AND d.Week=@V_Week))  
+AND (@V_Status='' OR (@V_Status='1' AND ISNULL(a.EmployeeAssigned,'')='') 
+				  OR (@V_Status='2' AND ISNULL(a.EmployeeAssigned,'')<>'')
+	)
+AND
+(
+    NOT EXISTS
+    (
+        SELECT *
+        FROM @Token
+    )
+    OR
+    NOT EXISTS
+    (
+        SELECT *
+        FROM @Token t
+        WHERE
+            a.WONo          NOT LIKE '%' + t.Keyword + '%'
+        AND a.EquipmentCode NOT LIKE '%' + t.Keyword + '%'
+        AND pme.EquipmentName NOT LIKE '%' + t.Keyword + '%'
+        AND a.LocationNo NOT LIKE '%' + t.Keyword + '%'
+    )
+)
+DECLARE @TotalWO INT = @@ROWCOUNT
+;WITH WO AS
+(
+SELECT *, JumlahWO=@TotalWO 
+FROM #TampWO a
+)
+SELECT a.*, JumlahComplete=ISNULL(aa.JumlahComplete,0), JumlahAssigned=ISNULL(bb.JumlahAssigned,0) 
+FROM WO a 
+CROSS JOIN (SELECT COUNT(*) JumlahComplete FROM #tampWO WHERE isCompleteDC=1) aa
+CROSS JOIN (SELECT COUNT(*) JumlahAssigned FROM #tampWO WHERE EmployeeAssigned<>'') bb
+WHERE ((@V_StartRow<>0 AND @V_EndRow <>0 AND RowNo BETWEEN @V_StartRow AND @V_EndRow) OR (@V_StartRow=0 AND @V_EndRow=0))
+ORDER BY RowNo
+DROP TABLE #TampWO
+
+END
+IF @p_Tipe='4'
+BEGIN
+	INSERT @V_TblWOSearch
+	EXEC spUTL_PIP_T_WO_AssignmentEmployee @p_Tipe='1', @p_SearchParam=@p_SearchParam
+	SELECT DISTINCT B.val EmployeeID, mhe.Name 
+	FROM @V_TblWOSearch A CROSS APPLY dbo.SplitStringConvertToTable(A.EmployeeAssigned,';') B
+	JOIN M_HRD_Employee AS mhe ON mhe.EmployeeID=B.val
+END
+IF @p_Tipe='2'
+BEGIN
+
+SELECT a.EmployeeID, a.Name
+,ISNULL( 
+	(SELECT COUNT(*) FROM PIP_T_WO wo 
+	WHERE wo.CompanyID=a.CompanyID AND wo.LocationID=@V_LocationID AND wo.CompletedDate=''
+	AND EXISTS (SELECT * FROM dbo.SplitStringConvertToTable(wo.EmployeeAssigned,';') aa
+				WHERE aa.val=a.EmployeeID)
+	),0) OutstandingCount
+INTO #TampEmp
+FROM M_HRD_Employee a
+WHERE SectionID=@V_Section AND TerminationDate='' AND a.CompanyID=@V_CompanyID 
+DECLARE @TotalEmp INT = @@ROWCOUNT
+SELECT *, TotalEmp=@TotalEmp FROM #TampEmp a ORDER BY a.Name
+DROP TABLE #TampEmp
+	
+END
+DECLARE @V_ErrMsg VARCHAR(1000)='', @V_UpdateRows INT=0
+IF @p_Tipe='3'
+BEGIN
+	DECLARE @V_IsSelectAllResult BIT = (SELECT CAST(a.val AS BIT) FROM dbo.SplitStringConvertToTable(@p_SearchParam,';') a WHERE a.id=11)
+	--DECLARE @V_IsExcluded BIT = (SELECT CAST(a.val AS BIT) FROM dbo.SplitStringConvertToTable(@p_SearchParam,';') a WHERE a.id=12)
+	
+	INSERT @V_TblWOSearch
+	EXEC spUTL_PIP_T_WO_AssignmentEmployee @p_Tipe='1', @p_SearchParam=@p_SearchParam
+	
+	SELECT TOP 1 @V_ErrMsg='Some of Work Order has been completed.' 
+	FROM @V_TblWOSearch a JOIN @p_Dt AA ON AA.C1=A.KeyHD
+	WHERE a.isCompleteDC=1 AND @V_IsSelectAllResult=0 
+	
+	IF @V_ErrMsg='' 
+	BEGIN
+		SELECT TOP 1 @V_ErrMsg='Some of Work Order has been completed.' 
+		FROM @V_TblWOSearch a WHERE NOT EXISTS (SELECT * FROM @p_Dt AA WHERE AA.C1=a.KeyHD)
+		AND a.isCompleteDC=1 AND @V_IsSelectAllResult=1 
+	END 
+
+	IF @V_ErrMsg=''
+	BEGIN
+		SELECT *	--, EmployeeAssigned=CAST('' AS VARCHAR(8000)) 
+		INTO #TampWOProcessed FROM @V_TblWOSearch WHERE 1<>1
+		
+		--UPDATE A SET A.EmployeeAssigned = @p_EmployeeAssigned FROM @V_TblWOSearch A 
+		IF @V_IsSelectAllResult=0
+		BEGIN
+			INSERT #TampWOProcessed
+			SELECT A.* FROM @V_TblWOSearch A JOIN @p_Dt AA ON AA.C1=A.KeyHD
+		END
+		ELSE
+		BEGIN
+			INSERT #TampWOProcessed
+			SELECT A.* FROM @V_TblWOSearch A 
+			WHERE NOT EXISTS (SELECT * FROM @p_Dt AA WHERE AA.C1=A.KeyHD)
+		END
+		
+		--SELECT @p_SearchParam SearchParam INTO TampWOProcessed 
+		--SELECT * FROM TampWOProcessed
+		--DROP TABLE TampWOProcessed 
+		
+		IF @p_AssignMode='REPLACE'
+		BEGIN
+			UPDATE A SET A.EmployeeAssigned=@p_EmployeeAssigned, A.UpdateUser=@p_UpdateUser, A.UpdateDate=GETDATE() 
+			FROM PIP_T_WO A JOIN #TampWOProcessed AA ON AA.KeyHD=A.KeyHD
+			SET @V_UpdateRows=@@ROWCOUNT
+		END
+		ELSE 
+		BEGIN
+			IF @p_AssignMode='REMOVE'
+			BEGIN
+				WITH SplitParam AS (
+					SELECT 
+						CAST(LEFT(@p_EmployeeAssigned, CHARINDEX(';', @p_EmployeeAssigned + ';') - 1) AS VARCHAR(8000)) AS EmpCode,
+						STUFF(@p_EmployeeAssigned, 1, CHARINDEX(';', @p_EmployeeAssigned + ';'), '') AS Remainder
+					UNION ALL
+					SELECT 
+						CAST(LEFT(Remainder, CHARINDEX(';', Remainder + ';') - 1) AS VARCHAR(8000)),
+						STUFF(Remainder, 1, CHARINDEX(';', Remainder + ';'), '')
+					FROM SplitParam
+					WHERE Remainder > ''
+				),
+				IndexedParam AS (
+					SELECT EmpCode, ROW_NUMBER() OVER(ORDER BY (SELECT NULL)) AS RowNum 
+					FROM SplitParam
+				),
+				CleanedData AS (
+					SELECT KeyHD, ';' + EmployeeAssigned + ';' AS TempString, 1 AS Step
+					FROM #TampWOProcessed
+					UNION ALL
+					SELECT 
+						c.KeyHD,
+						REPLACE(c.TempString, ';' + p.EmpCode + ';', ';') AS TempString,
+						c.Step + 1
+					FROM CleanedData c
+					INNER JOIN IndexedParam p ON c.Step = p.RowNum
+				)
+				UPDATE a
+				SET a.EmployeeAssigned = 
+					CASE 
+						WHEN LEN(c.TempString) <= 2 THEN '' 
+						ELSE SUBSTRING(c.TempString, 2, LEN(c.TempString) - 2) 
+					END
+				FROM PIP_T_WO a 
+				INNER JOIN CleanedData c ON a.KeyHD = c.KeyHD
+				WHERE c.Step = (SELECT COUNT(*) + 1 FROM SplitParam);
+				SET @V_UpdateRows=@@ROWCOUNT
+			END
+			ELSE
+			BEGIN
+				CREATE TABLE #TampWOAssigned (KeyHD INT, EmployeeID VARCHAR(10))
+				INSERT #TampWOAssigned
+				SELECT DISTINCT A.KeyHD, AA.val EmployeeID
+				FROM
+				(
+					SELECT A.KeyHD, @p_EmployeeAssigned+CASE WHEN ISNULL(A.EmployeeAssigned,'')<>'' THEN ';' ELSE '' END+ISNULL(A.EmployeeAssigned,'') EmployeeAssigned 
+					FROM PIP_T_WO A JOIN #TampWOProcessed AA ON AA.KeyHD=A.KeyHD
+				) A CROSS APPLY dbo.SplitStringConvertToTable(A.EmployeeAssigned,';') AA
+				UPDATE B SET B.EmployeeAssigned=BB.EmployeeAssigned, B.UpdateUser=@p_UpdateUser, B.UpdateDate=GETDATE() 
+				FROM PIP_T_WO B
+				JOIN
+				(
+					SELECT A.KeyHD,
+					ISNULL(STUFF(
+					(
+						SELECT ';'+AA.EmployeeID FROM #TampWOAssigned AA
+						WHERE AA.KeyHD=A.KeyHD
+						FOR XML PATH ('')
+					),1,1,''),'') EmployeeAssigned
+					FROM #TampWOAssigned A
+				) BB ON B.KeyHD=BB.KeyHD
+			
+				SET @V_UpdateRows=@@ROWCOUNT
+				DROP TABLE #TampWOAssigned
+			END
+			
+			
+		END
+		
+		DROP TABLE #TampWOProcessed
+		SET @V_ErrMsg=CAST(@V_UpdateRows AS VARCHAR)+' Work Orders has been assigned.'
+	END	
+
+	SELECT @V_ErrMsg ErrMsg
+	
+END
