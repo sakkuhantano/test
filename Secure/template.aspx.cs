@@ -459,14 +459,14 @@ WHERE a.SectionID = @SectionID
       EXISTS (
           SELECT 1
           FROM dbo.SysWebUserCompanyLocation perm
-          WHERE perm.AppID = 'PIP'
+          WHERE perm.AppID = 'INSPEC'
             AND perm.UserID = @EmployeeID
             AND perm.CompanyID = @CompanyID
             AND perm.LocationID = @LocationID
       )
       OR EXISTS (
           SELECT 1
-          FROM dbo.F_SelectOneLogin('pip', @UserID, '') loginCompany
+          FROM dbo.F_SelectOneLogin('INSPEC', @UserID, '') loginCompany
           WHERE loginCompany.CompanyID = @CompanyID
             AND loginCompany.LocationID = @LocationID
       )
@@ -528,6 +528,8 @@ WHERE a.SectionID = @SectionID
                 templateNo = template["TemplateNo"].ToString();
                 idTemplate = Convert.ToInt32(template["IDTemplate"]);
                 sectionID = template["SectionID"].ToString();
+                RequireAllowedSection(sectionID);
+                if (idTemplate > 0) RequireTemplateAccess(idTemplate.ToString());
             }
 
             var errorDetails = new Dictionary<string, string>();
@@ -803,6 +805,24 @@ WHERE a.SectionID = @SectionID
                     // Loop setiap elemen template di dalam array
                     foreach (Dictionary<string, object> templateNode in templatesArray)
                     {
+                        if (templateNode.ContainsKey("Template") && templateNode["Template"] != null)
+                        {
+                            Dictionary<string, object> accessTemplate = (Dictionary<string, object>)templateNode["Template"];
+                            string accessSection = Convert.ToString(accessTemplate["SectionID"]);
+                            RequireAllowedSection(accessSection);
+                            int accessTemplateId = Convert.ToInt32(accessTemplate["IDTemplate"]);
+                            if (accessTemplateId > 0) RequireTemplateAccess(accessTemplateId.ToString());
+                        }
+                        if (templateNode.ContainsKey("Version") && templateNode["Version"] != null)
+                        {
+                            Dictionary<string, object> accessVersionRoot = (Dictionary<string, object>)templateNode["Version"];
+                            if (accessVersionRoot.ContainsKey("VersionInfo") && accessVersionRoot["VersionInfo"] != null)
+                            {
+                                Dictionary<string, object> accessVersionInfo = (Dictionary<string, object>)accessVersionRoot["VersionInfo"];
+                                int accessVersionId = Convert.ToInt32(accessVersionInfo["IDVersion"]);
+                                if (accessVersionId > 0) RequireVersionAccess(accessVersionId.ToString());
+                            }
+                        }
                         #region 1. Parsing dtTemplate
                         int idTemplateFromVersion = 0;
                         if (templateNode.ContainsKey("Template") && templateNode["Template"] != null)
@@ -1095,6 +1115,12 @@ ORDER BY InspectionTypeName",
         {
             RequireMenuAccess(INSPEC_MENU_ID);
             inspectionTypeCode = (inspectionTypeCode ?? "").Trim().ToUpperInvariant();
+            using (var accessBr = new WAL.BR.CF())
+            {
+                DataTable accessDt = accessBr.EQuery("SELECT TOP 1 SectionID FROM dbo.PIP_M_InspectionType WHERE InspectionTypeCode=@InspectionTypeCode AND IsActive=1", "@InspectionTypeCode=" + inspectionTypeCode);
+                if (accessDt.Rows.Count == 0) return new JavaScriptSerializer().Serialize(new object[0]);
+                RequireAllowedSection(GF.GetString(accessDt.Rows[0]["SectionID"]));
+            }
             using (var br = new WAL.BR.CF())
             {
                 DataTable dt = br.EQuery(@"
@@ -1120,6 +1146,7 @@ ORDER BY InspectionTypeDetailName, InspectionTypeDetailCode",
             updateUser = SessionValue(inspecUser, "EmployeeID");
             companyId = SessionValue(inspecUser, "CompanyID");
             locationId = SessionValue(inspecUser, "LocationID");
+            RequireTemplateAccess(idTemplate);
             int id;
             if (!Int32.TryParse(idTemplate, out id) || id <= 0)
                 return new { success = false, message = "Save the template and its first version before saving these settings." };
@@ -1159,7 +1186,7 @@ WHERE T.IDTemplate=@IDTemplate
                WHERE CurrentPermission.AppID='INSPEC' AND CurrentPermission.UserID=@UpdateUser
                  AND CurrentPermission.CompanyID=@CompanyID
                  AND CurrentPermission.LocationID=@LocationID)
-       OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', @UpdateUser, '') LoginCompany
+       OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('INSPEC', @UpdateUser, '') LoginCompany
                   WHERE LoginCompany.CompanyID=@CompanyID
                     AND LoginCompany.LocationID=@LocationID)
   )
@@ -1249,7 +1276,11 @@ COMMIT TRANSACTION;",
         [WebMethod(EnableSession = true)]
         public static object GetTemplateCompanyLocations(string idTemplate, string companyId, string locationId, string userId)
         {
-            RequireMenuAccess(INSPEC_MENU_ID);
+            DataRow inspecUser = RequireMenuAccess(INSPEC_MENU_ID);
+            companyId = SessionValue(inspecUser, "CompanyID");
+            locationId = SessionValue(inspecUser, "LocationID");
+            userId = SessionValue(inspecUser, "UserID");
+            if (Convert.ToInt32(idTemplate) > 0) RequireTemplateAccess(idTemplate);
             int id;
             if (!Int32.TryParse(idTemplate, out id))
                 id = 0;
@@ -1271,7 +1302,7 @@ FROM
            EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation perm
                    WHERE perm.CompanyID=swl.CompanyID AND perm.LocationID=swl.LocationID
                      AND perm.UserID=@UserID AND perm.AppID='INSPEC')
-           OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', @UserID, '') LoginCompany
+           OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('INSPEC', @UserID, '') LoginCompany
                       WHERE LoginCompany.CompanyID=swl.CompanyID
                         AND LoginCompany.LocationID=swl.LocationID)
        )
@@ -1279,9 +1310,9 @@ FROM
 LEFT JOIN dbo.PIP_M_CheckListWOPM T ON T.IDTemplate=@IDTemplate
 WHERE (
      EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation CurrentPermission
-             WHERE CurrentPermission.AppID='PIP' AND CurrentPermission.UserID=@UserID
+             WHERE CurrentPermission.AppID='INSPEC' AND CurrentPermission.UserID=@UserID
                AND CurrentPermission.CompanyID=@CompanyID AND CurrentPermission.LocationID=@LocationID)
-     OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', @UserID, '') LoginCompany
+     OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('INSPEC', @UserID, '') LoginCompany
                 WHERE LoginCompany.CompanyID=@CompanyID AND LoginCompany.LocationID=@LocationID)
  )
 AND
@@ -1313,7 +1344,11 @@ ORDER BY L.CompanyID, L.LocationID",
         [WebMethod(EnableSession = true)]
         public static object SetTemplateCompanyLocation(string idTemplate, string companyId, string locationId, string action, string updateUser, string currentCompanyId, string currentLocationId)
         {
-            RequireMenuAccess(INSPEC_MENU_ID);
+            DataRow inspecUser = RequireMenuAccess(INSPEC_MENU_ID);
+            updateUser = SessionValue(inspecUser, "EmployeeID");
+            currentCompanyId = SessionValue(inspecUser, "CompanyID");
+            currentLocationId = SessionValue(inspecUser, "LocationID");
+            RequireTemplateAccess(idTemplate);
             int id;
             if (!Int32.TryParse(idTemplate, out id) || id <= 0)
                 return new { success = false, message = "Save the template before assigning company/location." };
@@ -1329,10 +1364,10 @@ FROM dbo.PIP_M_CheckListWOPM T
 WHERE T.IDTemplate=@IDTemplate
   AND (
        EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation CurrentPermission
-               WHERE CurrentPermission.AppID='PIP' AND CurrentPermission.UserID=@UpdateUser
+               WHERE CurrentPermission.AppID='INSPEC' AND CurrentPermission.UserID=@UpdateUser
                  AND CurrentPermission.CompanyID=@CurrentCompanyID
                  AND CurrentPermission.LocationID=@CurrentLocationID)
-       OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', @UpdateUser, '') LoginCompany
+       OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('INSPEC', @UpdateUser, '') LoginCompany
                   WHERE LoginCompany.CompanyID=@CurrentCompanyID
                     AND LoginCompany.LocationID=@CurrentLocationID)
   )
@@ -1359,8 +1394,8 @@ IF NOT EXISTS
        AND (
            EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation perm
                    WHERE perm.CompanyID=swl.CompanyID AND perm.LocationID=swl.LocationID
-                     AND perm.UserID=@UpdateUser AND perm.AppID='PIP')
-           OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', @UpdateUser, '') LoginCompany
+                     AND perm.UserID=@UpdateUser AND perm.AppID='INSPEC')
+           OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('INSPEC', @UpdateUser, '') LoginCompany
                       WHERE LoginCompany.CompanyID=swl.CompanyID
                         AND LoginCompany.LocationID=swl.LocationID)
        )
@@ -1404,7 +1439,11 @@ COMMIT TRANSACTION;",
         [WebMethod(EnableSession = true)]
         public static object SetTemplateAllEmployees(string idTemplate, string updateUser, string companyId, string locationId)
         {
-            RequireMenuAccess(INSPEC_MENU_ID);
+            DataRow inspecUser = RequireMenuAccess(INSPEC_MENU_ID);
+            updateUser = SessionValue(inspecUser, "EmployeeID");
+            companyId = SessionValue(inspecUser, "CompanyID");
+            locationId = SessionValue(inspecUser, "LocationID");
+            RequireTemplateAccess(idTemplate);
             int id;
             if (!Int32.TryParse(idTemplate, out id) || id <= 0)
                 return new { success = false, message = "Save the template before assigning employees." };
@@ -1437,7 +1476,18 @@ WHERE IDTemplate=@IDTemplate AND TemplateType='I'",
         [WebMethod(EnableSession = true)]
         public static object GetTemplateEmployees(string idTemplate, string sectionId, string companyId, string locationId, string userId)
         {
-            RequireMenuAccess(INSPEC_MENU_ID);
+            DataRow inspecUser = RequireMenuAccess(INSPEC_MENU_ID);
+            companyId = SessionValue(inspecUser, "CompanyID");
+            locationId = SessionValue(inspecUser, "LocationID");
+            userId = SessionValue(inspecUser, "UserID");
+            RequireTemplateAccess(idTemplate);
+            using (var sectionBr = new WAL.BR.CF())
+            {
+                DataTable sectionDt = sectionBr.EQuery("SELECT SectionID FROM dbo.PIP_M_CheckListWOPM WHERE IDTemplate=@IDTemplate", "@IDTemplate=" + idTemplate);
+                if (sectionDt.Rows.Count == 0) throw new HttpException(404, "Template was not found.");
+                sectionId = GF.GetString(sectionDt.Rows[0]["SectionID"]);
+            }
+            RequireAllowedSection(sectionId);
             int id;
             if (!Int32.TryParse(idTemplate, out id))
                 id = 0;
@@ -1454,10 +1504,10 @@ WHERE E.SectionID=T.SectionID
   AND ISNULL(E.TerminationDate,'')=''
   AND (
        EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation CurrentPermission
-               WHERE CurrentPermission.AppID='PIP' AND CurrentPermission.UserID=e.EmployeeID
+               WHERE CurrentPermission.AppID='INSPEC' AND CurrentPermission.UserID=e.EmployeeID
                  AND CurrentPermission.CompanyID=@CurrentCompanyID
                  AND CurrentPermission.LocationID=@CurrentLocationID)
-       OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', e.EmployeeID, '') LoginCompany
+       OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('INSPEC', e.EmployeeID, '') LoginCompany
                   WHERE LoginCompany.CompanyID=@CurrentCompanyID
                     AND LoginCompany.LocationID=@CurrentLocationID)
   )
@@ -1484,7 +1534,11 @@ ORDER BY E.CompanyID, E.LocationID, E.EmployeeID",
         [WebMethod(EnableSession = true)]
         public static object SetTemplateEmployeeAssignment(string idTemplate, string employeeId, string action, string updateUser, string companyId, string locationId)
         {
-            RequireMenuAccess(INSPEC_MENU_ID);
+            DataRow inspecUser = RequireMenuAccess(INSPEC_MENU_ID);
+            updateUser = SessionValue(inspecUser, "EmployeeID");
+            companyId = SessionValue(inspecUser, "CompanyID");
+            locationId = SessionValue(inspecUser, "LocationID");
+            RequireTemplateAccess(idTemplate);
             int id;
             if (!Int32.TryParse(idTemplate, out id) || id <= 0)
                 return new { success = false, message = "Save the template before assigning employees." };
@@ -1502,13 +1556,12 @@ JOIN dbo.M_HRD_Employee E ON E.EmployeeID=@EmployeeID
 WHERE T.IDTemplate=@IDTemplate
   AND E.SectionID=T.SectionID
   AND ISNULL(E.TerminationDate,'')=''
-  AND EXISTS (SELECT 1 FROM dbo.UTL_User U WHERE U.EmployeeID=E.EmployeeID)
   AND (
        EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation CurrentPermission
-               WHERE CurrentPermission.AppID='PIP' AND CurrentPermission.UserID=E.EmployeeID
+               WHERE CurrentPermission.AppID='INSPEC' AND CurrentPermission.UserID=E.EmployeeID
                  AND CurrentPermission.CompanyID=@CurrentCompanyID
                  AND CurrentPermission.LocationID=@CurrentLocationID)
-       OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', E.EmployeeID, '') LoginCompany
+       OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('INSPEC', E.EmployeeID, '') LoginCompany
                   WHERE LoginCompany.CompanyID=@CurrentCompanyID
                     AND LoginCompany.LocationID=@CurrentLocationID)
   )
@@ -1555,10 +1608,10 @@ IF @Action='REMOVE' AND
            AND ISNULL(E.TerminationDate,'')=''
            AND (
                EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation CurrentPermission
-                       WHERE CurrentPermission.AppID='PIP' AND CurrentPermission.UserID=E.EmployeeID
+                       WHERE CurrentPermission.AppID='INSPEC' AND CurrentPermission.UserID=E.EmployeeID
                          AND CurrentPermission.CompanyID=@CurrentCompanyID
                          AND CurrentPermission.LocationID=@CurrentLocationID)
-               OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', E.EmployeeID, '') LoginCompany
+               OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('INSPEC', E.EmployeeID, '') LoginCompany
                           WHERE LoginCompany.CompanyID=@CurrentCompanyID
                             AND LoginCompany.LocationID=@CurrentLocationID)
            )
@@ -1586,13 +1639,12 @@ BEGIN
             FROM dbo.M_HRD_Employee E
             WHERE E.SectionID=T.SectionID
               AND ISNULL(E.TerminationDate,'')=''
-              AND EXISTS (SELECT 1 FROM dbo.UTL_User U WHERE U.EmployeeID=E.EmployeeID)
-              AND (
+                          AND (
                EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation CurrentPermission
-                       WHERE CurrentPermission.AppID='PIP' AND CurrentPermission.UserID=E.EmployeeID
+                       WHERE CurrentPermission.AppID='INSPEC' AND CurrentPermission.UserID=E.EmployeeID
                          AND CurrentPermission.CompanyID=@CurrentCompanyID
                          AND CurrentPermission.LocationID=@CurrentLocationID)
-               OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', E.EmployeeID, '') LoginCompany
+               OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('INSPEC', E.EmployeeID, '') LoginCompany
                           WHERE LoginCompany.CompanyID=@CurrentCompanyID
                             AND LoginCompany.LocationID=@CurrentLocationID)
            )
@@ -1638,13 +1690,12 @@ BEGIN
               FROM dbo.M_HRD_Employee E
               WHERE E.SectionID=T.SectionID
                 AND ISNULL(E.TerminationDate,'')=''
-                AND EXISTS (SELECT 1 FROM dbo.UTL_User U WHERE U.EmployeeID=E.EmployeeID)
-                AND (
+                              AND (
                EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation CurrentPermission
-                       WHERE CurrentPermission.AppID='PIP' AND CurrentPermission.UserID=E.EmployeeID
+                       WHERE CurrentPermission.AppID='INSPEC' AND CurrentPermission.UserID=E.EmployeeID
                          AND CurrentPermission.CompanyID=@CurrentCompanyID
                          AND CurrentPermission.LocationID=@CurrentLocationID)
-               OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', E.EmployeeID, '') LoginCompany
+               OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('INSPEC', E.EmployeeID, '') LoginCompany
                           WHERE LoginCompany.CompanyID=@CurrentCompanyID
                             AND LoginCompany.LocationID=@CurrentLocationID)
            )
@@ -1670,7 +1721,10 @@ COMMIT TRANSACTION;",
         [WebMethod(EnableSession = true)]
         public static object GetGroupEquipment(string companyId, string locationId, string sectionId)
         {
-            RequireMenuAccess(INSPEC_MENU_ID);
+            DataRow inspecUser = RequireMenuAccess(INSPEC_MENU_ID);
+            companyId = SessionValue(inspecUser, "CompanyID");
+            locationId = SessionValue(inspecUser, "LocationID");
+            RequireAllowedSection(sectionId);
             using (var br = new WAL.BR.CF())
             {
                 DataTable dt = br.EQuery(@"
@@ -1693,7 +1747,15 @@ WHERE B.CompanyID=@CompanyID AND B.LocationID=@LocationID AND B.SectionID=@Secti
         [WebMethod(EnableSession = true)]
         public static object GetModelByGroupEquipment(string companyId, string locationId, string groupEqp)
         {
-            RequireMenuAccess(INSPEC_MENU_ID);
+            DataRow inspecUser = RequireMenuAccess(INSPEC_MENU_ID);
+            companyId = SessionValue(inspecUser, "CompanyID");
+            locationId = SessionValue(inspecUser, "LocationID");
+            using (var accessBr = new WAL.BR.CF())
+            {
+                DataTable accessDt = accessBr.EQuery("SELECT TOP 1 SectionID FROM dbo.PIP_M_GroupEquipment WHERE CompanyID=@CompanyID AND LocationID=@LocationID AND GroupEquipment=@GroupEquipment", "@CompanyID=" + companyId + GF.Str2 + "@LocationID=" + locationId + GF.Str2 + "@GroupEquipment=" + groupEqp);
+                if (accessDt.Rows.Count == 0) return new JavaScriptSerializer().Serialize(new object[0]);
+                RequireAllowedSection(GF.GetString(accessDt.Rows[0]["SectionID"]));
+            }
             using (var br = new WAL.BR.CF())
             {
                 DataTable dt = br.EQuery(@"
