@@ -79,6 +79,73 @@ namespace UTL1.Secure
 
             return login.Tables["User"].Rows[0];
         }
+
+        private static DataRow GetInspecUser()
+        {
+            return RequireMenuAccess(INSPEC_MENU_ID);
+        }
+
+        private static string SessionValue(DataRow user, string column)
+        {
+            return user.Table.Columns.Contains(column) && user[column] != DBNull.Value
+                ? Convert.ToString(user[column]).Trim() : "";
+        }
+
+        private static void RequireTemplateAccess(string idTemplate)
+        {
+            int id;
+            if (!Int32.TryParse(idTemplate, out id) || id <= 0)
+                throw new HttpException(400, "Invalid Template ID.");
+            DataRow user = GetInspecUser();
+            string employeeId = SessionValue(user, "EmployeeID");
+            string companyId = SessionValue(user, "CompanyID");
+            string locationId = SessionValue(user, "LocationID");
+            using (var br = new WAL.BR.CF())
+            {
+                DataTable dt = br.EQuery(@"
+SELECT SectionID
+FROM dbo.PIP_M_CheckListWOPM
+WHERE IDTemplate=@IDTemplate
+  AND (
+       ISNULL(CompanyScope,'S')='A'
+       OR ISNULL(CompanyLocationList,'')=''
+       OR (';' + ISNULL(CompanyLocationList,'') + ';' LIKE '%;' + @CompanyID + @LocationID + ';%')
+  )",
+                    "@IDTemplate=" + id + GF.Str2 +
+                    "@CompanyID=" + companyId + GF.Str2 +
+                    "@LocationID=" + locationId);
+                if (dt.Rows.Count == 0)
+                    throw new HttpException(404, "Template was not found or is not available in this company/location.");
+                RequireAllowedSection(GF.GetString(dt.Rows[0]["SectionID"]));
+            }
+        }
+
+        private static void RequireVersionAccess(string idVersion)
+        {
+            int id;
+            if (!Int32.TryParse(idVersion, out id) || id <= 0)
+                throw new HttpException(400, "Invalid Version ID.");
+            using (var br = new WAL.BR.CF())
+            {
+                DataTable dt = br.EQuery(
+                    "SELECT IDTemplate FROM dbo.PIP_M_CheckListWOPM_Version WHERE IDVersion=@IDVersion",
+                    "@IDVersion=" + id);
+                if (dt.Rows.Count == 0)
+                    throw new HttpException(404, "Version was not found.");
+                RequireTemplateAccess(GF.GetString(dt.Rows[0]["IDTemplate"]));
+            }
+        }
+
+        private static void ApplySessionContext(DataRow user, ref string employeeId, ref string userId,
+            ref string companyId, ref string locationId, ref string updateUser)
+        {
+            employeeId = SessionValue(user, "EmployeeID");
+            userId = SessionValue(user, "UserID");
+            companyId = SessionValue(user, "CompanyID");
+            locationId = SessionValue(user, "LocationID");
+            updateUser = employeeId;
+        }
+
         protected void Page_Load(object sender, EventArgs e)
         {
             if (base.AllowRead(INSPEC_MENU_ID) != 1)
@@ -154,7 +221,7 @@ WHERE 1=1
         [WebMethod(EnableSession = true)]
         public static object GetTemplateVersions(string idTemplate)
         {
-            RequireMenuAccess(INSPEC_MENU_ID);
+            RequireTemplateAccess(idTemplate);
             using (var br = new WAL.BR.CF())
             {
                 DataTable dt = br.EQuery(@"
@@ -191,7 +258,7 @@ FROM PIP_M_CheckListWOPM_Version a WHERE a.IDTemplate=@IDTemplate", "@IDTemplate
         [WebMethod(EnableSession = true)]
         public static object GetVersionStructure(string idVersion)
         {
-            RequireMenuAccess(INSPEC_MENU_ID);
+            RequireVersionAccess(idVersion);
             using (var br = new WAL.BR.CF())
             {
                 DataSet ds = br.EQuery_DS(@"
@@ -523,6 +590,8 @@ WHERE a.SectionID = @SectionID
                     }
                 }
             }
+            RequireAllowedSection(sectionID);
+            if (idTemplate > 0) RequireTemplateAccess(idTemplate.ToString());
             using (var br = new WAL.BR.CF())
             {
                 // 1. Validasi Duplikasi Nomor Template
@@ -697,9 +766,10 @@ WHERE a.SectionID = @SectionID
                 js.MaxJsonLength = Int32.MaxValue;
 
                 Dictionary<string, object> root = js.Deserialize<Dictionary<string, object>>(payload);
-                string employeeID = root.ContainsKey("EmployeeID") ? Convert.ToString(root["EmployeeID"]) : "";
-                string companyId = root.ContainsKey("CompanyID") ? Convert.ToString(root["CompanyID"]) : "";
-                string locationId = root.ContainsKey("LocationID") ? Convert.ToString(root["LocationID"]) : "";
+                DataRow inspecUser = RequireMenuAccess(INSPEC_MENU_ID);
+                string employeeID = SessionValue(inspecUser, "EmployeeID");
+                string companyId = SessionValue(inspecUser, "CompanyID");
+                string locationId = SessionValue(inspecUser, "LocationID");
                 string isPublished = root.ContainsKey("Published") ? Convert.ToString(root["Published"]) : "";
                 DataTable dtTemplate = new DataTable();
                 for (int i = 1; i <= 5; i++)
@@ -1000,7 +1070,7 @@ WHERE a.SectionID = @SectionID
         [WebMethod(EnableSession = true)]
         public static object GetInspectionTypes(string sectionId)
         {
-            RequireMenuAccess(INSPEC_MENU_ID);
+            RequireAllowedSection(sectionId);
             using (var br = new WAL.BR.CF())
             {
                 DataTable dt = br.EQuery(@"
@@ -1046,7 +1116,10 @@ ORDER BY InspectionTypeDetailName, InspectionTypeDetailCode",
         [WebMethod(EnableSession = true)]
         public static object SaveTemplateMetadata(string idTemplate, string templateType, string inspectionTypeCode, string inspectionTypeDetailCode, string companyScope, string updateUser, string companyId, string locationId)
         {
-            RequireMenuAccess(INSPEC_MENU_ID);
+            DataRow inspecUser = RequireMenuAccess(INSPEC_MENU_ID);
+            updateUser = SessionValue(inspecUser, "EmployeeID");
+            companyId = SessionValue(inspecUser, "CompanyID");
+            locationId = SessionValue(inspecUser, "LocationID");
             int id;
             if (!Int32.TryParse(idTemplate, out id) || id <= 0)
                 return new { success = false, message = "Save the template and its first version before saving these settings." };
