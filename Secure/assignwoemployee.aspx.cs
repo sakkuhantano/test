@@ -14,11 +14,34 @@ using WAL;
 
 namespace UTL1.Secure
 {
-    public partial class assignwoemployee : System.Web.UI.Page
+    public partial class assignwoemployee : WAL.PB
     {
+        private const string INSPEC_MENU_ID = "12011";
+
+        // WebMethods use the authenticated INSPEC Session, never browser-supplied identity.
+        private static DataRow RequireMenuAccess(string menuId)
+        {
+            HttpContext context = HttpContext.Current;
+            if (context == null || context.Session == null)
+                throw new HttpException(401, "INSPEC session is not available.");
+
+            DataSet login = context.Session[GF.Key_CacheLoggedOnUser] as DataSet;
+            if (login == null || !login.Tables.Contains("User") ||
+                login.Tables["User"].Rows.Count != 1 ||
+                !login.Tables.Contains("UserGroupMenu"))
+                throw new HttpException(401, "Please sign in to INSPEC again.");
+
+            DataView permissions = new DataView(login.Tables["UserGroupMenu"]);
+            permissions.RowFilter = "MenuID = '" + (menuId ?? "").Replace("'", "''") + "'";
+            if (permissions.Count != 1)
+                throw new HttpException(403, WAL.GF.MSG_ACCESS_DENIED);
+
+            return login.Tables["User"].Rows[0];
+        }
         protected void Page_Load(object sender, EventArgs e)
         {
-
+            if (base.AllowRead(INSPEC_MENU_ID) != 1)
+                throw new Exception(WAL.GF.MSG_ACCESS_DENIED);
         }
         private static object GetWorkOrder(object payloadObj, string tipe)
         {
@@ -167,19 +190,22 @@ JOIN M_HRD_Employee AS mhe ON mhe.EmployeeID=b.val
             return result;
 
         }
-        [WebMethod]
+        [WebMethod(EnableSession = true)]
         public static object GetWorkOrderList(object payloadObj)
         {
+            RequireMenuAccess(INSPEC_MENU_ID);
             return GetWorkOrder(payloadObj, "1");
         }
-        [WebMethod]
+        [WebMethod(EnableSession = true)]
         public static object GetAssignedEmployeeSummary(object payloadObj)
         {
+            RequireMenuAccess(INSPEC_MENU_ID);
             return GetWorkOrder(payloadObj, "4");
         }
-        [WebMethod]
+        [WebMethod(EnableSession = true)]
         public static object GetEmployee(object payloadObj)
         {
+            RequireMenuAccess(INSPEC_MENU_ID);
             /*
 {
     "CompanyID": "I00020022",
@@ -238,9 +264,10 @@ JOIN M_HRD_Employee AS mhe ON mhe.EmployeeID=b.val
 
             return result;
         }
-        [WebMethod]
+        [WebMethod(EnableSession = true)]
         public static object SaveAssignment(string payload)
         {
+            RequireMenuAccess(INSPEC_MENU_ID);
             /*
 {
 WOList:
