@@ -136,6 +136,45 @@ WHERE IDTemplate=@IDTemplate
             }
         }
 
+
+        private static void RequireVersionStructureAccess(int idVersion, string entityType, int entityId)
+        {
+            if (entityId <= 0) return;
+            if (idVersion <= 0)
+                throw new HttpException(403, "New versions cannot reuse existing checklist structure IDs.");
+            string sql;
+            switch ((entityType ?? "").ToUpperInvariant())
+            {
+                case "SECTION":
+                    sql = @"SELECT 1 FROM dbo.PIP_M_CheckListWOPM_Section S WHERE S.IDSection=@EntityID AND S.IDVersion=@IDVersion";
+                    break;
+                case "SUBSECTION":
+                    sql = @"SELECT 1 FROM dbo.PIP_M_CheckListWOPM_SubSection SS
+                            JOIN dbo.PIP_M_CheckListWOPM_Section S ON S.IDSection=SS.IDSection
+                            WHERE SS.IDSubSection=@EntityID AND S.IDVersion=@IDVersion";
+                    break;
+                case "ITEM":
+                    sql = @"SELECT 1 FROM dbo.PIP_M_CheckListWOPM_Item I
+                            JOIN dbo.PIP_M_CheckListWOPM_Section S ON S.IDSection=I.IDSection
+                            WHERE I.IDItem=@EntityID AND S.IDVersion=@IDVersion";
+                    break;
+                case "GROUP":
+                    sql = @"SELECT 1 FROM dbo.PIP_M_CheckListWOPM_ItemGroup G
+                            JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDItem=G.IDItem
+                            JOIN dbo.PIP_M_CheckListWOPM_Section S ON S.IDSection=I.IDSection
+                            WHERE G.IDGroup=@EntityID AND S.IDVersion=@IDVersion";
+                    break;
+                default:
+                    throw new HttpException(400, "Invalid checklist structure entity.");
+            }
+            using (var br = new WAL.BR.CF())
+            {
+                DataTable dt = br.EQuery(sql, "@EntityID=" + entityId + GF.Str2 + "@IDVersion=" + idVersion);
+                if (dt.Rows.Count == 0)
+                    throw new HttpException(403, "Checklist structure does not belong to the selected Version.");
+            }
+        }
+
         private static void ApplySessionContext(DataRow user, ref string employeeId, ref string userId,
             ref string companyId, ref string locationId, ref string updateUser)
         {
@@ -805,12 +844,13 @@ WHERE a.SectionID = @SectionID
                     // Loop setiap elemen template di dalam array
                     foreach (Dictionary<string, object> templateNode in templatesArray)
                     {
+                        int accessTemplateId = 0;
                         if (templateNode.ContainsKey("Template") && templateNode["Template"] != null)
                         {
                             Dictionary<string, object> accessTemplate = (Dictionary<string, object>)templateNode["Template"];
                             string accessSection = Convert.ToString(accessTemplate["SectionID"]);
                             RequireAllowedSection(accessSection);
-                            int accessTemplateId = Convert.ToInt32(accessTemplate["IDTemplate"]);
+                            accessTemplateId = Convert.ToInt32(accessTemplate["IDTemplate"]);
                             if (accessTemplateId > 0) RequireTemplateAccess(accessTemplateId.ToString());
                         }
                         if (templateNode.ContainsKey("Version") && templateNode["Version"] != null)
@@ -820,7 +860,38 @@ WHERE a.SectionID = @SectionID
                             {
                                 Dictionary<string, object> accessVersionInfo = (Dictionary<string, object>)accessVersionRoot["VersionInfo"];
                                 int accessVersionId = Convert.ToInt32(accessVersionInfo["IDVersion"]);
-                                if (accessVersionId > 0) RequireVersionAccess(accessVersionId.ToString());
+                                if (accessVersionId > 0)
+                                {
+                                    RequireVersionAccess(accessVersionId.ToString());
+                                    using (var ownerBr = new WAL.BR.CF())
+                                    {
+                                        DataTable ownerDt = ownerBr.EQuery("SELECT IDTemplate FROM dbo.PIP_M_CheckListWOPM_Version WHERE IDVersion=@IDVersion", "@IDVersion=" + accessVersionId);
+                                        if (ownerDt.Rows.Count == 0 || (accessTemplateId > 0 && Convert.ToInt32(ownerDt.Rows[0]["IDTemplate"]) != accessTemplateId))
+                                            throw new HttpException(403, "Version does not belong to the selected Template.");
+                                    }
+                                }
+                                ArrayList accessSections = accessVersionRoot.ContainsKey("Sections") ? accessVersionRoot["Sections"] as ArrayList : null;
+                                if (accessSections != null)
+                                {
+                                    foreach (Dictionary<string, object> accessSec in accessSections)
+                                    {
+                                        RequireVersionStructureAccess(accessVersionId, "SECTION", Convert.ToInt32(accessSec["IDSection"]));
+                                        ArrayList accessSubs = accessSec.ContainsKey("SubSections") ? accessSec["SubSections"] as ArrayList : null;
+                                        if (accessSubs != null)
+                                            foreach (Dictionary<string, object> accessSub in accessSubs)
+                                                RequireVersionStructureAccess(accessVersionId, "SUBSECTION", Convert.ToInt32(accessSub["IDSubSection"]));
+                                        ArrayList accessItems = accessSec.ContainsKey("Items") ? accessSec["Items"] as ArrayList : null;
+                                        if (accessItems != null)
+                                            foreach (Dictionary<string, object> accessItem in accessItems)
+                                            {
+                                                RequireVersionStructureAccess(accessVersionId, "ITEM", Convert.ToInt32(accessItem["IDItem"]));
+                                                ArrayList accessGroups = accessItem.ContainsKey("Groups") ? accessItem["Groups"] as ArrayList : null;
+                                                if (accessGroups != null)
+                                                    foreach (Dictionary<string, object> accessGroup in accessGroups)
+                                                        RequireVersionStructureAccess(accessVersionId, "GROUP", Convert.ToInt32(accessGroup["IDGroup"]));
+                                            }
+                                    }
+                                }
                             }
                         }
                         #region 1. Parsing dtTemplate
