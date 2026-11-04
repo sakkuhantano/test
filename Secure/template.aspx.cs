@@ -14,19 +14,42 @@ using WAL;
 
 namespace UTL1.Secure
 {
-    public partial class template : System.Web.UI.Page
+    public partial class template : WAL.PB
     {
+        private const string INSPEC_MENU_ID = "12010";
+
+        // WebMethods use the authenticated INSPEC Session, never browser-supplied identity.
+        private static DataRow RequireMenuAccess(string menuId)
+        {
+            HttpContext context = HttpContext.Current;
+            if (context == null || context.Session == null)
+                throw new HttpException(401, "INSPEC session is not available.");
+
+            DataSet login = context.Session[GF.Key_CacheLoggedOnUser] as DataSet;
+            if (login == null || !login.Tables.Contains("User") ||
+                login.Tables["User"].Rows.Count != 1 ||
+                !login.Tables.Contains("UserGroupMenu"))
+                throw new HttpException(401, "Please sign in to INSPEC again.");
+
+            DataView permissions = new DataView(login.Tables["UserGroupMenu"]);
+            permissions.RowFilter = "MenuID = '" + (menuId ?? "").Replace("'", "''") + "'";
+            if (permissions.Count != 1)
+                throw new HttpException(403, WAL.GF.MSG_ACCESS_DENIED);
+
+            return login.Tables["User"].Rows[0];
+        }
         protected void Page_Load(object sender, EventArgs e)
         {
 
         }
-        [WebMethod]
+        [WebMethod(EnableSession = true)]
         public static object GetTemplateExplorerRoot(
             string userId,
             string companyId,
             string locationId,
             string employeeId)
         {
+            RequireMenuAccess(INSPEC_MENU_ID);
             using (var br = new WAL.BR.CF())
             {
                 DataTable dt = br.EQuery(@"
@@ -78,9 +101,10 @@ WHERE a.UserID = @UserID
                 return serializer.Serialize(data);
             }
         }
-        [WebMethod]
+        [WebMethod(EnableSession = true)]
         public static object GetTemplateVersions(string idTemplate)
         {
+            RequireMenuAccess(INSPEC_MENU_ID);
             using (var br = new WAL.BR.CF())
             {
                 DataTable dt = br.EQuery(@"
@@ -114,9 +138,10 @@ FROM PIP_M_CheckListWOPM_Version a WHERE a.IDTemplate=@IDTemplate", "@IDTemplate
 
             }
         }
-        [WebMethod]
+        [WebMethod(EnableSession = true)]
         public static object GetVersionStructure(string idVersion)
         {
+            RequireMenuAccess(INSPEC_MENU_ID);
             using (var br = new WAL.BR.CF())
             {
                 DataSet ds = br.EQuery_DS(@"
@@ -270,7 +295,7 @@ WHERE SEC.IDVersion=@IDVersion ORDER BY SS.DisplayOrder;",
             }
         }
 
-        [WebMethod]
+        [WebMethod(EnableSession = true)]
         public static object GetTemplatesBySection(
             string sectionId,
             string companyId,
@@ -278,6 +303,7 @@ WHERE SEC.IDVersion=@IDVersion ORDER BY SS.DisplayOrder;",
             string employeeId,
             string userId)
         {
+            RequireMenuAccess(INSPEC_MENU_ID);
             using (var br = new WAL.BR.CF())
             {
                 DataTable dt = br.EQuery(@"
@@ -356,9 +382,10 @@ WHERE a.SectionID = @SectionID
             }
         }
 
-        [WebMethod]
+        [WebMethod(EnableSession = true)]
         public static object ValidateTemplate(string req)
         {
+            RequireMenuAccess(INSPEC_MENU_ID);
             // Inisialisasi hasil menggunakan gaya penulisan C# 5.0 ke bawah
             JavaScriptSerializer js = new JavaScriptSerializer();
             Dictionary<string, object> root = js.Deserialize<Dictionary<string, object>>(req);
@@ -491,9 +518,10 @@ WHERE a.SectionID = @SectionID
 
             return r;
         }
-        [WebMethod]
+        [WebMethod(EnableSession = true)]
         public static object SaveAllTemplate(string payload)
         {
+            RequireMenuAccess(INSPEC_MENU_ID);
             /*
 {
     "EmployeeID": "sa",
@@ -914,9 +942,10 @@ WHERE a.SectionID = @SectionID
                 };
             }
         }
-        [WebMethod]
+        [WebMethod(EnableSession = true)]
         public static object GetInspectionTypes(string sectionId)
         {
+            RequireMenuAccess(INSPEC_MENU_ID);
             using (var br = new WAL.BR.CF())
             {
                 DataTable dt = br.EQuery(@"
@@ -936,9 +965,10 @@ ORDER BY InspectionTypeName",
             }
         }
 
-        [WebMethod]
+        [WebMethod(EnableSession = true)]
         public static object GetInspectionTypeDetails(string inspectionTypeCode)
         {
+            RequireMenuAccess(INSPEC_MENU_ID);
             inspectionTypeCode = (inspectionTypeCode ?? "").Trim().ToUpperInvariant();
             using (var br = new WAL.BR.CF())
             {
@@ -958,9 +988,10 @@ ORDER BY InspectionTypeDetailName, InspectionTypeDetailCode",
             }
         }
 
-        [WebMethod]
+        [WebMethod(EnableSession = true)]
         public static object SaveTemplateMetadata(string idTemplate, string templateType, string inspectionTypeCode, string inspectionTypeDetailCode, string companyScope, string updateUser, string companyId, string locationId)
         {
+            RequireMenuAccess(INSPEC_MENU_ID);
             int id;
             if (!Int32.TryParse(idTemplate, out id) || id <= 0)
                 return new { success = false, message = "Save the template and its first version before saving these settings." };
@@ -1087,9 +1118,10 @@ COMMIT TRANSACTION;",
             }
         }
 
-        [WebMethod]
+        [WebMethod(EnableSession = true)]
         public static object GetTemplateCompanyLocations(string idTemplate, string companyId, string locationId, string userId)
         {
+            RequireMenuAccess(INSPEC_MENU_ID);
             int id;
             if (!Int32.TryParse(idTemplate, out id))
                 id = 0;
@@ -1150,9 +1182,10 @@ ORDER BY L.CompanyID, L.LocationID",
             }
         }
 
-        [WebMethod]
+        [WebMethod(EnableSession = true)]
         public static object SetTemplateCompanyLocation(string idTemplate, string companyId, string locationId, string action, string updateUser, string currentCompanyId, string currentLocationId)
         {
+            RequireMenuAccess(INSPEC_MENU_ID);
             int id;
             if (!Int32.TryParse(idTemplate, out id) || id <= 0)
                 return new { success = false, message = "Save the template before assigning company/location." };
@@ -1240,9 +1273,10 @@ COMMIT TRANSACTION;",
             }
         }
 
-        [WebMethod]
+        [WebMethod(EnableSession = true)]
         public static object SetTemplateAllEmployees(string idTemplate, string updateUser, string companyId, string locationId)
         {
+            RequireMenuAccess(INSPEC_MENU_ID);
             int id;
             if (!Int32.TryParse(idTemplate, out id) || id <= 0)
                 return new { success = false, message = "Save the template before assigning employees." };
@@ -1272,9 +1306,10 @@ WHERE IDTemplate=@IDTemplate AND TemplateType='I'",
             }
         }
 
-        [WebMethod]
+        [WebMethod(EnableSession = true)]
         public static object GetTemplateEmployees(string idTemplate, string sectionId, string companyId, string locationId, string userId)
         {
+            RequireMenuAccess(INSPEC_MENU_ID);
             int id;
             if (!Int32.TryParse(idTemplate, out id))
                 id = 0;
@@ -1319,9 +1354,10 @@ ORDER BY E.CompanyID, E.LocationID, E.EmployeeID",
             }
         }
 
-        [WebMethod]
+        [WebMethod(EnableSession = true)]
         public static object SetTemplateEmployeeAssignment(string idTemplate, string employeeId, string action, string updateUser, string companyId, string locationId)
         {
+            RequireMenuAccess(INSPEC_MENU_ID);
             int id;
             if (!Int32.TryParse(idTemplate, out id) || id <= 0)
                 return new { success = false, message = "Save the template before assigning employees." };
@@ -1505,9 +1541,10 @@ COMMIT TRANSACTION;",
 
 
 
-        [WebMethod]
+        [WebMethod(EnableSession = true)]
         public static object GetGroupEquipment(string companyId, string locationId, string sectionId)
         {
+            RequireMenuAccess(INSPEC_MENU_ID);
             using (var br = new WAL.BR.CF())
             {
                 DataTable dt = br.EQuery(@"
@@ -1527,9 +1564,10 @@ WHERE B.CompanyID=@CompanyID AND B.LocationID=@LocationID AND B.SectionID=@Secti
                 return serializer.Serialize(versionList);
             }
         }
-        [WebMethod]
+        [WebMethod(EnableSession = true)]
         public static object GetModelByGroupEquipment(string companyId, string locationId, string groupEqp)
         {
+            RequireMenuAccess(INSPEC_MENU_ID);
             using (var br = new WAL.BR.CF())
             {
                 DataTable dt = br.EQuery(@"
