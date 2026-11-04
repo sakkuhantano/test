@@ -346,6 +346,6 @@ Save Employee
 <!-- END: Mobile Action Bar -->
 <asp:ScriptManager ID="ScriptManager1" runat="server" EnablePageMethods="true" />
 
-<script type="text/javascript" src="../JSCus/GFC.js"></script>
+<script type="text/javascript" src="../JSCus/GFC_INSPEC.js"></script>
 <script type="text/javascript" src="../JSCus/assignwoemployee.js"></script>
 </asp:Content>
