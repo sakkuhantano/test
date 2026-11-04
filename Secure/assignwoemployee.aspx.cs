@@ -71,6 +71,27 @@ namespace UTL1.Secure
 
             return login.Tables["User"].Rows[0];
         }
+
+        private static DataRow RequireInspecUser()
+        {
+            return RequireMenuAccess(INSPEC_MENU_ID);
+        }
+
+        private static string UserValue(DataRow user, string column)
+        {
+            return user.Table.Columns.Contains(column) && user[column] != DBNull.Value
+                ? Convert.ToString(user[column]).Trim() : "";
+        }
+
+        private static void RequireAllowedSection(string sectionId, DataRow user)
+        {
+            string employeeId = UserValue(user, "EmployeeID");
+            List<string> allowed = GetAllowedSections(employeeId);
+            if (String.IsNullOrWhiteSpace(sectionId) ||
+                !allowed.Contains(sectionId.Trim(), StringComparer.OrdinalIgnoreCase))
+                throw new HttpException(403, "You do not have access to this Section.");
+        }
+
         protected void Page_Load(object sender, EventArgs e)
         {
             if (base.AllowRead(INSPEC_MENU_ID) != 1)
@@ -94,17 +115,19 @@ namespace UTL1.Secure
     "PageSize": 20
 }
              */
+            DataRow inspecUser = RequireInspecUser();
             Dictionary<string, object> payload = payloadObj as Dictionary<string, object>;
             int year = GetValue<int>(payload, "Year");
             int week = GetValue<int>(payload, "Week");
             bool global = GetValue<bool>(payload, "IsGlobalSearch");
-            string company = GetValue<string>(payload, "CompanyID");
-            string location = GetValue<string>(payload, "LocationID");
+            string company = UserValue(inspecUser, "CompanyID");
+            string location = UserValue(inspecUser, "LocationID");
             string keyword = GetValue<string>(payload, "Keyword");
             string section = GetValue<string>(payload, "Section");
+            RequireAllowedSection(section, inspecUser);
             string status = GetValue<string>(payload, "Status");
-            int page = GetValue<int>(payload, "Page", 1);
-            int pageSize = GetValue<int>(payload, "PageSize", 20);
+            int page = Math.Max(1, GetValue<int>(payload, "Page", 1));
+            int pageSize = Math.Max(1, Math.Min(200, GetValue<int>(payload, "PageSize", 20)));
             int startRow = (page - 1) * pageSize + 1;
             int endRow = page * pageSize;
 
@@ -248,10 +271,12 @@ JOIN M_HRD_Employee AS mhe ON mhe.EmployeeID=b.val
     "SectionID": "ACON"
 }
              */
+            DataRow inspecUser = RequireInspecUser();
             Dictionary<string, object> payload = payloadObj as Dictionary<string, object>;
-            string company = GetValue<string>(payload, "CompanyID");
-            string location = GetValue<string>(payload, "LocationID");
+            string company = UserValue(inspecUser, "CompanyID");
+            string location = UserValue(inspecUser, "LocationID");
             string section = GetValue<string>(payload, "SectionID");
+            RequireAllowedSection(section, inspecUser);
 
             var result = new Dictionary<string, object>();
             var list = new List<Dictionary<string, object>>();
@@ -290,7 +315,7 @@ JOIN M_HRD_Employee AS mhe ON mhe.EmployeeID=b.val
                     emp["OutstandingCount"] = r["OutstandingCount"];
                     list.Add(emp);
                 }
-                result["TotalEmp"] = Convert.ToInt16(dt.Rows[0]["TotalEmp"]);
+                result["TotalEmp"] = dt.Rows.Count > 0 ? Convert.ToInt32(dt.Rows[0]["TotalEmp"]) : 0;
             }
 
             result["Success"] = true;
@@ -324,7 +349,8 @@ UpdateUser: "sa"
             try
             {
                 Dictionary<string, object> root = js.Deserialize<Dictionary<string, object>>(payload);
-                string updateUser = root.ContainsKey("UpdateUser") ? Convert.ToString(root["UpdateUser"]) : "";
+                DataRow inspecUser = RequireInspecUser();
+                string updateUser = UserValue(inspecUser, "EmployeeID");
                 string mode = root.ContainsKey("Mode") ? Convert.ToString(root["Mode"]) : "";
                 DataTable dtWO = new DataTable();
                 for (int i = 1; i <= 2; i++)
@@ -349,6 +375,13 @@ UpdateUser: "sa"
                     }
                 }
                 string V_ParamSearch = Convert.ToString(root["SearchContext"]);
+                string[] searchParts = (V_ParamSearch ?? "").Split(new char[] { ';' }, StringSplitOptions.None);
+                if (searchParts.Length < 11) throw new HttpException(400, "Invalid assignment search context.");
+                RequireAllowedSection(searchParts[2], inspecUser);
+                searchParts[0] = UserValue(inspecUser, "CompanyID");
+                searchParts[1] = UserValue(inspecUser, "LocationID");
+                searchParts[2] = searchParts[2].Trim();
+                V_ParamSearch = String.Join(";", searchParts);
                 string V_ErrMsg = "";
                 using (var cf = new WAL.BR.CF())
                 {
