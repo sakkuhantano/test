@@ -388,6 +388,9 @@ UpdateUser: "sa"
                 string employeeList = root.ContainsKey("EmployeeList") ? Convert.ToString(root["EmployeeList"]) : "";
                 List<string> requestedEmployees = (employeeList ?? "").Split(new char[] { ';' }, StringSplitOptions.RemoveEmptyEntries)
                     .Select(x => x.Trim()).Where(x => x.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+                if (requestedEmployees.Count == 0)
+                    throw new HttpException(400, "Select at least one employee.");
+                employeeList = String.Join(";", requestedEmployees.ToArray());
                 if (requestedEmployees.Count > 0)
                 {
                     using (var validateCF = new WAL.BR.CF())
