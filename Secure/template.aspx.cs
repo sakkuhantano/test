@@ -18,6 +18,39 @@ namespace UTL1.Secure
     {
         private const string INSPEC_MENU_ID = "12010";
 
+        public string ClientContextJson { get; private set; }
+
+        private static List<string> GetAllowedSections(string employeeId)
+        {
+            string hrSection = "";
+            string overrideSection = "";
+            using (var br = new WAL.BR.CF())
+            {
+                DataTable dtEmployee = br.EQuery("SELECT ISNULL(SectionID, '') SectionID FROM dbo.M_HRD_Employee WHERE EmployeeID=@EmployeeID", "@EmployeeID=" + (employeeId ?? "").Trim());
+                if (dtEmployee.Rows.Count > 0) hrSection = Convert.ToString(dtEmployee.Rows[0]["SectionID"]).Trim();
+                DataTable dtOverride = br.EQuery("SELECT TOP 1 ISNULL(Section, '') Section FROM dbo.UTL_User WHERE EmployeeID=@EmployeeID", "@EmployeeID=" + (employeeId ?? "").Trim());
+                if (dtOverride.Rows.Count > 0) overrideSection = Convert.ToString(dtOverride.Rows[0]["Section"]).Trim();
+            }
+            string source = String.IsNullOrWhiteSpace(overrideSection) ? hrSection : overrideSection;
+            return (source ?? "").Split(new char[] { ';' }, StringSplitOptions.RemoveEmptyEntries).Select(x => x.Trim()).Where(x => x != "").Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        }
+
+        private void SetClientContext(DataRow user)
+        {
+            string employeeId = Convert.ToString(user["EmployeeID"]).Trim();
+            string userId = Convert.ToString(user["UserID"]).Trim();
+            string companyId = Convert.ToString(user["CompanyID"]).Trim();
+            string locationId = Convert.ToString(user["LocationID"]).Trim();
+            Dictionary<string, object> context = new Dictionary<string, object>();
+            context["employeeid"] = employeeId;
+            context["userid"] = userId;
+            context["companyid"] = companyId;
+            context["locationid"] = locationId;
+            context["curcompany"] = companyId + ";" + locationId;
+            context["section"] = String.Join(";", GetAllowedSections(employeeId).ToArray());
+            ClientContextJson = new JavaScriptSerializer().Serialize(context);
+        }
+
         // WebMethods use the authenticated INSPEC Session, never browser-supplied identity.
         private static DataRow RequireMenuAccess(string menuId)
         {
@@ -40,7 +73,11 @@ namespace UTL1.Secure
         }
         protected void Page_Load(object sender, EventArgs e)
         {
+            if (base.AllowRead(INSPEC_MENU_ID) != 1)
+                throw new Exception(WAL.GF.MSG_ACCESS_DENIED);
 
+            if (!IsPostBack)
+                SetClientContext(RequireMenuAccess(INSPEC_MENU_ID));
         }
         [WebMethod(EnableSession = true)]
         public static object GetTemplateExplorerRoot(
