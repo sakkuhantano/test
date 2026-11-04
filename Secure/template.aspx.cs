@@ -187,13 +187,13 @@ WHERE 1=1
           SELECT 1
           FROM dbo.SysWebUserCompanyLocation perm
           WHERE perm.AppID = 'INSPEC'
-            AND perm.UserID = @EmployeeID
+            AND perm.UserID = @UserID
             AND perm.CompanyID = @CompanyID
             AND perm.LocationID = @LocationID
       )
       OR EXISTS (
           SELECT 1
-          FROM dbo.F_SelectOneLogin('INSPEC', @UserID, '') loginCompany
+          FROM dbo.F_SelectOneLogin('INSPEC', @EmployeeID, '') loginCompany
           WHERE loginCompany.CompanyID = @CompanyID
             AND loginCompany.LocationID = @LocationID
       )
@@ -460,13 +460,13 @@ WHERE a.SectionID = @SectionID
           SELECT 1
           FROM dbo.SysWebUserCompanyLocation perm
           WHERE perm.AppID = 'INSPEC'
-            AND perm.UserID = @EmployeeID
+            AND perm.UserID = @UserID
             AND perm.CompanyID = @CompanyID
             AND perm.LocationID = @LocationID
       )
       OR EXISTS (
           SELECT 1
-          FROM dbo.F_SelectOneLogin('INSPEC', @UserID, '') loginCompany
+          FROM dbo.F_SelectOneLogin('INSPEC', @EmployeeID, '') loginCompany
           WHERE loginCompany.CompanyID = @CompanyID
             AND loginCompany.LocationID = @LocationID
       )
@@ -1148,6 +1148,7 @@ ORDER BY InspectionTypeDetailName, InspectionTypeDetailCode",
         {
             DataRow inspecUser = RequireMenuAccess(INSPEC_MENU_ID);
             updateUser = SessionValue(inspecUser, "EmployeeID");
+            string sessionUserId = SessionValue(inspecUser, "UserID");
             companyId = SessionValue(inspecUser, "CompanyID");
             locationId = SessionValue(inspecUser, "LocationID");
             RequireTemplateAccess(idTemplate);
@@ -1190,7 +1191,7 @@ WHERE T.IDTemplate=@IDTemplate
                WHERE CurrentPermission.AppID='INSPEC' AND CurrentPermission.UserID=@UpdateUser
                  AND CurrentPermission.CompanyID=@CompanyID
                  AND CurrentPermission.LocationID=@LocationID)
-       OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('INSPEC', @UpdateUser, '') LoginCompany
+       OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('INSPEC', @EmployeeID, '') LoginCompany
                   WHERE LoginCompany.CompanyID=@CompanyID
                     AND LoginCompany.LocationID=@LocationID)
   )
@@ -1206,7 +1207,7 @@ WHERE T.IDTemplate=@IDTemplate
                     "@InspectionTypeCode=" + inspectionTypeCode + GF.Str2 +
                     "@InspectionTypeDetailCode=" + inspectionTypeDetailCode + GF.Str2 +
                     "@CompanyID=" + companyId + GF.Str2 + "@LocationID=" + locationId + GF.Str2 +
-                    "@UpdateUser=" + updateUser);
+                    "@UpdateUser=" + updateUser + GF.Str2 + "@EmployeeID=" + updateUser + GF.Str2 + "@UserID=" + sessionUserId);
                 if (dt.Rows.Count == 0)
                     return new { success = false, message = "Template was not found." };
 
@@ -1284,6 +1285,7 @@ COMMIT TRANSACTION;",
             companyId = SessionValue(inspecUser, "CompanyID");
             locationId = SessionValue(inspecUser, "LocationID");
             userId = SessionValue(inspecUser, "UserID");
+            string employeeId = SessionValue(inspecUser, "EmployeeID");
             if (Convert.ToInt32(idTemplate) > 0) RequireTemplateAccess(idTemplate);
             int id;
             if (!Int32.TryParse(idTemplate, out id))
@@ -1306,7 +1308,7 @@ FROM
            EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation perm
                    WHERE perm.CompanyID=swl.CompanyID AND perm.LocationID=swl.LocationID
                      AND perm.UserID=@UserID AND perm.AppID='INSPEC')
-           OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('INSPEC', @UserID, '') LoginCompany
+           OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('INSPEC', @EmployeeID, '') LoginCompany
                       WHERE LoginCompany.CompanyID=swl.CompanyID
                         AND LoginCompany.LocationID=swl.LocationID)
        )
@@ -1316,7 +1318,7 @@ WHERE (
      EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation CurrentPermission
              WHERE CurrentPermission.AppID='INSPEC' AND CurrentPermission.UserID=@UserID
                AND CurrentPermission.CompanyID=@CompanyID AND CurrentPermission.LocationID=@LocationID)
-     OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('INSPEC', @UserID, '') LoginCompany
+     OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('INSPEC', @EmployeeID, '') LoginCompany
                 WHERE LoginCompany.CompanyID=@CompanyID AND LoginCompany.LocationID=@LocationID)
  )
 AND
@@ -1331,7 +1333,7 @@ AND
 )
 ORDER BY L.CompanyID, L.LocationID",
                     "@IDTemplate=" + id + GF.Str2 +
-                    "@CompanyID=" + companyId + GF.Str2 + "@LocationID=" + locationId + GF.Str2 + "@UserID=" + userId);
+                    "@CompanyID=" + companyId + GF.Str2 + "@LocationID=" + locationId + GF.Str2 + "@UserID=" + userId + GF.Str2 + "@EmployeeID=" + employeeId);
                 var rows = dt.AsEnumerable().Select(row => new
                 {
                     CompanyID = GF.GetString(row["CompanyID"]),
@@ -1350,6 +1352,7 @@ ORDER BY L.CompanyID, L.LocationID",
         {
             DataRow inspecUser = RequireMenuAccess(INSPEC_MENU_ID);
             updateUser = SessionValue(inspecUser, "EmployeeID");
+            string sessionUserId = SessionValue(inspecUser, "UserID");
             currentCompanyId = SessionValue(inspecUser, "CompanyID");
             currentLocationId = SessionValue(inspecUser, "LocationID");
             RequireTemplateAccess(idTemplate);
@@ -1371,7 +1374,7 @@ WHERE T.IDTemplate=@IDTemplate
                WHERE CurrentPermission.AppID='INSPEC' AND CurrentPermission.UserID=@UpdateUser
                  AND CurrentPermission.CompanyID=@CurrentCompanyID
                  AND CurrentPermission.LocationID=@CurrentLocationID)
-       OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('INSPEC', @UpdateUser, '') LoginCompany
+       OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('INSPEC', @EmployeeID, '') LoginCompany
                   WHERE LoginCompany.CompanyID=@CurrentCompanyID
                     AND LoginCompany.LocationID=@CurrentLocationID)
   )
@@ -1379,7 +1382,7 @@ WHERE T.IDTemplate=@IDTemplate
                     "@IDTemplate=" + id + GF.Str2 +
                     "@UpdateUser=" + updateUser + GF.Str2 +
                     "@CurrentCompanyID=" + currentCompanyId + GF.Str2 +
-                    "@CurrentLocationID=" + currentLocationId);
+                    "@CurrentLocationID=" + currentLocationId + GF.Str2 + "@EmployeeID=" + updateUser + GF.Str2 + "@UserID=" + sessionUserId);
                 if (dt.Rows.Count == 0)
                     return new { success = false, message = "Template was not found." };
                 if (GF.GetString(dt.Rows[0]["CompanyScope"]) == "A")
@@ -1399,7 +1402,7 @@ IF NOT EXISTS
            EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation perm
                    WHERE perm.CompanyID=swl.CompanyID AND perm.LocationID=swl.LocationID
                      AND perm.UserID=@UpdateUser AND perm.AppID='INSPEC')
-           OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('INSPEC', @UpdateUser, '') LoginCompany
+           OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('INSPEC', @EmployeeID, '') LoginCompany
                       WHERE LoginCompany.CompanyID=swl.CompanyID
                         AND LoginCompany.LocationID=swl.LocationID)
        )
@@ -1410,7 +1413,7 @@ IF (';' + ISNULL((SELECT CompanyLocationList FROM dbo.PIP_M_CheckListWOPM WHERE 
                         "@IDTemplate=" + id + GF.Str2 +
                         "@CompanyID=" + companyId + GF.Str2 +
                         "@LocationID=" + locationId + GF.Str2 +
-                        "@UpdateUser=" + updateUser);
+                        "@UpdateUser=" + updateUser + GF.Str2 + "@EmployeeID=" + updateUser + GF.Str2 + "@UserID=" + sessionUserId);
                 }
                 else
                 {
@@ -1508,7 +1511,7 @@ WHERE E.SectionID=T.SectionID
   AND ISNULL(E.TerminationDate,'')=''
   AND (
        EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation CurrentPermission
-               WHERE CurrentPermission.AppID='INSPEC' AND CurrentPermission.UserID=e.EmployeeID
+               WHERE CurrentPermission.AppID='INSPEC' AND CurrentPermission.UserID=(SELECT TOP 1 SU.UserID FROM dbo.SysWebUser SU WHERE SU.employeeid=e.EmployeeID)
                  AND CurrentPermission.CompanyID=@CurrentCompanyID
                  AND CurrentPermission.LocationID=@CurrentLocationID)
        OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('INSPEC', e.EmployeeID, '') LoginCompany
@@ -1562,7 +1565,7 @@ WHERE T.IDTemplate=@IDTemplate
   AND ISNULL(E.TerminationDate,'')=''
   AND (
        EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation CurrentPermission
-               WHERE CurrentPermission.AppID='INSPEC' AND CurrentPermission.UserID=E.EmployeeID
+               WHERE CurrentPermission.AppID='INSPEC' AND CurrentPermission.UserID=(SELECT TOP 1 SU.UserID FROM dbo.SysWebUser SU WHERE SU.employeeid=E.EmployeeID)
                  AND CurrentPermission.CompanyID=@CurrentCompanyID
                  AND CurrentPermission.LocationID=@CurrentLocationID)
        OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('INSPEC', E.EmployeeID, '') LoginCompany
@@ -1612,7 +1615,7 @@ IF @Action='REMOVE' AND
            AND ISNULL(E.TerminationDate,'')=''
            AND (
                EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation CurrentPermission
-                       WHERE CurrentPermission.AppID='INSPEC' AND CurrentPermission.UserID=E.EmployeeID
+                       WHERE CurrentPermission.AppID='INSPEC' AND CurrentPermission.UserID=(SELECT TOP 1 SU.UserID FROM dbo.SysWebUser SU WHERE SU.employeeid=E.EmployeeID)
                          AND CurrentPermission.CompanyID=@CurrentCompanyID
                          AND CurrentPermission.LocationID=@CurrentLocationID)
                OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('INSPEC', E.EmployeeID, '') LoginCompany
@@ -1645,7 +1648,7 @@ BEGIN
               AND ISNULL(E.TerminationDate,'')=''
                           AND (
                EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation CurrentPermission
-                       WHERE CurrentPermission.AppID='INSPEC' AND CurrentPermission.UserID=E.EmployeeID
+                       WHERE CurrentPermission.AppID='INSPEC' AND CurrentPermission.UserID=(SELECT TOP 1 SU.UserID FROM dbo.SysWebUser SU WHERE SU.employeeid=E.EmployeeID)
                          AND CurrentPermission.CompanyID=@CurrentCompanyID
                          AND CurrentPermission.LocationID=@CurrentLocationID)
                OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('INSPEC', E.EmployeeID, '') LoginCompany
@@ -1696,7 +1699,7 @@ BEGIN
                 AND ISNULL(E.TerminationDate,'')=''
                               AND (
                EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation CurrentPermission
-                       WHERE CurrentPermission.AppID='INSPEC' AND CurrentPermission.UserID=E.EmployeeID
+                       WHERE CurrentPermission.AppID='INSPEC' AND CurrentPermission.UserID=(SELECT TOP 1 SU.UserID FROM dbo.SysWebUser SU WHERE SU.employeeid=E.EmployeeID)
                          AND CurrentPermission.CompanyID=@CurrentCompanyID
                          AND CurrentPermission.LocationID=@CurrentLocationID)
                OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('INSPEC', E.EmployeeID, '') LoginCompany
