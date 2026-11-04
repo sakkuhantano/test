@@ -136,41 +136,55 @@ WHERE IDTemplate=@IDTemplate
         }
 
 
-        private static void RequireVersionStructureAccess(int idVersion, string entityType, int entityId)
+        private static void RequireVersionStructureBatchAccess(int idVersion, string sectionIds, string subSectionIds, string itemIds, string groupIds)
         {
-            if (entityId <= 0) return;
+            bool hasExistingIds = !String.IsNullOrWhiteSpace(sectionIds) || !String.IsNullOrWhiteSpace(subSectionIds) ||
+                                  !String.IsNullOrWhiteSpace(itemIds) || !String.IsNullOrWhiteSpace(groupIds);
+            if (!hasExistingIds) return;
             if (idVersion <= 0)
                 throw new HttpException(403, "New versions cannot reuse existing checklist structure IDs.");
-            string sql;
-            switch ((entityType ?? "").ToUpperInvariant())
-            {
-                case "SECTION":
-                    sql = @"SELECT 1 FROM dbo.PIP_M_CheckListWOPM_Section S WHERE S.IDSection=@EntityID AND S.IDVersion=@IDVersion";
-                    break;
-                case "SUBSECTION":
-                    sql = @"SELECT 1 FROM dbo.PIP_M_CheckListWOPM_SubSection SS
-                            JOIN dbo.PIP_M_CheckListWOPM_Section S ON S.IDSection=SS.IDSection
-                            WHERE SS.IDSubSection=@EntityID AND S.IDVersion=@IDVersion";
-                    break;
-                case "ITEM":
-                    sql = @"SELECT 1 FROM dbo.PIP_M_CheckListWOPM_Item I
-                            JOIN dbo.PIP_M_CheckListWOPM_Section S ON S.IDSection=I.IDSection
-                            WHERE I.IDItem=@EntityID AND S.IDVersion=@IDVersion";
-                    break;
-                case "GROUP":
-                    sql = @"SELECT 1 FROM dbo.PIP_M_CheckListWOPM_ItemGroup G
-                            JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDItem=G.IDItem
-                            JOIN dbo.PIP_M_CheckListWOPM_Section S ON S.IDSection=I.IDSection
-                            WHERE G.IDGroup=@EntityID AND S.IDVersion=@IDVersion";
-                    break;
-                default:
-                    throw new HttpException(400, "Invalid checklist structure entity.");
-            }
+
             using (var br = new WAL.BR.CF())
             {
-                DataTable dt = br.EQuery(sql, "@EntityID=" + entityId + GF.Str2 + "@IDVersion=" + idVersion);
-                if (dt.Rows.Count == 0)
-                    throw new HttpException(403, "Checklist structure does not belong to the selected Version.");
+                DataTable invalid = br.EQuery(@"
+SELECT TOP 1 EntityType
+FROM
+(
+    SELECT 'SECTION' EntityType
+    FROM dbo.SplitStringConvertToTable(@SectionIDs,';') X
+    WHERE LTRIM(RTRIM(X.val))<>'' AND NOT EXISTS
+        (SELECT 1 FROM dbo.PIP_M_CheckListWOPM_Section S
+         WHERE S.IDSection=CONVERT(INT,X.val) AND S.IDVersion=@IDVersion)
+    UNION ALL
+    SELECT 'SUBSECTION'
+    FROM dbo.SplitStringConvertToTable(@SubSectionIDs,';') X
+    WHERE LTRIM(RTRIM(X.val))<>'' AND NOT EXISTS
+        (SELECT 1 FROM dbo.PIP_M_CheckListWOPM_SubSection SS
+         JOIN dbo.PIP_M_CheckListWOPM_Section S ON S.IDSection=SS.IDSection
+         WHERE SS.IDSubSection=CONVERT(INT,X.val) AND S.IDVersion=@IDVersion)
+    UNION ALL
+    SELECT 'ITEM'
+    FROM dbo.SplitStringConvertToTable(@ItemIDs,';') X
+    WHERE LTRIM(RTRIM(X.val))<>'' AND NOT EXISTS
+        (SELECT 1 FROM dbo.PIP_M_CheckListWOPM_Item I
+         JOIN dbo.PIP_M_CheckListWOPM_Section S ON S.IDSection=I.IDSection
+         WHERE I.IDItem=CONVERT(INT,X.val) AND S.IDVersion=@IDVersion)
+    UNION ALL
+    SELECT 'GROUP'
+    FROM dbo.SplitStringConvertToTable(@GroupIDs,';') X
+    WHERE LTRIM(RTRIM(X.val))<>'' AND NOT EXISTS
+        (SELECT 1 FROM dbo.PIP_M_CheckListWOPM_ItemGroup G
+         JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDItem=G.IDItem
+         JOIN dbo.PIP_M_CheckListWOPM_Section S ON S.IDSection=I.IDSection
+         WHERE G.IDGroup=CONVERT(INT,X.val) AND S.IDVersion=@IDVersion)
+) InvalidEntities",
+                    "@SectionIDs=" + (sectionIds ?? "") + GF.Str2 +
+                    "@SubSectionIDs=" + (subSectionIds ?? "") + GF.Str2 +
+                    "@ItemIDs=" + (itemIds ?? "") + GF.Str2 +
+                    "@GroupIDs=" + (groupIds ?? "") + GF.Str2 +
+                    "@IDVersion=" + idVersion);
+                if (invalid.Rows.Count > 0)
+                    throw new HttpException(403, "One or more checklist structure IDs do not belong to the selected Version.");
             }
         }
 
@@ -870,27 +884,42 @@ WHERE a.SectionID = @SectionID
                                     }
                                 }
                                 ArrayList accessSections = accessVersionRoot.ContainsKey("Sections") ? accessVersionRoot["Sections"] as ArrayList : null;
+                                List<int> sectionIds = new List<int>();
+                                List<int> subSectionIds = new List<int>();
+                                List<int> itemIds = new List<int>();
+                                List<int> groupIds = new List<int>();
                                 if (accessSections != null)
                                 {
                                     foreach (Dictionary<string, object> accessSec in accessSections)
                                     {
-                                        RequireVersionStructureAccess(accessVersionId, "SECTION", Convert.ToInt32(accessSec["IDSection"]));
+                                        int existingSectionId = Convert.ToInt32(accessSec["IDSection"]);
+                                        if (existingSectionId > 0) sectionIds.Add(existingSectionId);
                                         ArrayList accessSubs = accessSec.ContainsKey("SubSections") ? accessSec["SubSections"] as ArrayList : null;
                                         if (accessSubs != null)
                                             foreach (Dictionary<string, object> accessSub in accessSubs)
-                                                RequireVersionStructureAccess(accessVersionId, "SUBSECTION", Convert.ToInt32(accessSub["IDSubSection"]));
+                                            {
+                                                int existingSubSectionId = Convert.ToInt32(accessSub["IDSubSection"]);
+                                                if (existingSubSectionId > 0) subSectionIds.Add(existingSubSectionId);
+                                            }
                                         ArrayList accessItems = accessSec.ContainsKey("Items") ? accessSec["Items"] as ArrayList : null;
                                         if (accessItems != null)
                                             foreach (Dictionary<string, object> accessItem in accessItems)
                                             {
-                                                RequireVersionStructureAccess(accessVersionId, "ITEM", Convert.ToInt32(accessItem["IDItem"]));
+                                                int existingItemId = Convert.ToInt32(accessItem["IDItem"]);
+                                                if (existingItemId > 0) itemIds.Add(existingItemId);
                                                 ArrayList accessGroups = accessItem.ContainsKey("Groups") ? accessItem["Groups"] as ArrayList : null;
                                                 if (accessGroups != null)
                                                     foreach (Dictionary<string, object> accessGroup in accessGroups)
-                                                        RequireVersionStructureAccess(accessVersionId, "GROUP", Convert.ToInt32(accessGroup["IDGroup"]));
+                                                    {
+                                                        int existingGroupId = Convert.ToInt32(accessGroup["IDGroup"]);
+                                                        if (existingGroupId > 0) groupIds.Add(existingGroupId);
+                                                    }
                                             }
                                     }
                                 }
+                                RequireVersionStructureBatchAccess(accessVersionId,
+                                    String.Join(";", sectionIds), String.Join(";", subSectionIds),
+                                    String.Join(";", itemIds), String.Join(";", groupIds));
                             }
                         }
                         #region 1. Parsing dtTemplate
