@@ -600,7 +600,7 @@
 </div>
 </div>
 
-    <%--<script type="text/javascript" src="../JSCus/GFC.js"></script>--%>
+    <%--<script type="text/javascript" src="../JSCus/GFC_INSPEC.js"></script>--%>
     <script type="text/javascript" src="../JSCus/template.js"></script>
     <script type="text/javascript" src="../JSCus/sortable.js"></script>
 </asp:Content>
