@@ -134,20 +134,19 @@ function initPageComponents() {
     // B. Populate Week (Sekarang tinggal panggil fungsi refresh)
     refreshWeekDropdown(currentYear);
 
-    // C. Populate Section dari Login Session
+    // C. Populate Section from the authenticated INSPEC Session context.
     var ddlSection = $("#ddlSection");
     ddlSection.empty();
-    try {
-        var loginData = getLoginData(); 
-        if (loginData && loginData.section) {
-            var sections = loginData.section.split(';');
-            sections.forEach(function (sec) {
-                var cleanSec = sec.trim();
-                if(cleanSec) ddlSection.append(new Option(cleanSec, cleanSec));
-            });
-        }
-    } catch (e) {
-        ddlSection.append(new Option("ALL", "ALL"));
+    var loginData = getLoginData();
+    var sections = (loginData && loginData.section ? loginData.section : "").split(';');
+    sections.forEach(function (sec) {
+        var cleanSec = sec.trim();
+        if (cleanSec) ddlSection.append(new Option(cleanSec, cleanSec));
+    });
+    if (ddlSection.find("option").length === 0) {
+        ddlSection.append(new Option("No Section Access", ""));
+        ddlSection.prop("disabled", true);
+        $("#btnSearch").prop("disabled", true);
     }
 
     updateSummaryLabels();
