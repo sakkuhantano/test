@@ -12,7 +12,16 @@
         return new Promise(function (resolve, reject) {
             if (typeof method !== "function") { reject(new Error("INSPEC PageMethod is unavailable.")); return; }
             args.push(resolve, function (error) {
-                reject(error instanceof Error ? error : new Error(error && error.get_message ? error.get_message() : "INSPEC request failed."));
+                var message = "";
+                try {
+                    if (error && typeof error.get_message === "function") message = error.get_message();
+                    else if (error && error.message) message = error.message;
+                    else if (typeof error === "string") message = error;
+                    else if (error) message = JSON.stringify(error);
+                } catch (ignore) { }
+                var normalized = error instanceof Error ? error : new Error(message || "The INSPEC request failed.");
+                normalized.serverError = error || null;
+                reject(normalized);
             });
             method.apply(window.PageMethods || window, args);
         });
