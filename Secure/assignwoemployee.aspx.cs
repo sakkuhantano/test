@@ -16,7 +16,7 @@ namespace UTL1.Secure
 {
     public partial class assignwoemployee : WAL.PB
     {
-        private const string INSPEC_MENU_ID = "12011";
+        private const string INSPEC_MENU_ID = "11012";
 
         public string ClientContextJson { get; private set; }
 
