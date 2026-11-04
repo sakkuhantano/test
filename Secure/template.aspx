@@ -1,9 +1,11 @@
-﻿<%@ Page Language="C#" AutoEventWireup="true" MasterPageFile="~/MasterPages/Site1.Master" CodeBehind="template.aspx.cs" Inherits="UTL1.Secure.template" %>
-<%@ MasterType VirtualPath="~/MasterPages/Site1.Master" %>
+﻿<%@ Page Language="C#" AutoEventWireup="true" MasterPageFile="~/MasterPages/Site_BS_5.Master" CodeBehind="template.aspx.cs" Inherits="UTL1.Secure.template" %>
+<%@ MasterType VirtualPath="~/MasterPages/Site_BS_5.Master" %>
 <asp:Content ID="Content1" ContentPlaceHolderID="head" runat="server">
     <link rel="Stylesheet" type="text/css" href="../CSSCus/template.css" />
 </asp:Content>
-<asp:Content ID="Content3" ContentPlaceHolderID="stickybar" runat="server">
+
+<asp:Content ID="Content2" ContentPlaceHolderID="ContentPlaceHolder1" runat="server">
+
     <div id="globalLoadingOverlay"
      class="position-fixed top-0 start-0 w-100 h-100 d-none"
      style="background: rgba(255,255,255,0.7); z-index:99999;">
@@ -34,8 +36,8 @@
 <div class="mobile-nav-tab" onclick="switchTab('builder')">Builder</div>
 <div class="mobile-nav-tab" onclick="switchTab('properties')">Properties</div>
 </div>
-</asp:Content>
-<asp:Content ID="Content2" ContentPlaceHolderID="ContentPlaceHolder1" runat="server">
+
+
 <asp:ScriptManager ID="ScriptManager1" runat="server" EnablePageMethods="true" />
 <div class="module-body">
 <!-- Panel 1: Template Explorer -->
