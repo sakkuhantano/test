@@ -1013,6 +1013,8 @@ WHERE a.SectionID = @SectionID
                             var delTempList = (ArrayList)deletedRoot["templates"];
                             foreach (Dictionary<string, object> delTemp in delTempList)
                             {
+                                string deletedTemplateId = Convert.ToString(delTemp["IDTemplate"]);
+                                RequireTemplateAccess(deletedTemplateId);
                                 DataRow dtRow = dtDeletedTemplate.NewRow();
                                 dtRow["C1"] = delTemp["IDTemplate"];
                                 dtDeletedTemplate.Rows.Add(dtRow);
@@ -1025,6 +1027,8 @@ WHERE a.SectionID = @SectionID
                             var delVerList = (ArrayList)deletedRoot["versions"];
                             foreach (Dictionary<string, object> delVer in delVerList)
                             {
+                                RequireTemplateAccess(Convert.ToString(delVer["IDTemplate"]));
+                                RequireVersionAccess(Convert.ToString(delVer["IDVersion"]));
                                 DataRow dvRow = dtDeletedVersion.NewRow();
                                 dvRow["C1"] = delVer["IDTemplate"];
                                 dvRow["C2"] = delVer["IDVersion"];
