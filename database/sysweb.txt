@@ -1,0 +1,229 @@
+/****** Object:  Table [dbo].[SysWebApp]    Script Date: 04-Nov-2026 9:02:14 AM ******/
+SET ANSI_NULLS ON
+GO
+
+SET QUOTED_IDENTIFIER ON
+GO
+
+CREATE TABLE [dbo].[SysWebApp](
+	[AppID] [varchar](100) NOT NULL,
+	[Caption] [varchar](500) NOT NULL,
+	[Url] [varchar](500) NOT NULL,
+	[ClassName] [varchar](100) NOT NULL,
+	[Icon] [varchar](100) NOT NULL,
+	[IsAutoLogin] [bit] NOT NULL,
+	[OrderNo] [int] NOT NULL,
+	[IsActive] [bit] NOT NULL,
+ CONSTRAINT [PK_SysWebApp] PRIMARY KEY CLUSTERED 
+(
+	[AppID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+
+/****** Object:  Table [dbo].[SysWebAppCompanyLocation]    Script Date: 04-Nov-2026 9:02:14 AM ******/
+SET ANSI_NULLS ON
+GO
+
+SET QUOTED_IDENTIFIER ON
+GO
+
+CREATE TABLE [dbo].[SysWebAppCompanyLocation](
+	[AppID] [varchar](100) NOT NULL,
+	[CompanyID] [varchar](10) NOT NULL,
+	[LocationID] [varchar](10) NOT NULL,
+	[UserUpdate] [varchar](10) NOT NULL,
+	[UpdateDate] [datetime] NOT NULL,
+ CONSTRAINT [PK_SysWebAppCompany] PRIMARY KEY CLUSTERED 
+(
+	[AppID] ASC,
+	[CompanyID] ASC,
+	[LocationID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+
+/****** Object:  Table [dbo].[SysWebMenu]    Script Date: 04-Nov-2026 9:02:14 AM ******/
+SET ANSI_NULLS ON
+GO
+
+SET QUOTED_IDENTIFIER ON
+GO
+
+CREATE TABLE [dbo].[SysWebMenu](
+	[MenuID] [varchar](50) NOT NULL,
+	[ParentMenuID] [varchar](50) NULL,
+	[Caption] [varchar](100) NOT NULL,
+	[Url] [varchar](500) NOT NULL,
+	[AppID] [varchar](500) NOT NULL,
+	[IsReport] [bit] NOT NULL,
+	[Counter] [numeric](18, 2) NOT NULL,
+	[Line] [bit] NOT NULL,
+	[ImageUrl] [varchar](5000) NOT NULL,
+	[Description] [varchar](500) NOT NULL,
+	[isActive] [bit] NOT NULL,
+ CONSTRAINT [PK_Menu] PRIMARY KEY CLUSTERED 
+(
+	[MenuID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+
+/****** Object:  Table [dbo].[SysWebUser]    Script Date: 04-Nov-2026 9:02:14 AM ******/
+SET ANSI_NULLS ON
+GO
+
+SET QUOTED_IDENTIFIER ON
+GO
+
+CREATE TABLE [dbo].[SysWebUser](
+	[UserID] [varchar](50) NOT NULL,
+	[UserName] [nvarchar](500) NOT NULL,
+	[UserGroupID] [varchar](50) NOT NULL,
+	[isAllowExportReport] [bit] NOT NULL,
+	[Password] [nvarchar](255) NOT NULL,
+	[UserInsert] [varchar](50) NOT NULL,
+	[InsertDate] [datetime] NOT NULL,
+	[UserUpdate] [varchar](50) NOT NULL,
+	[UpdateDate] [datetime] NOT NULL,
+	[IsActive] [bit] NOT NULL,
+	[employeeid] [varchar](50) NOT NULL,
+	[isApprovedHRD] [bit] NOT NULL,
+	[isApprovedUpd] [bit] NOT NULL,
+ CONSTRAINT [PK_SysWebUser] PRIMARY KEY CLUSTERED 
+(
+	[employeeid] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+
+/****** Object:  Table [dbo].[SysWebUserGroup]    Script Date: 04-Nov-2026 9:02:14 AM ******/
+SET ANSI_NULLS ON
+GO
+
+SET QUOTED_IDENTIFIER ON
+GO
+
+CREATE TABLE [dbo].[SysWebUserGroup](
+	[UserGroupID] [varchar](25) NOT NULL,
+	[UserGroupName] [varchar](100) NOT NULL,
+	[isActive] [bit] NOT NULL,
+ CONSTRAINT [PK_UserGroup] PRIMARY KEY CLUSTERED 
+(
+	[UserGroupID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+
+/****** Object:  Table [dbo].[SysWebUserGroupApp]    Script Date: 04-Nov-2026 9:02:14 AM ******/
+SET ANSI_NULLS ON
+GO
+
+SET QUOTED_IDENTIFIER ON
+GO
+
+CREATE TABLE [dbo].[SysWebUserGroupApp](
+	[UserGroupID] [varchar](25) NOT NULL,
+	[AppID] [varchar](100) NOT NULL,
+ CONSTRAINT [PK_SysWebUserGroupApp] PRIMARY KEY CLUSTERED 
+(
+	[UserGroupID] ASC,
+	[AppID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+
+/****** Object:  Table [dbo].[SysWebUserGroupMenu]    Script Date: 04-Nov-2026 9:02:14 AM ******/
+SET ANSI_NULLS ON
+GO
+
+SET QUOTED_IDENTIFIER ON
+GO
+
+CREATE TABLE [dbo].[SysWebUserGroupMenu](
+	[UserGroupID] [varchar](25) NOT NULL,
+	[MenuID] [varchar](50) NOT NULL,
+ CONSTRAINT [PK_UserGroupMenu] PRIMARY KEY CLUSTERED 
+(
+	[UserGroupID] ASC,
+	[MenuID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+
+ALTER TABLE [dbo].[SysWebApp] ADD  CONSTRAINT [DF_Table_1_Appid]  DEFAULT ('') FOR [AppID]
+GO
+
+ALTER TABLE [dbo].[SysWebApp] ADD  CONSTRAINT [DF_SysWebApp_Caption]  DEFAULT ('') FOR [Caption]
+GO
+
+ALTER TABLE [dbo].[SysWebApp] ADD  CONSTRAINT [DF_SysWebApp_Url]  DEFAULT ('') FOR [Url]
+GO
+
+ALTER TABLE [dbo].[SysWebApp] ADD  CONSTRAINT [DF_SysWebApp_ClassName]  DEFAULT ('') FOR [ClassName]
+GO
+
+ALTER TABLE [dbo].[SysWebApp] ADD  CONSTRAINT [DF_SysWebApp_IsAutoLogin]  DEFAULT ((0)) FOR [IsAutoLogin]
+GO
+
+ALTER TABLE [dbo].[SysWebApp] ADD  CONSTRAINT [DF_SysWebApp_OrderNo]  DEFAULT ((0)) FOR [OrderNo]
+GO
+
+ALTER TABLE [dbo].[SysWebApp] ADD  CONSTRAINT [DF_SysWebApp_IsActive]  DEFAULT ((1)) FOR [IsActive]
+GO
+
+ALTER TABLE [dbo].[SysWebMenu] ADD  CONSTRAINT [DF_Menu_ModuleID]  DEFAULT ('') FOR [AppID]
+GO
+
+ALTER TABLE [dbo].[SysWebMenu] ADD  CONSTRAINT [DF_SysWebMenu_IsReport]  DEFAULT ((0)) FOR [IsReport]
+GO
+
+ALTER TABLE [dbo].[SysWebMenu] ADD  CONSTRAINT [DF_Menu_Counter]  DEFAULT ((0)) FOR [Counter]
+GO
+
+ALTER TABLE [dbo].[SysWebMenu] ADD  CONSTRAINT [DF_Menu_Line]  DEFAULT ((0)) FOR [Line]
+GO
+
+ALTER TABLE [dbo].[SysWebUser] ADD  CONSTRAINT [DF_SysWebUser_isAllowExportReport]  DEFAULT ((1)) FOR [isAllowExportReport]
+GO
+
+ALTER TABLE [dbo].[SysWebUser] ADD  CONSTRAINT [DF__SysWebUse__emplo__4B66B477]  DEFAULT ('') FOR [employeeid]
+GO
+
+ALTER TABLE [dbo].[SysWebUser] ADD  CONSTRAINT [DF__SysWebUse__isApp__4C5AD8B0]  DEFAULT ((0)) FOR [isApprovedHRD]
+GO
+
+ALTER TABLE [dbo].[SysWebUser] ADD  CONSTRAINT [DF_SysWebUser_isApprovedHRD1]  DEFAULT ((0)) FOR [isApprovedUpd]
+GO
+
+ALTER TABLE [dbo].[SysWebUserGroupApp] ADD  CONSTRAINT [DF_SysWebUserGroupApp_AppID]  DEFAULT ('') FOR [AppID]
+GO
+
+ALTER TABLE [dbo].[SysWebUserGroupApp]  WITH CHECK ADD  CONSTRAINT [FK_SysWebUserGroupApp_SysWebApp] FOREIGN KEY([AppID])
+REFERENCES [dbo].[SysWebApp] ([AppID])
+GO
+
+ALTER TABLE [dbo].[SysWebUserGroupApp] CHECK CONSTRAINT [FK_SysWebUserGroupApp_SysWebApp]
+GO
+
+ALTER TABLE [dbo].[SysWebUserGroupApp]  WITH CHECK ADD  CONSTRAINT [FK_SysWebUserGroupApp_SysWebUserGroup] FOREIGN KEY([UserGroupID])
+REFERENCES [dbo].[SysWebUserGroup] ([UserGroupID])
+GO
+
+ALTER TABLE [dbo].[SysWebUserGroupApp] CHECK CONSTRAINT [FK_SysWebUserGroupApp_SysWebUserGroup]
+GO
+
+ALTER TABLE [dbo].[SysWebUserGroupMenu]  WITH NOCHECK ADD  CONSTRAINT [FK_UserGroupMenu_Menu] FOREIGN KEY([MenuID])
+REFERENCES [dbo].[SysWebMenu] ([MenuID])
+GO
+
+ALTER TABLE [dbo].[SysWebUserGroupMenu] CHECK CONSTRAINT [FK_UserGroupMenu_Menu]
+GO
+
+ALTER TABLE [dbo].[SysWebUserGroupMenu]  WITH CHECK ADD  CONSTRAINT [FK_UserGroupMenu_UserGroup] FOREIGN KEY([UserGroupID])
+REFERENCES [dbo].[SysWebUserGroup] ([UserGroupID])
+GO
+
+ALTER TABLE [dbo].[SysWebUserGroupMenu] CHECK CONSTRAINT [FK_UserGroupMenu_UserGroup]
+GO
+
