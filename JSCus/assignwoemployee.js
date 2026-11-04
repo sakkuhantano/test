@@ -1636,7 +1636,7 @@ async function saveAssignment(){
     };
     const login = getLoginData();
     const V_SearchContext = 
-    login.curcompany+";"+(searchContext.global ? "" : searchContext.section)+";"+
+    login.curcompany+";"+searchContext.section+";"+
     (searchContext.global ? 0 : searchContext.year)+";"+
     (searchContext.global ? 0 : searchContext.week)+";"+
     (searchContext.global ? "" : searchContext.status)+";"+
@@ -1700,7 +1700,7 @@ async function executeWOSearch(useCurrentContext = false) {
             Keyword: searchContext.keyword,
             Year: searchContext.global ? 0 : searchContext.year,
             Week: searchContext.global ? 0 : searchContext.week,
-            Section: searchContext.global ? "" : searchContext.section,
+            Section: searchContext.section,
             Status: searchContext.global ? "" : searchContext.status,
             Page: pageContext.page,
             PageSize: pageContext.pageSize
@@ -1787,7 +1787,7 @@ async function loadAssignedEmployeeSummary(){
         Keyword: searchContext.keyword,
         Year: searchContext.global ? 0 : searchContext.year,
         Week: searchContext.global ? 0 : searchContext.week,
-        Section: searchContext.global ? "" : searchContext.section,
+        Section: searchContext.section,
         Status: searchContext.global ? "" : searchContext.status,
         Page: pageContext.page,
         PageSize: pageContext.pageSize
