@@ -190,9 +190,9 @@ namespace UTL1.Secure
                     int jumlahComplete = 0, jumlahAssigned = 0;
                     if (dt.Rows.Count > 0)
                     {
-                        totalWO = Convert.ToInt16(dt.Rows[0]["JumlahWO"]);
-                        jumlahComplete = Convert.ToInt16(dt.Rows[0]["JumlahComplete"]);
-                        jumlahAssigned = Convert.ToInt16(dt.Rows[0]["JumlahAssigned"]);
+                        totalWO = Convert.ToInt32(dt.Rows[0]["JumlahWO"]);
+                        jumlahComplete = Convert.ToInt32(dt.Rows[0]["JumlahComplete"]);
+                        jumlahAssigned = Convert.ToInt32(dt.Rows[0]["JumlahAssigned"]);
                     }
 
                     foreach (DataRow r in dt.Rows)
