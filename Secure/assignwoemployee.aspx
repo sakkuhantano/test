@@ -1,9 +1,11 @@
-﻿<%@ Page Title="" Language="C#" MasterPageFile="~/MasterPages/Site1.Master" AutoEventWireup="true" CodeBehind="assignwoemployee.aspx.cs" Inherits="UTL1.Secure.assignwoemployee" %>
-<%@ MasterType VirtualPath="~/MasterPages/Site1.Master" %>
+﻿<%@ Page Title="" Language="C#" MasterPageFile="~/MasterPages/Site_BS_5.Master" AutoEventWireup="true" CodeBehind="assignwoemployee.aspx.cs" Inherits="UTL1.Secure.assignwoemployee" %>
+<%@ MasterType VirtualPath="~/MasterPages/Site_BS_5.Master" %>
 <asp:Content ID="Content1" ContentPlaceHolderID="head" runat="server">
 <link rel="Stylesheet" type="text/css" href="../CSSCus/assignwoemployee.css" />
 </asp:Content>
-<asp:Content ID="Content3" ContentPlaceHolderID="stickybar" runat="server">
+
+<asp:Content ID="Content2" ContentPlaceHolderID="ContentPlaceHolder1" runat="server">
+
 <div class="sticky-bar-wrapper w-100">
 <div class="d-flex align-items-center w-100 justify-content-between px-2">
     <div class="d-flex align-items-center gap-2 w-100 p-2 mt-2 shadow-sm overflow-hidden">
@@ -80,8 +82,8 @@
 <!-- END: Filter Section -->
 </div>
 </div>
-</asp:Content>
-<asp:Content ID="Content2" ContentPlaceHolderID="ContentPlaceHolder1" runat="server">
+
+
 <!-- BEGIN: Split Content Area -->
 
 <div class="row g-2 g-lg-2 align-items-stretch" id="woListPage">
@@ -342,5 +344,6 @@ Save Employee
 <!-- END: Mobile Action Bar -->
 <asp:ScriptManager ID="ScriptManager1" runat="server" EnablePageMethods="true" />
 
+<script type="text/javascript" src="../JSCus/GFC.js"></script>
 <script type="text/javascript" src="../JSCus/assignwoemployee.js"></script>
 </asp:Content>
