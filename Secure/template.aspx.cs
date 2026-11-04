@@ -1188,7 +1188,7 @@ LEFT JOIN dbo.PIP_M_InspectionType I
 WHERE T.IDTemplate=@IDTemplate
   AND (
        EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation CurrentPermission
-               WHERE CurrentPermission.AppID='INSPEC' AND CurrentPermission.UserID=@UpdateUser
+               WHERE CurrentPermission.AppID='INSPEC' AND CurrentPermission.UserID=@UserID
                  AND CurrentPermission.CompanyID=@CompanyID
                  AND CurrentPermission.LocationID=@LocationID)
        OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('INSPEC', @EmployeeID, '') LoginCompany
@@ -1371,7 +1371,7 @@ FROM dbo.PIP_M_CheckListWOPM T
 WHERE T.IDTemplate=@IDTemplate
   AND (
        EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation CurrentPermission
-               WHERE CurrentPermission.AppID='INSPEC' AND CurrentPermission.UserID=@UpdateUser
+               WHERE CurrentPermission.AppID='INSPEC' AND CurrentPermission.UserID=@UserID
                  AND CurrentPermission.CompanyID=@CurrentCompanyID
                  AND CurrentPermission.LocationID=@CurrentLocationID)
        OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('INSPEC', @EmployeeID, '') LoginCompany
@@ -1401,7 +1401,7 @@ IF NOT EXISTS
        AND (
            EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation perm
                    WHERE perm.CompanyID=swl.CompanyID AND perm.LocationID=swl.LocationID
-                     AND perm.UserID=@UpdateUser AND perm.AppID='INSPEC')
+                     AND perm.UserID=@UserID AND perm.AppID='INSPEC')
            OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('INSPEC', @EmployeeID, '') LoginCompany
                       WHERE LoginCompany.CompanyID=swl.CompanyID
                         AND LoginCompany.LocationID=swl.LocationID)
