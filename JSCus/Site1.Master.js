@@ -151,7 +151,31 @@ if (window.innerWidth >= 992) {
 }
 document.addEventListener(
     "DOMContentLoaded",
-    async function () {
+    async function () {        // Register confirmation handlers before asynchronous page initialization.
+        // This keeps the dialog responsive even if a startup task fails.
+        document.getElementById("btnConfirmYes")?.addEventListener("click", function () {
+            const resolve = confirmResolve;
+            if (!resolve) return;
+            hideConfirmation();
+            confirmResolve = null;
+            resolve(true);
+        });
+
+        document.getElementById("btnConfirmCancel")?.addEventListener("click", function () {
+            const resolve = confirmResolve;
+            if (!resolve) return;
+            hideConfirmation();
+            confirmResolve = null;
+            resolve(false);
+        });
+
+        document.getElementById("globalConfirmOverlay")?.addEventListener("click", function (e) {
+            if (e.target.id === "globalConfirmOverlay") {
+                document.getElementById("btnConfirmCancel")?.click();
+            }
+        });
+
+
         var page = window.location.pathname.toLowerCase();
         /* skip login page */
         if (page.indexOf("login.aspx") >= 0)
@@ -218,27 +242,6 @@ document.addEventListener(
         //        showSyncDetail();
         //    });
         //}
-        document.getElementById("btnConfirmYes")?.addEventListener("click", function () {
-            hideConfirmation();
-            if (confirmResolve) {
-                confirmResolve(true);
-                confirmResolve = null;
-            }
-        });
-
-        document.getElementById("btnConfirmCancel")?.addEventListener("click", function () {
-            hideConfirmation();
-            if (confirmResolve) {
-                confirmResolve(false);
-                confirmResolve = null;
-            }
-        });
-
-        document.getElementById("globalConfirmOverlay")?.addEventListener("click", function (e) {
-            if (e.target.id === "globalConfirmOverlay") {
-                document.getElementById("btnConfirmCancel").click();
-            }
-        });
         if (page.indexOf("dashboard.aspx") >= 0) {
             const login = getLoginData().role;
             const inspectionShortcut = document.getElementById("btnDashboardInspection");
