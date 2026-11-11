@@ -42,7 +42,11 @@ ON
 WHERE
     T.SectionID = @SectionID
 AND
-    V.Status = 'Active' AND T.CompanyID=@CompanyID AND T.LocationID=@LocationID
+    V.Status = 'Active'
+    AND (
+        ISNULL(T.CompanyScope, 'S') = 'A'
+        OR (';' + ISNULL(T.CompanyLocationList, '') + ';' LIKE '%;' + @CompanyID + @LocationID + ';%')
+    )
 ORDER BY T.TemplateNo
 ";
                 var rows = new List<Dictionary<string, object>>(); 
@@ -84,7 +88,11 @@ FROM PIP_M_CheckListWOPM T
 INNER JOIN PIP_M_CheckListWOPM_Version V
     ON T.IDTemplate = V.IDTemplate
 WHERE
-    T.TemplateNo=@TemplateNo AND T.CompanyID=@CompanyID AND T.LocationID=@LocationID
+    T.TemplateNo=@TemplateNo
+    AND (
+        ISNULL(T.CompanyScope, 'S') = 'A'
+        OR (';' + ISNULL(T.CompanyLocationList, '') + ';' LIKE '%;' + @CompanyID + @LocationID + ';%')
+    )
     AND
     (
         (@Version='' OR @Version IS NULL)
